@@ -127,6 +127,10 @@ ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Leitura pública de barbearias" ON public.barbershops
     FOR SELECT USING (true);
 
+-- Qualquer pessoa pode inserir uma barbearia (necessário para o fluxo de cadastro)
+CREATE POLICY "Inserção pública de barbearias" ON public.barbershops
+    FOR INSERT WITH CHECK (true);
+
 -- Apenas admins da respectiva barbearia podem atualizá-la
 CREATE POLICY "Admins podem atualizar barbearia" ON public.barbershops
     FOR UPDATE TO authenticated
