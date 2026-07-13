@@ -1,22 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
-import { Service, Profile, Barbershop } from '../../database/models';
+import { Service, Profile, Barbershop, Appointment } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
-
-interface DayItem {
-  id: string;
-  date: Date;
-  weekday: string;
-  dayNum: string;
-  monthName: string;
-  year: number;
-}
 
 export default function BookingScreen() {
   const { t, i18n } = useTranslation();
@@ -32,13 +23,14 @@ export default function BookingScreen() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
   
-  // Date & Time selection states
-  const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
+  // Calendário em Grade Mensal (Grid)
+  const [viewDate, setViewDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [currentMonthYearLabel, setCurrentMonthYearLabel] = useState<string>('');
   
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
 
   const displayAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -48,37 +40,103 @@ export default function BookingScreen() {
     }
   };
 
-  // Gerar os próximos 30 dias de forma robusta e dinâmica
-  const getNext30Days = (): DayItem[] => {
-    const days: DayItem[] = [];
-    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      
-      let weekday = d.toLocaleDateString(locale, { weekday: 'short' });
-      const dayNum = d.toLocaleDateString(locale, { day: '2-digit' });
-      const monthName = d.toLocaleDateString(locale, { month: 'long' });
-      const year = d.getFullYear();
-
-      days.push({
-        id: d.toISOString().split('T')[0],
-        date: d,
-        weekday: weekday.toUpperCase().replace('.', ''),
-        dayNum,
-        monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-        year,
-      });
+  useEffect(() => {
+    if (!selectedBarber || !selectedDate) {
+      setBookedSegments([]);
+      return;
     }
-    return days;
-  };
 
-  const next30Days = getNext30Days();
+    const fetchBookedSegments = async () => {
+      try {
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const list = await database.collections
+          .get<Appointment>('appointments')
+          .query(
+            Q.where('barber_id', selectedBarber),
+            Q.where('status', Q.notEq('cancelled')),
+            Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
+          )
+          .fetch();
+
+        const segments = [];
+        for (const apt of list) {
+          let duration = 30; // 30 minutos padrão
+          try {
+            const sv = await database.collections.get<Service>('services').find(apt.serviceId);
+            duration = sv.durationMinutes;
+          } catch (e) {
+            // mantém padrão
+          }
+          const startTime = new Date(apt.dateTime).getTime();
+          const endTime = startTime + duration * 60 * 1000;
+          segments.push({ start: startTime, end: endTime });
+        }
+
+        setBookedSegments(segments);
+      } catch (err) {
+        console.error('Erro ao buscar horários ocupados:', err);
+      }
+    };
+
+    fetchBookedSegments();
+  }, [selectedBarber, selectedDate]);
+
   const availableTimes = [
     '08:00', '09:00', '10:00', '11:00', 
     '13:00', '14:00', '15:00', '16:00', 
     '17:00', '18:00', '19:00', '20:00'
   ];
+
+  // Lógica de geração de dias do mês da grade
+  const generateMonthGrid = (year: number, month: number) => {
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Domingo, 1 = Segunda...
+    
+    const grid: (Date | null)[] = [];
+    
+    // Preencher dias vazios do mês anterior para alinhar
+    for (let i = 0; i < startDayOfWeek; i++) {
+      grid.push(null);
+    }
+    
+    // Preencher dias do mês atual
+    for (let day = 1; day <= daysInMonth; day++) {
+      grid.push(new Date(year, month, day));
+    }
+    
+    return grid;
+  };
+
+  const monthGrid = generateMonthGrid(viewDate.getFullYear(), viewDate.getMonth());
+
+  // Validar se uma data específica é selecionável (hoje até 30 dias no futuro)
+  const isDateSelectable = (date: Date | null) => {
+    if (!date) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 30);
+    maxDate.setHours(23, 59, 59, 999);
+    
+    return date >= today && date <= maxDate;
+  };
+
+  const handlePrevMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+  };
 
   useEffect(() => {
     if (!barbershopId) {
@@ -107,11 +165,8 @@ export default function BookingScreen() {
         setBarbers(bList);
 
         // Selecionar o dia de hoje por padrão
-        if (next30Days.length > 0) {
-          const firstDay = next30Days[0];
-          setSelectedDateId(firstDay.id);
-          setCurrentMonthYearLabel(`${firstDay.monthName} ${firstDay.year}`);
-        }
+        const today = new Date();
+        setSelectedDate(today);
 
       } catch (err) {
         console.error('Erro ao buscar dados locais para agendamento:', err);
@@ -123,10 +178,12 @@ export default function BookingScreen() {
     fetchInfo();
   }, [barbershopId]);
 
-  // Atualiza o label do mês correspondente ao dia que o usuário seleciona
-  const handleSelectDay = (day: DayItem) => {
-    setSelectedDateId(day.id);
-    setCurrentMonthYearLabel(`${day.monthName} ${day.year}`);
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(client)');
+    }
   };
 
   const handleConfirmBooking = async () => {
@@ -140,7 +197,7 @@ export default function BookingScreen() {
       return;
     }
 
-    if (!selectedDateId || !selectedTime) {
+    if (!selectedDate || !selectedTime) {
       displayAlert(t('common.attention'), 'Por favor, escolha a data e o horário.');
       return;
     }
@@ -152,10 +209,7 @@ export default function BookingScreen() {
 
     setBookingLoading(true);
     try {
-      const dateObj = next30Days.find(d => d.id === selectedDateId);
-      if (!dateObj) throw new Error('Data inválida');
-
-      const appointmentDate = new Date(dateObj.date);
+      const appointmentDate = new Date(selectedDate);
       const [hours, minutes] = selectedTime.split(':');
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
@@ -195,6 +249,15 @@ export default function BookingScreen() {
       currency: currencyCode,
     }).format(price);
   };
+
+  const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+  const monthYearLabel = viewDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  const formattedMonthYearLabel = monthYearLabel.charAt(0).toUpperCase() + monthYearLabel.slice(1);
+
+  // Iniciais dos dias da semana
+  const weekDays = i18n.language === 'en' 
+    ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] 
+    : ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
   if (loading) {
     return (
@@ -269,55 +332,106 @@ export default function BookingScreen() {
           )}
         </View>
 
-        {/* 3. Calendário de 30 Dias (Navegação por Mês) */}
+        {/* 3. Escolha de Dia (Grade Mensal / Grid) */}
         <View style={styles.section}>
           <View style={styles.calendarHeader}>
             <Text style={styles.sectionTitle}>Escolha o Dia</Text>
-            <Text style={[styles.monthLabel, { color: primaryColor }]}>{currentMonthYearLabel}</Text>
-          </View>
-          
-          <FlatList
-            data={next30Days}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.calendarList}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.dateCard,
-                  selectedDateId === item.id && [styles.cardActive, { borderColor: primaryColor }]
-                ]}
-                onPress={() => handleSelectDay(item)}
-              >
-                <Text style={styles.dateLabel}>{item.weekday}</Text>
-                <Text style={styles.dateDayStr}>{item.dayNum}</Text>
+            <View style={styles.monthSelector}>
+              <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavButton}>
+                <Text style={styles.monthNavText}>‹</Text>
               </TouchableOpacity>
-            )}
-          />
+              <Text style={[styles.monthLabel, { color: primaryColor }]}>{formattedMonthYearLabel}</Text>
+              <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavButton}>
+                <Text style={styles.monthNavText}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Grid do Calendário */}
+          <View style={styles.calendarGrid}>
+            {/* Dias da semana em formato compacto */}
+            <View style={styles.weekDaysRow}>
+              {weekDays.map((wd, index) => (
+                <Text key={index} style={styles.weekDayText}>{wd}</Text>
+              ))}
+            </View>
+
+            {/* Dias do mês */}
+            <View style={styles.daysRow}>
+              {monthGrid.map((date, index) => {
+                if (!date) {
+                  return <View key={`empty-${index}`} style={styles.dayCellEmpty} />;
+                }
+
+                const selectable = isDateSelectable(date);
+                const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+
+                return (
+                  <TouchableOpacity
+                    key={date.toISOString()}
+                    style={[
+                      styles.dayCell,
+                      isSelected && [styles.dayCellActive, { backgroundColor: primaryColor }],
+                      !selectable && styles.dayCellDisabled
+                    ]}
+                    onPress={() => selectable && setSelectedDate(date)}
+                    disabled={!selectable}
+                  >
+                    <Text style={[
+                      styles.dayCellText,
+                      isSelected && styles.dayCellTextActive,
+                      !selectable && styles.dayCellTextDisabled
+                    ]}>
+                      {date.getDate()}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         {/* 4. Escolha do Horário */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Escolha o Horário</Text>
           <View style={styles.timeGrid}>
-            {availableTimes.map((time) => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeCard,
-                  selectedTime === time && [styles.timeCardActive, { backgroundColor: primaryColor }]
-                ]}
-                onPress={() => setSelectedTime(time)}
-              >
-                <Text style={[
-                  styles.timeText,
-                  selectedTime === time && { color: '#121212' }
-                ]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {availableTimes.map((time) => {
+              const currentService = services.find(s => s.id === selectedService);
+              const durationMinutes = currentService ? currentService.durationMinutes : 30;
+
+              const slotDate = new Date(selectedDate || new Date());
+              const [hours, minutes] = time.split(':');
+              slotDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+              
+              const slotStart = slotDate.getTime();
+              const slotEnd = slotStart + durationMinutes * 60 * 1000;
+
+              const isBooked = bookedSegments.some(
+                (seg) => slotStart < seg.end && slotEnd > seg.start
+              );
+              const isSelected = selectedTime === time;
+
+              return (
+                <TouchableOpacity
+                  key={time}
+                  style={[
+                    styles.timeCard,
+                    isSelected && [styles.timeCardActive, { backgroundColor: primaryColor }],
+                    isBooked && styles.timeCardDisabled
+                  ]}
+                  onPress={() => !isBooked && setSelectedTime(time)}
+                  disabled={isBooked}
+                >
+                  <Text style={[
+                    styles.timeText,
+                    isSelected && { color: '#121212' },
+                    isBooked && styles.timeTextDisabled
+                  ]}>
+                    {time}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -334,7 +448,7 @@ export default function BookingScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
@@ -355,7 +469,7 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     width: '100%',
-    maxWidth: 600, // Limita a largura na Web para manter o design focado e premium
+    maxWidth: 600,
     backgroundColor: '#1c1c1e',
     borderRadius: 16,
     padding: 24,
@@ -397,12 +511,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2c2c2e',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#3a3a3c',
   },
   monthLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     fontFamily: 'Inter_600SemiBold',
+    paddingHorizontal: 12,
+  },
+  monthNavButton: {
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthNavText: {
+    color: '#fff',
+    fontSize: 22,
+    lineHeight: 22,
+    fontWeight: 'bold',
   },
   emptyText: {
     color: '#666',
@@ -419,32 +555,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  calendarList: {
-    paddingVertical: 4,
-  },
-  dateCard: {
+  calendarGrid: {
     backgroundColor: '#2c2c2e',
-    borderRadius: 10,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1.5,
     borderColor: '#3a3a3c',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginRight: 8,
-    minWidth: 62,
+    marginTop: 8,
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3a3a3c',
+    paddingBottom: 8,
+  },
+  weekDayText: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    fontWeight: 'bold',
+    width: '13.5%',
+    textAlign: 'center',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  daysRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 8,
+  },
+  dayCell: {
+    width: '13.5%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  dateLabel: {
-    color: '#a0a0a0',
-    fontSize: 10,
+  dayCellEmpty: {
+    width: '13.5%',
+    aspectRatio: 1,
+  },
+  dayCellDisabled: {
+    backgroundColor: 'transparent',
+  },
+  dayCellActive: {
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  dayCellText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
     fontFamily: 'Inter_600SemiBold',
   },
-  dateDayStr: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 4,
-    fontFamily: 'Montserrat_700Bold',
+  dayCellTextActive: {
+    color: '#121212',
+  },
+  dayCellTextDisabled: {
+    color: '#4a4a4c',
+    fontWeight: 'normal',
   },
   timeGrid: {
     flexDirection: 'row',
@@ -458,7 +631,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#3a3a3c',
     paddingVertical: 10,
-    width: '23%', // 4 colunas alinhadas por linha
+    width: '23%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -470,6 +643,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     fontFamily: 'Inter_600SemiBold',
+  },
+  timeCardDisabled: {
+    opacity: 0.3,
+    borderColor: '#2c2c2e',
+    backgroundColor: '#1c1c1e',
+  },
+  timeTextDisabled: {
+    color: '#4a4a4c',
+    textDecorationLine: 'line-through',
   },
   cardActive: {
     borderWidth: 2.5,
@@ -502,7 +684,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 24,
     marginBottom: 12,
   },
   confirmButtonText: {

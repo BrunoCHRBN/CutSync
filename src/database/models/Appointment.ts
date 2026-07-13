@@ -11,7 +11,8 @@ export default class Appointment extends Model {
   } as const;
 
   @text('barbershop_id') barbershopId!: string;
-  @text('client_id') clientId!: string;
+  @text('client_id') clientId?: string;
+  @text('client_name') clientName?: string;
   @text('barber_id') barberId!: string;
   @text('service_id') serviceId!: string;
   @date('date_time') dateTime!: Date;

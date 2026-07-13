@@ -43,14 +43,13 @@ BEGIN
     WHERE id = user_id;
 
     -- Converter last_pulled_at (timestamp Unix em milissegundos) para timestamptz
-    -- Se for 0 ou nulo, considera uma data muito antiga para trazer tudo
     IF last_pulled_at IS NULL OR last_pulled_at = 0 THEN
         last_pulled_timestamp := to_timestamp(0);
     ELSE
         last_pulled_timestamp := to_timestamp(last_pulled_at / 1000.0);
     END IF;
 
-    -- Capturar o timestamp atual do servidor em milissegundos (para retornar ao cliente usar no próximo sync)
+    -- Capturar o timestamp atual do servidor em milissegundos
     current_server_timestamp := extract(epoch from now()) * 1000;
 
     -- ----------------------------------------------------
@@ -59,7 +58,7 @@ BEGIN
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         -- Para barbeiros/admins, traz apenas a sua própria barbearia
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -67,7 +66,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -76,7 +75,7 @@ BEGIN
     ELSE
         -- Para clientes, traz as barbearias disponíveis no sistema
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -84,7 +83,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -98,7 +97,7 @@ BEGIN
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         -- Traz todos os perfis da barbearia
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -106,7 +105,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -120,7 +119,7 @@ BEGIN
     ELSE
         -- Clientes trazem apenas seu próprio perfil e perfis dos barbeiros
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -128,7 +127,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -186,7 +185,7 @@ BEGIN
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         -- Traz agendamentos da barbearia inteira
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_created FROM (
-            SELECT id, barbershop_id, client_id, barber_id, service_id, status,
+            SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
                    extract(epoch from date_time)*1000 as date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
@@ -195,7 +194,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_updated FROM (
-            SELECT id, barbershop_id, client_id, barber_id, service_id, status,
+            SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
                    extract(epoch from date_time)*1000 as date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
@@ -210,7 +209,7 @@ BEGIN
     ELSE
         -- Clientes trazem apenas os SEUS agendamentos
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_created FROM (
-            SELECT id, barbershop_id, client_id, barber_id, service_id, status,
+            SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
                    extract(epoch from date_time)*1000 as date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
@@ -219,7 +218,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_updated FROM (
-            SELECT id, barbershop_id, client_id, barber_id, service_id, status,
+            SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
                    extract(epoch from date_time)*1000 as date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
@@ -272,13 +271,37 @@ BEGIN
     WHERE id = user_id;
 
     -- ----------------------------------------------------
+    -- PROCESSAR TABELA: BARBERSHOPS
+    -- ----------------------------------------------------
+    IF changes->'barbershops' IS NOT NULL THEN
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'barbershops'->'updated') AS x(id uuid, name text, logo_url text, primary_color text, timezone text, currency text, description text, address text, phone text, opening_hours text, share_agendas boolean, updated_at bigint) LOOP
+            -- Validação: Apenas admin da própria barbearia pode atualizar
+            IF user_role != 'admin' OR user_barbershop_id != item.id THEN
+                RAISE EXCEPTION 'Sem permissão para atualizar dados desta barbearia';
+            END IF;
+
+            UPDATE public.barbershops 
+            SET name = COALESCE(item.name, name),
+                logo_url = COALESCE(item.logo_url, logo_url),
+                primary_color = COALESCE(item.primary_color, primary_color),
+                timezone = COALESCE(item.timezone, timezone),
+                currency = COALESCE(item.currency, currency),
+                description = COALESCE(item.description, description),
+                address = COALESCE(item.address, address),
+                phone = COALESCE(item.phone, phone),
+                opening_hours = COALESCE(item.opening_hours, opening_hours),
+                share_agendas = COALESCE(item.share_agendas, share_agendas),
+                updated_at = to_timestamp(item.updated_at/1000.0)
+            WHERE id = item.id;
+        END LOOP;
+    END IF;
+
+    -- ----------------------------------------------------
     -- PROCESSAR TABELA: SERVICES
     -- ----------------------------------------------------
-    -- Insert / Update
     IF changes->'services' IS NOT NULL THEN
         -- Criados
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'created') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, created_at bigint, updated_at bigint) LOOP
-            -- Validar multi-tenant (apenas admins/barbeiros criam serviços para sua própria barbearia)
             IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
                 RAISE EXCEPTION 'Sem permissão para criar serviço nesta barbearia';
             END IF;
@@ -300,12 +323,12 @@ BEGIN
             WHERE id = item.id;
         END LOOP;
 
-        -- Deletados (Soft Delete)
+        -- Deletados
         FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'services'->'deleted') AS id LOOP
             UPDATE public.services 
             SET deleted_at = now(), updated_at = now()
             WHERE id = deleted_id 
-            AND (user_role IN ('admin', 'barber') AND barbershop_id = user_barbershop_id);
+            AND (user_role = 'admin' AND barbershop_id = user_barbershop_id);
         END LOOP;
     END IF;
 
@@ -314,52 +337,62 @@ BEGIN
     -- ----------------------------------------------------
     IF changes->'appointments' IS NOT NULL THEN
         -- Criados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
-            -- Validação de tenant
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
+            -- Permissão: Clientes criam para si mesmos; Barbeiros/Admins criam para qualquer um na barbearia
             IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
                 RAISE EXCEPTION 'Sem permissão para criar este agendamento';
             END IF;
 
-            INSERT INTO public.appointments (id, barbershop_id, client_id, barber_id, service_id, date_time, status, created_at, updated_at)
-            VALUES (item.id, item.barbershop_id, item.client_id, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
+            INSERT INTO public.appointments (id, barbershop_id, client_id, client_name, barber_id, service_id, date_time, status, created_at, updated_at)
+            VALUES (item.id, item.barbershop_id, item.client_id, item.client_name, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
             ON CONFLICT (id) DO UPDATE 
-            SET status = item.status, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0);
+            SET status = item.status, client_name = item.client_name, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0);
         END LOOP;
 
         -- Atualizados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
-            -- Validação
-            IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
+            -- Permissão UPDATE: Clientes alteram os seus; Barbeiros alteram apenas os DELES; Admins alteram qualquer um
+            IF (user_role = 'client' AND user_id != item.client_id) OR 
+               (user_role = 'barber' AND (user_barbershop_id != item.barbershop_id OR user_id != item.barber_id)) OR
+               (user_role = 'admin' AND user_barbershop_id != item.barbershop_id) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este agendamento';
             END IF;
 
             UPDATE public.appointments 
-            SET status = item.status, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0)
+            SET status = item.status, client_name = item.client_name, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;
 
-        -- Deletados (Soft Delete)
+        -- Deletados
         FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'appointments'->'deleted') AS id LOOP
             UPDATE public.appointments 
             SET deleted_at = now(), updated_at = now()
             WHERE id = deleted_id 
-            AND (client_id = user_id OR (user_role IN ('admin', 'barber') AND barbershop_id = user_barbershop_id));
+            AND (
+                client_id = user_id OR 
+                (user_role = 'barber' AND barber_id = user_id) OR
+                (user_role = 'admin' AND barbershop_id = user_barbershop_id)
+            );
         END LOOP;
     END IF;
 
     -- ----------------------------------------------------
     -- PROCESSAR TABELA: PROFILES
     -- ----------------------------------------------------
-    -- Apenas updates (criação é feita automática pelo trigger do Auth)
     IF changes->'profiles' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, name text, phone text, avatar_url text, updated_at bigint) LOOP
-            -- Um usuário só atualiza seu próprio perfil
-            IF user_id != item.id THEN
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, barbershop_id uuid, name text, phone text, avatar_url text, commission_rate numeric, updated_at bigint) LOOP
+            -- Permissão: O próprio usuário pode atualizar seu perfil OU o admin da mesma barbearia
+            IF user_id != item.id AND NOT (user_role = 'admin' AND user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
             END IF;
 
             UPDATE public.profiles 
-            SET name = item.name, phone = item.phone, avatar_url = item.avatar_url, updated_at = to_timestamp(item.updated_at/1000.0)
+            SET name = COALESCE(item.name, name), 
+                phone = COALESCE(item.phone, phone), 
+                avatar_url = COALESCE(item.avatar_url, avatar_url),
+                barbershop_id = item.barbershop_id,
+                commission_rate = COALESCE(item.commission_rate, commission_rate),
+                updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;
     END IF;

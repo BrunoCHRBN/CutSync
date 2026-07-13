@@ -1,5 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
-import { text, date, children } from '@nozbe/watermelondb/decorators';
+import { text, date, children, field } from '@nozbe/watermelondb/decorators';
 
 export default class Barbershop extends Model {
   static table = 'barbershops';
@@ -16,6 +16,11 @@ export default class Barbershop extends Model {
   @text('primary_color') primaryColor!: string;
   @text('timezone') timezone!: string;
   @text('currency') currency!: string;
+  @text('description') description?: string;
+  @text('address') address?: string;
+  @text('phone') phone?: string;
+  @text('opening_hours') openingHours?: string;
+  @field('share_agendas') shareAgendas?: boolean;
   
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

@@ -29,10 +29,15 @@ function RootLayoutNavigation() {
       // Se estiver logado e perfil carregado, direciona para o respectivo fluxo
       const inAdminGroup = segments[0] === '(admin)';
       const inClientGroup = segments[0] === '(client)';
+      const inBarberGroup = segments[0] === '(barber)';
 
-      if (profile.role === 'admin' || profile.role === 'barber') {
+      if (profile.role === 'admin') {
         if (!inAdminGroup) {
           router.replace('/(admin)');
+        }
+      } else if (profile.role === 'barber') {
+        if (!inBarberGroup) {
+          router.replace('/(barber)');
         }
       } else {
         if (!inClientGroup) {

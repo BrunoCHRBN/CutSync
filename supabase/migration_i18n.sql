@@ -93,27 +93,27 @@ BEGIN
     -- ----------------------------------------------------
     IF changes->'appointments' IS NOT NULL THEN
         -- Criados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
             -- Validação de tenant
             IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
                 RAISE EXCEPTION 'Sem permissão para criar este agendamento';
             END IF;
 
-            INSERT INTO public.appointments (id, barbershop_id, client_id, barber_id, service_id, date_time, status, created_at, updated_at)
-            VALUES (item.id, item.barbershop_id, item.client_id, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
+            INSERT INTO public.appointments (id, barbershop_id, client_id, client_name, barber_id, service_id, date_time, status, created_at, updated_at)
+            VALUES (item.id, item.barbershop_id, item.client_id, item.client_name, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
             ON CONFLICT (id) DO UPDATE 
-            SET status = item.status, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0);
+            SET status = item.status, client_name = item.client_name, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0);
         END LOOP;
 
         -- Atualizados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
             -- Validação
             IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este agendamento';
             END IF;
 
             UPDATE public.appointments 
-            SET status = item.status, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0)
+            SET status = item.status, client_name = item.client_name, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;
 
@@ -129,19 +129,31 @@ BEGIN
     -- ----------------------------------------------------
     -- PROCESSAR TABELA: PROFILES
     -- ----------------------------------------------------
-    -- Apenas updates (criação é feita automática pelo trigger do Auth)
     IF changes->'profiles' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, name text, phone text, avatar_url text, updated_at bigint) LOOP
-            -- Um usuário só atualiza seu próprio perfil
-            IF user_id != item.id THEN
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, barbershop_id uuid, name text, phone text, avatar_url text, commission_rate numeric, updated_at bigint) LOOP
+            -- Permissão: O próprio usuário pode atualizar seu perfil OU o admin da mesma barbearia
+            IF user_id != item.id AND NOT (user_role = 'admin' AND user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
             END IF;
 
             UPDATE public.profiles 
-            SET name = item.name, phone = item.phone, avatar_url = item.avatar_url, updated_at = to_timestamp(item.updated_at/1000.0)
+            SET name = COALESCE(item.name, name), 
+                phone = COALESCE(item.phone, phone), 
+                avatar_url = COALESCE(item.avatar_url, avatar_url),
+                barbershop_id = item.barbershop_id,
+                commission_rate = COALESCE(item.commission_rate, commission_rate),
+                updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Adição de colunas de informações na tabela barbershops
+ALTER TABLE public.barbershops 
+ADD COLUMN IF NOT EXISTS description TEXT,
+ADD COLUMN IF NOT EXISTS address TEXT,
+ADD COLUMN IF NOT EXISTS phone TEXT,
+ADD COLUMN IF NOT EXISTS opening_hours TEXT,
+ADD COLUMN IF NOT EXISTS share_agendas BOOLEAN DEFAULT TRUE;
 

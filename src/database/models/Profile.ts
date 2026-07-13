@@ -1,5 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
-import { text, date, relation } from '@nozbe/watermelondb/decorators';
+import { text, date, relation, field } from '@nozbe/watermelondb/decorators';
 
 export default class Profile extends Model {
   static table = 'profiles';
@@ -15,6 +15,7 @@ export default class Profile extends Model {
   @text('email') email!: string;
   @text('phone') phone?: string;
   @text('avatar_url') avatarUrl?: string;
+  @field('commission_rate') commissionRate?: number;
 
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

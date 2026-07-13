@@ -48,21 +48,23 @@ export default function ClientDashboard() {
   const formatDate = (date: Date, timezone: string = 'America/Sao_Paulo') => {
     const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
     try {
-      return new Intl.DateTimeFormat(locale, {
+      const formatted = new Intl.DateTimeFormat(locale, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
         timeZone: timezone,
-      }).format(date) + 'h';
+      }).format(date);
+      return i18n.language === 'en' ? formatted : `${formatted}h`;
     } catch (e) {
-      return date.toLocaleDateString(locale, {
+      const formatted = date.toLocaleDateString(locale, {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-      }) + 'h';
+      });
+      return i18n.language === 'en' ? formatted : `${formatted}h`;
     }
   };
 
@@ -147,7 +149,7 @@ export default function ClientDashboard() {
             renderItem={({ item }) => (
               <TouchableOpacity 
                 style={[styles.barbershopCard, { borderLeftColor: item.primaryColor || '#D4AF37' }]}
-                onPress={() => router.push({ pathname: '/(client)/booking', params: { barbershopId: item.id } })}
+                onPress={() => router.push({ pathname: '/(client)/barbershop', params: { barbershopId: item.id } })}
               >
                 <View style={styles.barbershopInfo}>
                   <Text style={styles.barbershopName}>{item.name}</Text>
@@ -155,9 +157,9 @@ export default function ClientDashboard() {
                 </View>
                 <TouchableOpacity 
                   style={[styles.bookButton, { backgroundColor: item.primaryColor || '#D4AF37' }]}
-                  onPress={() => router.push({ pathname: '/(client)/booking', params: { barbershopId: item.id } })}
+                  onPress={() => router.push({ pathname: '/(client)/barbershop', params: { barbershopId: item.id } })}
                 >
-                  <Text style={styles.bookButtonText}>{t('client.book_button')}</Text>
+                  <Text style={styles.bookButtonText}>Ver</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             )}

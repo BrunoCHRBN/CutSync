@@ -50,6 +50,14 @@ export default function ServicesScreen() {
     };
   }, [profile]);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(admin)');
+    }
+  };
+
   const handleAddService = async () => {
     if (!name || !price || !duration) {
       Alert.alert(t('common.error'), t('register.error_fill'));
@@ -202,7 +210,7 @@ export default function ServicesScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backButton} onPress={handleBack}>
         <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
     </View>

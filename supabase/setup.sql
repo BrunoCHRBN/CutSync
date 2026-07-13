@@ -17,6 +17,11 @@ CREATE TABLE public.barbershops (
     primary_color TEXT DEFAULT '#D4AF37',
     timezone TEXT DEFAULT 'America/Sao_Paulo' NOT NULL,
     currency TEXT DEFAULT 'BRL' NOT NULL,
+    description TEXT,
+    address TEXT,
+    phone TEXT,
+    opening_hours TEXT,
+    share_agendas BOOLEAN DEFAULT true NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -31,6 +36,7 @@ CREATE TABLE public.profiles (
     email TEXT NOT NULL UNIQUE,
     phone TEXT,
     avatar_url TEXT,
+    commission_rate NUMERIC DEFAULT 0.50 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     deleted_at TIMESTAMP WITH TIME ZONE
@@ -53,7 +59,8 @@ CREATE TABLE public.services (
 CREATE TABLE public.appointments (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     barbershop_id UUID REFERENCES public.barbershops(id) ON DELETE CASCADE NOT NULL,
-    client_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    client_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    client_name TEXT,
     barber_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     service_id TEXT REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
     date_time TIMESTAMP WITH TIME ZONE NOT NULL,
