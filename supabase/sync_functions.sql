@@ -259,7 +259,7 @@ DECLARE
     user_barbershop_id uuid;
     
     -- Chaves das tabelas nas alterações
-    item jsonb;
+    item RECORD;
     deleted_id text;
 BEGIN
     user_id := auth.uid();

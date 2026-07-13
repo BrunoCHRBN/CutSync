@@ -29,3 +29,119 @@ ALTER TABLE public.appointments
 ADD CONSTRAINT appointments_service_id_fkey 
 FOREIGN KEY (service_id) REFERENCES public.services(id) ON DELETE CASCADE;
 
+-- Atualização da RPC push_changes para corrigir a tipagem dos deleted loops
+CREATE OR REPLACE FUNCTION public.push_changes(changes jsonb)
+RETURNS void AS $$
+DECLARE
+    user_id uuid;
+    user_role text;
+    user_barbershop_id uuid;
+    
+    -- Chaves das tabelas nas alterações
+    item RECORD;
+    deleted_id text;
+BEGIN
+    user_id := auth.uid();
+    IF user_id IS NULL THEN
+        RAISE EXCEPTION 'Não autorizado';
+    END IF;
+
+    SELECT role, barbershop_id INTO user_role, user_barbershop_id 
+    FROM public.profiles 
+    WHERE id = user_id;
+
+    -- ----------------------------------------------------
+    -- PROCESSAR TABELA: SERVICES
+    -- ----------------------------------------------------
+    -- Insert / Update
+    IF changes->'services' IS NOT NULL THEN
+        -- Criados
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'created') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, created_at bigint, updated_at bigint) LOOP
+            -- Validar multi-tenant (apenas admins/barbeiros criam serviços para sua própria barbearia)
+            IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
+                RAISE EXCEPTION 'Sem permissão para criar serviço nesta barbearia';
+            END IF;
+            
+            INSERT INTO public.services (id, barbershop_id, name, price, duration_minutes, is_active, created_at, updated_at)
+            VALUES (item.id, item.barbershop_id, item.name, item.price, item.duration_minutes, COALESCE(item.is_active, true), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
+            ON CONFLICT (id) DO UPDATE 
+            SET name = item.name, price = item.price, duration_minutes = item.duration_minutes, is_active = item.is_active, updated_at = to_timestamp(item.updated_at/1000.0);
+        END LOOP;
+
+        -- Atualizados
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'updated') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, updated_at bigint) LOOP
+            IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
+                RAISE EXCEPTION 'Sem permissão para atualizar serviço nesta barbearia';
+            END IF;
+
+            UPDATE public.services 
+            SET name = item.name, price = item.price, duration_minutes = item.duration_minutes, is_active = item.is_active, updated_at = to_timestamp(item.updated_at/1000.0)
+            WHERE id = item.id;
+        END LOOP;
+
+        -- Deletados (Soft Delete)
+        FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'services'->'deleted') AS id LOOP
+            UPDATE public.services 
+            SET deleted_at = now(), updated_at = now()
+            WHERE id = deleted_id 
+            AND (user_role IN ('admin', 'barber') AND barbershop_id = user_barbershop_id);
+        END LOOP;
+    END IF;
+
+    -- ----------------------------------------------------
+    -- PROCESSAR TABELA: APPOINTMENTS
+    -- ----------------------------------------------------
+    IF changes->'appointments' IS NOT NULL THEN
+        -- Criados
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
+            -- Validação de tenant
+            IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
+                RAISE EXCEPTION 'Sem permissão para criar este agendamento';
+            END IF;
+
+            INSERT INTO public.appointments (id, barbershop_id, client_id, barber_id, service_id, date_time, status, created_at, updated_at)
+            VALUES (item.id, item.barbershop_id, item.client_id, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
+            ON CONFLICT (id) DO UPDATE 
+            SET status = item.status, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0);
+        END LOOP;
+
+        -- Atualizados
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
+            -- Validação
+            IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
+                RAISE EXCEPTION 'Sem permissão para atualizar este agendamento';
+            END IF;
+
+            UPDATE public.appointments 
+            SET status = item.status, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0)
+            WHERE id = item.id;
+        END LOOP;
+
+        -- Deletados (Soft Delete)
+        FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'appointments'->'deleted') AS id LOOP
+            UPDATE public.appointments 
+            SET deleted_at = now(), updated_at = now()
+            WHERE id = deleted_id 
+            AND (client_id = user_id OR (user_role IN ('admin', 'barber') AND barbershop_id = user_barbershop_id));
+        END LOOP;
+    END IF;
+
+    -- ----------------------------------------------------
+    -- PROCESSAR TABELA: PROFILES
+    -- ----------------------------------------------------
+    -- Apenas updates (criação é feita automática pelo trigger do Auth)
+    IF changes->'profiles' IS NOT NULL THEN
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, name text, phone text, avatar_url text, updated_at bigint) LOOP
+            -- Um usuário só atualiza seu próprio perfil
+            IF user_id != item.id THEN
+                RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
+            END IF;
+
+            UPDATE public.profiles 
+            SET name = item.name, phone = item.phone, avatar_url = item.avatar_url, updated_at = to_timestamp(item.updated_at/1000.0)
+            WHERE id = item.id;
+        END LOOP;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
