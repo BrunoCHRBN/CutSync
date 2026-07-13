@@ -17,7 +17,7 @@ if (Platform.OS === 'web') {
 } else {
   adapter = new SQLiteAdapter({
     schema,
-    dbName: 'CTRLShotDB',
+    dbName: 'CutSyncDB',
   });
 }
 

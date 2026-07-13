@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CTRLShot",
-    "slug": "CTRLShot",
+    "name": "CutSync",
+    "slug": "cutsync",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ctrlshot",
+    "scheme": "cutsync",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

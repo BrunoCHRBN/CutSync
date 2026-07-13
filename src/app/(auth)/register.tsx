@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
 
 export default function RegisterScreen() {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -13,14 +15,14 @@ export default function RegisterScreen() {
   // Dados extras para Barbearia/Admin
   const [barbershopName, setBarbershopName] = useState('');
   const [barbershopSlug, setBarbershopSlug] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#D4AF37'); // Cor dourada padrão
+  const [primaryColor, setPrimaryColor] = useState('#D4AF37');
   
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleRegister = async () => {
     if (!name || !email || !password || (role === 'admin' && (!barbershopName || !barbershopSlug))) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
+      Alert.alert(t('common.error'), t('register.error_fill'));
       return;
     }
 
@@ -28,7 +30,7 @@ export default function RegisterScreen() {
     try {
       let barbershopId = null;
 
-      // 1. Se for Admin, cria a barbearia primeiro
+      // 1. Se for Admin, cria a barbearia primeiro (padrão Brasil/EUA com default timezone/currency)
       if (role === 'admin') {
         const { data: bData, error: bError } = await supabase
           .from('barbershops')
@@ -36,6 +38,8 @@ export default function RegisterScreen() {
             name: barbershopName,
             slug: barbershopSlug.toLowerCase().replace(/[^a-z0-9-_]/g, ''),
             primary_color: primaryColor,
+            timezone: 'America/Sao_Paulo', // Fuso padrão inicial
+            currency: 'BRL', // Moeda padrão inicial
           })
           .select('id')
           .single();
@@ -64,10 +68,10 @@ export default function RegisterScreen() {
         throw signUpError;
       }
 
-      Alert.alert('Sucesso', 'Cadastro realizado com sucesso! Faça login para entrar.');
+      Alert.alert(t('common.success'), 'Cadastro realizado com sucesso! Faça login.');
       router.replace('/(auth)/login');
     } catch (error: any) {
-      Alert.alert('Erro no Cadastro', error.message || 'Ocorreu um erro.');
+      Alert.alert(t('common.error'), error.message || 'Ocorreu um erro.');
     } finally {
       setLoading(false);
     }
@@ -80,12 +84,12 @@ export default function RegisterScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.brandName}>CTRLShot</Text>
-          <Text style={styles.tagline}>Crie sua conta agora</Text>
+          <Text style={styles.brandName}>CutSync</Text>
+          <Text style={styles.tagline}>{t('register.title')}</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.title}>Cadastre-se</Text>
+          <Text style={styles.title}>{t('register.title')}</Text>
 
           {/* Seleção do tipo de perfil */}
           <View style={styles.roleContainer}>
@@ -93,21 +97,25 @@ export default function RegisterScreen() {
               style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
               onPress={() => setRole('client')}
             >
-              <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>Sou Cliente</Text>
+              <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
+                {t('register.client_tab')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.roleButton, role === 'admin' && styles.roleButtonActive]}
               onPress={() => setRole('admin')}
             >
-              <Text style={[styles.roleButtonText, role === 'admin' && styles.roleButtonTextActive]}>Tenho Barbearia</Text>
+              <Text style={[styles.roleButtonText, role === 'admin' && styles.roleButtonTextActive]}>
+                {t('register.barber_tab')}
+              </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nome Completo *</Text>
+            <Text style={styles.label}>{t('register.name_label')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Digite seu nome"
+              placeholder="Ex: John Doe"
               placeholderTextColor="#666"
               value={name}
               onChangeText={setName}
@@ -115,10 +123,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-mail *</Text>
+            <Text style={styles.label}>{t('register.email_label')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Digite seu e-mail"
+              placeholder="john@example.com"
               placeholderTextColor="#666"
               value={email}
               onChangeText={setEmail}
@@ -128,10 +136,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Telefone</Text>
+            <Text style={styles.label}>{t('register.phone_label')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: (11) 99999-9999"
+              placeholder="+55 (11) 99999-9999"
               placeholderTextColor="#666"
               value={phone}
               onChangeText={setPhone}
@@ -140,10 +148,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Senha *</Text>
+            <Text style={styles.label}>{t('register.password_label')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Crie uma senha forte"
+              placeholder="******"
               placeholderTextColor="#666"
               secureTextEntry
               value={password}
@@ -155,13 +163,13 @@ export default function RegisterScreen() {
           {/* Seção Extra para Barbearias */}
           {role === 'admin' && (
             <View style={styles.extraSection}>
-              <Text style={styles.sectionTitle}>Dados da Barbearia</Text>
+              <Text style={styles.sectionTitle}>{t('register.barber_section')}</Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Nome da Barbearia *</Text>
+                <Text style={styles.label}>{t('register.barber_name')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Nome comercial"
+                  placeholder="Premium Barber"
                   placeholderTextColor="#666"
                   value={barbershopName}
                   onChangeText={setBarbershopName}
@@ -169,10 +177,10 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Link/Slug da Barbearia *</Text>
+                <Text style={styles.label}>{t('register.barber_slug')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: barbearia-imperial (letras/números)"
+                  placeholder="premium-barber"
                   placeholderTextColor="#666"
                   value={barbershopSlug}
                   onChangeText={setBarbershopSlug}
@@ -181,10 +189,10 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Cor Primária Destaque (Hex) *</Text>
+                <Text style={styles.label}>{t('register.barber_color')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ex: #D4AF37 (dourado)"
+                  placeholder="#D4AF37"
                   placeholderTextColor="#666"
                   value={primaryColor}
                   onChangeText={setPrimaryColor}
@@ -198,7 +206,7 @@ export default function RegisterScreen() {
             {loading ? (
               <ActivityIndicator color="#121212" />
             ) : (
-              <Text style={styles.registerButtonText}>Cadastrar</Text>
+              <Text style={styles.registerButtonText}>{t('register.button')}</Text>
             )}
           </TouchableOpacity>
 
@@ -207,7 +215,7 @@ export default function RegisterScreen() {
             onPress={() => router.push('/(auth)/login')}
           >
             <Text style={styles.loginLinkText}>
-              Já tem conta? <Text style={styles.loginLinkHighlight}>Entrar</Text>
+              {t('register.has_account')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -336,9 +344,5 @@ const styles = StyleSheet.create({
   loginLinkText: {
     color: '#a0a0a0',
     fontSize: 14,
-  },
-  loginLinkHighlight: {
-    color: '#D4AF37',
-    fontWeight: 'bold',
   },
 });

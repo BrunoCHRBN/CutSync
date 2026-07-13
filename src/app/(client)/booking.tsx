@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
 import { Service, Profile, Barbershop } from '../../database/models';
@@ -9,6 +10,7 @@ import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 
 export default function BookingScreen() {
+  const { t, i18n } = useTranslation();
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
   const { user } = useAuth();
   const { sync } = useSync();
@@ -31,18 +33,15 @@ export default function BookingScreen() {
 
     const fetchInfo = async () => {
       try {
-        // Buscar barbearia
         const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);
         setBarbershop(b);
 
-        // Buscar serviços ativos da barbearia
         const sList = await database.collections
           .get<Service>('services')
           .query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true))
           .fetch();
         setServices(sList);
 
-        // Buscar barbeiros da barbearia
         const bList = await database.collections
           .get<Profile>('profiles')
           .query(Q.where('barbershop_id', barbershopId), Q.where('role', 'barber'))
@@ -61,23 +60,21 @@ export default function BookingScreen() {
 
   const handleConfirmBooking = async () => {
     if (!selectedService || !selectedBarber) {
-      Alert.alert('Atenção', 'Selecione um serviço e um profissional.');
+      Alert.alert(t('common.attention'), t('booking.error_select'));
       return;
     }
 
     if (!user) {
-      Alert.alert('Erro', 'Você precisa estar logado para agendar.');
+      Alert.alert(t('common.error'), 'Login required.');
       return;
     }
 
     setBookingLoading(true);
     try {
-      // Definir um horário padrão para testes (amanhã às 14h)
       const appointmentDate = new Date();
       appointmentDate.setDate(appointmentDate.getDate() + 1);
       appointmentDate.setHours(14, 0, 0, 0);
 
-      // Criar agendamento localmente no WatermelonDB
       let newAppointmentId = '';
       await database.write(async () => {
         const created = await database.collections.get('appointments').create((record: any) => {
@@ -91,22 +88,28 @@ export default function BookingScreen() {
         newAppointmentId = created.id;
       });
 
-      // Agendar notificação local offline
       if (barbershop?.name) {
         await scheduleAppointmentNotification(newAppointmentId, barbershop.name, appointmentDate);
       }
 
-      Alert.alert('Sucesso!', 'Agendamento registrado offline! Sincronizando com o servidor...');
+      Alert.alert(t('common.success'), t('booking.success_message'));
       
-      // Dispara a sincronização
       sync();
-      
       router.replace('/(client)');
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível salvar o agendamento localmente.');
+      Alert.alert(t('common.error'), 'Could not save booking locally.');
     } finally {
       setBookingLoading(false);
     }
+  };
+
+  const formatPrice = (price: number) => {
+    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+    const currencyCode = barbershop?.currency || 'BRL';
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(price);
   };
 
   if (loading) {
@@ -121,14 +124,14 @@ export default function BookingScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Agendar Horário</Text>
+      <Text style={styles.headerTitle}>{t('booking.title')}</Text>
       <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
 
       {/* Selecionar Serviço */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>1. Escolha o Serviço</Text>
+        <Text style={styles.sectionTitle}>{t('booking.step_service')}</Text>
         {services.length === 0 ? (
-          <Text style={styles.emptyText}>Nenhum serviço disponível.</Text>
+          <Text style={styles.emptyText}>{t('booking.no_services')}</Text>
         ) : (
           <FlatList
             data={services}
@@ -144,7 +147,7 @@ export default function BookingScreen() {
                 onPress={() => setSelectedService(item.id)}
               >
                 <Text style={styles.cardName}>{item.name}</Text>
-                <Text style={[styles.cardPrice, { color: primaryColor }]}>R$ {Number(item.price).toFixed(2)}</Text>
+                <Text style={[styles.cardPrice, { color: primaryColor }]}>{formatPrice(item.price)}</Text>
                 <Text style={styles.cardDuration}>{item.durationMinutes} min</Text>
               </TouchableOpacity>
             )}
@@ -154,9 +157,9 @@ export default function BookingScreen() {
 
       {/* Selecionar Profissional */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>2. Escolha o Barbeiro</Text>
+        <Text style={styles.sectionTitle}>{t('booking.step_barber')}</Text>
         {barbers.length === 0 ? (
-          <Text style={styles.emptyText}>Nenhum profissional disponível.</Text>
+          <Text style={styles.emptyText}>{t('booking.no_barbers')}</Text>
         ) : (
           <FlatList
             data={barbers}
@@ -182,10 +185,10 @@ export default function BookingScreen() {
       {/* Horário Padrão Informativo */}
       <View style={styles.infoBox}>
         <Text style={styles.infoBoxText}>
-          📅 Data do Teste: Amanhã às 14:00h
+          {t('booking.date_info')}
         </Text>
         <Text style={styles.infoBoxSubText}>
-          (Em um fluxo de produção real, carregaríamos a grade de horários disponíveis livres do barbeiro).
+          {t('booking.date_subinfo')}
         </Text>
       </View>
 
@@ -198,12 +201,12 @@ export default function BookingScreen() {
         {bookingLoading ? (
           <ActivityIndicator color="#121212" />
         ) : (
-          <Text style={styles.confirmButtonText}>Confirmar Agendamento</Text>
+          <Text style={styles.confirmButtonText}>{t('booking.button')}</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>Voltar</Text>
+        <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -223,7 +226,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#a0a0a0',
     fontFamily: 'Inter_400Regular',
     textTransform: 'uppercase',

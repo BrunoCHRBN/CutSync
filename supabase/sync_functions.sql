@@ -59,7 +59,7 @@ BEGIN
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         -- Para barbeiros/admins, traz apenas a sua própria barbearia
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
-            SELECT id, name, slug, logo_url, primary_color, 
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -67,7 +67,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
-            SELECT id, name, slug, logo_url, primary_color, 
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -76,7 +76,7 @@ BEGIN
     ELSE
         -- Para clientes, traz as barbearias disponíveis no sistema
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
-            SELECT id, name, slug, logo_url, primary_color, 
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -84,7 +84,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
-            SELECT id, name, slug, logo_url, primary_color, 
+            SELECT id, name, slug, logo_url, primary_color, timezone, currency,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 

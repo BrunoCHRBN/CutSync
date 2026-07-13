@@ -1,4 +1,4 @@
--- Setup do Banco de Dados para o CTRLShot (Gestão de Barbearia SaaS)
+-- Setup do Banco de Dados para o CutSync (Gestão de Barbearia SaaS)
 -- Execute este script no SQL Editor do seu projeto Supabase.
 
 -- Habilitar extensões necessárias
@@ -15,6 +15,8 @@ CREATE TABLE public.barbershops (
     slug TEXT NOT NULL UNIQUE,
     logo_url TEXT,
     primary_color TEXT DEFAULT '#D4AF37',
+    timezone TEXT DEFAULT 'America/Sao_Paulo' NOT NULL,
+    currency TEXT DEFAULT 'BRL' NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -11,7 +13,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      Alert.alert(t('common.error'), t('login.error_fill'));
       return;
     }
 
@@ -23,10 +25,10 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        Alert.alert('Erro no Login', error.message);
+        Alert.alert(t('login.error_fail'), error.message);
       }
     } catch (error: any) {
-      Alert.alert('Erro', 'Ocorreu um erro ao tentar entrar. Verifique sua conexão.');
+      Alert.alert(t('common.error'), error.message || 'Error');
     } finally {
       setLoading(false);
     }
@@ -39,18 +41,18 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.brandName}>CTRLShot</Text>
+          <Text style={styles.brandName}>CutSync</Text>
           <Text style={styles.tagline}>Gestão inteligente para sua barbearia</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.title}>Faça seu Login</Text>
+          <Text style={styles.title}>{t('login.title')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-mail</Text>
+            <Text style={styles.label}>{t('login.email')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Digite seu e-mail"
+              placeholder="email@example.com"
               placeholderTextColor="#666"
               value={email}
               onChangeText={setEmail}
@@ -61,10 +63,10 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Senha</Text>
+            <Text style={styles.label}>{t('login.password')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Digite sua senha"
+              placeholder="******"
               placeholderTextColor="#666"
               secureTextEntry
               value={password}
@@ -77,7 +79,7 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="#121212" />
             ) : (
-              <Text style={styles.loginButtonText}>Entrar</Text>
+              <Text style={styles.loginButtonText}>{t('login.button')}</Text>
             )}
           </TouchableOpacity>
 
@@ -86,7 +88,7 @@ export default function LoginScreen() {
             onPress={() => router.push('/(auth)/register')}
           >
             <Text style={styles.registerLinkText}>
-              Não tem conta? <Text style={styles.registerLinkHighlight}>Cadastre-se</Text>
+              {t('login.no_account')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
   brandName: {
     fontFamily: 'Montserrat_700Bold',
     fontSize: 36,
-    color: '#D4AF37', // Cor primária dourada
+    color: '#D4AF37',
     fontWeight: 'bold',
     letterSpacing: 2,
   },
@@ -178,9 +180,5 @@ const styles = StyleSheet.create({
   registerLinkText: {
     color: '#a0a0a0',
     fontSize: 14,
-  },
-  registerLinkHighlight: {
-    color: '#D4AF37',
-    fontWeight: 'bold',
   },
 });

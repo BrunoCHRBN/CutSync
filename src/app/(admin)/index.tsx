@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { database } from '../../database';
 import { Barbershop, Appointment } from '../../database/models';
 
 export default function AdminDashboard() {
+  const { t, i18n } = useTranslation();
   const { profile, signOut } = useAuth();
   const { isSyncing, syncError, sync } = useSync();
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
@@ -20,22 +22,19 @@ export default function AdminDashboard() {
       return;
     }
 
-    // 1. Ouvir a barbearia correspondente localmente
     const barbershopSub = database.collections
       .get<Barbershop>('barbershops')
       .findAndObserve(profile.barbershop_id)
       .subscribe({
         next: (data) => setBarbershop(data),
-        error: () => console.log('Barbearia ainda não sincronizada localmente'),
+        error: () => console.log('Barbershop not found locally yet'),
       });
 
-    // 2. Ouvir os agendamentos da barbearia
     const appointmentsSub = database.collections
       .get<Appointment>('appointments')
       .query()
       .observe()
       .subscribe((data) => {
-        // Filtra os agendamentos pertencentes a esta barbearia e ordena por data
         const filtered = data
           .filter((app) => app.barbershopId === profile.barbershop_id)
           .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
@@ -43,7 +42,6 @@ export default function AdminDashboard() {
         setLoading(false);
       });
 
-    // Disparar sincronização inicial ao entrar no painel
     sync();
 
     return () => {
@@ -54,7 +52,6 @@ export default function AdminDashboard() {
 
   const handleUpdateStatus = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
     try {
-      // Atualiza o agendamento localmente no WatermelonDB
       await database.write(async () => {
         const appointment = await database.collections.get<Appointment>('appointments').find(appointmentId);
         await appointment.update((record) => {
@@ -62,21 +59,32 @@ export default function AdminDashboard() {
         });
       });
       
-      Alert.alert('Sucesso', 'Status do agendamento atualizado localmente!');
-      // Dispara sincronização em background
+      Alert.alert(t('common.success'), 'Status updated locally.');
       sync();
     } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar o status.');
+      Alert.alert(t('common.error'), 'Could not update status.');
     }
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }) + 'h';
+    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+    const tz = barbershop?.timezone || 'America/Sao_Paulo';
+    try {
+      return new Intl.DateTimeFormat(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: tz,
+      }).format(date) + 'h';
+    } catch (e) {
+      return date.toLocaleDateString(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }) + 'h';
+    }
   };
 
   const primaryColor = barbershop?.primaryColor || '#D4AF37';
@@ -86,13 +94,13 @@ export default function AdminDashboard() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.barberName}>Painel do Barbeiro</Text>
+          <Text style={styles.barberName}>{t('admin.title')}</Text>
           <Text style={[styles.barbershopName, { color: primaryColor }]}>
-            {loading ? 'Carregando...' : barbershop?.name || 'Sua Barbearia'}
+            {loading ? '...' : barbershop?.name || 'My Barbershop'}
           </Text>
         </View>
         <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <Text style={styles.logoutText}>Sair</Text>
+          <Text style={styles.logoutText}>{t('common.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -100,9 +108,9 @@ export default function AdminDashboard() {
       <View style={styles.syncPanel}>
         <View style={styles.syncStatusContainer}>
           <Text style={styles.syncStatusText}>
-            {isSyncing ? 'Sincronizando com nuvem...' : 'Banco Local Sincronizado'}
+            {isSyncing ? t('common.syncing') : t('common.offline_active')}
           </Text>
-          {syncError && <Text style={styles.syncErrorText}>Erro de rede na sincronização</Text>}
+          {syncError && <Text style={styles.syncErrorText}>{t('common.sync_error')}</Text>}
         </View>
         <TouchableOpacity 
           style={[styles.syncButton, isSyncing && styles.syncButtonDisabled, { backgroundColor: primaryColor }]} 
@@ -112,7 +120,7 @@ export default function AdminDashboard() {
           {isSyncing ? (
             <ActivityIndicator size="small" color="#121212" />
           ) : (
-            <Text style={styles.syncButtonText}>Sincronizar</Text>
+            <Text style={styles.syncButtonText}>{t('common.sync_button')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -123,19 +131,19 @@ export default function AdminDashboard() {
           style={styles.shortcutButton}
           onPress={() => router.push('/(admin)/services')}
         >
-          <Text style={[styles.shortcutButtonText, { color: primaryColor }]}>Gerenciar Serviços</Text>
+          <Text style={[styles.shortcutButtonText, { color: primaryColor }]}>{t('admin.manage_services')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Lista da Agenda */}
       <View style={{ flex: 1 }}>
-        <Text style={styles.sectionTitle}>Agenda de Hoje</Text>
+        <Text style={styles.sectionTitle}>{t('admin.agenda_title')}</Text>
         
         {loading ? (
           <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 32 }} />
         ) : appointments.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Sem agendamentos registrados localmente.</Text>
+            <Text style={styles.emptyText}>{t('admin.no_appointments')}</Text>
           </View>
         ) : (
           <FlatList
@@ -148,11 +156,11 @@ export default function AdminDashboard() {
                   <Text style={[styles.statusBadge, { 
                     color: item.status === 'completed' ? '#30d158' : item.status === 'cancelled' ? '#ff453a' : primaryColor 
                   }]}>
-                    {item.status.toUpperCase()}
+                    {t(`admin.status_${item.status}`)}
                   </Text>
                 </View>
                 
-                <Text style={styles.clientLabel}>Cliente ID: <Text style={styles.clientValue}>{item.clientId}</Text></Text>
+                <Text style={styles.clientLabel}>Client ID: <Text style={styles.clientValue}>{item.clientId}</Text></Text>
                 
                 {item.status === 'pending' && (
                   <View style={styles.actionsContainer}>
@@ -160,13 +168,13 @@ export default function AdminDashboard() {
                       style={[styles.actionButton, styles.confirmButton]}
                       onPress={() => handleUpdateStatus(item.id, 'confirmed')}
                     >
-                      <Text style={styles.actionButtonText}>Confirmar</Text>
+                      <Text style={styles.actionButtonText}>{t('admin.confirm')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.actionButton, styles.cancelButton]}
                       onPress={() => handleUpdateStatus(item.id, 'cancelled')}
                     >
-                      <Text style={styles.actionButtonText}>Recusar</Text>
+                      <Text style={styles.actionButtonText}>{t('admin.decline')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -177,13 +185,13 @@ export default function AdminDashboard() {
                       style={[styles.actionButton, styles.completeButton]}
                       onPress={() => handleUpdateStatus(item.id, 'completed')}
                     >
-                      <Text style={styles.actionButtonText}>Concluir</Text>
+                      <Text style={styles.actionButtonText}>{t('admin.complete')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.actionButton, styles.cancelButton]}
                       onPress={() => handleUpdateStatus(item.id, 'cancelled')}
                     >
-                      <Text style={styles.actionButtonText}>Cancelar</Text>
+                      <Text style={styles.actionButtonText}>{t('common.cancel')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}

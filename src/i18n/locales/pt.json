@@ -1,0 +1,85 @@
+{
+  "common": {
+    "welcome": "Olá,",
+    "logout": "Sair",
+    "syncing": "Sincronizando dados...",
+    "offline_active": "Modo Offline-First Ativo",
+    "sync_error": "Erro no sync automático",
+    "sync_button": "Sincronizar",
+    "back": "Voltar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "error": "Erro",
+    "success": "Sucesso",
+    "attention": "Atenção"
+  },
+  "login": {
+    "title": "Faça seu Login",
+    "email": "E-mail",
+    "password": "Senha",
+    "button": "Entrar",
+    "no_account": "Não tem conta? Cadastre-se",
+    "error_fill": "Por favor, preencha todos os campos.",
+    "error_fail": "Erro no Login"
+  },
+  "register": {
+    "title": "Cadastre-se",
+    "client_tab": "Sou Cliente",
+    "barber_tab": "Tenho Barbearia",
+    "name_label": "Nome Completo *",
+    "email_label": "E-mail *",
+    "phone_label": "Telefone",
+    "password_label": "Senha *",
+    "barber_section": "Dados da Barbearia",
+    "barber_name": "Nome da Barbearia *",
+    "barber_slug": "Link/Slug da Barbearia *",
+    "barber_color": "Cor Primária Destaque (Hex) *",
+    "button": "Cadastrar",
+    "has_account": "Já tem conta? Entrar",
+    "error_fill": "Por favor, preencha todos os campos obrigatórios."
+  },
+  "client": {
+    "appointments_title": "Seus Agendamentos",
+    "no_appointments": "Você não possui agendamentos marcados.",
+    "partners_title": "Barbearias Parceiras",
+    "no_barbershops": "Nenhuma barbearia cadastrada no momento.",
+    "book_button": "Agendar"
+  },
+  "booking": {
+    "title": "Agendar Horário",
+    "step_service": "1. Escolha o Serviço",
+    "no_services": "Nenhum serviço disponível.",
+    "step_barber": "2. Escolha o Barbeiro",
+    "no_barbers": "Nenhum profissional disponível.",
+    "date_info": "📅 Data do Teste: Amanhã às 14:00h",
+    "date_subinfo": "(Em um fluxo de produção real, carregaríamos a grade de horários disponíveis livres do barbeiro).",
+    "button": "Confirmar Agendamento",
+    "error_select": "Selecione um serviço e um profissional.",
+    "success_message": "Agendamento registrado offline! Sincronizando com o servidor..."
+  },
+  "admin": {
+    "title": "Painel do Barbeiro",
+    "manage_services": "Gerenciar Serviços",
+    "agenda_title": "Agenda de Hoje",
+    "no_appointments": "Sem agendamentos registrados localmente.",
+    "status_completed": "CONCLUÍDO",
+    "status_cancelled": "CANCELADO",
+    "status_pending": "PENDENTE",
+    "status_confirmed": "CONFIRMADO",
+    "confirm": "Confirmar",
+    "decline": "Recusar",
+    "complete": "Concluir"
+  },
+  "services": {
+    "title": "Gestão de Serviços",
+    "new_service": "Novo Serviço",
+    "name_label": "Nome do Serviço",
+    "price_label": "Preço",
+    "duration_label": "Duração (min)",
+    "save_button": "Salvar Serviço",
+    "registered_title": "Serviços Cadastrados",
+    "no_services": "Nenhum serviço cadastrado localmente.",
+    "active": "Ativo",
+    "inactive": "Inativo"
+  }
+}

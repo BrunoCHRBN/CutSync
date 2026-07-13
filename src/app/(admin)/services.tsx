@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
 import { Service, Barbershop } from '../../database/models';
@@ -8,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 
 export default function ServicesScreen() {
+  const { t, i18n } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
@@ -28,13 +30,11 @@ export default function ServicesScreen() {
       return;
     }
 
-    // 1. Ouvir a barbearia
     const bSub = database.collections
       .get<Barbershop>('barbershops')
       .findAndObserve(profile.barbershop_id)
       .subscribe((data) => setBarbershop(data));
 
-    // 2. Ouvir os serviços associados à barbearia localmente
     const sSub = database.collections
       .get<Service>('services')
       .query(Q.where('barbershop_id', profile.barbershop_id))
@@ -52,7 +52,7 @@ export default function ServicesScreen() {
 
   const handleAddService = async () => {
     if (!name || !price || !duration) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      Alert.alert(t('common.error'), t('register.error_fill'));
       return;
     }
 
@@ -60,7 +60,6 @@ export default function ServicesScreen() {
 
     setIsSubmitting(true);
     try {
-      // Criar o serviço localmente no WatermelonDB
       await database.write(async () => {
         await database.collections.get('services').create((record: any) => {
           record.barbershopId = profile.barbershop_id;
@@ -71,17 +70,14 @@ export default function ServicesScreen() {
         });
       });
 
-      // Limpar campos
       setName('');
       setPrice('');
       setDuration('');
 
-      Alert.alert('Sucesso', 'Serviço adicionado localmente! Sincronizando...');
-      
-      // Dispara a sincronização
+      Alert.alert(t('common.success'), 'Service saved locally!');
       sync();
     } catch (err) {
-      Alert.alert('Erro', 'Não foi possível salvar o serviço.');
+      Alert.alert(t('common.error'), 'Could not save service.');
     } finally {
       setIsSubmitting(false);
     }
@@ -97,8 +93,17 @@ export default function ServicesScreen() {
       });
       sync();
     } catch (err) {
-      Alert.alert('Erro', 'Não foi possível atualizar o status do serviço.');
+      Alert.alert(t('common.error'), 'Could not toggle service status.');
     }
+  };
+
+  const formatPrice = (price: number) => {
+    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+    const currencyCode = barbershop?.currency || 'BRL';
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(price);
   };
 
   if (loading) {
@@ -113,16 +118,16 @@ export default function ServicesScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Gestão de Serviços</Text>
+      <Text style={styles.headerTitle}>{t('services.title')}</Text>
       <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
 
       {/* Formulário de Adicionar Serviço */}
       <View style={styles.formCard}>
-        <Text style={styles.formTitle}>Novo Serviço</Text>
+        <Text style={styles.formTitle}>{t('services.new_service')}</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Nome do Serviço (ex: Barba)"
+          placeholder={t('services.name_label')}
           placeholderTextColor="#666"
           value={name}
           onChangeText={setName}
@@ -131,7 +136,7 @@ export default function ServicesScreen() {
         <View style={styles.row}>
           <TextInput
             style={[styles.input, { flex: 1, marginRight: 8 }]}
-            placeholder="Preço (ex: 35.00)"
+            placeholder={t('services.price_label') + " (ex: 35.00)"}
             placeholderTextColor="#666"
             value={price}
             onChangeText={setPrice}
@@ -139,7 +144,7 @@ export default function ServicesScreen() {
           />
           <TextInput
             style={[styles.input, { flex: 1 }]}
-            placeholder="Duração (min)"
+            placeholder={t('services.duration_label')}
             placeholderTextColor="#666"
             value={duration}
             onChangeText={setDuration}
@@ -155,18 +160,18 @@ export default function ServicesScreen() {
           {isSubmitting ? (
             <ActivityIndicator color="#121212" />
           ) : (
-            <Text style={styles.addButtonText}>Salvar Serviço</Text>
+            <Text style={styles.addButtonText}>{t('services.save_button')}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       {/* Lista de Serviços */}
       <View style={{ flex: 1, marginTop: 16 }}>
-        <Text style={styles.sectionTitle}>Serviços Cadastrados</Text>
+        <Text style={styles.sectionTitle}>{t('services.registered_title')}</Text>
 
         {services.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Nenhum serviço cadastrado localmente.</Text>
+            <Text style={styles.emptyText}>{t('services.no_services')}</Text>
           </View>
         ) : (
           <FlatList
@@ -177,7 +182,7 @@ export default function ServicesScreen() {
                 <View>
                   <Text style={styles.serviceName}>{item.name}</Text>
                   <Text style={styles.serviceDetails}>
-                    R$ {Number(item.price).toFixed(2)} | {item.durationMinutes} min
+                    {formatPrice(item.price)} | {item.durationMinutes} min
                   </Text>
                 </View>
                 <TouchableOpacity 
@@ -188,7 +193,7 @@ export default function ServicesScreen() {
                   onPress={() => handleToggleActive(item.id, item.isActive)}
                 >
                   <Text style={styles.statusButtonText}>
-                    {item.isActive ? 'Ativo' : 'Inativo'}
+                    {item.isActive ? t('services.active') : t('services.inactive')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -198,7 +203,7 @@ export default function ServicesScreen() {
       </View>
 
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>Voltar ao Painel</Text>
+        <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -218,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#a0a0a0',
     textTransform: 'uppercase',
   },

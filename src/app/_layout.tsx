@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import '../i18n';
 
 // Evitar que a Splash Screen feche antes de carregarmos fontes
 SplashScreen.preventAutoHideAsync();

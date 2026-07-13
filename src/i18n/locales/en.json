@@ -1,0 +1,85 @@
+{
+  "common": {
+    "welcome": "Hello,",
+    "logout": "Logout",
+    "syncing": "Syncing data...",
+    "offline_active": "Offline-First Mode Active",
+    "sync_error": "Auto-sync error",
+    "sync_button": "Sync Now",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "error": "Error",
+    "success": "Success",
+    "attention": "Attention"
+  },
+  "login": {
+    "title": "Login to your account",
+    "email": "Email",
+    "password": "Password",
+    "button": "Login",
+    "no_account": "Don't have an account? Sign up",
+    "error_fill": "Please fill in all fields.",
+    "error_fail": "Login failed"
+  },
+  "register": {
+    "title": "Sign Up",
+    "client_tab": "I'm a Client",
+    "barber_tab": "I have a Barbershop",
+    "name_label": "Full Name *",
+    "email_label": "Email *",
+    "phone_label": "Phone Number",
+    "password_label": "Password *",
+    "barber_section": "Barbershop Details",
+    "barber_name": "Barbershop Name *",
+    "barber_slug": "Barbershop Link/Slug *",
+    "barber_color": "Highlight Primary Color (Hex) *",
+    "button": "Sign Up",
+    "has_account": "Already have an account? Login",
+    "error_fill": "Please fill in all required fields."
+  },
+  "client": {
+    "appointments_title": "Your Appointments",
+    "no_appointments": "You have no scheduled appointments.",
+    "partners_title": "Partner Barbershops",
+    "no_barbershops": "No barbershops registered at the moment.",
+    "book_button": "Book Now"
+  },
+  "booking": {
+    "title": "Book Appointment",
+    "step_service": "1. Choose Service",
+    "no_services": "No services available.",
+    "step_barber": "2. Choose Barber",
+    "no_barbers": "No professionals available.",
+    "date_info": "📅 Test Date: Tomorrow at 2:00 PM",
+    "date_subinfo": "(In a real production flow, we would load the barber's available schedule).",
+    "button": "Confirm Booking",
+    "error_select": "Please select a service and a professional.",
+    "success_message": "Booking registered offline! Syncing with server..."
+  },
+  "admin": {
+    "title": "Barber Panel",
+    "manage_services": "Manage Services",
+    "agenda_title": "Today's Agenda",
+    "no_appointments": "No appointments registered locally.",
+    "status_completed": "COMPLETED",
+    "status_cancelled": "CANCELLED",
+    "status_pending": "PENDING",
+    "status_confirmed": "CONFIRMED",
+    "confirm": "Confirm",
+    "decline": "Decline",
+    "complete": "Complete"
+  },
+  "services": {
+    "title": "Service Management",
+    "new_service": "New Service",
+    "name_label": "Service Name",
+    "price_label": "Price",
+    "duration_label": "Duration (min)",
+    "save_button": "Save Service",
+    "registered_title": "Registered Services",
+    "no_services": "No services registered locally.",
+    "active": "Active",
+    "inactive": "Inactive"
+  }
+}

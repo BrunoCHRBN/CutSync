@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { database } from '../../database';
 import { Barbershop, Appointment } from '../../database/models';
 
 export default function ClientDashboard() {
+  const { t, i18n } = useTranslation();
   const { profile, signOut } = useAuth();
   const { isSyncing, syncError, sync } = useSync();
   const [barbershops, setBarbershops] = useState<Barbershop[]>([]);
@@ -15,7 +17,7 @@ export default function ClientDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    // 1. Ouvir as barbearias ativas localmente no WatermelonDB (sincronizado)
+    // 1. Ouvir as barbearias ativas localmente no WatermelonDB
     const barbershopsSub = database.collections
       .get<Barbershop>('barbershops')
       .query()
@@ -31,12 +33,11 @@ export default function ClientDashboard() {
       .query()
       .observe()
       .subscribe((data) => {
-        // Ordenar por data
         const sorted = [...data].sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
         setMyAppointments(sorted);
       });
 
-    // Disparar sincronização inicial
+    // Sincronização inicial
     sync();
 
     return () => {
@@ -45,14 +46,25 @@ export default function ClientDashboard() {
     };
   }, []);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }) + 'h';
+  const formatDate = (date: Date, timezone: string = 'America/Sao_Paulo') => {
+    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+    try {
+      return new Intl.DateTimeFormat(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: timezone,
+      }).format(date) + 'h';
+    } catch (e) {
+      return date.toLocaleDateString(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }) + 'h';
+    }
   };
 
   return (
@@ -60,11 +72,11 @@ export default function ClientDashboard() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.welcomeText}>Olá,</Text>
-          <Text style={styles.userName}>{profile?.name || 'Cliente'}</Text>
+          <Text style={styles.welcomeText}>{t('common.welcome')}</Text>
+          <Text style={styles.userName}>{profile?.name || 'Client'}</Text>
         </View>
         <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <Text style={styles.logoutText}>Sair</Text>
+          <Text style={styles.logoutText}>{t('common.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -72,9 +84,9 @@ export default function ClientDashboard() {
       <View style={styles.syncPanel}>
         <View style={styles.syncStatusContainer}>
           <Text style={styles.syncStatusText}>
-            {isSyncing ? 'Sincronizando dados...' : 'Modo Offline-First Ativo'}
+            {isSyncing ? t('common.syncing') : t('common.offline_active')}
           </Text>
-          {syncError && <Text style={styles.syncErrorText}>Erro no sync automático</Text>}
+          {syncError && <Text style={styles.syncErrorText}>{t('common.sync_error')}</Text>}
         </View>
         <TouchableOpacity 
           style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]} 
@@ -84,42 +96,50 @@ export default function ClientDashboard() {
           {isSyncing ? (
             <ActivityIndicator size="small" color="#121212" />
           ) : (
-            <Text style={styles.syncButtonText}>Sincronizar</Text>
+            <Text style={styles.syncButtonText}>{t('common.sync_button')}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       {/* Próximos Agendamentos */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Seus Agendamentos</Text>
+        <Text style={styles.sectionTitle}>{t('client.appointments_title')}</Text>
         {myAppointments.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Você não possui agendamentos marcados.</Text>
+            <Text style={styles.emptyText}>{t('client.no_appointments')}</Text>
           </View>
         ) : (
           <FlatList
             data={myAppointments.slice(0, 3)}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View style={styles.appointmentCard}>
-                <View>
-                  <Text style={styles.appointmentDate}>{formatDate(item.dateTime)}</Text>
-                  <Text style={styles.appointmentStatus}>Status: {item.status.toUpperCase()}</Text>
+            renderItem={({ item }) => {
+              // Encontra a barbearia do agendamento para pegar a timezone correta
+              const bshop = barbershops.find((b) => b.id === item.barbershopId);
+              return (
+                <View style={styles.appointmentCard}>
+                  <View>
+                    <Text style={styles.appointmentDate}>
+                      {formatDate(item.dateTime, bshop?.timezone)}
+                    </Text>
+                    <Text style={styles.appointmentStatus}>
+                      Status: {t(`admin.status_${item.status}`)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            )}
+              );
+            }}
           />
         )}
       </View>
 
       {/* Catálogo de Barbearias */}
       <View style={[styles.section, { flex: 1 }]}>
-        <Text style={styles.sectionTitle}>Barbearias Parceiras</Text>
+        <Text style={styles.sectionTitle}>{t('client.partners_title')}</Text>
         {loading ? (
           <ActivityIndicator size="large" color="#D4AF37" style={{ marginTop: 24 }} />
         ) : barbershops.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Nenhuma barbearia cadastrada no momento.</Text>
+            <Text style={styles.emptyText}>{t('client.no_barbershops')}</Text>
           </View>
         ) : (
           <FlatList
@@ -132,13 +152,13 @@ export default function ClientDashboard() {
               >
                 <View style={styles.barbershopInfo}>
                   <Text style={styles.barbershopName}>{item.name}</Text>
-                  <Text style={styles.barbershopSlug}>ctrlshot.com/{item.slug}</Text>
+                  <Text style={styles.barbershopSlug}>cutsync.com/{item.slug}</Text>
                 </View>
                 <TouchableOpacity 
                   style={[styles.bookButton, { backgroundColor: item.primaryColor || '#D4AF37' }]}
                   onPress={() => router.push({ pathname: '/(client)/booking', params: { barbershopId: item.id } })}
                 >
-                  <Text style={styles.bookButtonText}>Agendar</Text>
+                  <Text style={styles.bookButtonText}>{t('client.book_button')}</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             )}

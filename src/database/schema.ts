@@ -10,6 +10,8 @@ export default appSchema({
         { name: 'slug', type: 'string' },
         { name: 'logo_url', type: 'string', isOptional: true },
         { name: 'primary_color', type: 'string' },
+        { name: 'timezone', type: 'string' },
+        { name: 'currency', type: 'string' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

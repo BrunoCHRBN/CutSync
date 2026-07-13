@@ -14,6 +14,8 @@ export default class Barbershop extends Model {
   @text('slug') slug!: string;
   @text('logo_url') logoUrl?: string;
   @text('primary_color') primaryColor!: string;
+  @text('timezone') timezone!: string;
+  @text('currency') currency!: string;
   
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
