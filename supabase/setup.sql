@@ -38,7 +38,7 @@ CREATE TABLE public.profiles (
 
 -- Tabela de Serviços
 CREATE TABLE public.services (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     barbershop_id UUID REFERENCES public.barbershops(id) ON DELETE CASCADE NOT NULL,
     name TEXT NOT NULL,
     price NUMERIC(10, 2) NOT NULL,
@@ -51,11 +51,11 @@ CREATE TABLE public.services (
 
 -- Tabela de Agendamentos
 CREATE TABLE public.appointments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     barbershop_id UUID REFERENCES public.barbershops(id) ON DELETE CASCADE NOT NULL,
     client_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     barber_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    service_id UUID REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
+    service_id TEXT REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
     date_time TIMESTAMP WITH TIME ZONE NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')) DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,

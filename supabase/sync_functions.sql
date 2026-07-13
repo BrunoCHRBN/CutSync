@@ -260,6 +260,7 @@ DECLARE
     
     -- Chaves das tabelas nas alterações
     item jsonb;
+    deleted_id text;
 BEGIN
     user_id := auth.uid();
     IF user_id IS NULL THEN
@@ -276,7 +277,7 @@ BEGIN
     -- Insert / Update
     IF changes->'services' IS NOT NULL THEN
         -- Criados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'created') AS x(id uuid, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, created_at bigint, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'created') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, created_at bigint, updated_at bigint) LOOP
             -- Validar multi-tenant (apenas admins/barbeiros criam serviços para sua própria barbearia)
             IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
                 RAISE EXCEPTION 'Sem permissão para criar serviço nesta barbearia';
@@ -289,7 +290,7 @@ BEGIN
         END LOOP;
 
         -- Atualizados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'updated') AS x(id uuid, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'updated') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, updated_at bigint) LOOP
             IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar serviço nesta barbearia';
             END IF;
@@ -300,10 +301,10 @@ BEGIN
         END LOOP;
 
         -- Deletados (Soft Delete)
-        FOR item IN SELECT * FROM jsonb_array_elements_text(changes->'services'->'deleted') AS id LOOP
+        FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'services'->'deleted') AS id LOOP
             UPDATE public.services 
             SET deleted_at = now(), updated_at = now()
-            WHERE id = item::uuid 
+            WHERE id = deleted_id 
             AND (user_role IN ('admin', 'barber') AND barbershop_id = user_barbershop_id);
         END LOOP;
     END IF;
@@ -313,9 +314,8 @@ BEGIN
     -- ----------------------------------------------------
     IF changes->'appointments' IS NOT NULL THEN
         -- Criados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id uuid, barbershop_id uuid, client_id uuid, barber_id uuid, service_id uuid, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
             -- Validação de tenant
-            -- Clientes só podem agendar para si mesmos. Barbeiros/Admins podem agendar para qualquer cliente na barbearia dele.
             IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
                 RAISE EXCEPTION 'Sem permissão para criar este agendamento';
             END IF;
@@ -327,7 +327,7 @@ BEGIN
         END LOOP;
 
         -- Atualizados
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id uuid, barbershop_id uuid, client_id uuid, barber_id uuid, service_id uuid, date_time bigint, status text, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
             -- Validação
             IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este agendamento';
@@ -339,10 +339,10 @@ BEGIN
         END LOOP;
 
         -- Deletados (Soft Delete)
-        FOR item IN SELECT * FROM jsonb_array_elements_text(changes->'appointments'->'deleted') AS id LOOP
+        FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'appointments'->'deleted') AS id LOOP
             UPDATE public.appointments 
             SET deleted_at = now(), updated_at = now()
-            WHERE id = item::uuid 
+            WHERE id = deleted_id 
             AND (client_id = user_id OR (user_role IN ('admin', 'barber') AND barbershop_id = user_barbershop_id));
         END LOOP;
     END IF;
