@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
@@ -22,8 +22,46 @@ export default function BookingScreen() {
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
+  
+  // Date & Time selection states
+  const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  const displayAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
+  // Obter os próximos 5 dias a partir de hoje
+  const getNextDays = () => {
+    const days = [];
+    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+    for (let i = 0; i < 5; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      
+      let label = d.toLocaleDateString(locale, { weekday: 'short' });
+      if (i === 0) label = i18n.language === 'en' ? 'Today' : 'Hoje';
+      if (i === 1) label = i18n.language === 'en' ? 'Tomorrow' : 'Amanhã';
+
+      days.push({
+        id: d.toISOString().split('T')[0],
+        date: d,
+        label,
+        dayStr: d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }),
+      });
+    }
+    return days;
+  };
+
+  const nextDays = getNextDays();
+  const availableTimes = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
   useEffect(() => {
     if (!barbershopId) {
@@ -42,11 +80,20 @@ export default function BookingScreen() {
           .fetch();
         setServices(sList);
 
+        // Busca perfis vinculados que sejam barbeiros OU o próprio admin da barbearia
         const bList = await database.collections
           .get<Profile>('profiles')
-          .query(Q.where('barbershop_id', barbershopId), Q.where('role', 'barber'))
+          .query(
+            Q.where('barbershop_id', barbershopId),
+            Q.where('role', Q.oneOf(['barber', 'admin']))
+          )
           .fetch();
         setBarbers(bList);
+
+        // Selecionar primeiro dia por padrão
+        if (nextDays.length > 0) {
+          setSelectedDateId(nextDays[0].id);
+        }
 
       } catch (err) {
         console.error('Erro ao buscar dados locais para agendamento:', err);
@@ -59,21 +106,35 @@ export default function BookingScreen() {
   }, [barbershopId]);
 
   const handleConfirmBooking = async () => {
-    if (!selectedService || !selectedBarber) {
-      Alert.alert(t('common.attention'), t('booking.error_select'));
+    if (!selectedService) {
+      displayAlert(t('common.attention'), 'Por favor, selecione um serviço.');
+      return;
+    }
+
+    if (!selectedBarber) {
+      displayAlert(t('common.attention'), 'Por favor, selecione um profissional.');
+      return;
+    }
+
+    if (!selectedDateId || !selectedTime) {
+      displayAlert(t('common.attention'), 'Por favor, escolha a data e o horário.');
       return;
     }
 
     if (!user) {
-      Alert.alert(t('common.error'), 'Login required.');
+      displayAlert(t('common.error'), 'Login required.');
       return;
     }
 
     setBookingLoading(true);
     try {
-      const appointmentDate = new Date();
-      appointmentDate.setDate(appointmentDate.getDate() + 1);
-      appointmentDate.setHours(14, 0, 0, 0);
+      // Montar data e hora selecionadas
+      const dateObj = nextDays.find(d => d.id === selectedDateId);
+      if (!dateObj) throw new Error('Data inválida');
+
+      const appointmentDate = new Date(dateObj.date);
+      const [hours, minutes] = selectedTime.split(':');
+      appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       let newAppointmentId = '';
       await database.write(async () => {
@@ -92,12 +153,12 @@ export default function BookingScreen() {
         await scheduleAppointmentNotification(newAppointmentId, barbershop.name, appointmentDate);
       }
 
-      Alert.alert(t('common.success'), t('booking.success_message'));
+      displayAlert(t('common.success'), t('booking.success_message'));
       
       sync();
       router.replace('/(client)');
     } catch (error) {
-      Alert.alert(t('common.error'), 'Could not save booking locally.');
+      displayAlert(t('common.error'), 'Could not save booking.');
     } finally {
       setBookingLoading(false);
     }
@@ -123,7 +184,7 @@ export default function BookingScreen() {
   const primaryColor = barbershop?.primaryColor || '#D4AF37';
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.headerTitle}>{t('booking.title')}</Text>
       <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
 
@@ -175,21 +236,60 @@ export default function BookingScreen() {
                 onPress={() => setSelectedBarber(item.id)}
               >
                 <Text style={styles.cardName}>{item.name}</Text>
-                <Text style={styles.cardSubText}>{item.role.toUpperCase()}</Text>
+                <Text style={styles.cardSubText}>
+                  {item.role === 'admin' ? 'PROPRIETÁRIO' : item.role.toUpperCase()}
+                </Text>
               </TouchableOpacity>
             )}
           />
         )}
       </View>
 
-      {/* Horário Padrão Informativo */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoBoxText}>
-          {t('booking.date_info')}
-        </Text>
-        <Text style={styles.infoBoxSubText}>
-          {t('booking.date_subinfo')}
-        </Text>
+      {/* Escolha do Dia */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Escolha o Dia</Text>
+        <FlatList
+          data={nextDays}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.dateCard,
+                selectedDateId === item.id && [styles.cardActive, { borderColor: primaryColor }]
+              ]}
+              onPress={() => setSelectedDateId(item.id)}
+            >
+              <Text style={styles.dateLabel}>{item.label}</Text>
+              <Text style={styles.dateDayStr}>{item.dayStr}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+
+      {/* Escolha do Horário */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Escolha o Horário</Text>
+        <View style={styles.timeGrid}>
+          {availableTimes.map((time) => (
+            <TouchableOpacity
+              key={time}
+              style={[
+                styles.timeCard,
+                selectedTime === time && [styles.timeCardActive, { backgroundColor: primaryColor }]
+              ]}
+              onPress={() => setSelectedTime(time)}
+            >
+              <Text style={[
+                styles.timeText,
+                selectedTime === time && { color: '#121212' }
+              ]}>
+                {time}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Botão de Confirmação */}
@@ -208,7 +308,7 @@ export default function BookingScreen() {
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -216,8 +316,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+  },
+  contentContainer: {
     padding: 24,
     paddingTop: 48,
+    paddingBottom: 48,
   },
   loadingContainer: {
     flex: 1,
@@ -260,6 +363,51 @@ const styles = StyleSheet.create({
     minWidth: 120,
     alignItems: 'center',
   },
+  dateCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginRight: 12,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  dateLabel: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  dateDayStr: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  timeCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    paddingVertical: 12,
+    width: '22%',
+    alignItems: 'center',
+  },
+  timeCardActive: {
+    borderWidth: 0,
+  },
+  timeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   cardActive: {
     borderWidth: 2,
   },
@@ -267,6 +415,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   cardPrice: {
     fontSize: 14,
@@ -280,31 +429,16 @@ const styles = StyleSheet.create({
   },
   cardSubText: {
     color: '#a0a0a0',
-    fontSize: 11,
-    marginTop: 4,
-  },
-  infoBox: {
-    backgroundColor: '#1c1c1e',
-    borderWidth: 1,
-    borderColor: '#2c2c2e',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 32,
-  },
-  infoBoxText: {
-    color: '#fff',
-    fontSize: 14,
+    fontSize: 10,
+    marginTop: 6,
     fontWeight: 'bold',
-  },
-  infoBoxSubText: {
-    color: '#666',
-    fontSize: 11,
-    marginTop: 4,
+    textAlign: 'center',
   },
   confirmButton: {
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
+    marginTop: 16,
     marginBottom: 12,
   },
   confirmButtonText: {

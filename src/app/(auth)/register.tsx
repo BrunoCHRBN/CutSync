@@ -10,7 +10,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'client' | 'admin'>('client');
+  const [role, setRole] = useState<'client' | 'admin' | 'barber'>('client');
   
   // Dados extras para Barbearia/Admin
   const [barbershopName, setBarbershopName] = useState('');
@@ -29,8 +29,18 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !email || !password || (role === 'admin' && (!barbershopName || !barbershopSlug))) {
+    if (!name || !email || !password) {
       displayAlert(t('common.error'), t('register.error_fill'));
+      return;
+    }
+
+    if (role === 'admin' && (!barbershopName || !barbershopSlug)) {
+      displayAlert(t('common.error'), 'Por favor, preencha os dados da barbearia.');
+      return;
+    }
+
+    if (role === 'barber' && !barbershopSlug) {
+      displayAlert(t('common.error'), 'Por favor, informe o link/slug da barbearia à qual deseja se vincular.');
       return;
     }
 
@@ -38,7 +48,7 @@ export default function RegisterScreen() {
     try {
       let barbershopId = null;
 
-      // 1. Se for Admin, cria a barbearia primeiro (padrão Brasil/EUA com default timezone/currency)
+      // 1. Se for Admin, cria a barbearia primeiro
       if (role === 'admin') {
         const { data: bData, error: bError } = await supabase
           .from('barbershops')
@@ -58,7 +68,21 @@ export default function RegisterScreen() {
         barbershopId = bData.id;
       }
 
-      // 2. Criar usuário no Auth
+      // 2. Se for Barbeiro, vincula à barbearia existente pelo slug
+      if (role === 'barber') {
+        const { data: bData, error: bError } = await supabase
+          .from('barbershops')
+          .select('id')
+          .eq('slug', barbershopSlug.toLowerCase().trim())
+          .single();
+
+        if (bError || !bData) {
+          throw new Error('Barbearia com o link informado não foi encontrada no sistema.');
+        }
+        barbershopId = bData.id;
+      }
+
+      // 3. Criar usuário no Auth
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -114,7 +138,15 @@ export default function RegisterScreen() {
               onPress={() => setRole('admin')}
             >
               <Text style={[styles.roleButtonText, role === 'admin' && styles.roleButtonTextActive]}>
-                {t('register.barber_tab')}
+                Dono/Admin
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.roleButton, role === 'barber' && styles.roleButtonActive]}
+              onPress={() => setRole('barber')}
+            >
+              <Text style={[styles.roleButtonText, role === 'barber' && styles.roleButtonTextActive]}>
+                Barbeiro
               </Text>
             </TouchableOpacity>
           </View>
@@ -168,7 +200,7 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {/* Seção Extra para Barbearias */}
+          {/* Seção Extra para Dono/Administrador da Barbearia */}
           {role === 'admin' && (
             <View style={styles.extraSection}>
               <Text style={styles.sectionTitle}>{t('register.barber_section')}</Text>
@@ -204,6 +236,25 @@ export default function RegisterScreen() {
                   placeholderTextColor="#666"
                   value={primaryColor}
                   onChangeText={setPrimaryColor}
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Seção Extra para Barbeiro/Funcionário Contratado */}
+          {role === 'barber' && (
+            <View style={styles.extraSection}>
+              <Text style={styles.sectionTitle}>Vincular à Barbearia</Text>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Link/Slug da Barbearia contratante</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: premium-barber"
+                  placeholderTextColor="#666"
+                  value={barbershopSlug}
+                  onChangeText={setBarbershopSlug}
                   autoCapitalize="none"
                 />
               </View>
@@ -296,7 +347,7 @@ const styles = StyleSheet.create({
   roleButtonText: {
     color: '#a0a0a0',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
   },
   roleButtonTextActive: {
     color: '#121212',
