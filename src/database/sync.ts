@@ -43,7 +43,7 @@ export async function syncDatabase() {
 
         console.log('[Sync] Push concluído com sucesso.');
       },
-      sendCreatedAsUpdated: true,
+      sendCreatedAsUpdated: false,
     });
 
     console.log('[Sync] Sincronização concluída com sucesso!');

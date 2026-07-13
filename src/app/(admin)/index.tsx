@@ -42,7 +42,7 @@ export default function AdminDashboard() {
         setLoading(false);
       });
 
-    sync();
+    // Sincronização inicial gerenciada pelo hook useSync automaticamente
 
     return () => {
       barbershopSub.unsubscribe();

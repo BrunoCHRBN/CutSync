@@ -37,8 +37,7 @@ export default function ClientDashboard() {
         setMyAppointments(sorted);
       });
 
-    // Sincronização inicial
-    sync();
+    // Sincronização inicial gerenciada pelo hook useSync automaticamente
 
     return () => {
       barbershopsSub.unsubscribe();

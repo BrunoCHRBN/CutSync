@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { syncDatabase } from '../database/sync';
 
+let isSyncActive = false;
+
 export function useSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
 
   const performSync = async () => {
-    if (isSyncing) return;
+    if (isSyncActive) return;
+    isSyncActive = true;
     setIsSyncing(true);
     setSyncError(null);
     try {
@@ -16,6 +19,7 @@ export function useSync() {
       setSyncError(err as Error);
     } finally {
       setIsSyncing(false);
+      isSyncActive = false;
     }
   };
 
