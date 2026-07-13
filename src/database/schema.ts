@@ -1,0 +1,56 @@
+import { appSchema, tableSchema } from '@nozbe/watermelondb';
+
+export default appSchema({
+  version: 1,
+  tables: [
+    tableSchema({
+      name: 'barbershops',
+      columns: [
+        { name: 'name', type: 'string' },
+        { name: 'slug', type: 'string' },
+        { name: 'logo_url', type: 'string', isOptional: true },
+        { name: 'primary_color', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'profiles',
+      columns: [
+        { name: 'barbershop_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'name', type: 'string' },
+        { name: 'role', type: 'string' },
+        { name: 'email', type: 'string' },
+        { name: 'phone', type: 'string', isOptional: true },
+        { name: 'avatar_url', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'services',
+      columns: [
+        { name: 'barbershop_id', type: 'string', isIndexed: true },
+        { name: 'name', type: 'string' },
+        { name: 'price', type: 'number' },
+        { name: 'duration_minutes', type: 'number' },
+        { name: 'is_active', type: 'boolean' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'appointments',
+      columns: [
+        { name: 'barbershop_id', type: 'string', isIndexed: true },
+        { name: 'client_id', type: 'string', isIndexed: true },
+        { name: 'barber_id', type: 'string', isIndexed: true },
+        { name: 'service_id', type: 'string', isIndexed: true },
+        { name: 'date_time', type: 'number' },
+        { name: 'status', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+  ],
+});
