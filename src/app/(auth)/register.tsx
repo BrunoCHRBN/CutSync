@@ -20,9 +20,17 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const displayAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleRegister = async () => {
     if (!name || !email || !password || (role === 'admin' && (!barbershopName || !barbershopSlug))) {
-      Alert.alert(t('common.error'), t('register.error_fill'));
+      displayAlert(t('common.error'), t('register.error_fill'));
       return;
     }
 
@@ -38,8 +46,8 @@ export default function RegisterScreen() {
             name: barbershopName,
             slug: barbershopSlug.toLowerCase().replace(/[^a-z0-9-_]/g, ''),
             primary_color: primaryColor,
-            timezone: 'America/Sao_Paulo', // Fuso padrão inicial
-            currency: 'BRL', // Moeda padrão inicial
+            timezone: 'America/Sao_Paulo',
+            currency: 'BRL',
           })
           .select('id')
           .single();
@@ -68,10 +76,10 @@ export default function RegisterScreen() {
         throw signUpError;
       }
 
-      Alert.alert(t('common.success'), 'Cadastro realizado com sucesso! Faça login.');
+      displayAlert(t('common.success'), 'Cadastro realizado com sucesso! Faça login.');
       router.replace('/(auth)/login');
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Ocorreu um erro.');
+      displayAlert(t('common.error'), error.message || 'Ocorreu um erro.');
     } finally {
       setLoading(false);
     }

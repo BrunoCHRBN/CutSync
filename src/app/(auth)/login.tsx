@@ -11,9 +11,17 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const displayAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert(t('common.error'), t('login.error_fill'));
+      displayAlert(t('common.error'), t('login.error_fill'));
       return;
     }
 
@@ -25,10 +33,10 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        Alert.alert(t('login.error_fail'), error.message);
+        displayAlert(t('login.error_fail'), error.message);
       }
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Error');
+      displayAlert(t('common.error'), error.message || 'Error');
     } finally {
       setLoading(false);
     }
