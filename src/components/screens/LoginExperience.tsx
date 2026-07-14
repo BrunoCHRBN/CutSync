@@ -31,23 +31,42 @@ export const LoginExperience = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isMagicLink, setIsMagicLink] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const handleLogin = async () => {
     setError('');
-    if (!email.trim() || !password) {
-      setError('Informe seu e-mail e senha para continuar.');
+    if (!email.trim()) {
+      setError('Informe seu e-mail para continuar.');
+      return;
+    }
+
+    if (!isMagicLink && !password) {
+      setError('Informe sua senha para continuar.');
       return;
     }
 
     setLoading(true);
     try {
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      });
-      if (loginError) setError('Não foi possível entrar. Confira seus dados e tente novamente.');
-    } catch {
-      setError('A conexão falhou. Seus dados estão seguros; tente novamente em instantes.');
+      if (isMagicLink) {
+        const redirectUrl = Platform.OS === 'web' ? window.location.origin : 'cutsync://(client)';
+        const { error: magicError } = await supabase.auth.signInWithOtp({
+          email: email.trim().toLowerCase(),
+          options: {
+            emailRedirectTo: redirectUrl,
+          }
+        });
+        if (magicError) throw magicError;
+        setMagicLinkSent(true);
+      } else {
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        if (loginError) setError('Não foi possível entrar. Confira seus dados e tente novamente.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'A conexão falhou. Tente novamente em instantes.');
     } finally {
       setLoading(false);
     }
@@ -70,72 +89,107 @@ export const LoginExperience = () => {
               </View>
 
               <AppCard testID="login-form-card" style={styles.formCard} elevated>
-                <View style={styles.fields}>
-                  <AppInput
-                    label="E-mail"
-                    testID="login-email-input"
-                    icon={<Mail color={colors.textMuted} size={18} />}
-                    placeholder="voce@exemplo.com"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    returnKeyType="next"
-                  />
-
-                  <View>
-                    <AppInput
-                      label="Senha"
-                      testID="login-password-input"
-                      icon={<LockKeyhole color={colors.textMuted} size={18} />}
-                      placeholder="Digite sua senha"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      autoComplete="password"
-                      onSubmitEditing={handleLogin}
-                      returnKeyType="done"
+                {magicLinkSent ? (
+                  <View style={{ gap: 12, alignItems: 'center', paddingVertical: 12 }}>
+                    <Text style={{ fontSize: 16, color: colors.success, fontWeight: 'bold' }}>📬 E-mail Enviado!</Text>
+                    <Text style={{ color: colors.text, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+                      Enviamos um link de login rápido para **{email}**. Abra o link em seu dispositivo para acessar sua conta!
+                    </Text>
+                    <AppButton
+                      label="Voltar para Login"
+                      onPress={() => {
+                        setMagicLinkSent(false);
+                        setIsMagicLink(false);
+                      }}
+                      fullWidth
                     />
-                    <Pressable
-                      testID="login-password-visibility-button"
-                      accessibilityRole="button"
-                      accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                      onPress={() => setShowPassword((current) => !current)}
-                      style={({ pressed }) => [styles.eyeButton, pressed && styles.eyeButtonPressed]}
-                    >
-                      {showPassword
-                        ? <EyeOff color={colors.textSecondary} size={18} />
-                        : <Eye color={colors.textSecondary} size={18} />}
-                    </Pressable>
                   </View>
-                </View>
+                ) : (
+                  <>
+                    <View style={styles.fields}>
+                      <AppInput
+                        label="E-mail"
+                        testID="login-email-input"
+                        icon={<Mail color={colors.textMuted} size={18} />}
+                        placeholder="voce@exemplo.com"
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        returnKeyType="next"
+                      />
 
-                {!!error && (
-                  <View testID="login-error-message" style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
+                      {!isMagicLink && (
+                        <View>
+                          <AppInput
+                            label="Senha"
+                            testID="login-password-input"
+                            icon={<LockKeyhole color={colors.textMuted} size={18} />}
+                            placeholder="Digite sua senha"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry={!showPassword}
+                            autoCapitalize="none"
+                            autoComplete="password"
+                            onSubmitEditing={handleLogin}
+                            returnKeyType="done"
+                          />
+                          <Pressable
+                            testID="login-password-visibility-button"
+                            accessibilityRole="button"
+                            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                            onPress={() => setShowPassword((current) => !current)}
+                            style={({ pressed }) => [styles.eyeButton, pressed && styles.eyeButtonPressed]}
+                          >
+                            {showPassword
+                              ? <EyeOff color={colors.textSecondary} size={18} />
+                              : <Eye color={colors.textSecondary} size={18} />}
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+
+                    {!!error && (
+                      <View testID="login-error-message" style={styles.errorBox}>
+                        <Text style={styles.errorText}>{error}</Text>
+                      </View>
+                    )}
+
+                    <AppButton
+                      label={isMagicLink ? "Enviar Link de Acesso" : "Entrar no CutSync"}
+                      testID="login-submit-button"
+                      onPress={handleLogin}
+                      loading={loading}
+                      fullWidth
+                    />
+
+                    <View style={{ gap: 10, marginTop: 4 }}>
+                      <Pressable
+                        onPress={() => {
+                          setError('');
+                          setIsMagicLink(prev => !prev);
+                        }}
+                        style={{ paddingVertical: 8 }}
+                      >
+                        <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center' }}>
+                          {isMagicLink ? "Entrar com E-mail e Senha" : "Entrar sem senha (Link rápido por E-mail)"}
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        testID="login-register-link"
+                        accessibilityRole="link"
+                        onPress={() => router.push('/(auth)/register')}
+                        style={({ pressed }) => [styles.registerLink, pressed && styles.linkPressed]}
+                      >
+                        <Text style={styles.registerText}>Ainda não usa o CutSync? </Text>
+                        <Text style={styles.registerAccent}>Criar conta</Text>
+                      </Pressable>
+                    </View>
+                  </>
                 )}
-
-                <AppButton
-                  label="Entrar no CutSync"
-                  testID="login-submit-button"
-                  onPress={handleLogin}
-                  loading={loading}
-                  fullWidth
-                />
-
-                <Pressable
-                  testID="login-register-link"
-                  accessibilityRole="link"
-                  onPress={() => router.push('/(auth)/register')}
-                  style={({ pressed }) => [styles.registerLink, pressed && styles.linkPressed]}
-                >
-                  <Text style={styles.registerText}>Ainda não usa o CutSync? </Text>
-                  <Text style={styles.registerAccent}>Criar conta</Text>
-                </Pressable>
-              </AppCard>
+              </AppCard>AppCard>
 
               <View testID="login-security-note" style={styles.securityNote}>
                 <ShieldCheck color={colors.success} size={16} />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform, Modal, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
@@ -8,11 +8,12 @@ import { Service, Profile, Barbershop, Appointment, BarberService } from '../../
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
+import { supabase } from '../../services/supabase';
 
-export default function BookingScreen() {
+export default function BookingSlugScreen() {
   const { t, i18n } = useTranslation();
-  const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
-  const { user } = useAuth();
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { user, signInWithPassword } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
 
@@ -33,8 +34,21 @@ export default function BookingScreen() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
 
+  // Estados de Autenticação Atrito Zero (Modal)
+  const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+
   const displayAlert = (title: string, message: string) => {
-    console.warn(`${title}: ${message}`);
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
   };
 
   // Função auxiliar para resolver preço e duração com base no barbeiro selecionado (Fallback)
@@ -81,7 +95,6 @@ export default function BookingScreen() {
 
         const segments = [];
         for (const apt of list) {
-          // Utiliza a duração correta do barbeiro que realizou o agendamento
           const { duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
           const startTime = new Date(apt.dateTime).getTime();
           const endTime = startTime + duration * 60 * 1000;
@@ -108,34 +121,27 @@ export default function BookingScreen() {
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
     const daysInMonth = lastDayOfMonth.getDate();
-    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Domingo, 1 = Segunda...
+    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Domingo
     
     const grid: (Date | null)[] = [];
-    
     for (let i = 0; i < startDayOfWeek; i++) {
       grid.push(null);
     }
-    
     for (let day = 1; day <= daysInMonth; day++) {
       grid.push(new Date(year, month, day));
     }
-    
     return grid;
   };
 
   const monthGrid = generateMonthGrid(viewDate.getFullYear(), viewDate.getMonth());
 
-  // Validar se uma data específica é selecionável (hoje até 30 dias no futuro)
   const isDateSelectable = (date: Date | null) => {
     if (!date) return false;
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 30);
     maxDate.setHours(23, 59, 59, 999);
-    
     return date >= today && date <= maxDate;
   };
 
@@ -147,43 +153,47 @@ export default function BookingScreen() {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
-  // 2. Carregar informações iniciais da barbearia
+  // 2. Carregar informações iniciais da barbearia por Slug
   useEffect(() => {
-    if (!barbershopId) {
+    if (!slug) {
       setLoading(false);
       return;
     }
 
     const fetchInfo = async () => {
       try {
-        const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);
-        setBarbershop(b);
-
-        const sList = await database.collections
-          .get<Service>('services')
-          .query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true))
+        const shops = await database.collections.get<Barbershop>('barbershops')
+          .query(Q.where('slug', slug))
           .fetch();
-        setServices(sList);
 
-        const bList = await database.collections
-          .get<Profile>('profiles')
-          .query(
-            Q.where('barbershop_id', barbershopId),
-            Q.where('role', Q.oneOf(['barber', 'admin']))
-          )
-          .fetch();
-        setBarbers(bList);
+        if (shops.length > 0) {
+          const shop = shops[0];
+          setBarbershop(shop);
 
-        const bsList = await database.collections
-          .get<BarberService>('barber_services')
-          .query(Q.where('barbershop_id', barbershopId))
-          .fetch();
-        setBarberServices(bsList);
+          const sList = await database.collections
+            .get<Service>('services')
+            .query(Q.where('barbershop_id', shop.id), Q.where('is_active', true))
+            .fetch();
+          setServices(sList);
 
-        // Selecionar o dia de hoje por padrão
-        const today = new Date();
-        setSelectedDate(today);
+          const bList = await database.collections
+            .get<Profile>('profiles')
+            .query(
+              Q.where('barbershop_id', shop.id),
+              Q.where('role', Q.oneOf(['barber', 'admin']))
+            )
+            .fetch();
+          setBarbers(bList);
 
+          const bsList = await database.collections
+            .get<BarberService>('barber_services')
+            .query(Q.where('barbershop_id', shop.id))
+            .fetch();
+          setBarberServices(bsList);
+
+          const today = new Date();
+          setSelectedDate(today);
+        }
       } catch (err) {
         console.error('Erro ao buscar dados locais para agendamento:', err);
       } finally {
@@ -192,48 +202,28 @@ export default function BookingScreen() {
     };
 
     fetchInfo();
-  }, [barbershopId]);
+  }, [slug]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(client)');
+      router.replace(`/${slug}`);
     }
   };
 
-  const handleConfirmBooking = async () => {
-    if (!selectedService) {
-      displayAlert(t('common.attention'), 'Por favor, selecione um serviço.');
-      return;
-    }
-
-    if (!selectedBarber) {
-      displayAlert(t('common.attention'), 'Por favor, selecione um profissional.');
-      return;
-    }
-
-    if (!selectedDate || !selectedTime) {
-      displayAlert(t('common.attention'), 'Por favor, escolha a data e o horário.');
-      return;
-    }
-
-    if (!user) {
-      displayAlert(t('common.error'), 'Login required.');
-      return;
-    }
-
+  const executeBooking = async (clientId: string) => {
     setBookingLoading(true);
     try {
-      const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':');
+      const appointmentDate = new Date(selectedDate!);
+      const [hours, minutes] = selectedTime!.split(':');
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       let newAppointmentId = '';
       await database.write(async () => {
         const created = await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = barbershopId;
-          record.clientId = user.id;
+          record.barbershopId = barbershop!.id;
+          record.clientId = clientId;
           record.barberId = selectedBarber;
           record.serviceId = selectedService;
           record.dateTime = appointmentDate;
@@ -247,13 +237,100 @@ export default function BookingScreen() {
       }
 
       displayAlert(t('common.success'), t('booking.success_message'));
-      
       sync();
-      router.replace('/(client)');
+      router.replace(`/${slug}`);
     } catch (error) {
-      displayAlert(t('common.error'), 'Could not save booking.');
+      displayAlert(t('common.error'), 'Não foi possível salvar o agendamento.');
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
+      displayAlert(t('common.attention'), 'Por favor, selecione serviço, profissional, data e horário.');
+      return;
+    }
+
+    if (!user) {
+      // Se não estiver logado, abre o modal de autenticação sem senha/cadastro rápido!
+      setIsAuthModalVisible(true);
+      return;
+    }
+
+    await executeBooking(user.id);
+  };
+
+  // Fluxo Magic Link (Login sem Senha)
+  const handleSendMagicLink = async () => {
+    if (!authEmail) {
+      displayAlert('E-mail requerido', 'Por favor, digite seu e-mail.');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const redirectUrl = Platform.OS === 'web' 
+        ? window.location.origin + `/${slug}/booking`
+        : 'cutsync://(client)';
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: authEmail,
+        options: {
+          emailRedirectTo: redirectUrl,
+        }
+      });
+
+      if (error) throw error;
+
+      setMagicLinkSent(true);
+      displayAlert('Link Enviado', 'Verifique sua caixa de entrada para o acesso rápido!');
+    } catch (err: any) {
+      displayAlert('Erro de Conexão', err.message || 'Erro ao enviar link.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Fluxo de Cadastro e Login Clássico Simplificado
+  const handleAuthSubmit = async () => {
+    if (!authEmail || !authPassword || (isRegisterMode && !authName)) {
+      displayAlert('Campos incompletos', 'Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      if (isRegisterMode) {
+        // Registrar novo usuário visitante
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: {
+            data: {
+              name: authName,
+              role: 'client',
+              barbershop_id: barbershop?.id || null,
+            }
+          }
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error('Falha no cadastro.');
+
+        displayAlert('Sucesso', 'Conta criada! Agendamento sendo concluído.');
+        setIsAuthModalVisible(false);
+        await executeBooking(data.user.id);
+      } else {
+        // Fazer login rápido
+        const response = await signInWithPassword(authEmail, authPassword);
+        setIsAuthModalVisible(false);
+        await executeBooking(response.user.id);
+      }
+    } catch (err: any) {
+      displayAlert('Erro', err.message || 'Ocorreu um erro na autenticação.');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -316,7 +393,6 @@ export default function BookingScreen() {
                   ]}
                   onPress={() => {
                     setSelectedService(item.id);
-                    // Reseta barbeiro se ele não realizar o novo serviço escolhido
                     if (selectedBarber) {
                       const { isActive } = getServicePriceAndDuration(item.id, selectedBarber);
                       if (!isActive) setSelectedBarber(null);
@@ -370,7 +446,7 @@ export default function BookingScreen() {
             )}
           </View>
 
-          {/* 3. Escolha de Dia (Grade Mensal / Grid) */}
+          {/* 3. Escolha de Dia (Grade Grid) */}
           <View style={styles.section}>
             <View style={styles.calendarHeader}>
               <Text style={styles.sectionTitle}>Escolha o Dia</Text>
@@ -385,7 +461,6 @@ export default function BookingScreen() {
               </View>
             </View>
 
-            {/* Grid do Calendário */}
             <View style={styles.calendarGrid}>
               <View style={styles.weekDaysRow}>
                 {weekDays.map((wd, index) => (
@@ -482,7 +557,9 @@ export default function BookingScreen() {
               {bookingLoading ? (
                 <ActivityIndicator color="#121212" />
               ) : (
-                <Text style={styles.confirmButtonText}>{t('booking.button')}</Text>
+                <Text style={styles.confirmButtonText}>
+                  {user ? t('booking.button') : 'Logar e Confirmar'}
+                </Text>
               )}
             </TouchableOpacity>
           )}
@@ -492,6 +569,116 @@ export default function BookingScreen() {
           </TouchableOpacity>
         </ScrollView>
       </View>
+
+      {/* Modal: Autenticação Rápida de Atrito Zero (Magic Link e Cadastro Rápido) */}
+      <Modal visible={isAuthModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={[styles.modalTitle, { color: primaryColor }]}>Identifique-se</Text>
+            <Text style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
+
+            {magicLinkSent ? (
+              <View style={styles.magicLinkState}>
+                <Text style={styles.magicSuccessTitle}>📬 E-mail Enviado!</Text>
+                <Text style={styles.magicSuccessDesc}>
+                  Enviamos um link de login rápido para **{authEmail}**. Abra o link em seu celular/computador e retorne aqui para finalizar o agendamento!
+                </Text>
+                <TouchableOpacity 
+                  style={[styles.modalBtn, { backgroundColor: primaryColor, marginTop: 16 }]}
+                  onPress={() => {
+                    setMagicLinkSent(false);
+                    setIsAuthModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalBtnText}>Entendi</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {/* Abas */}
+                <View style={styles.authTabs}>
+                  <TouchableOpacity 
+                    style={[styles.authTab, !isRegisterMode && styles.authTabActive]}
+                    onPress={() => setIsRegisterMode(false)}
+                  >
+                    <Text style={[styles.authTabText, !isRegisterMode && { color: primaryColor }]}>Sem Senha</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.authTab, isRegisterMode && styles.authTabActive]}
+                    onPress={() => setIsRegisterMode(true)}
+                  >
+                    <Text style={[styles.authTabText, isRegisterMode && { color: primaryColor }]}>Criar Conta</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Formulário */}
+                {isRegisterMode ? (
+                  <>
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="Seu Nome Completo"
+                      placeholderTextColor="#666"
+                      value={authName}
+                      onChangeText={setAuthName}
+                    />
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="E-mail"
+                      placeholderTextColor="#666"
+                      keyboardType="email-address"
+                      value={authEmail}
+                      onChangeText={setAuthEmail}
+                    />
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="Senha (mínimo 6 dígitos)"
+                      placeholderTextColor="#666"
+                      secureTextEntry
+                      value={authPassword}
+                      onChangeText={setAuthPassword}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.modalBtn, { backgroundColor: primaryColor }]}
+                      onPress={handleAuthSubmit}
+                      disabled={authLoading}
+                    >
+                      {authLoading ? <ActivityIndicator color="#121212" /> : <Text style={styles.modalBtnText}>Criar e Reservar</Text>}
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.magicLinkInfo}>
+                      Digite seu e-mail abaixo. Você receberá um link de login imediato sem senhas.
+                    </Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="Seu melhor e-mail"
+                      placeholderTextColor="#666"
+                      keyboardType="email-address"
+                      value={authEmail}
+                      onChangeText={setAuthEmail}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.modalBtn, { backgroundColor: primaryColor }]}
+                      onPress={handleSendMagicLink}
+                      disabled={authLoading}
+                    >
+                      {authLoading ? <ActivityIndicator color="#121212" /> : <Text style={styles.modalBtnText}>Enviar Link de Acesso</Text>}
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                <TouchableOpacity 
+                  style={styles.modalCancelBtn}
+                  onPress={() => setIsAuthModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -705,5 +892,108 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Modal de Autenticação Atrito Zero
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#000000bb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 440,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    fontFamily: 'Montserrat_700Bold',
+    textAlign: 'center',
+  },
+  modalDesc: {
+    fontSize: 12,
+    color: '#a0a0a0',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  magicLinkState: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  magicSuccessTitle: {
+    fontSize: 16,
+    color: '#30d158',
+    fontWeight: 'bold',
+  },
+  magicSuccessDesc: {
+    color: '#fff',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  authTabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2c2c2e',
+    marginBottom: 16,
+  },
+  authTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  authTabActive: {
+    borderBottomWidth: 2,
+  },
+  authTabText: {
+    color: '#a0a0a0',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  magicLinkInfo: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: '#2c2c2e',
+    color: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#3a3a3c',
+    marginBottom: 12,
+  },
+  modalBtn: {
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalBtnText: {
+    color: '#121212',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  modalCancelBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalCancelText: {
+    color: '#ff453a',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 });

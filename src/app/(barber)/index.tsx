@@ -160,26 +160,41 @@ function LegacyBarberDashboardScreen() {
         const details: AppointmentDetail[] = [];
         const segmentMap: Record<string, { start: number; end: number }[]> = {};
 
+        const isUserAdmin = profile.role === 'admin';
+        const currentUserId = user?.id;
+
         for (const apt of list) {
-          // Obter nome do cliente
-          let clientName = apt.clientName || 'Cliente Walk-in';
-          if (apt.clientId) {
-            try {
-              const cl = await database.collections.get<Profile>('profiles').find(apt.clientId);
-              clientName = cl.name;
-            } catch (e) {
-              // mantém padrão
+          const isOwnAppointment = apt.barberId === currentUserId;
+          const shouldCensor = !isUserAdmin && !isOwnAppointment;
+
+          // Obter nome do cliente com censura para outros barbeiros
+          let clientName = 'Cliente Walk-in';
+          if (shouldCensor) {
+            clientName = 'Ocupado';
+          } else {
+            clientName = apt.clientName || 'Cliente Walk-in';
+            if (apt.clientId) {
+              try {
+                const cl = await database.collections.get<Profile>('profiles').find(apt.clientId);
+                clientName = cl.name;
+              } catch (e) {
+                // mantém padrão
+              }
             }
           }
 
-          // Obter dados do serviço com base nas exceções de preço e tempo do profissional
+          // Obter dados do serviço e preço com censura
           const { price, duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
           let serviceName = 'Serviço Removido';
-          try {
-            const sv = await database.collections.get<Service>('services').find(apt.serviceId);
-            serviceName = sv.name;
-          } catch (e) {
-            // mantém padrão
+          if (shouldCensor) {
+            serviceName = 'Reservado';
+          } else {
+            try {
+              const sv = await database.collections.get<Service>('services').find(apt.serviceId);
+              serviceName = sv.name;
+            } catch (e) {
+              // mantém padrão
+            }
           }
 
           details.push({
@@ -188,7 +203,7 @@ function LegacyBarberDashboardScreen() {
             status: apt.status,
             clientName,
             serviceName,
-            price,
+            price: shouldCensor ? 0 : price,
             barberId: apt.barberId,
           });
 

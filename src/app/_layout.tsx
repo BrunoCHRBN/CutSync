@@ -19,17 +19,22 @@ function RootLayoutNavigation() {
     if (loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const isDynamicSlug = segments[0] === '[slug]';
 
     if (!user) {
-      // Se não estiver logado, redirecionar para tela de Login
-      if (!inAuthGroup) {
+      // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
+      if (!inAuthGroup && !isDynamicSlug) {
         router.replace('/(auth)/login');
       }
     } else if (profile) {
       // Se estiver logado e perfil carregado, direciona para o respectivo fluxo
       const firstSegment = segments[0] as string | undefined;
       const inAdminGroup = firstSegment === '(admin)' || firstSegment === 'admin';
-      const inClientGroup = firstSegment === '(client)' || firstSegment === 'explore' || firstSegment === 'appointments';
+      const inClientGroup = 
+        firstSegment === '(client)' || 
+        firstSegment === 'explore' || 
+        firstSegment === 'appointments' ||
+        isDynamicSlug;
       const inBarberGroup = firstSegment === '(barber)' || firstSegment === 'barber';
 
       if (profile.role === 'admin') {
