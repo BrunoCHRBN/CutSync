@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -156,7 +157,7 @@ export default function BookingScreen() {
 
     const fetchInfo = async () => {
       try {
-        const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);
+        const b = await database.collections.get<Barbershop>('establishments').find(barbershopId);
         setBarbershop(b);
 
         const sList = await database.collections
@@ -169,13 +170,13 @@ export default function BookingScreen() {
           .get<Profile>('profiles')
           .query(
             Q.where('establishment_id', barbershopId),
-            Q.where('role', Q.oneOf(['barber', 'admin']))
+            Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))
           )
           .fetch();
         setBarbers(bList);
 
         const bsList = await database.collections
-          .get<BarberService>('barber_services')
+          .get<BarberService>('professional_services')
           .query(Q.where('establishment_id', barbershopId))
           .fetch();
         setBarberServices(bsList);
@@ -336,7 +337,7 @@ export default function BookingScreen() {
 
           {/* 2. Escolha do Barbeiro */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('booking.barber_label')}</Text>
+            <Text style={styles.sectionTitle}>{t('booking.professional_label')}</Text>
             {filteredBarbers.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyText}>Sem profissionais disponíveis para este serviço.</Text>
@@ -500,14 +501,14 @@ export default function BookingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   innerContainer: {
     flex: 1,
     width: '100%',
     maxWidth: 600,
     alignSelf: 'center',
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   scrollContent: {
     padding: 24,
@@ -517,11 +518,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 48,
     paddingBottom: 16,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   barbershopName: {
@@ -534,40 +535,40 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
     marginBottom: 12,
   },
   card: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1.5,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   cardActive: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   cardName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 15,
     fontWeight: 'bold',
   },
   cardSubText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
   },
   emptyCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
   },
   emptyText: {
-    color: '#666',
+    color: colors.textMuted,
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -583,11 +584,11 @@ const styles = StyleSheet.create({
   monthNavButton: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 6,
   },
   monthNavText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -596,22 +597,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   calendarGrid: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2e',
+    borderBottomColor: colors.border,
     paddingBottom: 8,
   },
   weekDayText: {
-    color: '#666',
+    color: colors.textMuted,
     width: '14.28%',
     textAlign: 'center',
     fontSize: 11,
@@ -640,7 +641,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
   dayCellText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -648,7 +649,7 @@ const styles = StyleSheet.create({
     color: '#121212',
   },
   dayCellTextDisabled: {
-    color: '#666',
+    color: colors.textMuted,
   },
   timeGrid: {
     flexDirection: 'row',
@@ -657,9 +658,9 @@ const styles = StyleSheet.create({
   },
   timeCard: {
     width: '23%',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
@@ -668,17 +669,17 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   timeCardDisabled: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderColor: 'transparent',
     opacity: 0.2,
   },
   timeText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: 'bold',
   },
   timeTextDisabled: {
-    color: '#666',
+    color: colors.textMuted,
   },
   confirmButton: {
     borderRadius: 8,
@@ -703,7 +704,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -92,7 +92,7 @@ export const BarberDashboardExperience = () => {
   useEffect(() => {
     if (!profile?.establishment_id) { setLoading(false); return; }
     const shopSub = database.collections
-      .get<Barbershop>('barbershops')
+      .get<Barbershop>('establishments')
       .findAndObserve(profile.establishment_id)
       .subscribe({
         next: (data) => setBarbershop(data),

@@ -62,11 +62,11 @@ export const BookingExperience = () => {
     const load = async () => {
       try {
         const [shop, serviceList, barberList] = await Promise.all([
-          database.collections.get<Barbershop>('barbershops').find(barbershopId),
+          database.collections.get<Barbershop>('establishments').find(barbershopId),
           database.collections.get<Service>('services')
             .query(Q.where('establishment_id', barbershopId), Q.where('is_active', true)).fetch(),
           database.collections.get<Profile>('profiles')
-            .query(Q.where('establishment_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
+            .query(Q.where('establishment_id', barbershopId), Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))).fetch(),
         ]);
         setBarbershop(shop);
         setServices(serviceList);

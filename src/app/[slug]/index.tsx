@@ -98,7 +98,7 @@ export default function BarbershopSlugScreen() {
 
     const loadBySlug = async () => {
       try {
-        const shops = await database.collections.get<Barbershop>('barbershops')
+        const shops = await database.collections.get<Barbershop>('establishments')
           .query(Q.where('slug', slug))
           .fetch();
 
@@ -108,10 +108,10 @@ export default function BarbershopSlugScreen() {
 
           const [serviceList, barberList] = await Promise.all([
             database.collections.get<Service>('services')
-              .query(Q.where('barbershop_id', shop.id), Q.where('is_active', true))
+              .query(Q.where('establishment_id', shop.id), Q.where('is_active', true))
               .fetch(),
             database.collections.get<Profile>('profiles')
-              .query(Q.where('barbershop_id', shop.id), Q.where('role', Q.oneOf(['barber', 'admin'])))
+              .query(Q.where('establishment_id', shop.id), Q.where('role', Q.oneOf(['professional', 'barber', 'admin'])))
               .fetch(),
           ]);
 

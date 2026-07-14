@@ -61,7 +61,7 @@ export const TeamExperience = () => {
       setLoading(false);
       return;
     }
-    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.establishment_id)
+    const shopSub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
     const teamSub = database.collections.get<Profile>('profiles')
       .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', 'barber'))

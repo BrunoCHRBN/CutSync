@@ -50,7 +50,7 @@ function LegacyRegisterScreen() {
       // 1. Se for Admin, cria a barbearia primeiro
       if (role === 'admin') {
         const { data: bData, error: bError } = await supabase
-          .from('barbershops')
+          .from('establishments')
           .insert({
             name: barbershopName,
             slug: barbershopSlug.toLowerCase().replace(/[^a-z0-9-_]/g, ''),
@@ -70,7 +70,7 @@ function LegacyRegisterScreen() {
       // 2. Se for Barbeiro, vincula à barbearia existente pelo slug
       if (role === 'barber') {
         const { data: bData, error: bError } = await supabase
-          .from('barbershops')
+          .from('establishments')
           .select('id')
           .eq('slug', barbershopSlug.toLowerCase().trim())
           .single();

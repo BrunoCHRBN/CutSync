@@ -173,7 +173,7 @@ export const SettingsExperience = () => {
 
   useEffect(() => {
     if (!profile?.establishment_id) { setLoading(false); return; }
-    const sub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.establishment_id).subscribe({
+    const sub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id).subscribe({
       next: (shop) => {
         setBarbershop(shop);
         setName(shop.name || '');

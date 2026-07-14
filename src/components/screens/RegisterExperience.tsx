@@ -102,7 +102,7 @@ export const RegisterExperience = () => {
     try {
       let barbershopId: string | null = null;
       if (role === 'admin') {
-        const { data, error: shopError } = await supabase.from('barbershops').insert({
+        const { data, error: shopError } = await supabase.from('establishments').insert({
           name: shopName.trim(),
           slug: cleanSlug,
           primary_color: primaryColor,
@@ -115,7 +115,7 @@ export const RegisterExperience = () => {
       }
 
       if (role === 'barber') {
-        const { data, error: shopError } = await supabase.from('barbershops').select('id').eq('slug', cleanSlug).single();
+        const { data, error: shopError } = await supabase.from('establishments').select('id').eq('slug', cleanSlug).single();
         if (shopError || !data) throw new Error('Não encontramos uma barbearia com esse código.');
         barbershopId = data.id;
       }

@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -73,7 +74,7 @@ function LegacyAdminDashboard() {
     }
 
     const barbershopSub = database.collections
-      .get<Barbershop>('barbershops')
+      .get<Barbershop>('establishments')
       .findAndObserve(profile.establishment_id)
       .subscribe({
         next: (data) => setBarbershop(data),
@@ -586,7 +587,7 @@ function LegacyAdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   contentContainer: {
     padding: 24,
@@ -600,7 +601,7 @@ const styles = StyleSheet.create({
   },
   barberName: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   barbershopName: {
@@ -609,37 +610,37 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
   },
   logoutButton: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
   logoutText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 14,
   },
   syncPanel: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 24,
   },
   syncStatusContainer: {
     flex: 1,
   },
   syncStatusText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 13,
   },
   syncErrorText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontSize: 11,
     marginTop: 2,
   },
@@ -663,9 +664,9 @@ const styles = StyleSheet.create({
   },
   shortcutButton: {
     flex: 1,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -677,13 +678,13 @@ const styles = StyleSheet.create({
   // Períodos
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 4,
     marginBottom: 20,
     gap: 4,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   periodButton: {
     flex: 1,
@@ -693,21 +694,21 @@ const styles = StyleSheet.create({
   },
   periodButtonActive: {},
   periodButtonText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontWeight: 'bold',
     fontSize: 13,
   },
   // KPIs
   kpiContainer: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -721,15 +722,15 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   kpiLabel: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 10,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -742,11 +743,11 @@ const styles = StyleSheet.create({
   },
   earningsTable: {
     borderTopWidth: 1,
-    borderTopColor: '#2c2c2e',
+    borderTopColor: colors.border,
     paddingTop: 16,
   },
   tableTitle: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 12,
@@ -757,20 +758,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2e',
+    borderBottomColor: colors.border,
   },
   tableBarberName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: 'bold',
   },
   tableBarberRate: {
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 2,
   },
   tableFaturamento: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
   },
   tableComissao: {
@@ -784,15 +785,15 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   chartCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 16,
   },
   chartTitle: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -818,7 +819,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   barValueText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 8,
     fontWeight: 'bold',
     marginBottom: 4,
@@ -826,7 +827,7 @@ const styles = StyleSheet.create({
   barTrack: {
     flex: 1,
     width: 14,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 4,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -836,7 +837,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   barLabelText: {
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 8,
     marginTop: 6,
     fontWeight: 'bold',
@@ -850,17 +851,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   horizontalBarName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: 'bold',
   },
   horizontalBarValue: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 12,
   },
   horizontalBarTrack: {
     height: 8,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -873,10 +874,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   dateCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginRight: 8,
@@ -885,16 +886,16 @@ const styles = StyleSheet.create({
   },
   dateCardActive: {
     borderWidth: 2,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   dateLabel: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
   dateDayStr: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 4,
@@ -903,23 +904,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
   },
   emptyText: {
-    color: '#666',
+    color: colors.textMuted,
   },
   panoramicScroll: {
     marginTop: 8,
   },
   barberColumn: {
     width: 200,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     padding: 12,
     marginRight: 12,
     height: 420,
@@ -930,12 +931,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   columnBarberName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 15,
     fontWeight: 'bold',
   },
   columnBarberRole: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 9,
     marginTop: 2,
     fontWeight: 'bold',
@@ -945,18 +946,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   columnEmptyText: {
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 20,
   },
   miniAppointmentCard: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   miniHeader: {
     flexDirection: 'row',
@@ -976,7 +977,7 @@ const styles = StyleSheet.create({
   miniBadgeText: {
     fontSize: 7,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.text,
   },
   badgePending: {
     backgroundColor: '#ffb30033',
@@ -991,12 +992,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff453a33',
   },
   miniClient: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: 'bold',
   },
   miniService: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 11,
     marginTop: 2,
   },
@@ -1018,7 +1019,7 @@ const styles = StyleSheet.create({
     borderColor: '#ff453a55',
   },
   miniBtnCancelText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontSize: 11,
     fontWeight: 'bold',
   },

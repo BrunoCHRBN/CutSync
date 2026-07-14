@@ -23,7 +23,7 @@ export const ExploreExperience = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const sub = database.collections.get<Barbershop>('barbershops').query().observe().subscribe({
+    const sub = database.collections.get<Barbershop>('establishments').query().observe().subscribe({
       next: (items) => { setBarbershops(items); setLoading(false); },
       error: () => setLoading(false),
     });

@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -34,7 +35,7 @@ function LegacyManageBarbersScreen() {
 
     // 1. Carregar a barbearia
     const bSub = database.collections
-      .get<Barbershop>('barbershops')
+      .get<Barbershop>('establishments')
       .findAndObserve(profile.establishment_id)
       .subscribe((data) => setBarbershop(data));
 
@@ -140,7 +141,7 @@ function LegacyManageBarbersScreen() {
           <View style={styles.instructionCard}>
             <Text style={[styles.instructionTitle, { color: primaryColor }]}>Como Adicionar Barbeiros</Text>
             <Text style={styles.instructionText}>
-              Para adicionar profissionais à sua equipe contratada, instrua-os a fazer o cadastro no Cutsync escolhendo a opção de perfil <Text style={{ fontWeight: 'bold', color: '#fff' }}>Barbeiro</Text> e informando o seguinte código do salão:
+              Para adicionar profissionais à sua equipe contratada, instrua-os a fazer o cadastro no Cutsync escolhendo a opção de perfil <Text style={{ fontWeight: 'bold', color: colors.text }}>Barbeiro</Text> e informando o seguinte código do salão:
             </Text>
             <View style={styles.slugContainer}>
               <Text style={[styles.slugText, { color: primaryColor }]}>{barbershop?.slug}</Text>
@@ -211,13 +212,13 @@ function LegacyManageBarbersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     padding: 24,
     paddingTop: 48,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -240,11 +241,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   instructionCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 24,
   },
   instructionTitle: {
@@ -254,19 +255,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   instructionText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   slugContainer: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 14,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   slugText: {
     fontSize: 18,
@@ -274,27 +275,27 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   instructionNote: {
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 11,
   },
   emptyCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   emptyText: {
-    color: '#666',
+    color: colors.textMuted,
     textAlign: 'center',
   },
   barberCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,17 +320,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   barberName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 15,
     fontWeight: 'bold',
   },
   barberEmail: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
   barberPhone: {
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 2,
   },
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
     borderColor: '#ff453a44',
   },
   removeButtonText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -352,7 +353,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   backButtonText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 14,
   },

@@ -120,7 +120,7 @@ export const AdminDashboardExperience = () => {
       return;
     }
 
-    const shopSub = database.collections.get<Barbershop>('barbershops')
+    const shopSub = database.collections.get<Barbershop>('establishments')
       .findAndObserve(profile.establishment_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
 

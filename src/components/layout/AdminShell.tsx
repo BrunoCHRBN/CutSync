@@ -51,7 +51,7 @@ export const AdminShell = ({
   React.useEffect(() => {
     if (!profile?.id) return;
     
-    const query = database.collections.get<Barbershop>('barbershops').query();
+    const query = database.collections.get<Barbershop>('establishments').query();
     const subscription = query.observe().subscribe({
       next: (list) => {
         setAvailableShops(list);

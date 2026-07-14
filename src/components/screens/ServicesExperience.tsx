@@ -34,7 +34,7 @@ export const ServicesExperience = () => {
 
   useEffect(() => {
     if (!profile?.establishment_id) { setLoading(false); return; }
-    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.establishment_id).subscribe(setBarbershop);
+    const shopSub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id).subscribe(setBarbershop);
     const serviceSub = database.collections.get<Service>('services').query(Q.where('establishment_id', profile.establishment_id)).observe()
       .subscribe((items) => { setServices(items); setLoading(false); });
     return () => { shopSub.unsubscribe(); serviceSub.unsubscribe(); };

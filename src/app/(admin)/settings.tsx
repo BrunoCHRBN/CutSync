@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Platform, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -42,7 +43,7 @@ function LegacyBarbershopSettingsScreen() {
     const barbershopId = profile.establishment_id;
     const fetchBarbershop = async () => {
       try {
-        const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);
+        const b = await database.collections.get<Barbershop>('establishments').find(barbershopId);
         setBarbershop(b);
 
         setName(b.name);
@@ -230,7 +231,7 @@ function LegacyBarbershopSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   contentContainer: {
     padding: 24,
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -258,16 +259,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   formCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 16,
   },
   formTitle: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     marginBottom: 16,
   },
@@ -276,20 +277,20 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   input: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#fff',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   textArea: {
     height: 100,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButtonText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -321,20 +322,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     padding: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   toggleLabel: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.text,
   },
   toggleSubText: {
     fontSize: 11,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginTop: 4,
   },
 });

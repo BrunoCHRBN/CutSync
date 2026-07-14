@@ -98,7 +98,7 @@ function LegacyBarberDashboardScreen() {
     if (!profile?.establishment_id) return;
 
     const bSub = database.collections
-      .get<Barbershop>('barbershops')
+      .get<Barbershop>('establishments')
       .findAndObserve(profile.establishment_id)
       .subscribe((data) => setBarbershop(data));
 
@@ -121,7 +121,7 @@ function LegacyBarberDashboardScreen() {
       .subscribe((data) => setServices(data));
 
     const bsSub = database.collections
-      .get<BarberService>('barber_services')
+      .get<BarberService>('professional_services')
       .query(Q.where('establishment_id', profile.establishment_id))
       .observe()
       .subscribe((data) => setBarberServices(data));

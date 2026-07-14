@@ -22,7 +22,7 @@ function LegacyClientDashboard() {
   useEffect(() => {
     // 1. Ouvir as barbearias ativas localmente no WatermelonDB
     const barbershopsSub = database.collections
-      .get<Barbershop>('barbershops')
+      .get<Barbershop>('establishments')
       .query()
       .observe()
       .subscribe((data) => {

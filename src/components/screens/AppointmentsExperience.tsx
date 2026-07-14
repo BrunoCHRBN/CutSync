@@ -64,7 +64,7 @@ export const AppointmentsExperience = () => {
         let shopName = 'Barbearia'; let shopAddress: string | undefined; let serviceName = 'Serviço'; let barberName = 'Profissional';
         let contactPhone = ''; let shopSlug = '';
         try { 
-          const shop = await database.collections.get<Barbershop>('barbershops').find(item.establishmentId); 
+          const shop = await database.collections.get<Barbershop>('establishments').find(item.establishmentId); 
           shopName = shop.name; 
           shopAddress = shop.address; 
           contactPhone = shop.phone || '';

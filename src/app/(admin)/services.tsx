@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Platform, TextInput, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -49,7 +50,7 @@ export default function ManageServicesScreen() {
     }
 
     const bSub = database.collections
-      .get<Barbershop>('barbershops')
+      .get<Barbershop>('establishments')
       .findAndObserve(profile.establishment_id)
       .subscribe((data) => setBarbershop(data));
 
@@ -67,13 +68,13 @@ export default function ManageServicesScreen() {
       .get<Profile>('profiles')
       .query(
         Q.where('establishment_id', profile.establishment_id),
-        Q.where('role', Q.oneOf(['barber', 'admin']))
+        Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))
       )
       .observe()
       .subscribe((data) => setBarbers(data));
 
     const bsSub = database.collections
-      .get<BarberService>('barber_services')
+      .get<BarberService>('professional_services')
       .query(Q.where('establishment_id', profile.establishment_id))
       .observe()
       .subscribe((data) => setBarberServices(data));
@@ -238,7 +239,7 @@ export default function ManageServicesScreen() {
             record.isActive = form.isActive;
           });
         } else {
-          await database.collections.get<BarberService>('barber_services').create((record) => {
+          await database.collections.get<BarberService>('professional_services').create((record) => {
             record.establishmentId = profile!.establishment_id!;
             record.professionalId = barberId;
             record.serviceId = selectedServiceForPrices.id;
@@ -396,7 +397,7 @@ export default function ManageServicesScreen() {
                         <Text style={[styles.crudBtnText, { color: primaryColor }]}>Editar</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => handleRemoveService(item.id)} style={styles.crudBtn}>
-                        <Text style={[styles.crudBtnText, { color: '#ff453a' }]}>Excluir</Text>
+                        <Text style={[styles.crudBtnText, { color: colors.danger }]}>Excluir</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -515,7 +516,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -527,28 +528,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   formCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 16,
   },
   formTitle: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     marginBottom: 16,
   },
   input: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     marginBottom: 12,
   },
   row: {
@@ -574,41 +575,41 @@ const styles = StyleSheet.create({
     flex: 0.4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
-    backgroundColor: '#121212',
+    borderColor: colors.border,
+    backgroundColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelEditBtnText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: 'bold',
   },
   sectionTitle: {
     fontSize: 18,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     marginBottom: 12,
   },
   emptyCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   emptyText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
   },
   serviceCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 10,
   },
   serviceHeaderRow: {
@@ -618,7 +619,7 @@ const styles = StyleSheet.create({
   },
   serviceName: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   crudActions: {
@@ -629,9 +630,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   crudBtnText: {
     fontSize: 11,
@@ -639,7 +640,7 @@ const styles = StyleSheet.create({
   },
   serviceDetails: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   ratesConfigLink: {
@@ -655,12 +656,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   backButtonText: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   // Modal Styles
@@ -680,21 +681,21 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 500,
     maxHeight: '90%',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     padding: 20,
   },
   modalTitle: {
     fontSize: 18,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     marginBottom: 6,
   },
   modalSubtitle: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginBottom: 16,
     lineHeight: 18,
   },
@@ -703,11 +704,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   barberRateCard: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     marginBottom: 10,
   },
   barberRateHeader: {
@@ -716,7 +717,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   barberRateName: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -727,18 +728,18 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   miniInput: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   rowActions: {
     flexDirection: 'row',
@@ -760,13 +761,13 @@ const styles = StyleSheet.create({
   resetBtn: {
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#ff453a',
+    borderColor: colors.danger,
     paddingVertical: 8,
     paddingHorizontal: 12,
     alignItems: 'center',
   },
   resetBtnText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -774,10 +775,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
   },
   closeBtnText: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   switchRow: {
@@ -787,7 +788,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   switchLabel: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
   },
 });

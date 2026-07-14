@@ -31,7 +31,7 @@ function LegacyBarbershopDetailsScreen() {
 
     const fetchDetails = async () => {
       try {
-        const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);
+        const b = await database.collections.get<Barbershop>('establishments').find(barbershopId);
         setBarbershop(b);
 
         const sList = await database.collections
@@ -44,7 +44,7 @@ function LegacyBarbershopDetailsScreen() {
           .get<Profile>('profiles')
           .query(
             Q.where('establishment_id', barbershopId),
-            Q.where('role', Q.oneOf(['barber', 'admin']))
+            Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))
           )
           .fetch();
         setBarbers(bList);
