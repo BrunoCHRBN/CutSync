@@ -40,9 +40,10 @@ export default function BarbershopSettingsScreen() {
       return;
     }
 
+    const barbershopId = profile.barbershop_id;
     const fetchBarbershop = async () => {
       try {
-        const b = await database.collections.get<Barbershop>('barbershops').find(profile.barbershop_id);
+        const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);
         setBarbershop(b);
 
         setName(b.name);

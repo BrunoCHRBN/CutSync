@@ -7,6 +7,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { database } from '../../database';
 import { Barbershop, Appointment, Profile, Service } from '../../database/models';
+import { AdminDashboardExperience } from '../../components/screens/AdminDashboardExperience';
+
+export default AdminDashboardExperience;
 
 interface RichAppointment {
   id: string;
@@ -18,7 +21,7 @@ interface RichAppointment {
   barberId: string;
 }
 
-export default function AdminDashboard() {
+function LegacyAdminDashboard() {
   const { t, i18n } = useTranslation();
   const { profile, signOut } = useAuth();
   const { isSyncing, syncError, sync } = useSync();

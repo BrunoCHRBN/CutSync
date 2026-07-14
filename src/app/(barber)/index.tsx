@@ -703,6 +703,9 @@ export default function BarberDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  inputGroup: {
+    marginBottom: 16,
+  },
   container: {
     flex: 1,
     backgroundColor: '#121212',

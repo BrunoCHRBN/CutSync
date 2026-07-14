@@ -1,0 +1,59 @@
+{
+  "summary": "Testes frontend executados para login e regressões de build; dashboard/booking validados parcialmente por análise estática por falta de credenciais e dados autenticados.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Routing (Expo web)",
+        "issue": "A URL pública /admin cai em 'Unmatched Route' em vez de resolver fluxo administrativo.",
+        "selector": "N/A (rota)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Admin Dashboard e Agendamento autenticados",
+        "issue": "Sem credenciais e sem sessão autenticada, não foi possível validar integração runtime de métricas, agenda, troca de status e prevenção de conflitos ponta a ponta.",
+        "affected_selectors": [
+          "admin-dashboard-screen",
+          "admin-date-selector",
+          "booking-screen",
+          "booking-confirm-button"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/src/components/screens/LoginExperience.tsx",
+    "/app/src/components/screens/AdminDashboardExperience.tsx",
+    "/app/src/components/screens/BookingExperience.tsx",
+    "/app/src/components/layout/AdminShell.tsx",
+    "/app/src/theme/tokens.ts"
+  ],
+  "action_items": [
+    "Corrigir/confirmar roteamento web para acesso administrativo (evitar 404 em /admin).",
+    "Disponibilizar credenciais e seed mínimos para validar Dashboard Admin e Booking com sessão real.",
+    "Após credenciais, retestar ações de status dos agendamentos e bloqueio de conflito em runtime."
+  ],
+  "critical_code_review_comments": [
+    "Há códigos legados extensos coexistindo com exports novos em arquivos de rota; risco de manutenção e confusão de fluxo.",
+    "Não há evidência de data-testid no fluxo de cadastro legado, reduzindo testabilidade futura de regressão auth."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_1.json"
+  ],
+  "success_rate": {
+    "backend": "N/A",
+    "frontend": "65%"
+  },
+  "test_credentials": "Arquivo /app/memory/test_credentials.md não existe neste workspace.",
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login redesign validado em desktop/mobile com data-testid, erro inline, toggle de senha, navegação para cadastro e sem overflow horizontal em 390/1920. TypeScript (yarn tsc --noEmit) e expo web export passaram. Persistem limitações de validação E2E para admin/booking por ausência de credenciais/sessão.",
+  "rca of the issue": "Reprodução da falha de rota: abrir http://localhost:8081/admin exibe tela 'Unmatched Route'. O projeto usa expo-router com grupos de rota (ex.: /(admin)), mas URL pública /admin não foi resolvida no build web atual. Mitigação: revisar mapeamento de rotas públicas e deep-linking para grupo admin no Expo Router e adicionar teste de rota web para prevenir regressão."
+}

@@ -8,8 +8,11 @@ import { Service, Profile, Barbershop, Appointment } from '../../database/models
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
+import { BookingExperience } from '../../components/screens/BookingExperience';
 
-export default function BookingScreen() {
+export default BookingExperience;
+
+function LegacyBookingScreen() {
   const { t, i18n } = useTranslation();
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
   const { user } = useAuth();

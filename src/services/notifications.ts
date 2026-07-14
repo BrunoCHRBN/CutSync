@@ -4,7 +4,8 @@ import { Platform } from 'react-native';
 // Configurar comportamento das notificações em primeiro plano (foreground)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -54,7 +55,10 @@ export async function scheduleAppointmentNotification(
       body: `Seu horário na ${barbershopName} está chegando! Às ${dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`,
       data: { appointmentId },
     },
-    trigger,
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: trigger,
+    },
   });
 
   return notificationId;
