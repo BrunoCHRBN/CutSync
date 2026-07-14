@@ -99,7 +99,7 @@ export const AppointmentsExperience = () => {
           <View testID="client-appointments-list" style={styles.list}>
             {visible.map((item) => {
               const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
-              const cancellable = item.status === 'pending' || item.status === 'confirmed';
+              const cancellable = item.dateTime.getTime() > Date.now() && (item.status === 'pending' || item.status === 'confirmed');
               return (
                 <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={[styles.card, isWide && styles.cardWide]}>
                   <View style={styles.dateBlock}>
