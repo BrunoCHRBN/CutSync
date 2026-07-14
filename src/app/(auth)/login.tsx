@@ -3,8 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
+import { LoginExperience } from '../../components/screens/LoginExperience';
 
-export default function LoginScreen() {
+export default LoginExperience;
+
+function LegacyLoginScreen() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

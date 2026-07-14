@@ -9,7 +9,7 @@ export default class Profile extends Model {
     appointments: { type: 'has_many', foreignKey: 'client_id' },
   } as const;
 
-  @text('barbershop_id') barbershopId?: string;
+  @text('barbershop_id') barbershopId?: string | null;
   @text('name') name!: string;
   @text('role') role!: 'client' | 'barber' | 'admin';
   @text('email') email!: string;

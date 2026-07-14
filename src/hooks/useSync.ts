@@ -7,6 +7,7 @@ let isSyncActive = false;
 export function useSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
 
   const performSync = async () => {
     if (isSyncActive) return;
@@ -26,6 +27,7 @@ export function useSync() {
   useEffect(() => {
     // Inscrever-se para escutar mudanças no estado da rede
     const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(!state.isConnected || state.isInternetReachable === false);
       // Disparar sincronização automática apenas se estiver conectado e a internet for acessível
       if (state.isConnected && state.isInternetReachable !== false) {
         console.log('[useSync] Internet reestabelecida. Iniciando sync automático...');
@@ -39,6 +41,7 @@ export function useSync() {
   return {
     isSyncing,
     syncError,
+    isOffline,
     sync: performSync,
   };
 }
