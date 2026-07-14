@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Platform, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Platform, TextInput, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
@@ -7,10 +7,11 @@ import { database } from '../../database';
 import { Service, Profile, Barbershop, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { AdminShell } from '../../components/layout/AdminShell';
 
 export default function ManageServicesScreen() {
   const { t } = useTranslation();
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
 
@@ -303,7 +304,14 @@ export default function ManageServicesScreen() {
   const primaryColor = barbershop?.primaryColor || '#D4AF37';
 
   return (
-    <View style={styles.container}>
+    <AdminShell
+      testID="admin-services-screen"
+      activeRoute="services"
+      shopName={barbershop?.name || 'Sua barbearia'}
+      userName={profile?.name}
+      onSignOut={signOut}
+    >
+      <View style={styles.container}>
       <Text style={styles.headerTitle}>{t('services.title')}</Text>
       <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
 
@@ -410,13 +418,6 @@ export default function ManageServicesScreen() {
         )}
       </View>
 
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={handleBack}
-      >
-        <Text style={styles.backButtonText}>{t('common.back')}</Text>
-      </TouchableOpacity>
-
       {/* Modal: Tarifas por Barbeiro */}
       {isPricesModalOpen && selectedServiceForPrices && (
         <View style={styles.modalOverlay}>
@@ -498,20 +499,17 @@ export default function ManageServicesScreen() {
           </View>
         </View>
       )}
-    </View>
+      </View>
+    </AdminShell>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
-    padding: 24,
-    paddingTop: 48,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
