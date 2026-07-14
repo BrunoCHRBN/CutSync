@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CalendarDays, LayoutDashboard, Scissors, Settings, Users, LogOut, Wifi } from 'lucide-react-native';
 import { BrandMark } from '../ui/BrandMark';
@@ -150,10 +150,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     paddingHorizontal: 8,
     paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.38,
-    shadowRadius: 20,
-    elevation: 12,
+    ...Platform.select({
+      web: { boxShadow: '0 12px 28px rgba(0,0,0,0.38)' } as any,
+      default: { shadowColor: '#000', shadowOpacity: 0.38, shadowRadius: 20, elevation: 12 },
+    }),
   },
   bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
   bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9 },

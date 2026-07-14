@@ -3,8 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
+import { RegisterExperience } from '../../components/screens/RegisterExperience';
 
-export default function RegisterScreen() {
+export default RegisterExperience;
+
+function LegacyRegisterScreen() {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,11 +24,7 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const displayAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    console.warn(`${title}: ${message}`);
   };
 
   const handleRegister = async () => {
@@ -314,11 +313,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1e',
     borderRadius: 16,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
     marginBottom: 24,
   },
   title: {

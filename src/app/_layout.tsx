@@ -27,9 +27,10 @@ function RootLayoutNavigation() {
       }
     } else if (profile) {
       // Se estiver logado e perfil carregado, direciona para o respectivo fluxo
-      const inAdminGroup = segments[0] === '(admin)';
+      const firstSegment = segments[0] as string | undefined;
+      const inAdminGroup = firstSegment === '(admin)' || firstSegment === 'admin';
       const inClientGroup = segments[0] === '(client)';
-      const inBarberGroup = segments[0] === '(barber)';
+      const inBarberGroup = firstSegment === '(barber)' || firstSegment === 'barber';
 
       if (profile.role === 'admin') {
         if (!inAdminGroup) {

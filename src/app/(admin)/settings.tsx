@@ -6,8 +6,11 @@ import { database } from '../../database';
 import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { SettingsExperience } from '../../components/screens/SettingsExperience';
 
-export default function BarbershopSettingsScreen() {
+export default SettingsExperience;
+
+function LegacyBarbershopSettingsScreen() {
   const { t } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();
@@ -27,11 +30,7 @@ export default function BarbershopSettingsScreen() {
   const [shareAgendas, setShareAgendas] = useState(true);
 
   const displayAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    console.warn(`${title}: ${message}`);
   };
 
   useEffect(() => {
