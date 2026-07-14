@@ -82,6 +82,10 @@ CREATE TABLE public.appointments (
     service_id TEXT REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
     date_time TIMESTAMP WITH TIME ZONE NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')) DEFAULT 'pending',
+    cancellation_reason TEXT,
+    cancelled_by_role TEXT CHECK (cancelled_by_role IN ('client', 'barber', 'admin')),
+    reschedule_count INTEGER DEFAULT 0 NOT NULL,
+    original_date_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     deleted_at TIMESTAMP WITH TIME ZONE

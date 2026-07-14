@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Platform, Alert } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
 import { CalendarDays, Check, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
 import { database } from '../../database';
@@ -26,11 +26,10 @@ interface RichAppointment {
   barberId: string;
   barberName: string;
   clientName: string;
-  clientPhone: string;
-  serviceName: string;
   price: number;
   dateTime: Date;
   status: string;
+  cancellationReason?: string;
 }
 
 const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
@@ -104,7 +103,7 @@ export const BarberDashboardExperience = () => {
         }
         try { const service = await database.collections.get<Service>('services').find(appointment.serviceId); serviceName = service.name; price = service.price; } catch {}
         try { barberName = (await database.collections.get<Profile>('profiles').find(appointment.barberId)).name; } catch {}
-        return { id: appointment.id, barberId: appointment.barberId, barberName, clientName, clientPhone, serviceName, price, dateTime: appointment.dateTime, status: appointment.status };
+        return { id: appointment.id, barberId: appointment.barberId, barberName, clientName, clientPhone, serviceName, price, dateTime: appointment.dateTime, status: appointment.status, cancellationReason: appointment.cancellationReason || '' };
       }));
       setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
       setLoading(false);
@@ -120,7 +119,26 @@ export const BarberDashboardExperience = () => {
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-  const updateStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled') => {
+  const updateStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled', reason?: string) => {
+    if (status === 'cancelled' && !reason) {
+      if (Platform.OS === 'web') {
+        const val = window.prompt('Motivo do Cancelamento:', 'Cliente solicitou');
+        if (val === null) return;
+        updateStatus(id, 'cancelled', val || 'Cliente solicitou');
+      } else {
+        Alert.alert(
+          'Motivo do Cancelamento',
+          'Selecione a justificativa:',
+          [
+            { text: 'Cliente solicitou', onPress: () => updateStatus(id, 'cancelled', 'Cliente solicitou') },
+            { text: 'Falta do profissional', onPress: () => updateStatus(id, 'cancelled', 'Profissional indisponível') },
+            { text: 'Erro de agenda', onPress: () => updateStatus(id, 'cancelled', 'Erro de agenda') },
+            { text: 'Voltar', style: 'cancel' }
+          ]
+        );
+      }
+      return;
+    }
     setActionLoadingId(id);
     try {
       const appointment = await database.collections.get<Appointment>('appointments').find(id);
@@ -132,7 +150,13 @@ export const BarberDashboardExperience = () => {
       }
 
       await database.write(async () => {
-        await appointment.update((record) => { record.status = status; });
+        await appointment.update((record) => { 
+          record.status = status; 
+          if (status === 'cancelled') {
+            record.cancellationReason = reason;
+            record.cancelledByRole = 'barber';
+          }
+        });
       });
       setCancelCandidateId(null);
       setNotice({ tone: 'success', message: 'Status do atendimento atualizado.' });
@@ -233,6 +257,9 @@ export const BarberDashboardExperience = () => {
                   <View style={styles.appointmentCopy}>
                     <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
                     <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
+                    {item.status === 'cancelled' && !!item.cancellationReason && (
+                      <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
+                    )}
                     {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
                     {cancelCandidateId === item.id ? (
                       <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
@@ -330,4 +357,5 @@ const styles = StyleSheet.create({
   timeSlot: { minWidth: 72, flexGrow: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   timeSlotText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
+  cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
 });

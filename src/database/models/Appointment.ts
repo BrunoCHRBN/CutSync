@@ -1,5 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
-import { text, date, relation } from '@nozbe/watermelondb/decorators';
+import { text, date, relation, field } from '@nozbe/watermelondb/decorators';
 
 export default class Appointment extends Model {
   static table = 'appointments';
@@ -17,6 +17,10 @@ export default class Appointment extends Model {
   @text('service_id') serviceId!: string;
   @date('date_time') dateTime!: Date;
   @text('status') status!: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  @text('cancellation_reason') cancellationReason?: string;
+  @text('cancelled_by_role') cancelledByRole?: 'client' | 'barber' | 'admin';
+  @field('reschedule_count') rescheduleCount!: number;
+  @date('original_date_time') originalDateTime?: Date;
 
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

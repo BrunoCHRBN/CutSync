@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 6,
+  version: 7,
   tables: [
     tableSchema({
       name: 'barbershops',
@@ -64,6 +64,10 @@ export default appSchema({
         { name: 'service_id', type: 'string', isIndexed: true },
         { name: 'date_time', type: 'number' },
         { name: 'status', type: 'string' },
+        { name: 'cancellation_reason', type: 'string', isOptional: true },
+        { name: 'cancelled_by_role', type: 'string', isOptional: true },
+        { name: 'reschedule_count', type: 'number' },
+        { name: 'original_date_time', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

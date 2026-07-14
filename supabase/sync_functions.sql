@@ -201,7 +201,9 @@ BEGIN
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_created FROM (
             SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
+                   cancellation_reason, cancelled_by_role, reschedule_count,
                    extract(epoch from date_time)*1000 as date_time,
+                   extract(epoch from original_date_time)*1000 as original_date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.appointments 
@@ -210,7 +212,9 @@ BEGIN
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_updated FROM (
             SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
+                   cancellation_reason, cancelled_by_role, reschedule_count,
                    extract(epoch from date_time)*1000 as date_time,
+                   extract(epoch from original_date_time)*1000 as original_date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.appointments 
@@ -224,7 +228,9 @@ BEGIN
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_created FROM (
             SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
+                   cancellation_reason, cancelled_by_role, reschedule_count,
                    extract(epoch from date_time)*1000 as date_time,
+                   extract(epoch from original_date_time)*1000 as original_date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.appointments 
@@ -233,7 +239,9 @@ BEGIN
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO appointments_updated FROM (
             SELECT id, barbershop_id, client_id, client_name, barber_id, service_id, status,
+                   cancellation_reason, cancelled_by_role, reschedule_count,
                    extract(epoch from date_time)*1000 as date_time,
+                   extract(epoch from original_date_time)*1000 as original_date_time,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.appointments 
@@ -413,7 +421,7 @@ BEGIN
 
     -- PROCESSAR TABELA: APPOINTMENTS
     IF changes->'appointments' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, cancellation_reason text, cancelled_by_role text, reschedule_count integer, original_date_time bigint, created_at bigint, updated_at bigint) LOOP
             IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND NOT EXISTS (
                 SELECT 1 FROM public.profile_barbershops
                 WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role IN ('admin', 'barber')
@@ -421,13 +429,20 @@ BEGIN
                 RAISE EXCEPTION 'Sem permissão para criar este agendamento';
             END IF;
 
-            INSERT INTO public.appointments (id, barbershop_id, client_id, client_name, barber_id, service_id, date_time, status, created_at, updated_at)
-            VALUES (item.id, item.barbershop_id, item.client_id, item.client_name, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
+            INSERT INTO public.appointments (id, barbershop_id, client_id, client_name, barber_id, service_id, date_time, status, cancellation_reason, cancelled_by_role, reschedule_count, original_date_time, created_at, updated_at)
+            VALUES (item.id, item.barbershop_id, item.client_id, item.client_name, item.barber_id, item.service_id, to_timestamp(item.date_time/1000.0), COALESCE(item.status, 'pending'), item.cancellation_reason, item.cancelled_by_role, COALESCE(item.reschedule_count, 0), to_timestamp(item.original_date_time/1000.0), to_timestamp(item.created_at/1000.0), to_timestamp(item.updated_at/1000.0))
             ON CONFLICT (id) DO UPDATE 
-            SET status = item.status, client_name = item.client_name, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0);
+            SET status = item.status, 
+                client_name = item.client_name, 
+                date_time = to_timestamp(item.date_time/1000.0), 
+                cancellation_reason = item.cancellation_reason, 
+                cancelled_by_role = item.cancelled_by_role, 
+                reschedule_count = COALESCE(item.reschedule_count, appointments.reschedule_count), 
+                original_date_time = to_timestamp(item.original_date_time/1000.0), 
+                updated_at = to_timestamp(item.updated_at/1000.0);
         END LOOP;
 
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, cancellation_reason text, cancelled_by_role text, reschedule_count integer, original_date_time bigint, updated_at bigint) LOOP
             IF (user_role = 'client' AND user_id != item.client_id) OR 
                (user_role = 'barber' AND (NOT EXISTS (
                    SELECT 1 FROM public.profile_barbershops
@@ -441,7 +456,14 @@ BEGIN
             END IF;
 
             UPDATE public.appointments 
-            SET status = item.status, client_name = item.client_name, date_time = to_timestamp(item.date_time/1000.0), updated_at = to_timestamp(item.updated_at/1000.0)
+            SET status = item.status, 
+                client_name = item.client_name, 
+                date_time = to_timestamp(item.date_time/1000.0), 
+                cancellation_reason = item.cancellation_reason,
+                cancelled_by_role = item.cancelled_by_role,
+                reschedule_count = COALESCE(item.reschedule_count, reschedule_count),
+                original_date_time = to_timestamp(item.original_date_time/1000.0),
+                updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;
 

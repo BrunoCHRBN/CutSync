@@ -12,7 +12,7 @@ import { supabase } from '../../services/supabase';
 
 export default function BookingSlugScreen() {
   const { t, i18n } = useTranslation();
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
   const { user, signInWithPassword } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
@@ -24,6 +24,17 @@ export default function BookingSlugScreen() {
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (reschedule_id) {
+      database.collections.get<Appointment>('appointments').find(reschedule_id).then((apt) => {
+        setSelectedService(apt.serviceId);
+        setSelectedBarber(apt.barberId);
+      }).catch(err => {
+        console.warn('Erro ao carregar dados de reagendamento:', err);
+      });
+    }
+  }, [reschedule_id]);
   
   // Calendário em Grade Mensal (Grid)
   const [viewDate, setViewDate] = useState(new Date());
@@ -219,21 +230,35 @@ export default function BookingSlugScreen() {
       const [hours, minutes] = selectedTime!.split(':');
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-      let newAppointmentId = '';
+      let targetAppointmentId = '';
       await database.write(async () => {
-        const created = await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = barbershop!.id;
-          record.clientId = clientId;
-          record.barberId = selectedBarber;
-          record.serviceId = selectedService;
-          record.dateTime = appointmentDate;
-          record.status = 'pending';
-        });
-        newAppointmentId = created.id;
+        if (reschedule_id) {
+          const appointment = await database.collections.get<Appointment>('appointments').find(reschedule_id);
+          await appointment.update((record) => {
+            record.originalDateTime = record.originalDateTime || record.dateTime;
+            record.dateTime = appointmentDate;
+            record.status = 'pending';
+            record.rescheduleCount = (record.rescheduleCount || 0) + 1;
+            record.barberId = selectedBarber!;
+            record.serviceId = selectedService!;
+          });
+          targetAppointmentId = appointment.id;
+        } else {
+          const created = await database.collections.get<Appointment>('appointments').create((record) => {
+            record.barbershopId = barbershop!.id;
+            record.clientId = clientId;
+            record.barberId = selectedBarber!;
+            record.serviceId = selectedService!;
+            record.dateTime = appointmentDate;
+            record.status = 'pending';
+            record.rescheduleCount = 0;
+          });
+          targetAppointmentId = created.id;
+        }
       });
 
       if (barbershop?.name) {
-        await scheduleAppointmentNotification(newAppointmentId, barbershop.name, appointmentDate);
+        await scheduleAppointmentNotification(targetAppointmentId, barbershop.name, appointmentDate);
       }
 
       displayAlert(t('common.success'), t('booking.success_message'));

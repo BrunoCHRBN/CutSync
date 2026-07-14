@@ -40,6 +40,7 @@ interface RichAppointment {
   serviceName: string;
   price: number;
   barberId: string;
+  cancellationReason?: string;
 }
 
 const statusConfig: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
@@ -165,7 +166,7 @@ export const AdminDashboardExperience = () => {
             serviceName = service.name;
             price = service.price;
           } catch {}
-          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, clientPhone, serviceName, price, barberId: item.barberId };
+          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, clientPhone, serviceName, price, barberId: item.barberId, cancellationReason: item.cancellationReason || '' };
         }));
         setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
         setLoading(false);
@@ -174,7 +175,29 @@ export const AdminDashboardExperience = () => {
     return () => sub.unsubscribe();
   }, [profile, selectedDate, period]);
 
-  const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed') => {
+  const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed', reason?: string) => {
+    if (status === 'cancelled' && !reason) {
+      if (Platform.OS === 'web') {
+        const val = window.prompt('Motivo do Cancelamento:', 'Cliente solicitou');
+        if (val === null) {
+          setActionLoadingId(null);
+          return;
+        }
+        updateStatus(id, 'cancelled', val || 'Cliente solicitou');
+      } else {
+        Alert.alert(
+          'Motivo do Cancelamento',
+          'Selecione a justificativa:',
+          [
+            { text: 'Cliente solicitou', onPress: () => updateStatus(id, 'cancelled', 'Cliente solicitou') },
+            { text: 'Falta do profissional', onPress: () => updateStatus(id, 'cancelled', 'Profissional indisponível') },
+            { text: 'Erro de agenda', onPress: () => updateStatus(id, 'cancelled', 'Erro de agenda') },
+            { text: 'Voltar', style: 'cancel', onPress: () => setActionLoadingId(null) }
+          ]
+        );
+      }
+      return;
+    }
     setActionLoadingId(id);
     try {
       const appointment = await database.collections.get<Appointment>('appointments').find(id);
@@ -191,7 +214,13 @@ export const AdminDashboardExperience = () => {
       }
 
       await database.write(async () => {
-        await appointment.update((record) => { record.status = status; });
+        await appointment.update((record) => { 
+          record.status = status; 
+          if (status === 'cancelled') {
+            record.cancellationReason = reason;
+            record.cancelledByRole = 'admin';
+          }
+        });
       });
       sync();
     } catch {
@@ -309,6 +338,9 @@ export const AdminDashboardExperience = () => {
             <StatusBadge testID={`admin-appointment-${item.id}-status`} label={status.label} tone={status.tone} />
           </View>
           <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
+          {item.status === 'cancelled' && !!item.cancellationReason && (
+            <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
+          )}
           <View style={styles.professionalRow}>
             <UserRound color={colors.textMuted} size={13} />
             <Text style={styles.professionalName}>{barberName(item.barberId)}</Text>
@@ -663,7 +695,7 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
   modalEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase' },
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },
-  closeButton: { padding: 4, borderRadius: radii.md, backgroundColor: colors.surface, borderHeight: 1, borderColor: colors.border },
+  closeButton: { padding: 4, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   modalContent: { padding: 20, gap: 16 },
   fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -675,9 +707,10 @@ const styles = StyleSheet.create({
   selectedInk: { color: colors.ink },
   // Filtro de Período Estilos
   performanceCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexWrap: 'wrap', gap: 12 },
-  periodTabs: { flexDirection: 'row', backgroundColor: colors.canvas, borderRadius: radii.md, padding: 3, gap: 2, borderHeight: 1, borderColor: colors.border },
+  periodTabs: { flexDirection: 'row', backgroundColor: colors.canvas, borderRadius: radii.md, padding: 3, gap: 2, borderWidth: 1, borderColor: colors.border },
   periodTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.sm },
   periodTabActive: { backgroundColor: colors.brand },
   periodTabText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.bodyStrong },
-  periodTabActiveText: { color: colors.ink }
+  periodTabActiveText: { color: colors.ink },
+  cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
 });
