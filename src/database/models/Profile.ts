@@ -5,13 +5,13 @@ export default class Profile extends Model {
   static table = 'profiles';
 
   static associations = {
-    barbershops: { type: 'belongs_to', key: 'barbershop_id' },
+    establishments: { type: 'belongs_to', key: 'establishment_id' },
     appointments: { type: 'has_many', foreignKey: 'client_id' },
   } as const;
 
-  @text('barbershop_id') barbershopId?: string | null;
+  @text('establishment_id') establishmentId?: string | null;
   @text('name') name!: string;
-  @text('role') role!: 'client' | 'barber' | 'admin';
+  @text('role') role!: 'client' | 'professional' | 'admin';
   @text('email') email!: string;
   @text('phone') phone?: string;
   @text('avatar_url') avatarUrl?: string;
@@ -24,5 +24,5 @@ export default class Profile extends Model {
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 
-  @relation('barbershops', 'barbershop_id') barbershop!: any;
+  @relation('establishments', 'establishment_id') establishment!: any;
 }

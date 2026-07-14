@@ -16,6 +16,8 @@ import {
   UserRound,
   Users,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
@@ -39,7 +41,7 @@ interface RichAppointment {
   clientPhone: string;
   serviceName: string;
   price: number;
-  barberId: string;
+  professionalId: string;
   cancellationReason?: string;
 }
 
@@ -90,35 +92,45 @@ export const AdminDashboardExperience = () => {
   const [quickDate, setQuickDate] = useState<Date>(new Date());
   const [quickOccupiedTimes, setQuickOccupiedTimes] = useState<string[]>([]);
 
+  const weekOffset = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    const diffTime = selected.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor((diffDays + 3) / 7);
+  }, [selectedDate]);
+
   const dateOptions = useMemo(() => Array.from({ length: 7 }, (_, index) => {
-    const offset = index - 3;
+    const offset = (index - 3) + (weekOffset * 7);
     const date = new Date();
     date.setDate(date.getDate() + offset);
     return {
       id: date.toISOString().split('T')[0],
       date,
-      weekDay: offset === 0 ? 'Hoje' : date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+      weekDay: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase(),
       day: date.getDate(),
     };
-  }), []);
+  }), [weekOffset]);
 
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
 
     const shopSub = database.collections.get<Barbershop>('barbershops')
-      .findAndObserve(profile.barbershop_id)
+      .findAndObserve(profile.establishment_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
 
     const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('role', Q.oneOf(['barber', 'admin'])))
+      .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', Q.oneOf(['professional', 'admin'])))
       .observe()
       .subscribe(setBarbers);
 
     const servicesSub = database.collections.get<Service>('services')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true))
+      .query(Q.where('establishment_id', profile.establishment_id), Q.where('is_active', true))
       .observe()
       .subscribe(setServices);
 
@@ -130,7 +142,7 @@ export const AdminDashboardExperience = () => {
   }, [profile]);
 
   useEffect(() => {
-    if (!profile?.barbershop_id) return;
+    if (!profile?.establishment_id) return;
 
     // Calcular a janela de data baseado no período selecionado
     const start = new Date(selectedDate);
@@ -155,7 +167,7 @@ export const AdminDashboardExperience = () => {
 
     const sub = database.collections.get<Appointment>('appointments')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
+        Q.where('establishment_id', profile.establishment_id),
         Q.where('date_time', Q.between(start.getTime(), end.getTime())),
       )
       .observe()
@@ -177,7 +189,7 @@ export const AdminDashboardExperience = () => {
             serviceName = service.name;
             price = service.price;
           } catch {}
-          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, clientPhone, serviceName, price, barberId: item.barberId, cancellationReason: item.cancellationReason || '' };
+          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, clientPhone, serviceName, price, professionalId: item.professionalId, cancellationReason: item.cancellationReason || '' };
         }));
         setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
         setLoading(false);
@@ -198,7 +210,7 @@ export const AdminDashboardExperience = () => {
 
     database.collections.get<Appointment>('appointments')
       .query(
-        Q.where('barber_id', rescheduleItem.barberId),
+        Q.where('professional_id', rescheduleItem.professionalId),
         Q.where('status', Q.notEq('cancelled')),
         Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime())),
         Q.where('id', Q.notEq(rescheduleItem.id))
@@ -225,7 +237,7 @@ export const AdminDashboardExperience = () => {
 
     database.collections.get<Appointment>('appointments')
       .query(
-        Q.where('barber_id', quickBarber),
+        Q.where('professional_id', quickBarber),
         Q.where('status', Q.notEq('cancelled')),
         Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
       )
@@ -346,7 +358,7 @@ export const AdminDashboardExperience = () => {
     const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
     
     const conflict = appointments.some((item) => {
-      if (item.barberId !== quickBarber || item.status === 'cancelled') return false;
+      if (item.professionalId !== quickBarber || item.status === 'cancelled') return false;
       const itemService = services.find((candidate) => candidate.name === item.serviceName);
       const itemEnd = item.dateTime.getTime() + (itemService?.durationMinutes || 30) * 60 * 1000;
       return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
@@ -366,8 +378,8 @@ export const AdminDashboardExperience = () => {
     try {
       await database.write(async () => {
         await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = barbershop.id;
-          record.barberId = quickBarber;
+          record.establishmentId = barbershop.id;
+          record.professionalId = quickBarber;
           record.clientName = quickName.trim();
           record.serviceId = quickService;
           record.dateTime = dateTime;
@@ -437,7 +449,7 @@ export const AdminDashboardExperience = () => {
           ) : null}
           <View style={styles.professionalRow}>
             <UserRound color={colors.textMuted} size={13} />
-            <Text style={styles.professionalName}>{barberName(item.barberId)}</Text>
+            <Text style={styles.professionalName}>{barberName(item.professionalId)}</Text>
           </View>
           {!isFinished && (
             <View style={styles.rowActions}>
@@ -446,7 +458,7 @@ export const AdminDashboardExperience = () => {
                   label="WhatsApp" 
                   testID={`admin-appointment-${item.id}-whatsapp-button`} 
                   onPress={() => {
-                    const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${barberName(item.barberId)}.`;
+                    const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${barberName(item.professionalId)}.`;
                     sendWhatsAppMessage(item.clientPhone, text);
                   }}
                   variant="secondary"
@@ -568,21 +580,57 @@ export const AdminDashboardExperience = () => {
         <CalendarDays color={colors.textMuted} size={22} />
       </View>
 
-      <View testID="admin-date-selector" style={styles.dateSelector}>
-        {dateOptions.map((item) => {
-          const selected = selectedDate.toDateString() === item.date.toDateString();
-          return (
-            <Pressable
-              key={item.id}
-              testID={`admin-date-${item.id}`}
-              onPress={() => setSelectedDate(item.date)}
-              style={({ pressed }) => [styles.dateItem, selected && styles.dateItemSelected, pressed && styles.pressed]}
-            >
-              <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>{item.weekDay}</Text>
-              <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{item.day}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.calendarNavContainer}>
+        <Pressable 
+          testID="admin-calendar-prev"
+          onPress={() => {
+            const d = new Date(selectedDate);
+            d.setDate(d.getDate() - 7);
+            setSelectedDate(d);
+          }} 
+          style={styles.navArrow}
+        >
+          <ChevronLeft color={colors.textSecondary} size={18} />
+        </Pressable>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector} style={{ flex: 1 }}>
+          {dateOptions.map((item) => {
+            const selected = selectedDate.toDateString() === item.date.toDateString();
+            return (
+              <Pressable
+                key={item.id}
+                testID={`admin-date-${item.id}`}
+                onPress={() => setSelectedDate(item.date)}
+                style={({ pressed }) => [styles.dateItem, selected && styles.dateItemSelected, pressed && styles.pressed]}
+              >
+                <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>{item.weekDay}</Text>
+                <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{item.day}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Pressable 
+          testID="admin-calendar-next"
+          onPress={() => {
+            const d = new Date(selectedDate);
+            d.setDate(d.getDate() + 7);
+            setSelectedDate(d);
+          }} 
+          style={styles.navArrow}
+        >
+          <ChevronRight color={colors.textSecondary} size={18} />
+        </Pressable>
+
+        {weekOffset !== 0 && (
+          <Pressable 
+            testID="admin-calendar-today"
+            onPress={() => setSelectedDate(new Date())} 
+            style={styles.todayBtn}
+          >
+            <Text style={styles.todayBtnText}>Hoje</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={[styles.workspace, isWide && styles.workspaceWide]}>
@@ -636,7 +684,7 @@ export const AdminDashboardExperience = () => {
 
           <View style={styles.teamList}>
             {barbers.map((barber) => {
-              const barberAppointments = periodCompleted.filter((item) => item.barberId === barber.id);
+              const barberAppointments = periodCompleted.filter((item) => item.professionalId === barber.id);
               const gross = barberAppointments.reduce((total, item) => total + item.price, 0);
               const rate = barber.commissionRate ?? 0.5;
               return (
@@ -950,5 +998,37 @@ const styles = StyleSheet.create({
   timeSlotTextOccupied: {
     color: '#ff444470',
     textDecorationLine: 'line-through',
+  },
+  calendarNavContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 18,
+    width: '100%',
+  },
+  navArrow: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 38,
+  },
+  todayBtnText: {
+    color: colors.ink,
+    fontFamily: typography.bodyStrong,
+    fontSize: 10,
+    textTransform: 'uppercase',
   },
 });

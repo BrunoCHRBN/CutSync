@@ -88,8 +88,8 @@ export const BarbershopProfileExperience = () => {
 
         if (shop) {
           const [serviceList, barberList] = await Promise.all([
-            database.collections.get<Service>('services').query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true)).fetch(),
-            database.collections.get<Profile>('profiles').query(Q.where('barbershop_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
+            database.collections.get<Service>('services').query(Q.where('establishment_id', barbershopId), Q.where('is_active', true)).fetch(),
+            database.collections.get<Profile>('profiles').query(Q.where('establishment_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
           ]);
           setServices(serviceList);
           setBarbers(barberList);

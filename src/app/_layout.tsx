@@ -35,15 +35,15 @@ function RootLayoutNavigation() {
         firstSegment === 'explore' || 
         firstSegment === 'appointments' ||
         isDynamicSlug;
-      const inBarberGroup = firstSegment === '(barber)' || firstSegment === 'barber';
+      const inProfessionalGroup = firstSegment === '(professional)' || firstSegment === 'professional';
 
       if (profile.role === 'admin') {
         if (!inAdminGroup) {
           router.replace('/(admin)');
         }
-      } else if (profile.role === 'barber') {
-        if (!inBarberGroup) {
-          router.replace('/(barber)');
+      } else if (profile.role === 'professional') {
+        if (!inProfessionalGroup) {
+          router.replace('/(professional)');
         }
       } else {
         if (!inClientGroup) {

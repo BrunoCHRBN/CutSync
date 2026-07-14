@@ -1,28 +1,28 @@
 import { Platform } from 'react-native';
 
 export const colors = {
-  canvas: '#09090B',
-  canvasSoft: '#0F0F12',
-  surface: '#151518',
-  surfaceRaised: '#1C1C20',
-  surfacePressed: '#242429',
-  border: '#2A2A30',
-  borderStrong: '#3A3A42',
-  text: '#FAFAFA',
-  textSecondary: '#A1A1AA',
-  textMuted: '#71717A',
+  canvas: '#F4F4F5',
+  canvasSoft: '#FAFAFA',
+  surface: '#FFFFFF',
+  surfaceRaised: '#F9FAFB',
+  surfacePressed: '#F0F0F2',
+  border: '#E4E4E7',
+  borderStrong: '#D4D4D8',
+  text: '#171717',
+  textSecondary: '#52525B',
+  textMuted: '#A1A1AA',
   brand: '#F5A524',
   brandSoft: '#F5A5241A',
   brandBorder: '#F5A5244D',
-  ink: '#111113',
-  success: '#34D399',
-  successSoft: '#34D3991A',
-  info: '#60A5FA',
-  infoSoft: '#60A5FA1A',
-  warning: '#FBBF24',
-  warningSoft: '#FBBF241A',
-  danger: '#FB7185',
-  dangerSoft: '#FB71851A',
+  ink: '#FFFFFF',
+  success: '#16A34A',
+  successSoft: '#16A34A1A',
+  info: '#2563EB',
+  infoSoft: '#2563EB1A',
+  warning: '#D97706',
+  warningSoft: '#D977061A',
+  danger: '#DC2626',
+  dangerSoft: '#DC26261A',
   white: '#FFFFFF',
 };
 
@@ -52,14 +52,14 @@ export const typography = {
 
 export const shadows = Platform.select({
   web: {
-    boxShadow: '0 18px 50px rgba(0,0,0,0.28)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
   } as any,
   default: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.26,
-    shadowRadius: 28,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });
 

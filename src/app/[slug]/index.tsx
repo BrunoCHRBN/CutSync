@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
-import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UserRound, UsersRound } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UserRound, UsersRound, X } from 'lucide-react-native';
 import { database } from '../../database';
 import { Barbershop, Profile, Service } from '../../database/models';
 import { AppButton } from '../../components/ui/AppButton';
@@ -13,18 +13,17 @@ import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { SectionHeading } from '../../components/ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
-const portfolioPhotos = [
+// portfolioPhotos é agora um fallback opcional de galeria vazia se não configurado
+const fallbackPhotos = [
   'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=400',
   'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&q=80&w=400',
-  'https://images.unsplash.com/photo-1605497746444-ac9dbd324d48?auto=format&fit=crop&q=80&w=400',
-  'https://images.unsplash.com/photo-1599351431247-f5094087e842?auto=format&fit=crop&q=80&w=400'
 ];
 
 function BarbershopProfileSkeleton() {
   return (
     <ScreenBackground testID="barbershop-profile-skeleton" style={{ backgroundColor: colors.canvas }}>
       {/* Skeleton Topbar */}
-      <View style={[styles.topbar, { opacity: 0.6 }]}>
+      <View style={[styles.topbar, { opacity: 0.6, backgroundColor: colors.surface }]}>
         <View style={[styles.backButton, { backgroundColor: colors.surfaceRaised, borderWidth: 0 }]} />
         <View style={{ width: 140, height: 18, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
         <View style={{ width: 80, height: 38, backgroundColor: colors.surfaceRaised, borderRadius: 8, marginLeft: 'auto' }} />
@@ -78,6 +77,18 @@ export default function BarbershopSlugScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<Profile | null>(null);
+
+  // Parse da galeria personalizada cadastrada pelo dono
+  const galleryPhotos = useMemo(() => {
+    if (!barbershop?.galleryUrls) return [];
+    try {
+      const parsed = JSON.parse(barbershop.galleryUrls);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return String(barbershop.galleryUrls).split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }, [barbershop?.galleryUrls]);
 
   useEffect(() => {
     if (!slug) { 
@@ -362,24 +373,28 @@ export default function BarbershopSlugScreen() {
           )}
         </View>
 
-        {/* Galeria de Inspirações */}
+        {/* Galeria de Inspirações / Referências do Dono */}
         <View style={styles.section}>
-          <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & Cortes" description="" />
-          <FlatList
-            data={portfolioPhotos}
-            keyExtractor={(url) => url}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 12 }}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.galleryImage} />
-            )}
-          />
+          <SectionHeading testID="barbershop-gallery-heading" eyebrow={t('slug.gallery')} title={t('slug.gallery_title')} description="" />
+          {galleryPhotos.length === 0 ? (
+            <EmptyState testID="barbershop-gallery-empty" title={t('slug.gallery_title')} description={t('slug.gallery_empty')} icon={<Store color={accent} size={22} />} />
+          ) : (
+            <FlatList
+              data={galleryPhotos}
+              keyExtractor={(url, idx) => `${url}-${idx}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12 }}
+              renderItem={({ item }) => (
+                <Image source={{ uri: item }} style={styles.galleryImage} />
+              )}
+            />
+          )}
         </View>
 
         {/* Equipe (LGPD Safe) */}
         <View style={styles.section}>
-          <SectionHeading testID="barbershop-team-heading" eyebrow={t('booking.step_barber')} title="Nossa Equipe" description="" />
+          <SectionHeading testID="barbershop-team-heading" eyebrow={t('booking.professional_label')} title="Nossa Equipe" description="" />
           {barbers.length === 0 ? (
             <EmptyState testID="barbershop-team-empty" title={t('slug.about')} description={t('slug.team_empty')} icon={<UsersRound color={accent} size={22} />} />
           ) : (
@@ -390,34 +405,33 @@ export default function BarbershopSlugScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12 }}
               renderItem={({ item }) => (
-                <AppCard testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
-                  <View style={[styles.avatarCircleSmall, { backgroundColor: `${accent}18` }]}>
-                    {item.avatarUrl ? (
-                      <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                    ) : (
-                      <UserRound color={accent} size={24} />
+                <Pressable onPress={() => setSelectedTeamMember(item)}>
+                  <AppCard testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
+                    <View style={[styles.avatarCircleSmall, { backgroundColor: `${accent}18` }]}>
+                      {item.avatarUrl ? (
+                        <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                      ) : (
+                        <UserRound color={accent} size={24} />
+                      )}
+                    </View>
+                    <Text style={styles.professionalName}>{item.name}</Text>
+                    <Text style={styles.professionalRole}>{item.role === 'admin' ? 'Proprietário' : 'Profissional'}</Text>
+                    {!!item.specialties && <Text style={styles.professionalSpecialties}>{item.specialties}</Text>}
+                    {!!item.instagram && (
+                      <View style={styles.barberInstaBtn}>
+                        <Instagram color={colors.textMuted} size={11} />
+                        <Text style={styles.barberInstaText}>@{item.instagram}</Text>
+                      </View>
                     )}
-                  </View>
-                  <Text style={styles.professionalName}>{item.name}</Text>
-                  <Text style={styles.professionalRole}>{item.role === 'admin' ? 'Proprietário' : 'Barbeiro'}</Text>
-                  {!!item.specialties && <Text style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                  {!!item.instagram && (
-                    <Pressable 
-                      onPress={() => Linking.openURL(`https://instagram.com/${item.instagram}`)}
-                      style={styles.barberInstaBtn}
-                    >
-                      <Instagram color={colors.textMuted} size={11} />
-                      <Text style={styles.barberInstaText}>@{item.instagram}</Text>
-                    </Pressable>
-                  )}
-                </AppCard>
+                  </AppCard>
+                </Pressable>
               )}
             />
           )}
         </View>
 
         {/* CTA Barra Flutuante */}
-        <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: colors.border, backgroundColor: 'rgba(28, 28, 30, 0.75)', ...({ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' } as any) }]}>
+        <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: colors.border, backgroundColor: 'rgba(255, 255, 255, 0.75)', ...({ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' } as any) }]}>
           <View style={styles.ctaCopy}>
             <Text style={styles.ctaEyebrow}>{t('slug.cta')}</Text>
             <Text style={styles.ctaTitle}>Garanta o seu horário na agenda.</Text>
@@ -430,6 +444,72 @@ export default function BarbershopSlugScreen() {
             style={{ backgroundColor: accent, borderColor: accent }} 
           />
         </View>
+
+        {/* Modal de Detalhes do Profissional (Bottom Sheet - LGPD Safe) */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={!!selectedTeamMember}
+          onRequestClose={() => setSelectedTeamMember(null)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
+            <View style={styles.bottomSheetContainer}>
+              {selectedTeamMember && (
+                <View style={styles.bottomSheetContent}>
+                  <View style={styles.bottomSheetDragIndicator} />
+
+                  <View style={styles.bottomSheetHeader}>
+                    <Text style={styles.bottomSheetTitle}>Perfil Profissional</Text>
+                    <Pressable style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
+                      <X color={colors.textSecondary} size={20} />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.bottomSheetBody}>
+                    <View style={[styles.bottomSheetAvatarCircle, { backgroundColor: `${accent}18` }]}>
+                      {selectedTeamMember.avatarUrl ? (
+                        <Image source={{ uri: selectedTeamMember.avatarUrl }} style={styles.bottomSheetAvatarImage} />
+                      ) : (
+                        <UserRound color={accent} size={48} />
+                      )}
+                    </View>
+
+                    <Text style={styles.bottomSheetName}>{selectedTeamMember.name}</Text>
+                    <Text style={styles.bottomSheetRole}>
+                      {selectedTeamMember.role === 'admin' ? 'Proprietário' : 'Profissional'}
+                    </Text>
+
+                    {!!selectedTeamMember.specialties && (
+                      <View style={styles.bottomSheetSection}>
+                        <Text style={styles.bottomSheetSectionLabel}>Especialidades & Portfólio</Text>
+                        <Text style={styles.bottomSheetSectionValue}>{selectedTeamMember.specialties}</Text>
+                      </View>
+                    )}
+
+                    {!!selectedTeamMember.instagram && (
+                      <TouchableOpacity 
+                        onPress={() => Linking.openURL(`https://instagram.com/${selectedTeamMember.instagram}`)}
+                        style={[styles.bottomSheetInstagramBtn, { borderColor: accent }]}
+                      >
+                        <Instagram color={accent} size={16} />
+                        <Text style={[styles.bottomSheetInstagramText, { color: accent }]}>Ver Instagram @{selectedTeamMember.instagram}</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {!!selectedTeamMember.workHours && (
+                      <View style={styles.bottomSheetSection}>
+                        <Text style={styles.bottomSheetSectionLabel}>Horários de Trabalho</Text>
+                        <Text style={styles.bottomSheetSectionValue}>
+                          {selectedTeamMember.workHours}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        </Modal>
       </ScrollView>
     </ScreenBackground>
   );
@@ -437,15 +517,15 @@ export default function BarbershopSlugScreen() {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: 20 },
-  topbar: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, backgroundColor: '#0F0F12F2', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 3 },
+  topbar: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, backgroundColor: colors.surface + 'F2', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 3 },
   backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   topbarTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   topbarBook: { minHeight: 38, paddingVertical: 7 },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', paddingBottom: 80 },
   // Hero Capa Styles
-  heroContainer: { width: '100%', height: 180, position: 'relative' },
+  heroContainer: { width: '100%', height: 260, position: 'relative' },
   bannerImage: { width: '100%', height: '100%' },
-  bannerOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 15, 18, 0.4)' },
+  bannerOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(255, 255, 255, 0.1)' },
   heroCopy: { paddingHorizontal: 20, marginTop: -40, zIndex: 2 },
   heroCopyWide: { paddingHorizontal: 40 },
   brandContainer: { flexDirection: 'row', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' },
@@ -495,4 +575,22 @@ const styles = StyleSheet.create({
   ctaCopy: { flex: 1, minWidth: 240 },
   ctaEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.7 },
   ctaTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, lineHeight: 22, letterSpacing: -0.6, marginTop: 7 },
+  // Modal de Detalhes do Profissional
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
+  bottomSheetContainer: { width: '100%', maxWidth: 540, backgroundColor: colors.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' },
+  bottomSheetContent: { padding: 24, paddingBottom: 40, gap: 20 },
+  bottomSheetDragIndicator: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 12 },
+  bottomSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bottomSheetTitle: { fontFamily: typography.display, fontSize: 18, color: colors.text, fontWeight: 'bold' },
+  bottomSheetCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfacePressed, alignItems: 'center', justifyContent: 'center' },
+  bottomSheetBody: { alignItems: 'center', gap: 14, marginTop: 10, width: '100%' },
+  bottomSheetAvatarCircle: { width: 96, height: 96, borderRadius: 48, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  bottomSheetAvatarImage: { width: '100%', height: '100%' },
+  bottomSheetName: { fontFamily: typography.display, fontSize: 20, color: colors.text, fontWeight: 'bold' },
+  bottomSheetRole: { fontFamily: typography.body, fontSize: 12, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+  bottomSheetSection: { width: '100%', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 16, gap: 6 },
+  bottomSheetSectionLabel: { fontFamily: typography.bodyStrong, fontSize: 10, color: colors.textMuted, textTransform: 'uppercase' },
+  bottomSheetSectionValue: { fontFamily: typography.body, fontSize: 13, color: colors.text, lineHeight: 18 },
+  bottomSheetInstagramBtn: { width: '100%', height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: radii.md, marginTop: 6 },
+  bottomSheetInstagramText: { fontFamily: typography.bodyStrong, fontSize: 13 },
 });

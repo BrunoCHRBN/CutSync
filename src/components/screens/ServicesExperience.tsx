@@ -33,9 +33,9 @@ export const ServicesExperience = () => {
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
 
   useEffect(() => {
-    if (!profile?.barbershop_id) { setLoading(false); return; }
-    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.barbershop_id).subscribe(setBarbershop);
-    const serviceSub = database.collections.get<Service>('services').query(Q.where('barbershop_id', profile.barbershop_id)).observe()
+    if (!profile?.establishment_id) { setLoading(false); return; }
+    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.establishment_id).subscribe(setBarbershop);
+    const serviceSub = database.collections.get<Service>('services').query(Q.where('establishment_id', profile.establishment_id)).observe()
       .subscribe((items) => { setServices(items); setLoading(false); });
     return () => { shopSub.unsubscribe(); serviceSub.unsubscribe(); };
   }, [profile]);
@@ -48,12 +48,12 @@ export const ServicesExperience = () => {
       setNotice({ tone: 'danger', message: 'Informe nome, preço positivo e duração mínima de 5 minutos.' });
       return;
     }
-    if (!profile?.barbershop_id) return;
+    if (!profile?.establishment_id) return;
     setSubmitting(true);
     try {
       await database.write(async () => {
         await database.collections.get('services').create((record: any) => {
-          record.barbershopId = profile.barbershop_id;
+          record.establishmentId = profile.establishment_id;
           record.name = name.trim();
           record.price = numericPrice;
           record.durationMinutes = numericDuration;

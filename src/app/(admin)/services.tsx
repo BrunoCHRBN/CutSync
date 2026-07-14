@@ -43,20 +43,20 @@ export default function ManageServicesScreen() {
   };
 
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
 
     const bSub = database.collections
       .get<Barbershop>('barbershops')
-      .findAndObserve(profile.barbershop_id)
+      .findAndObserve(profile.establishment_id)
       .subscribe((data) => setBarbershop(data));
 
     // Carregar apenas serviços ativos (is_active = true) para permitir a deleção lógica limpa
     const sSub = database.collections
       .get<Service>('services')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true))
+      .query(Q.where('establishment_id', profile.establishment_id), Q.where('is_active', true))
       .observe()
       .subscribe((data) => {
         setServices(data);
@@ -66,7 +66,7 @@ export default function ManageServicesScreen() {
     const teamSub = database.collections
       .get<Profile>('profiles')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
+        Q.where('establishment_id', profile.establishment_id),
         Q.where('role', Q.oneOf(['barber', 'admin']))
       )
       .observe()
@@ -74,7 +74,7 @@ export default function ManageServicesScreen() {
 
     const bsSub = database.collections
       .get<BarberService>('barber_services')
-      .query(Q.where('barbershop_id', profile.barbershop_id))
+      .query(Q.where('establishment_id', profile.establishment_id))
       .observe()
       .subscribe((data) => setBarberServices(data));
 
@@ -108,7 +108,7 @@ export default function ManageServicesScreen() {
       return;
     }
 
-    if (!profile?.barbershop_id) return;
+    if (!profile?.establishment_id) return;
 
     setIsSubmitting(true);
     try {
@@ -122,7 +122,7 @@ export default function ManageServicesScreen() {
           });
         } else {
           await database.collections.get('services').create((record: any) => {
-            record.barbershopId = profile.barbershop_id;
+            record.establishmentId = profile.establishment_id;
             record.name = name.trim();
             record.price = parsedPrice;
             record.durationMinutes = parsedDuration;
@@ -192,7 +192,7 @@ export default function ManageServicesScreen() {
     const formInitial: Record<string, { price: string; duration: string; isActive: boolean }> = {};
 
     barbers.forEach(b => {
-      const customRate = barberServices.find(bs => bs.barberId === b.id && bs.serviceId === service.id);
+      const customRate = barberServices.find(bs => bs.professionalId === b.id && bs.serviceId === service.id);
       formInitial[b.id] = {
         price: customRate ? customRate.price.toString() : service.price.toString(),
         duration: customRate ? customRate.durationMinutes.toString() : service.durationMinutes.toString(),
@@ -228,7 +228,7 @@ export default function ManageServicesScreen() {
     try {
       await database.write(async () => {
         const existing = barberServices.find(
-          bs => bs.barberId === barberId && bs.serviceId === selectedServiceForPrices.id
+          bs => bs.professionalId === barberId && bs.serviceId === selectedServiceForPrices.id
         );
 
         if (existing) {
@@ -239,8 +239,8 @@ export default function ManageServicesScreen() {
           });
         } else {
           await database.collections.get<BarberService>('barber_services').create((record) => {
-            record.barbershopId = profile!.barbershop_id!;
-            record.barberId = barberId;
+            record.establishmentId = profile!.establishment_id!;
+            record.professionalId = barberId;
             record.serviceId = selectedServiceForPrices.id;
             record.price = parsedPrice;
             record.durationMinutes = parsedDuration;
@@ -261,7 +261,7 @@ export default function ManageServicesScreen() {
 
     try {
       const existing = barberServices.find(
-        bs => bs.barberId === barberId && bs.serviceId === selectedServiceForPrices.id
+        bs => bs.professionalId === barberId && bs.serviceId === selectedServiceForPrices.id
       );
 
       if (existing) {
@@ -431,7 +431,7 @@ export default function ManageServicesScreen() {
               {barbers.map((barber) => {
                 const form = customRatesForm[barber.id] || { price: '', duration: '', isActive: true };
                 const hasCustomRate = barberServices.some(
-                  bs => bs.barberId === barber.id && bs.serviceId === selectedServiceForPrices.id
+                  bs => bs.professionalId === barber.id && bs.serviceId === selectedServiceForPrices.id
                 );
 
                 return (

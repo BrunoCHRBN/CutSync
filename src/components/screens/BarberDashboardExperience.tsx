@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Platform, Alert } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
-import { CalendarDays, Check, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
+import { CalendarDays, Check, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
-import { BarberShell } from '../layout/BarberShell';
+import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
@@ -23,7 +23,7 @@ type Tab = 'mine' | 'team';
 
 interface RichAppointment {
   id: string;
-  barberId: string;
+  professionalId: string;
   barberName: string;
   clientName: string;
   clientPhone: string;
@@ -72,31 +72,42 @@ export const BarberDashboardExperience = () => {
   const [occupiedTimes, setOccupiedTimes] = useState<string[]>([]);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
 
+  const weekOffset = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    const diffTime = selected.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return Math.floor((diffDays + 3) / 7);
+  }, [selectedDate]);
+
   const dateOptions = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const offset = (index - 3) + (weekOffset * 7);
     const date = new Date();
-    date.setDate(date.getDate() + index - 2);
+    date.setDate(date.getDate() + offset);
     return date;
-  }), []);
+  }), [weekOffset]);
 
   useEffect(() => {
-    if (!profile?.barbershop_id) { setLoading(false); return; }
+    if (!profile?.establishment_id) { setLoading(false); return; }
     const shopSub = database.collections
       .get<Barbershop>('barbershops')
-      .findAndObserve(profile.barbershop_id)
+      .findAndObserve(profile.establishment_id)
       .subscribe({
         next: (data) => setBarbershop(data),
         error: () => console.log('Barbershop not found locally yet in barber dashboard'),
       });
-    const serviceSub = database.collections.get<Service>('services').query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true)).observe().subscribe(setServices);
+    const serviceSub = database.collections.get<Service>('services').query(Q.where('establishment_id', profile.establishment_id), Q.where('is_active', true)).observe().subscribe(setServices);
     return () => { shopSub.unsubscribe(); serviceSub.unsubscribe(); };
   }, [profile]);
 
   useEffect(() => {
-    if (!profile?.barbershop_id) return;
+    if (!profile?.establishment_id) return;
     const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
     const end = new Date(selectedDate); end.setHours(23, 59, 59, 999);
     const sub = database.collections.get<Appointment>('appointments').query(
-      Q.where('barbershop_id', profile.barbershop_id),
+      Q.where('establishment_id', profile.establishment_id),
       Q.where('date_time', Q.between(start.getTime(), end.getTime())),
     ).observe().subscribe(async (items) => {
       const rich = await Promise.all(items.map(async (appointment) => {
@@ -113,8 +124,8 @@ export const BarberDashboardExperience = () => {
           } catch {}
         }
         try { const service = await database.collections.get<Service>('services').find(appointment.serviceId); serviceName = service.name; price = service.price; } catch {}
-        try { barberName = (await database.collections.get<Profile>('profiles').find(appointment.barberId)).name; } catch {}
-        return { id: appointment.id, barberId: appointment.barberId, barberName, clientName, clientPhone, serviceName, price, dateTime: appointment.dateTime, status: appointment.status, cancellationReason: appointment.cancellationReason || '' };
+        try { barberName = (await database.collections.get<Profile>('profiles').find(appointment.professionalId)).name; } catch {}
+        return { id: appointment.id, professionalId: appointment.professionalId, barberName, clientName, clientPhone, serviceName, price, dateTime: appointment.dateTime, status: appointment.status, cancellationReason: appointment.cancellationReason || '' };
       }));
       setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
       setLoading(false);
@@ -134,7 +145,7 @@ export const BarberDashboardExperience = () => {
 
     database.collections.get<Appointment>('appointments')
       .query(
-        Q.where('barber_id', rescheduleItem.barberId),
+        Q.where('professional_id', rescheduleItem.professionalId),
         Q.where('status', Q.notEq('cancelled')),
         Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime())),
         Q.where('id', Q.notEq(rescheduleItem.id))
@@ -161,7 +172,7 @@ export const BarberDashboardExperience = () => {
 
     database.collections.get<Appointment>('appointments')
       .query(
-        Q.where('barber_id', profile.id),
+        Q.where('professional_id', profile.id),
         Q.where('status', Q.notEq('cancelled')),
         Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
       )
@@ -175,7 +186,7 @@ export const BarberDashboardExperience = () => {
       .catch(() => setQuickOccupiedTimes([]));
   }, [quickOpen, profile, quickDate]);
 
-  const visibleAppointments = tab === 'mine' ? appointments.filter((item) => item.barberId === profile?.id) : appointments;
+  const visibleAppointments = tab === 'mine' ? appointments.filter((item) => item.professionalId === profile?.id) : appointments;
   const completed = visibleAppointments.filter((item) => item.status === 'completed');
   const revenue = completed.reduce((sum, item) => sum + item.price, 0);
   const commission = revenue * (profile?.commission_rate ?? 0.5);
@@ -218,7 +229,7 @@ export const BarberDashboardExperience = () => {
           record.status = status; 
           if (status === 'cancelled') {
             record.cancellationReason = reason;
-            record.cancelledByRole = 'barber';
+            record.cancelledByRole = 'professional';
           }
         });
       });
@@ -260,7 +271,7 @@ export const BarberDashboardExperience = () => {
   };
 
   const createQuickBooking = async () => {
-    if (!quickName.trim() || !quickService || !quickTime || !profile?.barbershop_id || !profile?.id) {
+    if (!quickName.trim() || !quickService || !quickTime || !profile?.establishment_id || !profile?.id) {
       setNotice({ tone: 'danger', message: 'Informe cliente, serviço e horário para criar o encaixe.' });
       return;
     }
@@ -270,7 +281,7 @@ export const BarberDashboardExperience = () => {
     const service = services.find((item) => item.id === quickService);
     const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
     const conflict = appointments.some((item) => {
-      if (item.barberId !== profile.id || item.status === 'cancelled') return false;
+      if (item.professionalId !== profile.id || item.status === 'cancelled') return false;
       const itemService = services.find((candidate) => candidate.name === item.serviceName);
       const itemEnd = item.dateTime.getTime() + (itemService?.durationMinutes || 30) * 60 * 1000;
       return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
@@ -284,8 +295,8 @@ export const BarberDashboardExperience = () => {
     try {
       await database.write(async () => {
         await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = profile.barbershop_id;
-          record.barberId = profile.id;
+          record.establishmentId = profile.establishment_id;
+          record.professionalId = profile.id;
           record.clientName = quickName.trim();
           record.serviceId = quickService;
           record.dateTime = dateTime;
@@ -303,7 +314,7 @@ export const BarberDashboardExperience = () => {
   };
 
   return (
-    <BarberShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} isOffline={isOffline} onSignOut={signOut}>
+    <ProfessionalShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} isOffline={isOffline} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
           <SectionHeading testID="barber-dashboard-heading" eyebrow="Minha operação" title={`Olá, ${profile?.name?.split(' ')[0] || 'profissional'}.`} description="Seu dia organizado para você manter o ritmo entre um cliente e outro." />
@@ -338,13 +349,49 @@ export const BarberDashboardExperience = () => {
 
         <SegmentedControl<Tab> testID="barber-agenda-tabs" value={tab} onChange={setTab} options={[{ value: 'mine', label: 'Minha agenda' }, { value: 'team', label: 'Agenda da equipe' }]} />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-          {dateOptions.map((date) => {
-            const id = date.toISOString().split('T')[0];
-            const selected = selectedDate.toDateString() === date.toDateString();
-            return <Pressable key={id} testID={`barber-date-${id}`} onPress={() => setSelectedDate(date)} style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, pressed && styles.pressed]}><Text style={[styles.dateWeek, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text><Text style={[styles.dateDay, selected && styles.selectedInk]}>{date.getDate()}</Text></Pressable>;
-          })}
-        </ScrollView>
+        <View style={styles.calendarNavContainer}>
+          <Pressable 
+            testID="barber-calendar-prev"
+            onPress={() => {
+              const d = new Date(selectedDate);
+              d.setDate(d.getDate() - 7);
+              setSelectedDate(d);
+            }} 
+            style={styles.navArrow}
+          >
+            <ChevronLeft color={colors.textSecondary} size={18} />
+          </Pressable>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList} style={{ flex: 1 }}>
+            {dateOptions.map((date) => {
+              const id = date.toISOString().split('T')[0];
+              const selected = selectedDate.toDateString() === date.toDateString();
+              return <Pressable key={id} testID={`barber-date-${id}`} onPress={() => setSelectedDate(date)} style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, pressed && styles.pressed]}><Text style={[styles.dateWeek, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text><Text style={[styles.dateDay, selected && styles.selectedInk]}>{date.getDate()}</Text></Pressable>;
+            })}
+          </ScrollView>
+
+          <Pressable 
+            testID="barber-calendar-next"
+            onPress={() => {
+              const d = new Date(selectedDate);
+              d.setDate(d.getDate() + 7);
+              setSelectedDate(d);
+            }} 
+            style={styles.navArrow}
+          >
+            <ChevronRight color={colors.textSecondary} size={18} />
+          </Pressable>
+
+          {weekOffset !== 0 && (
+            <Pressable 
+              testID="barber-calendar-today"
+              onPress={() => setSelectedDate(new Date())} 
+              style={styles.todayBtn}
+            >
+              <Text style={styles.todayBtnText}>Hoje</Text>
+            </Pressable>
+          )}
+        </View>
 
         {loading ? <ActivityIndicator testID="barber-agenda-loading" color={colors.brand} style={styles.loader} /> : visibleAppointments.length === 0 ? (
           <EmptyState testID="barber-agenda-empty" title="Agenda livre nesta data" description="Use o encaixe rápido para registrar um atendimento de balcão." icon={<CalendarDays color={colors.brand} size={22} />} />
@@ -364,7 +411,7 @@ export const BarberDashboardExperience = () => {
                     {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
                     {cancelCandidateId === item.id ? (
                       <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
-                    ) : (item.status === 'pending' || item.status === 'confirmed') && item.barberId === profile?.id ? (
+                    ) : (item.status === 'pending' || item.status === 'confirmed') && item.professionalId === profile?.id ? (
                       <View style={styles.appointmentActions}>
                         {!!item.clientPhone && (
                           <AppButton 
@@ -546,7 +593,7 @@ export const BarberDashboardExperience = () => {
           </AppCard>
         </View>
       </Modal>
-    </BarberShell>
+    </ProfessionalShell>
   );
 };
 
@@ -608,5 +655,37 @@ const styles = StyleSheet.create({
   timeSlotTextOccupied: {
     color: '#ff444470',
     textDecorationLine: 'line-through',
+  },
+  calendarNavContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 18,
+    width: '100%',
+  },
+  navArrow: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 38,
+  },
+  todayBtnText: {
+    color: colors.ink,
+    fontFamily: typography.bodyStrong,
+    fontSize: 10,
+    textTransform: 'uppercase',
   },
 });

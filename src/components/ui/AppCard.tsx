@@ -24,10 +24,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   elevated: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surface,
     ...Platform.select({
-      web: { boxShadow: '0 12px 24px rgba(0,0,0,0.22)' } as any,
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 8 },
+      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' } as any,
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 2 },
     }),
   },
 });

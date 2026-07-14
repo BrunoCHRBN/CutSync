@@ -13,7 +13,7 @@ import { supabase } from '../../services/supabase';
 export default function BookingSlugScreen() {
   const { t, i18n } = useTranslation();
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
-  const { user, signInWithPassword } = useAuth();
+  const { user } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
 
@@ -29,7 +29,7 @@ export default function BookingSlugScreen() {
     if (reschedule_id) {
       database.collections.get<Appointment>('appointments').find(reschedule_id).then((apt) => {
         setSelectedService(apt.serviceId);
-        setSelectedBarber(apt.barberId);
+        setSelectedBarber(apt.professionalId);
       }).catch(err => {
         console.warn('Erro ao carregar dados de reagendamento:', err);
       });
@@ -63,16 +63,16 @@ export default function BookingSlugScreen() {
   };
 
   // Função auxiliar para resolver preço e duração com base no barbeiro selecionado (Fallback)
-  const getServicePriceAndDuration = (serviceId: string | null, barberId: string | null) => {
+  const getServicePriceAndDuration = (serviceId: string | null, professionalId: string | null) => {
     if (!serviceId) return { price: 0, duration: 30, isActive: false };
     const globalSrv = services.find(s => s.id === serviceId);
     if (!globalSrv) return { price: 0, duration: 30, isActive: false };
 
-    if (!barberId) {
+    if (!professionalId) {
       return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
     }
 
-    const custom = barberServices.find(bs => bs.barberId === barberId && bs.serviceId === serviceId);
+    const custom = barberServices.find(bs => bs.professionalId === professionalId && bs.serviceId === serviceId);
     if (custom) {
       return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
     }
@@ -98,7 +98,7 @@ export default function BookingSlugScreen() {
         const list = await database.collections
           .get<Appointment>('appointments')
           .query(
-            Q.where('barber_id', selectedBarber),
+            Q.where('professional_id', selectedBarber),
             Q.where('status', Q.notEq('cancelled')),
             Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
           )
@@ -106,7 +106,7 @@ export default function BookingSlugScreen() {
 
         const segments = [];
         for (const apt of list) {
-          const { duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
+          const { duration } = getServicePriceAndDuration(apt.serviceId, apt.professionalId);
           const startTime = new Date(apt.dateTime).getTime();
           const endTime = startTime + duration * 60 * 1000;
           segments.push({ start: startTime, end: endTime });
@@ -183,14 +183,14 @@ export default function BookingSlugScreen() {
 
           const sList = await database.collections
             .get<Service>('services')
-            .query(Q.where('barbershop_id', shop.id), Q.where('is_active', true))
+            .query(Q.where('establishment_id', shop.id), Q.where('is_active', true))
             .fetch();
           setServices(sList);
 
           const bList = await database.collections
             .get<Profile>('profiles')
             .query(
-              Q.where('barbershop_id', shop.id),
+              Q.where('establishment_id', shop.id),
               Q.where('role', Q.oneOf(['barber', 'admin']))
             )
             .fetch();
@@ -198,7 +198,7 @@ export default function BookingSlugScreen() {
 
           const bsList = await database.collections
             .get<BarberService>('barber_services')
-            .query(Q.where('barbershop_id', shop.id))
+            .query(Q.where('establishment_id', shop.id))
             .fetch();
           setBarberServices(bsList);
 
@@ -239,15 +239,15 @@ export default function BookingSlugScreen() {
             record.dateTime = appointmentDate;
             record.status = 'pending';
             record.rescheduleCount = (record.rescheduleCount || 0) + 1;
-            record.barberId = selectedBarber!;
+            record.professionalId = selectedBarber!;
             record.serviceId = selectedService!;
           });
           targetAppointmentId = appointment.id;
         } else {
           const created = await database.collections.get<Appointment>('appointments').create((record) => {
-            record.barbershopId = barbershop!.id;
+            record.establishmentId = barbershop!.id;
             record.clientId = clientId;
-            record.barberId = selectedBarber!;
+            record.professionalId = selectedBarber!;
             record.serviceId = selectedService!;
             record.dateTime = appointmentDate;
             record.status = 'pending';
@@ -335,7 +335,7 @@ export default function BookingSlugScreen() {
             data: {
               name: authName,
               role: 'client',
-              barbershop_id: barbershop?.id || null,
+              establishment_id: barbershop?.id || null,
             }
           }
         });
@@ -348,9 +348,14 @@ export default function BookingSlugScreen() {
         await executeBooking(data.user.id);
       } else {
         // Fazer login rápido
-        const response = await signInWithPassword(authEmail, authPassword);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword,
+        });
+        if (error) throw error;
+        if (!data.user) throw new Error('Falha no login.');
         setIsAuthModalVisible(false);
-        await executeBooking(response.user.id);
+        await executeBooking(data.user.id);
       }
     } catch (err: any) {
       displayAlert('Erro', err.message || 'Ocorreu um erro na autenticação.');

@@ -118,7 +118,7 @@ function LegacyClientDashboard() {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               // Encontra a barbearia do agendamento para pegar a timezone correta
-              const bshop = barbershops.find((b) => b.id === item.barbershopId);
+              const bshop = barbershops.find((b) => b.id === item.establishmentId);
               return (
                 <View style={styles.appointmentCard}>
                   <View>

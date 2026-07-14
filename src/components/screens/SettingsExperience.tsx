@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store } from 'lucide-react-native';
+import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { database } from '../../database';
 import { Barbershop } from '../../database/models';
@@ -49,6 +49,7 @@ export const SettingsExperience = () => {
   const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   
   // Novos campos estéticos
   const [slogan, setSlogan] = useState('');
@@ -115,7 +116,7 @@ export const SettingsExperience = () => {
       const blob = await response.blob();
 
       const fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
-      const fileName = `${profile?.barbershop_id || 'public'}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileName = `${profile?.establishment_id || 'public'}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const bucketName = 'banners';
 
       const { error: uploadError } = await supabase.storage
@@ -164,9 +165,15 @@ export const SettingsExperience = () => {
     }
   };
 
+  const handleAddGalleryPhoto = () => {
+    pickImage((url) => {
+      setGalleryUrls(prev => [...prev, url]);
+    }, [4, 5]);
+  };
+
   useEffect(() => {
-    if (!profile?.barbershop_id) { setLoading(false); return; }
-    const sub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.barbershop_id).subscribe({
+    if (!profile?.establishment_id) { setLoading(false); return; }
+    const sub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.establishment_id).subscribe({
       next: (shop) => {
         setBarbershop(shop);
         setName(shop.name || '');
@@ -176,8 +183,18 @@ export const SettingsExperience = () => {
         setPrimaryColor(shop.primaryColor || '#F5A524');
         setLogoUrl(shop.logoUrl || null);
         setSlogan(shop.slogan || '');
-        setBannerUrl(shop.bannerUrl || '');
         setInstagram(shop.instagram || '');
+
+        let parsedGallery: string[] = [];
+        if (shop.galleryUrls) {
+          try {
+            const parsed = JSON.parse(shop.galleryUrls);
+            parsedGallery = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            parsedGallery = String(shop.galleryUrls).split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        setGalleryUrls(parsedGallery);
 
         let parsedHours = defaultSchedule;
         if (shop.openingHours) {
@@ -222,6 +239,7 @@ export const SettingsExperience = () => {
           record.openingHours = JSON.stringify(schedule);
           record.primaryColor = primaryColor.toUpperCase();
           record.logoUrl = logoUrl || undefined;
+          record.galleryUrls = JSON.stringify(galleryUrls);
         });
       });
       setSlug(cleanSlug);
@@ -297,6 +315,36 @@ export const SettingsExperience = () => {
                 />
               </View>
               <AppInput label="Slogan / Frase de efeito (máx 150 car.)" testID="settings-slogan-input" value={slogan} onChangeText={setSlogan} placeholder="ex: A verdadeira experiência clássica" maxLength={150} />
+
+              <View style={{ gap: 8, marginTop: 12 }}>
+                <Text style={styles.fieldLabel}>Galeria de Fotos do Estabelecimento</Text>
+                {galleryUrls.length === 0 ? (
+                  <Text style={styles.emptyGalleryText}>Nenhuma foto adicionada à galeria.</Text>
+                ) : (
+                  <View style={styles.galleryPreviewGrid}>
+                    {galleryUrls.map((url, index) => (
+                      <View key={`${url}-${index}`} style={styles.galleryItemContainer}>
+                        <Image source={{ uri: url }} style={styles.galleryItemImage} />
+                        <Pressable 
+                          onPress={() => {
+                            setGalleryUrls(prev => prev.filter((_, idx) => idx !== index));
+                          }}
+                          style={styles.galleryItemRemove}
+                        >
+                          <X color="#FFFFFF" size={12} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <AppButton
+                  label="Adicionar Foto na Galeria (Proporção 4:5)"
+                  testID="settings-upload-gallery-button"
+                  onPress={handleAddGalleryPhoto}
+                  variant="secondary"
+                  style={styles.uploadButton}
+                />
+              </View>
             </FormSection>
 
             <FormSection title="Grade de Funcionamento Estruturada" testID="settings-schedule-section" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
@@ -407,5 +455,11 @@ const styles = StyleSheet.create({
   timeInput: { width: 56, height: 34, textAlign: 'center', color: colors.text, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
   closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' },
   compactUploadButton: { minHeight: 32, paddingVertical: 5, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 },
-  uploadButton: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' }
+  uploadButton: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+  emptyGalleryText: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic', marginVertical: 4 },
+  galleryPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 8 },
+  galleryItemContainer: { width: 80, height: 100, borderRadius: radii.md, overflow: 'hidden', position: 'relative' },
+  galleryItemImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }
 });

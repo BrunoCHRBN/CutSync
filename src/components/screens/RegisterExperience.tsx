@@ -123,7 +123,7 @@ export const RegisterExperience = () => {
       const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        options: { data: { name: name.trim(), phone: phone.trim(), role, barbershop_id: barbershopId } },
+        options: { data: { name: name.trim(), phone: phone.trim(), role, establishment_id: barbershopId } },
       });
       if (signUpError) throw new Error(signUpError.message.includes('registered') ? 'Este e-mail já possui uma conta.' : 'Não foi possível concluir o cadastro.');
       router.replace('/(auth)/login');

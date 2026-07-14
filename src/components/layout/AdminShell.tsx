@@ -25,7 +25,7 @@ interface AdminShellProps {
 const navItems = [
   { key: 'overview', label: 'Visão geral', path: '/(admin)', Icon: LayoutDashboard },
   { key: 'services', label: 'Serviços', path: '/(admin)/services', Icon: Scissors },
-  { key: 'team', label: 'Equipe', path: '/(admin)/barbers', Icon: Users },
+  { key: 'team', label: 'Equipe', path: '/(admin)/team', Icon: Users },
   { key: 'settings', label: 'Configurações', path: '/(admin)/settings', Icon: Settings },
 ] as const;
 
@@ -62,12 +62,12 @@ export const AdminShell = ({
   }, [profile?.id]);
 
   const handleSwitchShop = async (targetShopId: string) => {
-    if (switching || targetShopId === profile?.barbershop_id) return;
+    if (switching || targetShopId === profile?.establishment_id) return;
     setSwitching(true);
     try {
       // 1. Atualizar active barbershop no Supabase
       const { error } = await supabase.from('profiles')
-        .update({ barbershop_id: targetShopId })
+        .update({ establishment_id: targetShopId })
         .eq('id', profile?.id);
         
       if (error) throw error;
@@ -104,7 +104,7 @@ export const AdminShell = ({
               Platform.OS === 'web' ? (
                 <View style={styles.selectWrapper}>
                   {React.createElement('select', {
-                    value: profile?.barbershop_id || '',
+                    value: profile?.establishment_id || '',
                     onChange: (e: any) => handleSwitchShop(e.target.value),
                     style: {
                       backgroundColor: colors.surfaceRaised,
@@ -130,11 +130,11 @@ export const AdminShell = ({
                   <Pressable 
                     onPress={() => {
                       Alert.alert(
-                        'Alternar Unidade',
-                        'Escolha a barbearia que deseja gerenciar:',
+                        'Alternar Estabelecimento',
+                        'Escolha o estabelecimento que deseja gerenciar:',
                         availableShops.map((shop) => ({
                           text: shop.name,
-                          style: shop.id === profile?.barbershop_id ? 'cancel' : 'default',
+                          style: shop.id === profile?.establishment_id ? 'cancel' : 'default',
                           onPress: () => handleSwitchShop(shop.id)
                         }))
                       );
@@ -190,8 +190,8 @@ export const AdminShell = ({
             <Pressable 
               onPress={() => {
                 Alert.alert(
-                  'Alternar Unidade',
-                  'Escolha a barbearia que deseja gerenciar:',
+                  'Alternar Estabelecimento',
+                  'Escolha o estabelecimento que deseja gerenciar:',
                   availableShops.map((shop) => ({
                     text: shop.name,
                     onPress: () => handleSwitchShop(shop.id)
@@ -229,7 +229,7 @@ export const AdminShell = ({
       {switching && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.brand} />
-          <Text style={styles.loadingText}>Sincronizando unidade...</Text>
+          <Text style={styles.loadingText}>Sincronizando estabelecimento...</Text>
         </View>
       )}
     </View>
@@ -273,15 +273,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#151518F2',
+    backgroundColor: colors.surface + 'F2',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.xl,
     paddingHorizontal: 8,
     paddingVertical: 8,
     ...Platform.select({
-      web: { boxShadow: '0 12px 28px rgba(0,0,0,0.38)' } as any,
-      default: { shadowColor: '#000', shadowOpacity: 0.38, shadowRadius: 20, elevation: 12 },
+      web: { boxShadow: '0 4px 12px rgba(0,0,0,0.08)' } as any,
+      default: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10, elevation: 6 },
     }),
   },
   bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 15, 18, 0.85)',
+    backgroundColor: 'rgba(244, 244, 245, 0.85)',
     zIndex: 9999,
     alignItems: 'center',
     justifyContent: 'center',

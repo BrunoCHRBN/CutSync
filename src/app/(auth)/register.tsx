@@ -90,7 +90,7 @@ function LegacyRegisterScreen() {
             name,
             phone,
             role,
-            barbershop_id: barbershopId,
+            establishment_id: barbershopId,
           },
         },
       });

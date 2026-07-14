@@ -57,14 +57,14 @@ export const TeamExperience = () => {
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
 
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
-    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.barbershop_id)
+    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.establishment_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
     const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('role', 'barber'))
+      .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', 'barber'))
       .observe().subscribe({ next: (items) => { setBarbers(items); setLoading(false); }, error: () => setLoading(false) });
     return () => { shopSub.unsubscribe(); teamSub.unsubscribe(); };
   }, [profile]);
@@ -139,7 +139,7 @@ export const TeamExperience = () => {
     try {
       await database.write(async () => {
         const barber = await database.collections.get<Profile>('profiles').find(barberId);
-        await barber.update((record) => { record.barbershopId = null; });
+        await barber.update((record) => { record.establishmentId = null; });
       });
       setRemovingId(null);
       setNotice({ tone: 'success', message: 'Profissional removido da equipe.' });
@@ -221,9 +221,9 @@ export const TeamExperience = () => {
                         <Text style={styles.workHoursTitle}>Configurações do Profissional (LGPD Safe)</Text>
                         <View style={styles.fieldsRow}>
                           <AppInput containerStyle={{ flex: 0.5, minWidth: 100 }} label="Comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
-                          <AppInput containerStyle={{ flex: 1, minWidth: 180 }} label="Instagram (sem @)" value={barberInstagram} onChangeText={setBarberInstagram} placeholder="ex: joaobarber" />
+                          <AppInput containerStyle={{ flex: 1, minWidth: 180 }} label="Instagram (sem @)" testID={`team-member-${barber.id}-instagram-input`} value={barberInstagram} onChangeText={setBarberInstagram} placeholder="ex: joaobarber" />
                         </View>
-                        <AppInput label="Especialidades / Portfólio" value={specialties} onChangeText={setSpecialties} placeholder="ex: Especialista em Degradê e Barboterapia" />
+                        <AppInput label="Especialidades / Portfólio" testID={`team-member-${barber.id}-specialties-input`} value={specialties} onChangeText={setSpecialties} placeholder="ex: Especialista em Degradê e Barboterapia" />
                         <View style={styles.formActions}>
                           <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveBarberInfo(barber.id)} loading={actionLoading} style={styles.smallButton} />
                           <AppButton label="Cancelar" testID={`team-member-${barber.id}-commission-cancel-button`} onPress={() => setEditingId(null)} variant="secondary" style={styles.smallButton} />

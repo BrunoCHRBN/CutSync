@@ -1,8 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
-interface AppInputProps extends TextInputProps {
+export interface AppInputProps extends TextInputProps {
   label: string;
   testID: string;
   icon?: ReactNode;
@@ -20,23 +20,35 @@ export const AppInput = ({
   containerStyle,
   style,
   ...props
-}: AppInputProps) => (
-  <View style={[styles.group, containerStyle]}>
-    <Text testID={`${testID}-label`} style={styles.label}>{label}</Text>
-    <View style={[styles.field, error && styles.fieldError]}>
-      {icon}
-      <TextInput
-        {...props}
-        testID={testID}
-        placeholderTextColor={colors.textMuted}
-        selectionColor={colors.brand}
-        style={[styles.input, style]}
-      />
+}: AppInputProps) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <View style={[styles.group, containerStyle]}>
+      <Text testID={`${testID}-label`} style={styles.label}>{label}</Text>
+      <View style={[styles.field, isFocused && styles.fieldFocused, error && styles.fieldError]}>
+        {icon}
+        <TextInput
+          {...props}
+          testID={testID}
+          placeholderTextColor={colors.textMuted}
+          selectionColor={colors.brand}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+          }}
+          style={[styles.input, style]}
+        />
+      </View>
+      {!!error && <Text testID={`${testID}-error`} style={styles.error}>{error}</Text>}
+      {!error && !!hint && <Text testID={`${testID}-hint`} style={styles.hint}>{hint}</Text>}
     </View>
-    {!!error && <Text testID={`${testID}-error`} style={styles.error}>{error}</Text>}
-    {!error && !!hint && <Text testID={`${testID}-hint`} style={styles.hint}>{hint}</Text>}
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   group: { gap: 8 },
@@ -51,11 +63,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
     paddingHorizontal: 14,
+  },
+  fieldFocused: {
+    borderColor: colors.brand,
+    borderWidth: 2,
   },
   fieldError: { borderColor: colors.danger },
   input: {

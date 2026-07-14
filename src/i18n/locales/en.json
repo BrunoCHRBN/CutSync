@@ -25,15 +25,15 @@
   "register": {
     "title": "Sign Up",
     "client_tab": "I'm a Client",
-    "barber_tab": "I have a Barbershop",
+    "business_tab": "I have an Establishment",
     "name_label": "Full Name *",
     "email_label": "Email *",
     "phone_label": "Phone Number",
     "password_label": "Password *",
-    "barber_section": "Barbershop Details",
-    "barber_name": "Barbershop Name *",
-    "barber_slug": "Barbershop Link/Slug *",
-    "barber_color": "Highlight Primary Color (Hex) *",
+    "business_section": "Establishment Details",
+    "business_name": "Establishment Name *",
+    "business_slug": "Establishment Link/Slug *",
+    "business_color": "Highlight Primary Color (Hex) *",
     "button": "Sign Up",
     "has_account": "Already have an account? Login",
     "error_fill": "Please fill in all required fields."
@@ -41,8 +41,8 @@
   "client": {
     "appointments_title": "Your Appointments",
     "no_appointments": "You have no scheduled appointments.",
-    "partners_title": "Partner Barbershops",
-    "no_barbershops": "No barbershops registered at the moment.",
+    "partners_title": "Partner Establishments",
+    "no_establishments": "No establishments registered at the moment.",
     "book_button": "Book Now"
   },
   "booking": {
@@ -50,17 +50,17 @@
     "step_service": "1. Choose Service",
     "service_label": "Choose Service",
     "no_services": "No services available.",
-    "step_barber": "2. Choose Barber",
-    "barber_label": "Choose Barber",
-    "no_barbers": "No professionals available.",
+    "step_professional": "2. Choose Professional",
+    "professional_label": "Choose Professional",
+    "no_professionals": "No professionals available.",
     "date_info": "📅 Test Date: Tomorrow at 2:00 PM",
-    "date_subinfo": "(In a real production flow, we would load the barber's available schedule).",
+    "date_subinfo": "(In a real production flow, we would load the professional's available schedule).",
     "button": "Confirm Booking",
     "error_select": "Please select a service and a professional.",
     "success_message": "Booking registered offline! Syncing with server..."
   },
   "admin": {
-    "title": "Barber Panel",
+    "title": "Professional Panel",
     "manage_services": "Manage Services",
     "agenda_title": "Today's Agenda",
     "no_appointments": "No appointments registered locally.",
@@ -88,11 +88,14 @@
     "partner": "CUTSYNC PARTNER",
     "about": "Who cares for your style",
     "catalog": "Available services",
-    "cta": "READY TO CHANGE YOUR LOOK?",
+    "cta": "READY TO BOOK?",
     "cta_button": "Book now",
-    "not_found": "Barbershop not found",
+    "not_found": "Establishment not found",
     "description_empty": "This establishment has not added a description yet.",
-    "services_empty": "The barbershop has not published active services yet.",
-    "team_empty": "Professionals will appear here soon."
+    "services_empty": "This establishment has not published active services yet.",
+    "team_empty": "Professionals will appear here soon.",
+    "gallery": "Gallery",
+    "gallery_title": "Our Work",
+    "gallery_empty": "Gallery coming soon."
   }
 }

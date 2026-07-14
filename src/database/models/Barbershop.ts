@@ -1,13 +1,13 @@
 import { Model } from '@nozbe/watermelondb';
 import { text, date, children, field } from '@nozbe/watermelondb/decorators';
 
-export default class Barbershop extends Model {
-  static table = 'barbershops';
+export default class Establishment extends Model {
+  static table = 'establishments';
 
   static associations = {
-    profiles: { type: 'has_many', foreignKey: 'barbershop_id' },
-    services: { type: 'has_many', foreignKey: 'barbershop_id' },
-    appointments: { type: 'has_many', foreignKey: 'barbershop_id' },
+    profiles: { type: 'has_many', foreignKey: 'establishment_id' },
+    services: { type: 'has_many', foreignKey: 'establishment_id' },
+    appointments: { type: 'has_many', foreignKey: 'establishment_id' },
   } as const;
 
   @text('name') name!: string;
@@ -24,6 +24,7 @@ export default class Barbershop extends Model {
   @text('phone') phone?: string;
   @text('opening_hours') openingHours?: string;
   @field('share_agendas') shareAgendas?: boolean;
+  @text('gallery_urls') galleryUrls?: string | null;
   
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

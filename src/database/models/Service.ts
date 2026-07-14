@@ -5,11 +5,11 @@ export default class Service extends Model {
   static table = 'services';
 
   static associations = {
-    barbershops: { type: 'belongs_to', key: 'barbershop_id' },
+    establishments: { type: 'belongs_to', key: 'establishment_id' },
     appointments: { type: 'has_many', foreignKey: 'service_id' },
   } as const;
 
-  @text('barbershop_id') barbershopId!: string;
+  @text('establishment_id') establishmentId!: string;
   @text('name') name!: string;
   @field('price') price!: number;
   @field('duration_minutes') durationMinutes!: number;
@@ -18,5 +18,5 @@ export default class Service extends Model {
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 
-  @relation('barbershops', 'barbershop_id') barbershop!: any;
+  @relation('establishments', 'establishment_id') establishment!: any;
 }

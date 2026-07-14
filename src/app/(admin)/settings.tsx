@@ -34,12 +34,12 @@ function LegacyBarbershopSettingsScreen() {
   };
 
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
 
-    const barbershopId = profile.barbershop_id;
+    const barbershopId = profile.establishment_id;
     const fetchBarbershop = async () => {
       try {
         const b = await database.collections.get<Barbershop>('barbershops').find(barbershopId);

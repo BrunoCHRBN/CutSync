@@ -96,6 +96,7 @@ export const LoginExperience = () => {
                       Enviamos um link de login rápido para **{email}**. Abra o link em seu dispositivo para acessar sua conta!
                     </Text>
                     <AppButton
+                      testID="login-back-from-magic-button"
                       label="Voltar para Login"
                       onPress={() => {
                         setMagicLinkSent(false);

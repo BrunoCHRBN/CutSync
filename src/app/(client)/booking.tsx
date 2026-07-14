@@ -47,7 +47,7 @@ export default function BookingScreen() {
       return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
     }
 
-    const custom = barberServices.find(bs => bs.barberId === barberId && bs.serviceId === serviceId);
+    const custom = barberServices.find(bs => bs.professionalId === barberId && bs.serviceId === serviceId);
     if (custom) {
       return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
     }
@@ -73,7 +73,7 @@ export default function BookingScreen() {
         const list = await database.collections
           .get<Appointment>('appointments')
           .query(
-            Q.where('barber_id', selectedBarber),
+            Q.where('professional_id', selectedBarber),
             Q.where('status', Q.notEq('cancelled')),
             Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
           )
@@ -82,7 +82,7 @@ export default function BookingScreen() {
         const segments = [];
         for (const apt of list) {
           // Utiliza a duração correta do barbeiro que realizou o agendamento
-          const { duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
+          const { duration } = getServicePriceAndDuration(apt.serviceId, apt.professionalId);
           const startTime = new Date(apt.dateTime).getTime();
           const endTime = startTime + duration * 60 * 1000;
           segments.push({ start: startTime, end: endTime });
@@ -161,14 +161,14 @@ export default function BookingScreen() {
 
         const sList = await database.collections
           .get<Service>('services')
-          .query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true))
+          .query(Q.where('establishment_id', barbershopId), Q.where('is_active', true))
           .fetch();
         setServices(sList);
 
         const bList = await database.collections
           .get<Profile>('profiles')
           .query(
-            Q.where('barbershop_id', barbershopId),
+            Q.where('establishment_id', barbershopId),
             Q.where('role', Q.oneOf(['barber', 'admin']))
           )
           .fetch();
@@ -176,7 +176,7 @@ export default function BookingScreen() {
 
         const bsList = await database.collections
           .get<BarberService>('barber_services')
-          .query(Q.where('barbershop_id', barbershopId))
+          .query(Q.where('establishment_id', barbershopId))
           .fetch();
         setBarberServices(bsList);
 
@@ -232,10 +232,10 @@ export default function BookingScreen() {
       let newAppointmentId = '';
       await database.write(async () => {
         const created = await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = barbershopId;
+          record.establishmentId = barbershopId;
           record.clientId = user.id;
           record.clientName = profile?.name || 'Cliente';
-          record.barberId = selectedBarber;
+          record.professionalId = selectedBarber;
           record.serviceId = selectedService;
           record.dateTime = appointmentDate;
           record.status = 'pending';

@@ -25,15 +25,15 @@
   "register": {
     "title": "Cadastre-se",
     "client_tab": "Sou Cliente",
-    "barber_tab": "Tenho Barbearia",
+    "business_tab": "Tenho um Estabelecimento",
     "name_label": "Nome Completo *",
     "email_label": "E-mail *",
     "phone_label": "Telefone",
     "password_label": "Senha *",
-    "barber_section": "Dados da Barbearia",
-    "barber_name": "Nome da Barbearia *",
-    "barber_slug": "Link/Slug da Barbearia *",
-    "barber_color": "Cor Primária Destaque (Hex) *",
+    "business_section": "Dados do Estabelecimento",
+    "business_name": "Nome do Estabelecimento *",
+    "business_slug": "Link/Slug do Estabelecimento *",
+    "business_color": "Cor Primária Destaque (Hex) *",
     "button": "Cadastrar",
     "has_account": "Já tem conta? Entrar",
     "error_fill": "Por favor, preencha todos os campos obrigatórios."
@@ -41,8 +41,8 @@
   "client": {
     "appointments_title": "Seus Agendamentos",
     "no_appointments": "Você não possui agendamentos marcados.",
-    "partners_title": "Barbearias Parceiras",
-    "no_barbershops": "Nenhuma barbearia cadastrada no momento.",
+    "partners_title": "Estabelecimentos Parceiros",
+    "no_establishments": "Nenhum estabelecimento cadastrado no momento.",
     "book_button": "Agendar"
   },
   "booking": {
@@ -50,17 +50,17 @@
     "step_service": "1. Escolha o Serviço",
     "service_label": "Escolha o Serviço",
     "no_services": "Nenhum serviço disponível.",
-    "step_barber": "2. Escolha o Barbeiro",
-    "barber_label": "Escolha o Barbeiro",
-    "no_barbers": "Nenhum profissional disponível.",
+    "step_professional": "2. Escolha o Profissional",
+    "professional_label": "Escolha o Profissional",
+    "no_professionals": "Nenhum profissional disponível.",
     "date_info": "📅 Data do Teste: Amanhã às 14:00h",
-    "date_subinfo": "(Em um fluxo de produção real, carregaríamos a grade de horários disponíveis livres do barbeiro).",
+    "date_subinfo": "(Em um fluxo de produção real, carregaríamos a grade de horários disponíveis livres do profissional).",
     "button": "Confirmar Agendamento",
     "error_select": "Selecione um serviço e um profissional.",
     "success_message": "Agendamento registrado offline! Sincronizando com o servidor..."
   },
   "admin": {
-    "title": "Painel do Barbeiro",
+    "title": "Painel do Profissional",
     "manage_services": "Gerenciar Serviços",
     "agenda_title": "Agenda de Hoje",
     "no_appointments": "Sem agendamentos registrados localmente.",
@@ -88,11 +88,14 @@
     "partner": "PARCEIRO CUTSYNC",
     "about": "Quem cuida do seu estilo",
     "catalog": "Serviços disponíveis",
-    "cta": "PRONTO PARA MUDAR O VISUAL?",
+    "cta": "PRONTO PARA AGENDAR?",
     "cta_button": "Agendar agora",
-    "not_found": "Barbearia não encontrada",
+    "not_found": "Estabelecimento não encontrado",
     "description_empty": "Este estabelecimento ainda não adicionou uma descrição.",
-    "services_empty": "A barbearia ainda não publicou serviços ativos.",
-    "team_empty": "Os profissionais aparecerão aqui em breve."
+    "services_empty": "Este estabelecimento ainda não publicou serviços ativos.",
+    "team_empty": "Os profissionais aparecerão aqui em breve.",
+    "gallery": "Galeria",
+    "gallery_title": "Nossos Trabalhos",
+    "gallery_empty": "Galeria em breve."
   }
 }

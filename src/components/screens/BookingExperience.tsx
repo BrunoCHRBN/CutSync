@@ -64,9 +64,9 @@ export const BookingExperience = () => {
         const [shop, serviceList, barberList] = await Promise.all([
           database.collections.get<Barbershop>('barbershops').find(barbershopId),
           database.collections.get<Service>('services')
-            .query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true)).fetch(),
+            .query(Q.where('establishment_id', barbershopId), Q.where('is_active', true)).fetch(),
           database.collections.get<Profile>('profiles')
-            .query(Q.where('barbershop_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
+            .query(Q.where('establishment_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
         ]);
         setBarbershop(shop);
         setServices(serviceList);
@@ -93,7 +93,7 @@ export const BookingExperience = () => {
       end.setHours(23, 59, 59, 999);
       const appointments = await database.collections.get<Appointment>('appointments')
         .query(
-          Q.where('barber_id', selectedBarber),
+          Q.where('professional_id', selectedBarber),
           Q.where('status', Q.notEq('cancelled')),
           Q.where('date_time', Q.between(start.getTime(), end.getTime())),
         ).fetch();
@@ -166,10 +166,10 @@ export const BookingExperience = () => {
       let appointmentId = '';
       await database.write(async () => {
         const created = await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = barbershopId;
+          record.establishmentId = barbershopId;
           record.clientId = user.id;
           record.clientName = profile?.name || 'Cliente';
-          record.barberId = selectedBarber;
+          record.professionalId = selectedBarber;
           record.serviceId = selectedService;
           record.dateTime = appointmentDate;
           record.status = 'pending';

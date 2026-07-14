@@ -1,10 +1,10 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 7,
+  version: 8,
   tables: [
     tableSchema({
-      name: 'barbershops',
+      name: 'establishments',
       columns: [
         { name: 'name', type: 'string' },
         { name: 'slug', type: 'string' },
@@ -20,6 +20,7 @@ export default appSchema({
         { name: 'phone', type: 'string', isOptional: true },
         { name: 'opening_hours', type: 'string', isOptional: true },
         { name: 'share_agendas', type: 'boolean', isOptional: true },
+        { name: 'gallery_urls', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
@@ -27,7 +28,7 @@ export default appSchema({
     tableSchema({
       name: 'profiles',
       columns: [
-        { name: 'barbershop_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'establishment_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'name', type: 'string' },
         { name: 'role', type: 'string' },
         { name: 'email', type: 'string' },
@@ -45,7 +46,7 @@ export default appSchema({
     tableSchema({
       name: 'services',
       columns: [
-        { name: 'barbershop_id', type: 'string', isIndexed: true },
+        { name: 'establishment_id', type: 'string', isIndexed: true },
         { name: 'name', type: 'string' },
         { name: 'price', type: 'number' },
         { name: 'duration_minutes', type: 'number' },
@@ -57,10 +58,10 @@ export default appSchema({
     tableSchema({
       name: 'appointments',
       columns: [
-        { name: 'barbershop_id', type: 'string', isIndexed: true },
+        { name: 'establishment_id', type: 'string', isIndexed: true },
         { name: 'client_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'client_name', type: 'string', isOptional: true },
-        { name: 'barber_id', type: 'string', isIndexed: true },
+        { name: 'professional_id', type: 'string', isIndexed: true },
         { name: 'service_id', type: 'string', isIndexed: true },
         { name: 'date_time', type: 'number' },
         { name: 'status', type: 'string' },
@@ -73,10 +74,10 @@ export default appSchema({
       ],
     }),
     tableSchema({
-      name: 'barber_services',
+      name: 'professional_services',
       columns: [
-        { name: 'barbershop_id', type: 'string', isIndexed: true },
-        { name: 'barber_id', type: 'string', isIndexed: true },
+        { name: 'establishment_id', type: 'string', isIndexed: true },
+        { name: 'professional_id', type: 'string', isIndexed: true },
         { name: 'service_id', type: 'string', isIndexed: true },
         { name: 'price', type: 'number' },
         { name: 'duration_minutes', type: 'number' },
@@ -86,10 +87,10 @@ export default appSchema({
       ],
     }),
     tableSchema({
-      name: 'profile_barbershops',
+      name: 'profile_establishments',
       columns: [
         { name: 'profile_id', type: 'string', isIndexed: true },
-        { name: 'barbershop_id', type: 'string', isIndexed: true },
+        { name: 'establishment_id', type: 'string', isIndexed: true },
         { name: 'role', type: 'string' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },

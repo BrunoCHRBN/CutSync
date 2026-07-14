@@ -7,9 +7,9 @@ import { database } from '../database';
 
 interface Profile {
   id: string;
-  barbershop_id: string | null;
+  establishment_id: string | null;
   name: string;
-  role: 'client' | 'barber' | 'admin';
+  role: 'client' | 'professional' | 'admin';
   email: string;
   phone: string | null;
   avatar_url: string | null;

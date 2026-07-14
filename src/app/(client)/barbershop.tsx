@@ -36,14 +36,14 @@ function LegacyBarbershopDetailsScreen() {
 
         const sList = await database.collections
           .get<Service>('services')
-          .query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true))
+          .query(Q.where('establishment_id', barbershopId), Q.where('is_active', true))
           .fetch();
         setServices(sList);
 
         const bList = await database.collections
           .get<Profile>('profiles')
           .query(
-            Q.where('barbershop_id', barbershopId),
+            Q.where('establishment_id', barbershopId),
             Q.where('role', Q.oneOf(['barber', 'admin']))
           )
           .fetch();

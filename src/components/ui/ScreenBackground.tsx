@@ -11,7 +11,6 @@ interface ScreenBackgroundProps {
 export const ScreenBackground = ({ children, testID, style }: ScreenBackgroundProps) => (
   <SafeAreaView testID={testID} style={[styles.safeArea, style]}>
     <View style={[styles.glowTop, styles.noPointerEvents]} />
-    <View style={[styles.gridLine, styles.noPointerEvents]} />
     {children}
   </SafeAreaView>
 );
@@ -30,16 +29,7 @@ const styles = StyleSheet.create({
     top: -320,
     right: -120,
     backgroundColor: colors.brand,
-    opacity: 0.08,
-  },
-  gridLine: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '8%',
-    width: 1,
-    backgroundColor: colors.border,
-    opacity: 0.26,
+    opacity: 0.04,
   },
   noPointerEvents: { pointerEvents: 'none' },
 });

@@ -18,7 +18,7 @@ interface RichAppointment {
   clientName: string;
   serviceName: string;
   price: number;
-  barberId: string;
+  professionalId: string;
 }
 
 function LegacyAdminDashboard() {
@@ -67,14 +67,14 @@ function LegacyAdminDashboard() {
 
   // 1. Ouvir dados principais
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
 
     const barbershopSub = database.collections
       .get<Barbershop>('barbershops')
-      .findAndObserve(profile.barbershop_id)
+      .findAndObserve(profile.establishment_id)
       .subscribe({
         next: (data) => setBarbershop(data),
         error: () => console.log('Barbershop not found locally yet'),
@@ -83,15 +83,15 @@ function LegacyAdminDashboard() {
     const barbersSub = database.collections
       .get<Profile>('profiles')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
-        Q.where('role', Q.oneOf(['barber', 'admin']))
+        Q.where('establishment_id', profile.establishment_id),
+        Q.where('role', Q.oneOf(['professional', 'admin']))
       )
       .observe()
       .subscribe((data) => setBarbers(data));
 
     const servicesSub = database.collections
       .get<Service>('services')
-      .query(Q.where('barbershop_id', profile.barbershop_id))
+      .query(Q.where('establishment_id', profile.establishment_id))
       .observe()
       .subscribe((data) => setServices(data));
 
@@ -104,7 +104,7 @@ function LegacyAdminDashboard() {
 
   // 2. Ouvir agendamentos com base no Período Selecionado
   useEffect(() => {
-    if (!profile?.barbershop_id) return;
+    if (!profile?.establishment_id) return;
 
     const startPeriod = new Date(selectedDate);
     if (period === 'today') {
@@ -123,7 +123,7 @@ function LegacyAdminDashboard() {
     const appointmentsSub = database.collections
       .get<Appointment>('appointments')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
+        Q.where('establishment_id', profile.establishment_id),
         Q.where('date_time', Q.between(startPeriod.getTime(), endPeriod.getTime()))
       )
       .observe()
@@ -154,7 +154,7 @@ function LegacyAdminDashboard() {
               clientName,
               serviceName,
               price,
-              barberId: apt.barberId,
+              professionalId: apt.professionalId,
             });
           }
           richList.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
@@ -222,7 +222,7 @@ function LegacyAdminDashboard() {
   const occupancyRate = Math.min(100, Math.round((activeAppointments.length / totalSlotsPeriod) * 100));
 
   const getBarberCommissionStatement = (barber: Profile) => {
-    const barberCuts = appointments.filter(a => a.barberId === barber.id && a.status === 'completed');
+    const barberCuts = appointments.filter(a => a.professionalId === barber.id && a.status === 'completed');
     const faturamento = barberCuts.reduce((acc, curr) => acc + curr.price, 0);
     const taxaComissao = barber.commissionRate !== undefined && barber.commissionRate !== null ? barber.commissionRate : 0.50;
     const valorComissao = faturamento * taxaComissao;
@@ -431,7 +431,7 @@ function LegacyAdminDashboard() {
                 <View style={{ gap: 14 }}>
                   {barbers.map(barber => {
                     const barberRevenue = appointments
-                      .filter(a => a.barberId === barber.id && a.status === 'completed')
+                      .filter(a => a.professionalId === barber.id && a.status === 'completed')
                       .reduce((acc, curr) => acc + curr.price, 0);
 
                     const percentage = totalRevenue > 0 ? Math.round((barberRevenue / totalRevenue) * 100) : 0;
@@ -498,7 +498,7 @@ function LegacyAdminDashboard() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.panoramicScroll}>
             {barbers.map(barber => {
-              const barberAppointments = appointments.filter(a => a.barberId === barber.id);
+              const barberAppointments = appointments.filter(a => a.professionalId === barber.id);
               
               return (
                 <View key={barber.id} style={styles.barberColumn}>

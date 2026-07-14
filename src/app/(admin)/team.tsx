@@ -27,7 +27,7 @@ function LegacyManageBarbersScreen() {
   };
 
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
@@ -35,14 +35,14 @@ function LegacyManageBarbersScreen() {
     // 1. Carregar a barbearia
     const bSub = database.collections
       .get<Barbershop>('barbershops')
-      .findAndObserve(profile.barbershop_id)
+      .findAndObserve(profile.establishment_id)
       .subscribe((data) => setBarbershop(data));
 
     // 2. Carregar barbeiros da equipe (role = 'barber' vinculados a essa barbearia)
     const barbersQuery = database.collections
       .get<Profile>('profiles')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
+        Q.where('establishment_id', profile.establishment_id),
         Q.where('role', 'barber')
       );
 
@@ -71,7 +71,7 @@ function LegacyManageBarbersScreen() {
       await database.write(async () => {
         const pRecord = await database.collections.get<Profile>('profiles').find(barberId);
         await pRecord.update((record) => {
-          record.barbershopId = null; // desvincula da barbearia
+          record.establishmentId = null; // desvincula da barbearia
         });
       });
       

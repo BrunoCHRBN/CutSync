@@ -18,7 +18,7 @@ interface AppointmentDetail {
   clientName: string;
   serviceName: string;
   price: number;
-  barberId: string;
+  professionalId: string;
 }
 
 function LegacyBarberDashboardScreen() {
@@ -53,16 +53,16 @@ function LegacyBarberDashboardScreen() {
     console.warn(`${title}: ${message}`);
   };
 
-  const getServicePriceAndDuration = (serviceId: string | null, barberId: string | null) => {
+  const getServicePriceAndDuration = (serviceId: string | null, professionalId: string | null) => {
     if (!serviceId) return { price: 0, duration: 30, isActive: false };
     const globalSrv = services.find(s => s.id === serviceId);
     if (!globalSrv) return { price: 0, duration: 30, isActive: false };
 
-    if (!barberId) {
+    if (!professionalId) {
       return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
     }
 
-    const custom = barberServices.find(bs => bs.barberId === barberId && bs.serviceId === serviceId);
+    const custom = barberServices.find(bs => bs.professionalId === professionalId && bs.serviceId === serviceId);
     if (custom) {
       return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
     }
@@ -95,19 +95,19 @@ function LegacyBarberDashboardScreen() {
 
   // 1. Carregar barbearia, equipe, serviços e tarifas diferenciadas
   useEffect(() => {
-    if (!profile?.barbershop_id) return;
+    if (!profile?.establishment_id) return;
 
     const bSub = database.collections
       .get<Barbershop>('barbershops')
-      .findAndObserve(profile.barbershop_id)
+      .findAndObserve(profile.establishment_id)
       .subscribe((data) => setBarbershop(data));
 
     // Carregar colegas de equipe
     const teamSub = database.collections
       .get<Profile>('profiles')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
-        Q.where('role', Q.oneOf(['barber', 'admin']))
+        Q.where('establishment_id', profile.establishment_id),
+        Q.where('role', Q.oneOf(['professional', 'admin']))
       )
       .observe()
       .subscribe((data) => {
@@ -116,13 +116,13 @@ function LegacyBarberDashboardScreen() {
 
     const sSub = database.collections
       .get<Service>('services')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true))
+      .query(Q.where('establishment_id', profile.establishment_id), Q.where('is_active', true))
       .observe()
       .subscribe((data) => setServices(data));
 
     const bsSub = database.collections
       .get<BarberService>('barber_services')
-      .query(Q.where('barbershop_id', profile.barbershop_id))
+      .query(Q.where('establishment_id', profile.establishment_id))
       .observe()
       .subscribe((data) => setBarberServices(data));
 
@@ -136,7 +136,7 @@ function LegacyBarberDashboardScreen() {
 
   // 2. Carregar agendamentos do dia de toda a barbearia para calcular colisões e censura
   useEffect(() => {
-    if (!profile?.barbershop_id) {
+    if (!profile?.establishment_id) {
       setLoading(false);
       return;
     }
@@ -150,7 +150,7 @@ function LegacyBarberDashboardScreen() {
     const appointmentsQuery = database.collections
       .get<Appointment>('appointments')
       .query(
-        Q.where('barbershop_id', profile.barbershop_id),
+        Q.where('establishment_id', profile.establishment_id),
         Q.where('status', Q.notEq('cancelled')),
         Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
       );
@@ -164,7 +164,7 @@ function LegacyBarberDashboardScreen() {
         const currentUserId = user?.id;
 
         for (const apt of list) {
-          const isOwnAppointment = apt.barberId === currentUserId;
+          const isOwnAppointment = apt.professionalId === currentUserId;
           const shouldCensor = !isUserAdmin && !isOwnAppointment;
 
           // Obter nome do cliente com censura para outros barbeiros
@@ -184,7 +184,7 @@ function LegacyBarberDashboardScreen() {
           }
 
           // Obter dados do serviço e preço com censura
-          const { price, duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
+          const { price, duration } = getServicePriceAndDuration(apt.serviceId, apt.professionalId);
           let serviceName = 'Serviço Removido';
           if (shouldCensor) {
             serviceName = 'Reservado';
@@ -204,16 +204,16 @@ function LegacyBarberDashboardScreen() {
             clientName,
             serviceName,
             price: shouldCensor ? 0 : price,
-            barberId: apt.barberId,
+            professionalId: apt.professionalId,
           });
 
           // Preencher mapa de segmentos de colisão do barbeiro
-          if (!segmentMap[apt.barberId]) {
-            segmentMap[apt.barberId] = [];
+          if (!segmentMap[apt.professionalId]) {
+            segmentMap[apt.professionalId] = [];
           }
           const startTime = new Date(apt.dateTime).getTime();
           const endTime = startTime + duration * 60 * 1000;
-          segmentMap[apt.barberId].push({ start: startTime, end: endTime });
+          segmentMap[apt.professionalId].push({ start: startTime, end: endTime });
         }
 
         details.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
@@ -270,10 +270,10 @@ function LegacyBarberDashboardScreen() {
 
       await database.write(async () => {
         await database.collections.get('appointments').create((record: any) => {
-          record.barbershopId = profile?.barbershop_id;
+          record.establishmentId = profile?.establishment_id;
           record.clientId = null; // Walk-in
           record.clientName = walkInName;
-          record.barberId = targetBarber;
+          record.professionalId = targetBarber;
           record.serviceId = selectedWalkInService;
           record.dateTime = slotDate;
           record.status = 'confirmed';
@@ -292,8 +292,8 @@ function LegacyBarberDashboardScreen() {
     }
   };
 
-  const openCrossBookingModal = (barberId: string, time: string) => {
-    setSelectedWalkInBarber(barberId);
+  const openCrossBookingModal = (professionalId: string, time: string) => {
+    setSelectedWalkInBarber(professionalId);
     setSelectedWalkInTime(time);
     setIsModalOpen(true);
   };
@@ -323,10 +323,9 @@ function LegacyBarberDashboardScreen() {
     }
   };
 
-  // Filtrar horários livres para Encaixe Rápido
-  const getWalkInAvailableTimes = (barberId: string) => {
-    const { duration } = getServicePriceAndDuration(selectedWalkInService, barberId);
-    const barberSegments = bookedSegmentsMap[barberId] || [];
+  const getWalkInAvailableTimes = (professionalId: string) => {
+    const { duration } = getServicePriceAndDuration(selectedWalkInService, professionalId);
+    const barberSegments = bookedSegmentsMap[professionalId] || [];
 
     return availableTimes.filter((time) => {
       const slotDate = new Date(selectedDate);
@@ -355,7 +354,7 @@ function LegacyBarberDashboardScreen() {
   const eligibleServices = getEligibleServicesForWalkIn();
 
   // Filtrar apenas a agenda do próprio barbeiro
-  const myAppointments = allAppointments.filter(a => a.barberId === user?.id);
+  const myAppointments = allAppointments.filter(a => a.professionalId === user?.id);
 
   // Faturamento apenas do barbeiro logado
   const myEarnings = myAppointments
@@ -687,7 +686,7 @@ function LegacyBarberDashboardScreen() {
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
                   {eligibleServices.map(s => {
-                    const { price: customPrice, duration: customDuration } = getServicePriceAndDuration(s.id, selectedWalkInBarber || user?.id);
+                    const { price: customPrice, duration: customDuration } = getServicePriceAndDuration(s.id, selectedWalkInBarber || user?.id || null);
                     return (
                       <TouchableOpacity
                         key={s.id}

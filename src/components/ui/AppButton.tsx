@@ -12,7 +12,7 @@ import { colors, radii, typography } from '../../theme/tokens';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
-interface AppButtonProps {
+export interface AppButtonProps {
   label: string;
   onPress: () => void;
   testID: string;
@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
   },
   secondary: {
-    backgroundColor: colors.surfaceRaised,
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   danger: {
     backgroundColor: colors.dangerSoft,
-    borderColor: '#FB718544',
+    borderColor: '#DC262644',
   },
   primaryLabel: { color: colors.ink },
   secondaryLabel: { color: colors.text },
