@@ -338,9 +338,9 @@ export const AdminDashboardExperience = () => {
             <StatusBadge testID={`admin-appointment-${item.id}-status`} label={status.label} tone={status.tone} />
           </View>
           <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
-          {item.status === 'cancelled' && !!item.cancellationReason && (
+          {item.status === 'cancelled' && !!item.cancellationReason ? (
             <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
-          )}
+          ) : null}
           <View style={styles.professionalRow}>
             <UserRound color={colors.textMuted} size={13} />
             <Text style={styles.professionalName}>{barberName(item.barberId)}</Text>

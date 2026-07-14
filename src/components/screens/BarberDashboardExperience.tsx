@@ -26,6 +26,8 @@ interface RichAppointment {
   barberId: string;
   barberName: string;
   clientName: string;
+  clientPhone: string;
+  serviceName: string;
   price: number;
   dateTime: Date;
   status: string;
@@ -257,9 +259,9 @@ export const BarberDashboardExperience = () => {
                   <View style={styles.appointmentCopy}>
                     <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
                     <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
-                    {item.status === 'cancelled' && !!item.cancellationReason && (
+                    {item.status === 'cancelled' && !!item.cancellationReason ? (
                       <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
-                    )}
+                    ) : null}
                     {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
                     {cancelCandidateId === item.id ? (
                       <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />

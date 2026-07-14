@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, useWindowDimensions, View, Platform, Alert, Pressable, Linking } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, useWindowDimensions, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
 import { CalendarDays, Clock3, MapPin, Scissors, UserRound, X, RefreshCw, MessageSquare } from 'lucide-react-native';
@@ -53,6 +53,9 @@ export const AppointmentsExperience = () => {
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [reschedulePromptId, setReschedulePromptId] = useState<string | null>(null);
+  const [targetDate, setTargetDate] = useState<string>('');
+  const [targetTime, setTargetTime] = useState<string>('');
 
   useEffect(() => {
     if (!profile?.id) { setLoading(false); return; }
@@ -94,8 +97,10 @@ export const AppointmentsExperience = () => {
   }, [profile]);
 
   const visible = useMemo(() => appointments.filter((item) => {
-    const isFuture = item.dateTime.getTime() >= Date.now();
-    return tab === 'upcoming' ? isFuture : !isFuture;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const isUpcoming = (item.status === 'pending' || item.status === 'confirmed') && item.dateTime.getTime() >= startOfToday.getTime();
+    return tab === 'upcoming' ? isUpcoming : !isUpcoming;
   }), [appointments, tab]);
 
   const cancelAppointment = async (reason: string) => {
@@ -121,20 +126,37 @@ export const AppointmentsExperience = () => {
     }
   };
 
-  const requestWhatsAppCancellation = (item: AppointmentDetail) => {
+  const sendWhatsAppCancel = (item: AppointmentDetail) => {
     const formattedDate = item.dateTime.toLocaleDateString('pt-BR');
     const formattedTime = item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const text = `Olá! Preciso reagendar/cancelar meu horário do dia ${formattedDate} às ${formattedTime} (Serviço: ${item.serviceName}) com o profissional ${item.barberName}. Meu nome é ${profile?.name || 'Cliente'}.`;
+    const text = `Olá! Gostaria de CANCELAR meu horário do dia ${formattedDate} às ${formattedTime} (Serviço: ${item.serviceName}) com o profissional ${item.barberName}. Meu nome é ${profile?.name || 'Cliente'}.`;
     const cleanPhone = item.contactPhone.replace(/\D/g, '');
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     Linking.openURL(url).catch(() => {
-      const msg = 'Não foi possível abrir o WhatsApp. Por favor, entre em contato pelo telefone: ' + item.contactPhone;
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('Erro', msg);
-      }
+      const msg = 'Não foi possível abrir o WhatsApp. Telefone: ' + item.contactPhone;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Erro', msg);
     });
+  };
+
+  const sendWhatsAppReschedule = (item: AppointmentDetail) => {
+    if (!targetDate || !targetTime) {
+      const msg = 'Por favor, preencha a nova data e horário desejados.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Atenção', msg);
+      return;
+    }
+    const formattedDate = item.dateTime.toLocaleDateString('pt-BR');
+    const formattedTime = item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const text = `Olá! Gostaria de REAGENDAR meu horário do dia ${formattedDate} às ${formattedTime} (Serviço: ${item.serviceName}) com o profissional ${item.barberName} para o novo dia ${targetDate} às ${targetTime}. Meu nome é ${profile?.name || 'Cliente'}.`;
+    const cleanPhone = item.contactPhone.replace(/\D/g, '');
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+    Linking.openURL(url).catch(() => {
+      const msg = 'Não foi possível abrir o WhatsApp. Telefone: ' + item.contactPhone;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Erro', msg);
+    });
+    setReschedulePromptId(null);
   };
 
   const handleReschedule = (item: AppointmentDetail) => {
@@ -184,17 +206,17 @@ export const AppointmentsExperience = () => {
                     <View style={styles.metaRow}><UserRound color={colors.textMuted} size={13} /><Text style={styles.meta}>{item.barberName}</Text></View>
                     <View style={styles.metaRow}><MapPin color={colors.textMuted} size={13} /><Text style={styles.meta}>{item.shopAddress || 'Endereço não informado'}</Text></View>
                     
-                    {item.rescheduleCount > 0 && (
+                    {item.rescheduleCount > 0 ? (
                       <View style={styles.rescheduleBadge}>
                         <Text style={styles.rescheduleBadgeText}>Reagendado {item.rescheduleCount}x</Text>
                       </View>
-                    )}
+                    ) : null}
 
-                    {item.status === 'cancelled' && item.cancellationReason && (
+                    {item.status === 'cancelled' && !!item.cancellationReason ? (
                       <View style={styles.reasonDisplay}>
                         <Text style={styles.reasonDisplayText}>Motivo: {item.cancellationReason}</Text>
                       </View>
-                    )}
+                    ) : null}
 
                     {cancelId === item.id ? (
                       <View style={styles.cancelReasonContainer}>
@@ -238,16 +260,74 @@ export const AppointmentsExperience = () => {
                       isLateCancellation ? (
                         <View style={styles.lateNoticeContainer}>
                           <Text style={styles.lateNoticeText}>
-                            Cancelamentos/Reagendamentos com menos de 2h de antecedência devem ser feitos por WhatsApp.
+                            Cancelamentos/Reagendamentos com menos de 2h de antecedência devem ser combinados via WhatsApp.
                           </Text>
-                          <AppButton 
-                            label="Falar no WhatsApp" 
-                            testID={`client-appointment-${item.id}-whatsapp-button`} 
-                            onPress={() => requestWhatsAppCancellation(item)} 
-                            variant="primary" 
-                            icon={<MessageSquare color="#fff" size={14} />}
-                            style={styles.whatsappBtn}
-                          />
+                          {reschedulePromptId === item.id ? (
+                            <View style={styles.promptContainer}>
+                              <Text style={styles.promptTitle}>Escolha a nova data e horário desejados:</Text>
+                              <View style={styles.promptInputsRow}>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.inputMinLabel}>Nova data</Text>
+                                  <TextInput 
+                                    style={styles.minInput}
+                                    placeholder="Ex: 15/07"
+                                    value={targetDate}
+                                    onChangeText={setTargetDate}
+                                  />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.inputMinLabel}>Novo horário</Text>
+                                  <TextInput 
+                                    style={styles.minInput}
+                                    placeholder="Ex: 16:30"
+                                    value={targetTime}
+                                    onChangeText={setTargetTime}
+                                  />
+                                </View>
+                              </View>
+                              <View style={styles.promptActionsRow}>
+                                <AppButton 
+                                  label="Enviar" 
+                                  testID={`client-appointment-${item.id}-resched-send`} 
+                                  onPress={() => sendWhatsAppReschedule(item)} 
+                                  variant="primary" 
+                                  style={styles.actionBtn}
+                                />
+                                <AppButton 
+                                  label="Voltar" 
+                                  testID={`client-appointment-${item.id}-resched-back`} 
+                                  onPress={() => setReschedulePromptId(null)} 
+                                  variant="secondary" 
+                                  style={styles.actionBtn} 
+                                />
+                              </View>
+                            </View>
+                          ) : (
+                            <View style={styles.lateButtonsRow}>
+                              <AppButton 
+                                label="Cancelar" 
+                                testID={`client-appointment-${item.id}-whatsapp-cancel`} 
+                                onPress={() => sendWhatsAppCancel(item)} 
+                                variant="danger" 
+                                icon={<X color={colors.danger} size={14} />}
+                                style={styles.lateActionBtn}
+                              />
+                              <AppButton 
+                                label="Reagendar" 
+                                testID={`client-appointment-${item.id}-whatsapp-reschedule`} 
+                                onPress={() => {
+                                  setReschedulePromptId(item.id);
+                                  const tomorrow = new Date();
+                                  tomorrow.setDate(tomorrow.getDate() + 1);
+                                  setTargetDate(tomorrow.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+                                  setTargetTime(item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+                                }} 
+                                variant="primary" 
+                                icon={<RefreshCw color={colors.ink} size={13} />}
+                                style={styles.lateActionBtn}
+                              />
+                            </View>
+                          )}
                         </View>
                       ) : (
                         <View style={styles.upcomingActionsRow}>
@@ -402,5 +482,55 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: typography.body,
     fontSize: 10,
+  },
+  lateButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+    width: '100%',
+  },
+  lateActionBtn: {
+    flex: 1,
+    minHeight: 36,
+    paddingVertical: 7,
+  },
+  promptContainer: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: colors.canvasSoft,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 8,
+  },
+  promptTitle: {
+    color: colors.text,
+    fontFamily: typography.bodyStrong,
+    fontSize: 12,
+  },
+  promptInputsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  inputMinLabel: {
+    color: colors.textSecondary,
+    fontFamily: typography.body,
+    fontSize: 10,
+    marginBottom: 4,
+  },
+  minInput: {
+    height: 38,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    fontSize: 12,
+    color: colors.text,
+    backgroundColor: colors.canvas,
+  },
+  promptActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
 });
