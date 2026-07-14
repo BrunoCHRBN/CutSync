@@ -204,7 +204,7 @@ export default function BarbershopSlugScreen() {
         </View>
 
         {/* CTA */}
-        <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: `${accent}55`, backgroundColor: `${accent}12` }]}>
+        <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: colors.border, backgroundColor: '#1C1C1EE6' }]}>
           <View style={styles.ctaCopy}>
             <Text style={styles.ctaEyebrow}>{t('slug.cta')}</Text>
             <Text style={styles.ctaTitle}>Escolha serviço, profissional e horário.</Text>

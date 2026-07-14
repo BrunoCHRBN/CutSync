@@ -75,7 +75,7 @@ export const BarbershopProfileExperience = () => {
         <View style={styles.section}>
           <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços disponíveis" description="Escolha o atendimento que combina com seu momento." />
           {services.length === 0 ? <EmptyState testID="barbershop-services-empty" title="Catálogo em atualização" description="A barbearia ainda não publicou serviços ativos." icon={<Scissors color={accent} size={22} />} /> : (
-            <View testID="barbershop-services-grid" style={styles.cardsGrid}>{services.map((service) => <AppCard key={service.id} testID={`barbershop-service-${service.id}`} style={styles.serviceCard}><View style={[styles.cardIcon, { backgroundColor: `${accent}18` }]}><Scissors color={accent} size={18} /></View><Text style={styles.serviceName}>{service.name}</Text><Text style={[styles.servicePrice, { color: accent }]}>{currency(service.price)}</Text><Text style={styles.serviceDuration}>{service.durationMinutes} minutos</Text></AppCard>)}</View>
+            <View testID="barbershop-services-grid" style={styles.cardsGrid}>{services.map((service) => <AppCard key={service.id} testID={`barbershop-service-${service.id}`} style={styles.serviceCard}><View style={[styles.cardIcon, { backgroundColor: `${accent}18` }]}><Scissors color={accent} size={18} /></View><Text style={styles.serviceName}>{service.name}</Text><Text style={[styles.servicePrice, { color: accent }]}>{currency(service.price)}</Text><Text style={styles.serviceDuration}>{service.durationMinutes} min</Text></AppCard>)}</View>
           )}
         </View>
 

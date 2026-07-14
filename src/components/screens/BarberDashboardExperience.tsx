@@ -123,8 +123,15 @@ export const BarberDashboardExperience = () => {
   const updateStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled') => {
     setActionLoadingId(id);
     try {
+      const appointment = await database.collections.get<Appointment>('appointments').find(id);
+      
+      if (status === 'completed' && appointment.dateTime.getTime() > Date.now()) {
+        setNotice({ tone: 'danger', message: 'Não é possível concluir um agendamento no futuro.' });
+        setActionLoadingId(null);
+        return;
+      }
+
       await database.write(async () => {
-        const appointment = await database.collections.get<Appointment>('appointments').find(id);
         await appointment.update((record) => { record.status = status; });
       });
       setCancelCandidateId(null);

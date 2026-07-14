@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
 import {
@@ -136,11 +136,30 @@ export const AdminDashboardExperience = () => {
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed') => {
     setActionLoadingId(id);
     try {
+      const appointment = await database.collections.get<Appointment>('appointments').find(id);
+      
+      if (status === 'completed' && appointment.dateTime.getTime() > Date.now()) {
+        const msg = 'Não é possível concluir um agendamento no futuro.';
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Atenção', msg);
+        }
+        setActionLoadingId(null);
+        return;
+      }
+
       await database.write(async () => {
-        const appointment = await database.collections.get<Appointment>('appointments').find(id);
         await appointment.update((record) => { record.status = status; });
       });
       sync();
+    } catch {
+      const msg = 'Não foi possível atualizar este atendimento.';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Erro', msg);
+      }
     } finally {
       setActionLoadingId(null);
     }
