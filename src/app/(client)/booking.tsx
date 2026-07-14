@@ -8,11 +8,8 @@ import { Service, Profile, Barbershop, Appointment, BarberService } from '../../
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
-import { BookingExperience } from '../../components/screens/BookingExperience';
 
-export default BookingExperience;
-
-function LegacyBookingScreen() {
+export default function BookingScreen() {
   const { t, i18n } = useTranslation();
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
   const { user } = useAuth();
@@ -594,7 +591,6 @@ const styles = StyleSheet.create({
   },
   calendarGrid: {
     backgroundColor: '#1c1c1e',
-<<<<<<< HEAD
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
@@ -698,10 +694,6 @@ const styles = StyleSheet.create({
     color: '#ff453a',
     fontWeight: 'bold',
     fontSize: 14,
-=======
-    borderRadius: 16,
-    padding: 24,
->>>>>>> 1334427b593b0c0b505d4e242b793a3f1aca9733
   },
   loadingContainer: {
     flex: 1,
@@ -709,219 +701,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-<<<<<<< HEAD
-=======
-  headerTitle: {
-    fontSize: 12,
-    color: '#a0a0a0',
-    fontFamily: 'Inter_400Regular',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  barbershopName: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    fontFamily: 'Montserrat_700Bold',
-    marginBottom: 28,
-  },
-  section: {
-    marginBottom: 28,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: 'bold',
-    fontFamily: 'Montserrat_700Bold',
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2c2c2e',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#3a3a3c',
-  },
-  monthLabel: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    fontFamily: 'Inter_600SemiBold',
-    paddingHorizontal: 12,
-  },
-  monthNavButton: {
-    paddingHorizontal: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monthNavText: {
-    color: '#fff',
-    fontSize: 22,
-    lineHeight: 22,
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    color: '#666',
-    marginTop: 8,
-  },
-  card: {
-    backgroundColor: '#2c2c2e',
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#3a3a3c',
-    padding: 16,
-    marginRight: 12,
-    minWidth: 120,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  calendarGrid: {
-    backgroundColor: '#2c2c2e',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#3a3a3c',
-    marginTop: 8,
-  },
-  weekDaysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3a3a3c',
-    paddingBottom: 8,
-  },
-  weekDayText: {
-    color: '#a0a0a0',
-    fontSize: 12,
-    fontWeight: 'bold',
-    width: '13.5%',
-    textAlign: 'center',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  daysRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 8,
-  },
-  dayCell: {
-    width: '13.5%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCellEmpty: {
-    width: '13.5%',
-    aspectRatio: 1,
-  },
-  dayCellDisabled: {
-    backgroundColor: 'transparent',
-  },
-  dayCellActive: {
-  },
-  dayCellText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  dayCellTextActive: {
-    color: '#121212',
-  },
-  dayCellTextDisabled: {
-    color: '#4a4a4c',
-    fontWeight: 'normal',
-  },
-  timeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  timeCard: {
-    backgroundColor: '#2c2c2e',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#3a3a3c',
-    paddingVertical: 10,
-    width: '23%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timeCardActive: {
-    borderWidth: 0,
-  },
-  timeText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 'bold',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  timeCardDisabled: {
-    opacity: 0.3,
-    borderColor: '#2c2c2e',
-    backgroundColor: '#1c1c1e',
-  },
-  timeTextDisabled: {
-    color: '#4a4a4c',
-    textDecorationLine: 'line-through',
-  },
-  cardActive: {
-    borderWidth: 2.5,
-    backgroundColor: '#1c1c1e',
-  },
-  cardName: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  cardPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 6,
-  },
-  cardDuration: {
-    color: '#a0a0a0',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  cardSubText: {
-    color: '#a0a0a0',
-    fontSize: 9,
-    marginTop: 6,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  confirmButton: {
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  confirmButtonText: {
-    color: '#121212',
-    fontWeight: 'bold',
-    fontSize: 16,
-    fontFamily: 'Montserrat_700Bold',
-  },
-  backButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#ff453a',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
->>>>>>> 1334427b593b0c0b505d4e242b793a3f1aca9733
 });
