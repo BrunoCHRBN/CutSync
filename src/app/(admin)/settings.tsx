@@ -6,8 +6,11 @@ import { database } from '../../database';
 import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { SettingsExperience } from '../../components/screens/SettingsExperience';
 
-export default function BarbershopSettingsScreen() {
+export default SettingsExperience;
+
+function LegacyBarbershopSettingsScreen() {
   const { t } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();

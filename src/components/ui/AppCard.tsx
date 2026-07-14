@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { colors, radii } from '../../theme/tokens';
 
 interface AppCardProps {
@@ -25,10 +25,9 @@ const styles = StyleSheet.create({
   },
   elevated: {
     backgroundColor: colors.surfaceRaised,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 8,
+    ...Platform.select({
+      web: { boxShadow: '0 12px 24px rgba(0,0,0,0.22)' } as any,
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.22, shadowRadius: 24, elevation: 8 },
+    }),
   },
 });

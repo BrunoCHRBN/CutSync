@@ -2,14 +2,16 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 // Configurar comportamento das notificações em primeiro plano (foreground)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export async function requestNotificationPermissions() {
   if (Platform.OS === 'web') return false;

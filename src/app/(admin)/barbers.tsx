@@ -7,8 +7,11 @@ import { database } from '../../database';
 import { Profile, Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { TeamExperience } from '../../components/screens/TeamExperience';
 
-export default function ManageBarbersScreen() {
+export default TeamExperience;
+
+function LegacyManageBarbersScreen() {
   const { t } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();

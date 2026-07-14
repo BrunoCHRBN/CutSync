@@ -476,11 +476,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1e',
     borderRadius: 16,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -603,11 +598,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   dayCellActive: {
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
   dayCellText: {
     color: '#fff',

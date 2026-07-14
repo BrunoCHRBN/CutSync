@@ -7,6 +7,9 @@ import { database } from '../../database';
 import { Appointment, Service, Profile, Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { BarberDashboardExperience } from '../../components/screens/BarberDashboardExperience';
+
+export default BarberDashboardExperience;
 
 interface AppointmentDetail {
   id: string;
@@ -18,7 +21,7 @@ interface AppointmentDetail {
   barberId: string;
 }
 
-export default function BarberDashboardScreen() {
+function LegacyBarberDashboardScreen() {
   const { t, i18n } = useTranslation();
   const { user, profile, signOut } = useAuth();
   const { isSyncing, sync, isOffline } = useSync();

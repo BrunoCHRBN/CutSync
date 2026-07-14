@@ -7,8 +7,11 @@ import { database } from '../../database';
 import { Service, Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { ServicesExperience } from '../../components/screens/ServicesExperience';
 
-export default function ServicesScreen() {
+export default ServicesExperience;
+
+function LegacyServicesScreen() {
   const { t, i18n } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();
