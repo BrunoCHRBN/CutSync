@@ -7,11 +7,8 @@ import { database } from '../../database';
 import { Service, Barbershop, Profile, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
-import { ServicesExperience } from '../../components/screens/ServicesExperience';
 
-export default ServicesExperience;
-
-function LegacyServicesScreen() {
+export default function ServicesScreen() {
   const { t, i18n } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();
@@ -100,11 +97,7 @@ function LegacyServicesScreen() {
 
   const handleAddService = async () => {
     if (!name || !price || !duration) {
-<<<<<<< HEAD
       displayAlert(t('common.error'), t('register.error_fill'));
-=======
-      console.warn(t('common.error'), t('register.error_fill'));
->>>>>>> 1334427b593b0c0b505d4e242b793a3f1aca9733
       return;
     }
 
@@ -126,17 +119,10 @@ function LegacyServicesScreen() {
       setPrice('');
       setDuration('');
 
-<<<<<<< HEAD
       displayAlert(t('common.success'), 'Serviço global adicionado com sucesso!');
       sync();
     } catch (err) {
       displayAlert(t('common.error'), 'Não foi possível salvar o serviço.');
-=======
-      console.warn(t('common.success'), 'Service saved locally!');
-      sync();
-    } catch (err) {
-      console.warn(t('common.error'), 'Could not save service.');
->>>>>>> 1334427b593b0c0b505d4e242b793a3f1aca9733
     } finally {
       setIsSubmitting(false);
     }
@@ -152,7 +138,6 @@ function LegacyServicesScreen() {
       });
       sync();
     } catch (err) {
-<<<<<<< HEAD
       displayAlert(t('common.error'), 'Não foi possível alterar o status do serviço.');
     }
   };
@@ -254,9 +239,6 @@ function LegacyServicesScreen() {
       }
     } catch (err) {
       displayAlert('Erro', 'Não foi possível redefinir a tarifa.');
-=======
-      console.warn(t('common.error'), 'Could not toggle service status.');
->>>>>>> 1334427b593b0c0b505d4e242b793a3f1aca9733
     }
   };
 
