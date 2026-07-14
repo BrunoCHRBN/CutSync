@@ -79,6 +79,12 @@ export const AdminDashboardExperience = () => {
   // Filtro de Caixa do Painel de Desempenho e Faturamento
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
 
+  // Estados locais para Reagendamento
+  const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
+  const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
+  const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+
   const dateOptions = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const offset = index - 3;
     const date = new Date();
@@ -235,6 +241,36 @@ export const AdminDashboardExperience = () => {
     }
   };
 
+  const executeReschedule = async () => {
+    if (!rescheduleItem || !newRescheduleTime) return;
+    setRescheduleLoading(true);
+    try {
+      const newDate = new Date(newRescheduleDate);
+      const [hours, minutes] = newRescheduleTime.split(':');
+      newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      await database.write(async () => {
+        const appointment = await database.collections.get<Appointment>('appointments').find(rescheduleItem.id);
+        await appointment.update((record) => {
+          record.originalDateTime = record.originalDateTime || record.dateTime;
+          record.dateTime = newDate;
+          record.rescheduleCount = (record.rescheduleCount || 0) + 1;
+          record.status = 'confirmed'; // Auto confirma ao reagendar pelo admin
+        });
+      });
+      setRescheduleItem(null);
+      if (Platform.OS === 'web') window.alert('Atendimento reagendado com sucesso!');
+      else Alert.alert('Sucesso', 'Atendimento reagendado com sucesso!');
+      sync();
+    } catch {
+      const msg = 'Não foi possível reagendar este atendimento.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Erro', msg);
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
+
   const createQuickBooking = async () => {
     if (!quickName.trim() || !quickService || !quickBarber || !quickTime || !barbershop?.id) {
       const msg = 'Informe cliente, serviço, profissional e horário para criar o encaixe.';
@@ -350,6 +386,7 @@ export const AdminDashboardExperience = () => {
               {!!item.clientPhone && (
                 <AppButton 
                   label="WhatsApp" 
+                  testID={`admin-appointment-${item.id}-whatsapp-button`} 
                   onPress={() => {
                     const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${barberName(item.barberId)}.`;
                     sendWhatsAppMessage(item.clientPhone, text);
@@ -359,6 +396,19 @@ export const AdminDashboardExperience = () => {
                   style={styles.compactButton}
                 />
               )}
+              <AppButton
+                label="Reagendar"
+                testID={`admin-appointment-${item.id}-reschedule-button`}
+                variant="secondary"
+                disabled={!!actionLoadingId}
+                onPress={() => {
+                  setRescheduleItem(item);
+                  setNewRescheduleDate(new Date(item.dateTime));
+                  setNewRescheduleTime(time(item.dateTime));
+                }}
+                icon={<RefreshCw color={colors.textSecondary} size={13} />}
+                style={styles.compactButton}
+              />
               <AppButton
                 label={item.status === 'pending' ? 'Recusar' : 'Marcar falta'}
                 testID={`admin-appointment-${item.id}-cancel-button`}
@@ -622,6 +672,73 @@ export const AdminDashboardExperience = () => {
                 loading={quickLoading} 
                 fullWidth 
                 icon={<Plus color={colors.ink} size={16} />} 
+              />
+            </ScrollView>
+          </AppCard>
+        </View>
+      </Modal>
+
+      <Modal visible={!!rescheduleItem} transparent animationType="fade" onRequestClose={() => setRescheduleItem(null)}>
+        <View style={styles.modalOverlay}>
+          <AppCard testID="admin-reschedule-card" style={styles.modalCard} elevated>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalEyebrow}>REAGENDAMENTO</Text>
+                <Text style={styles.modalTitle}>Reagendar Atendimento</Text>
+              </View>
+              <Pressable onPress={() => setRescheduleItem(null)} style={styles.closeButton}>
+                <X color={colors.textSecondary} size={18} />
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <Text style={{ color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 }}>
+                Reagendando o cliente <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.clientName}</Text> para o serviço <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.serviceName}</Text>.
+              </Text>
+              
+              <Text style={styles.fieldLabel}>Selecione o novo dia</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector}>
+                {dateOptions.map((opt) => {
+                  const selected = newRescheduleDate.toDateString() === opt.date.toDateString();
+                  return (
+                    <Pressable 
+                      key={opt.id} 
+                      onPress={() => { setNewRescheduleDate(opt.date); setNewRescheduleTime(null); }} 
+                      style={[styles.dateItem, selected && styles.dateItemSelected]}
+                    >
+                      <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>
+                        {opt.weekDay}
+                      </Text>
+                      <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>
+                        {opt.day}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={styles.fieldLabel}>Selecione o novo horário</Text>
+              <View style={styles.timeGrid}>
+                {quickTimes.map((slot) => (
+                  <Pressable 
+                    key={slot} 
+                    onPress={() => setNewRescheduleTime(slot)} 
+                    style={[styles.timeSlot, newRescheduleTime === slot && styles.timeSlotSelected]}
+                  >
+                    <Text style={[styles.timeSlotText, newRescheduleTime === slot && styles.dateTextSelected]}>
+                      {slot}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <AppButton 
+                label="Confirmar Reagendamento" 
+                testID="reschedule-submit-button" 
+                onPress={executeReschedule} 
+                loading={rescheduleLoading} 
+                disabled={!newRescheduleTime}
+                fullWidth 
+                icon={<RefreshCw color={colors.ink} size={16} />} 
               />
             </ScrollView>
           </AppCard>
