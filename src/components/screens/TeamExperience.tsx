@@ -64,7 +64,7 @@ export const TeamExperience = () => {
     const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.barbershop_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
     const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('role', Q.where('role', 'barber')))
+      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('role', 'barber'))
       .observe().subscribe({ next: (items) => { setBarbers(items); setLoading(false); }, error: () => setLoading(false) });
     return () => { shopSub.unsubscribe(); teamSub.unsubscribe(); };
   }, [profile]);

@@ -431,7 +431,10 @@ BEGIN
     -- PROCESSAR TABELA: PROFILES
     IF changes->'profiles' IS NOT NULL THEN
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, barbershop_id uuid, name text, phone text, avatar_url text, commission_rate numeric, push_token text, work_hours text, specialties text, instagram text, updated_at bigint) LOOP
-            IF user_id != item.id AND NOT (user_role = 'admin' AND user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)) THEN
+            IF user_id != item.id AND NOT (user_role = 'admin' AND (
+                user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)
+                OR (SELECT barbershop_id FROM public.profiles WHERE id = item.id) IS NULL
+            )) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
             END IF;
 
