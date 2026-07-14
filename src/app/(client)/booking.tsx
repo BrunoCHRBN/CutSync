@@ -12,7 +12,7 @@ import { scheduleAppointmentNotification } from '../../services/notifications';
 export default function BookingScreen() {
   const { t, i18n } = useTranslation();
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
 
@@ -234,6 +234,7 @@ export default function BookingScreen() {
         const created = await database.collections.get('appointments').create((record: any) => {
           record.barbershopId = barbershopId;
           record.clientId = user.id;
+          record.clientName = profile?.name || 'Cliente';
           record.barberId = selectedBarber;
           record.serviceId = selectedService;
           record.dateTime = appointmentDate;

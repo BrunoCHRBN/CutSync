@@ -119,21 +119,21 @@ BEGIN
             SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
-            FROM public.profiles 
-            WHERE barbershop_id = user_barbershop_id AND deleted_at IS NULL AND created_at > last_pulled_timestamp
+             FROM public.profiles 
+            WHERE (barbershop_id = user_barbershop_id OR id IN (SELECT client_id FROM public.appointments WHERE barbershop_id = user_barbershop_id)) AND deleted_at IS NULL AND created_at > last_pulled_timestamp
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
             SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
-            FROM public.profiles 
-            WHERE barbershop_id = user_barbershop_id AND deleted_at IS NULL AND created_at <= last_pulled_timestamp AND updated_at > last_pulled_timestamp
+             FROM public.profiles 
+            WHERE (barbershop_id = user_barbershop_id OR id IN (SELECT client_id FROM public.appointments WHERE barbershop_id = user_barbershop_id)) AND deleted_at IS NULL AND created_at <= last_pulled_timestamp AND updated_at > last_pulled_timestamp
         ) x;
 
         SELECT coalesce(jsonb_agg(id), '[]'::jsonb) INTO profiles_deleted FROM (
             SELECT id FROM public.profiles 
-            WHERE barbershop_id = user_barbershop_id AND deleted_at > last_pulled_timestamp
+            WHERE (barbershop_id = user_barbershop_id OR id IN (SELECT client_id FROM public.appointments WHERE barbershop_id = user_barbershop_id)) AND deleted_at > last_pulled_timestamp
         ) x;
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (

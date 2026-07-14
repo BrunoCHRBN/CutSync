@@ -34,7 +34,7 @@ export const BookingExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= 940;
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { sync } = useSync();
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -168,6 +168,7 @@ export const BookingExperience = () => {
         const created = await database.collections.get('appointments').create((record: any) => {
           record.barbershopId = barbershopId;
           record.clientId = user.id;
+          record.clientName = profile?.name || 'Cliente';
           record.barberId = selectedBarber;
           record.serviceId = selectedService;
           record.dateTime = appointmentDate;
