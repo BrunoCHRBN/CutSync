@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 5,
+  version: 6,
   tables: [
     tableSchema({
       name: 'barbershops',
@@ -77,6 +77,16 @@ export default appSchema({
         { name: 'price', type: 'number' },
         { name: 'duration_minutes', type: 'number' },
         { name: 'is_active', type: 'boolean' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'profile_barbershops',
+      columns: [
+        { name: 'profile_id', type: 'string', isIndexed: true },
+        { name: 'barbershop_id', type: 'string', isIndexed: true },
+        { name: 'role', type: 'string' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

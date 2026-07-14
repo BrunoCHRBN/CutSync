@@ -1,9 +1,15 @@
 import React, { ReactNode } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CalendarDays, LayoutDashboard, Scissors, Settings, Users, LogOut, Wifi } from 'lucide-react-native';
 import { BrandMark } from '../ui/BrandMark';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSync } from '../../hooks/useSync';
+import { database } from '../../database';
+import { supabase } from '../../services/supabase';
+import { syncDatabase } from '../../database/sync';
+import { Barbershop } from '../../database/models';
 
 type AdminRoute = 'overview' | 'services' | 'team' | 'settings';
 
@@ -37,6 +43,56 @@ export const AdminShell = ({
 
   const navigate = (path: string) => router.push(path as never);
 
+  const [availableShops, setAvailableShops] = React.useState<Barbershop[]>([]);
+  const [switching, setSwitching] = React.useState(false);
+  const { profile, refreshProfile } = useAuth();
+  const { sync } = useSync();
+
+  React.useEffect(() => {
+    if (!profile?.id) return;
+    
+    const query = database.collections.get<Barbershop>('barbershops').query();
+    const subscription = query.observe().subscribe({
+      next: (list) => {
+        setAvailableShops(list);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [profile?.id]);
+
+  const handleSwitchShop = async (targetShopId: string) => {
+    if (switching || targetShopId === profile?.barbershop_id) return;
+    setSwitching(true);
+    try {
+      // 1. Atualizar active barbershop no Supabase
+      const { error } = await supabase.from('profiles')
+        .update({ barbershop_id: targetShopId })
+        .eq('id', profile?.id);
+        
+      if (error) throw error;
+      
+      // 2. Resetar banco local do WatermelonDB
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+      
+      // 3. Atualizar o profile local no contexto de Auth
+      await refreshProfile();
+      
+      // 4. Executar uma sincronização limpa
+      await syncDatabase();
+      
+      // 5. Redirecionar para recarregar
+      router.replace('/(admin)');
+    } catch (err) {
+      console.warn('Erro ao alternar de barbearia:', err);
+      Alert.alert('Erro', 'Não foi possível alternar de barbearia. Tente novamente.');
+    } finally {
+      setSwitching(false);
+    }
+  };
+
   return (
     <View testID={testID} style={styles.root}>
       {isDesktop && (
@@ -44,7 +100,54 @@ export const AdminShell = ({
           <BrandMark compact />
           <View style={styles.shopBlock}>
             <Text style={styles.shopOverline}>Operação atual</Text>
-            <Text testID="admin-sidebar-shop-name" numberOfLines={2} style={styles.shopName}>{shopName}</Text>
+            {availableShops.length > 1 ? (
+              Platform.OS === 'web' ? (
+                <View style={styles.selectWrapper}>
+                  {React.createElement('select', {
+                    value: profile?.barbershop_id || '',
+                    onChange: (e: any) => handleSwitchShop(e.target.value),
+                    style: {
+                      backgroundColor: colors.surfaceRaised,
+                      color: colors.text,
+                      fontFamily: typography.bodyStrong,
+                      fontSize: '13px',
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: radii.md,
+                      padding: '8px 12px',
+                      width: '100%',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      marginTop: 6,
+                    }
+                  }, 
+                    availableShops.map((shop) => 
+                      React.createElement('option', { key: shop.id, value: shop.id }, shop.name)
+                    )
+                  )}
+                </View>
+              ) : (
+                <View style={styles.mobileSelectContainer}>
+                  <Pressable 
+                    onPress={() => {
+                      Alert.alert(
+                        'Alternar Unidade',
+                        'Escolha a barbearia que deseja gerenciar:',
+                        availableShops.map((shop) => ({
+                          text: shop.name,
+                          style: shop.id === profile?.barbershop_id ? 'cancel' : 'default',
+                          onPress: () => handleSwitchShop(shop.id)
+                        }))
+                      );
+                    }}
+                    style={styles.mobileSelectButton}
+                  >
+                    <Text style={styles.mobileSelectButtonText}>{shopName} ▾</Text>
+                  </Pressable>
+                </View>
+              )
+            ) : (
+              <Text testID="admin-sidebar-shop-name" numberOfLines={2} style={styles.shopName}>{shopName}</Text>
+            )}
           </View>
           <View style={styles.nav}>
             {navItems.map(({ key, label, path, Icon }) => {
@@ -81,6 +184,26 @@ export const AdminShell = ({
       )}
 
       <View style={styles.main}>
+        {!isDesktop && availableShops.length > 1 && (
+          <View style={styles.mobileTopbar}>
+            <Text style={styles.mobileTopbarLabel}>Unidade:</Text>
+            <Pressable 
+              onPress={() => {
+                Alert.alert(
+                  'Alternar Unidade',
+                  'Escolha a barbearia que deseja gerenciar:',
+                  availableShops.map((shop) => ({
+                    text: shop.name,
+                    onPress: () => handleSwitchShop(shop.id)
+                  }))
+                );
+              }}
+              style={styles.mobileTopbarButton}
+            >
+              <Text style={styles.mobileTopbarButtonText}>{shopName} ▾</Text>
+            </Pressable>
+          </View>
+        )}
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {children}
         </ScrollView>
@@ -103,6 +226,12 @@ export const AdminShell = ({
           </View>
         )}
       </View>
+      {switching && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.brand} />
+          <Text style={styles.loadingText}>Sincronizando unidade...</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -158,4 +287,64 @@ const styles = StyleSheet.create({
   bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
   bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9 },
   bottomLabelActive: { color: colors.brand },
+  selectWrapper: { marginTop: 6, width: '100%' },
+  mobileSelectContainer: { marginTop: 6, width: '100%' },
+  mobileSelectButton: {
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  mobileSelectButtonText: {
+    color: colors.text,
+    fontFamily: typography.bodyStrong,
+    fontSize: 13,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(15, 15, 18, 0.85)',
+    zIndex: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: colors.text,
+    fontFamily: typography.bodyStrong,
+    fontSize: 14,
+  },
+  mobileTopbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: colors.canvasSoft,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  mobileTopbarLabel: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyStrong,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  mobileTopbarButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  mobileTopbarButtonText: {
+    color: colors.brand,
+    fontFamily: typography.bodyStrong,
+    fontSize: 12,
+  },
 });

@@ -34,6 +34,10 @@ DECLARE
     barber_services_created jsonb := '[]'::jsonb;
     barber_services_updated jsonb := '[]'::jsonb;
     barber_services_deleted jsonb := '[]'::jsonb;
+
+    profile_barbershops_created jsonb := '[]'::jsonb;
+    profile_barbershops_updated jsonb := '[]'::jsonb;
+    profile_barbershops_deleted jsonb := '[]'::jsonb;
 BEGIN
     -- Obter o ID do usuário autenticado no Supabase
     user_id := auth.uid();
@@ -45,6 +49,16 @@ BEGIN
     SELECT role, barbershop_id INTO user_role, user_barbershop_id 
     FROM public.profiles 
     WHERE id = user_id;
+
+    -- Validar se a barbearia ativa selecionada pertence a este usuário
+    IF user_barbershop_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.profile_barbershops 
+            WHERE profile_id = user_id AND barbershop_id = user_barbershop_id
+        ) THEN
+            user_barbershop_id := NULL;
+        END IF;
+    END IF;
 
     -- Converter last_pulled_at (timestamp Unix em milissegundos) para timestamptz
     IF last_pulled_at IS NULL OR last_pulled_at = 0 THEN
@@ -65,7 +79,9 @@ BEGIN
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
-            WHERE id = user_barbershop_id AND created_at > last_pulled_timestamp
+            WHERE id IN (
+                SELECT barbershop_id FROM public.profile_barbershops WHERE profile_id = user_id
+            ) AND created_at > last_pulled_timestamp
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
@@ -73,7 +89,9 @@ BEGIN
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
-            WHERE id = user_barbershop_id AND created_at <= last_pulled_timestamp AND updated_at > last_pulled_timestamp
+            WHERE id IN (
+                SELECT barbershop_id FROM public.profile_barbershops WHERE profile_id = user_id
+            ) AND created_at <= last_pulled_timestamp AND updated_at > last_pulled_timestamp
         ) x;
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
@@ -265,6 +283,25 @@ BEGIN
         ) x;
     END IF;
 
+    -- ----------------------------------------------------
+    -- F. TABELA: PROFILE_BARBERSHOPS
+    -- ----------------------------------------------------
+    SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profile_barbershops_created FROM (
+        SELECT (profile_id::text || '_' || barbershop_id::text) as id, profile_id, barbershop_id, role,
+               extract(epoch from created_at)*1000 as created_at, 
+               extract(epoch from updated_at)*1000 as updated_at
+        FROM public.profile_barbershops 
+        WHERE profile_id = user_id AND created_at > last_pulled_timestamp
+    ) x;
+
+    SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profile_barbershops_updated FROM (
+        SELECT (profile_id::text || '_' || barbershop_id::text) as id, profile_id, barbershop_id, role,
+               extract(epoch from created_at)*1000 as created_at, 
+               extract(epoch from updated_at)*1000 as updated_at
+        FROM public.profile_barbershops 
+        WHERE profile_id = user_id AND created_at <= last_pulled_timestamp AND updated_at > last_pulled_timestamp
+    ) x;
+
     -- Retornar as mudanças formatadas para o WatermelonDB
     RETURN jsonb_build_object(
         'changes', jsonb_build_object(
@@ -272,7 +309,8 @@ BEGIN
             'profiles', jsonb_build_object('created', profiles_created, 'updated', profiles_updated, 'deleted', profiles_deleted),
             'services', jsonb_build_object('created', services_created, 'updated', services_updated, 'deleted', services_deleted),
             'appointments', jsonb_build_object('created', appointments_created, 'updated', appointments_updated, 'deleted', appointments_deleted),
-            'barber_services', jsonb_build_object('created', barber_services_created, 'updated', barber_services_updated, 'deleted', barber_services_deleted)
+            'barber_services', jsonb_build_object('created', barber_services_created, 'updated', barber_services_updated, 'deleted', barber_services_deleted),
+            'profile_barbershops', jsonb_build_object('created', profile_barbershops_created, 'updated', profile_barbershops_updated, 'deleted', profile_barbershops_deleted)
         ),
         'timestamp', current_server_timestamp
     );
@@ -307,7 +345,10 @@ BEGIN
     -- PROCESSAR TABELA: BARBERSHOPS
     IF changes->'barbershops' IS NOT NULL THEN
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'barbershops'->'updated') AS x(id uuid, name text, logo_url text, banner_url text, slogan text, instagram text, primary_color text, timezone text, currency text, description text, address text, phone text, opening_hours text, share_agendas boolean, updated_at bigint) LOOP
-            IF user_role != 'admin' OR user_barbershop_id != item.id THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = item.id AND role = 'admin'
+            ) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar dados desta barbearia';
             END IF;
 
@@ -333,7 +374,10 @@ BEGIN
     -- PROCESSAR TABELA: SERVICES
     IF changes->'services' IS NOT NULL THEN
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'created') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, created_at bigint, updated_at bigint) LOOP
-            IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role IN ('admin', 'barber')
+            ) THEN
                 RAISE EXCEPTION 'Sem permissão para criar serviço nesta barbearia';
             END IF;
             
@@ -344,7 +388,10 @@ BEGIN
         END LOOP;
 
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'services'->'updated') AS x(id text, barbershop_id uuid, name text, price numeric, duration_minutes integer, is_active boolean, updated_at bigint) LOOP
-            IF user_role NOT IN ('admin', 'barber') OR user_barbershop_id != item.barbershop_id THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role IN ('admin', 'barber')
+            ) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar serviço nesta barbearia';
             END IF;
 
@@ -357,14 +404,20 @@ BEGIN
             UPDATE public.services 
             SET deleted_at = now(), updated_at = now()
             WHERE id = deleted_id 
-            AND (user_role = 'admin' AND barbershop_id = user_barbershop_id);
+            AND EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = services.barbershop_id AND role = 'admin'
+            );
         END LOOP;
     END IF;
 
     -- PROCESSAR TABELA: APPOINTMENTS
     IF changes->'appointments' IS NOT NULL THEN
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'created') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, created_at bigint, updated_at bigint) LOOP
-            IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND user_barbershop_id != item.barbershop_id) THEN
+            IF (user_role = 'client' AND user_id != item.client_id) OR (user_role IN ('admin', 'barber') AND NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role IN ('admin', 'barber')
+            )) THEN
                 RAISE EXCEPTION 'Sem permissão para criar este agendamento';
             END IF;
 
@@ -376,8 +429,14 @@ BEGIN
 
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'appointments'->'updated') AS x(id text, barbershop_id uuid, client_id uuid, client_name text, barber_id uuid, service_id text, date_time bigint, status text, updated_at bigint) LOOP
             IF (user_role = 'client' AND user_id != item.client_id) OR 
-               (user_role = 'barber' AND (user_barbershop_id != item.barbershop_id OR user_id != item.barber_id)) OR
-               (user_role = 'admin' AND user_barbershop_id != item.barbershop_id) THEN
+               (user_role = 'barber' AND (NOT EXISTS (
+                   SELECT 1 FROM public.profile_barbershops
+                   WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role = 'barber'
+               ) OR user_id != item.barber_id)) OR
+               (user_role = 'admin' AND NOT EXISTS (
+                   SELECT 1 FROM public.profile_barbershops
+                   WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role = 'admin'
+               )) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este agendamento';
             END IF;
 
@@ -393,7 +452,10 @@ BEGIN
             AND (
                 client_id = user_id OR 
                 (user_role = 'barber' AND barber_id = user_id) OR
-                (user_role = 'admin' AND barbershop_id = user_barbershop_id)
+                (user_role = 'admin' AND EXISTS (
+                    SELECT 1 FROM public.profile_barbershops
+                    WHERE profile_id = user_id AND barbershop_id = appointments.barbershop_id AND role = 'admin'
+                ))
             );
         END LOOP;
     END IF;
@@ -401,7 +463,10 @@ BEGIN
     -- PROCESSAR TABELA: BARBER_SERVICES
     IF changes->'barber_services' IS NOT NULL THEN
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'barber_services'->'created') AS x(id uuid, barbershop_id uuid, barber_id uuid, service_id text, price numeric, duration_minutes integer, is_active boolean, created_at bigint, updated_at bigint) LOOP
-            IF user_role != 'admin' OR user_barbershop_id != item.barbershop_id THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role = 'admin'
+            ) THEN
                 RAISE EXCEPTION 'Sem permissão para configurar preços diferenciados nesta barbearia';
             END IF;
 
@@ -412,7 +477,10 @@ BEGIN
         END LOOP;
 
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'barber_services'->'updated') AS x(id uuid, barbershop_id uuid, price numeric, duration_minutes integer, is_active boolean, updated_at bigint) LOOP
-            IF user_role != 'admin' OR user_barbershop_id != item.barbershop_id THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = item.barbershop_id AND role = 'admin'
+            ) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar preços diferenciados nesta barbearia';
             END IF;
 
@@ -424,19 +492,26 @@ BEGIN
         FOR deleted_id IN SELECT * FROM jsonb_array_elements_text(changes->'barber_services'->'deleted') AS id LOOP
             DELETE FROM public.barber_services 
             WHERE id = deleted_id::uuid 
-            AND (user_role = 'admin' AND barbershop_id = user_barbershop_id);
+            AND EXISTS (
+                SELECT 1 FROM public.profile_barbershops
+                WHERE profile_id = user_id AND barbershop_id = barber_services.barbershop_id AND role = 'admin'
+            );
         END LOOP;
     END IF;
 
     -- PROCESSAR TABELA: PROFILES
     IF changes->'profiles' IS NOT NULL THEN
         FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, barbershop_id uuid, name text, phone text, avatar_url text, commission_rate numeric, push_token text, work_hours text, specialties text, instagram text, updated_at bigint) LOOP
-            IF user_id != item.id AND NOT (user_role = 'admin' AND (
-                user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)
-                OR (SELECT barbershop_id FROM public.profiles WHERE id = item.id) IS NULL
-                OR user_barbershop_id IS NULL
-                OR user_barbershop_id = item.barbershop_id
-            )) THEN
+            IF user_id != item.id AND NOT EXISTS (
+                SELECT 1 FROM public.profile_barbershops admin_link
+                WHERE admin_link.profile_id = user_id 
+                AND admin_link.role = 'admin'
+                AND (
+                    admin_link.barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)
+                    OR (SELECT barbershop_id FROM public.profiles WHERE id = item.id) IS NULL
+                    OR admin_link.barbershop_id = item.barbershop_id
+                )
+            ) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
             END IF;
 

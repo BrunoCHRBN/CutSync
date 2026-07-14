@@ -49,6 +49,16 @@ CREATE TABLE public.profiles (
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Tabela de Vínculos N-N entre Perfis e Barbearias (Tenant Switcher)
+CREATE TABLE public.profile_barbershops (
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    barbershop_id UUID REFERENCES public.barbershops(id) ON DELETE CASCADE,
+    role TEXT CHECK (role IN ('client', 'barber', 'admin')) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (profile_id, barbershop_id)
+);
+
 -- Tabela de Serviços
 CREATE TABLE public.services (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -77,6 +87,20 @@ CREATE TABLE public.appointments (
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Tabela de Configurações de Serviços por Barbeiro (Preços e Tempos customizados)
+CREATE TABLE public.barber_services (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    barbershop_id UUID REFERENCES public.barbershops(id) ON DELETE CASCADE NOT NULL,
+    barber_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    service_id TEXT REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (barber_id, service_id)
+);
+
 -- ==========================================
 -- 2. TRIGGER DE ATUALIZAÇÃO AUTOMÁTICA DO timestamp updated_at
 -- ==========================================
@@ -91,8 +115,10 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER update_barbershops_updated_at BEFORE UPDATE ON public.barbershops FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+CREATE TRIGGER update_profile_barbershops_updated_at BEFORE UPDATE ON public.profile_barbershops FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON public.services FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 CREATE TRIGGER update_appointments_updated_at BEFORE UPDATE ON public.appointments FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+CREATE TRIGGER update_barber_services_updated_at BEFORE UPDATE ON public.barber_services FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- ==========================================
 -- 3. CRIAÇÃO AUTOMÁTICA DE PERFIL NA CRIAÇÃO DE USUÁRIO AUTH
@@ -118,6 +144,13 @@ BEGIN
         new.raw_user_meta_data->>'avatar_url',
         new.raw_user_meta_data->>'phone'
     );
+
+    IF barbershop_id_val IS NOT NULL THEN
+        INSERT INTO public.profile_barbershops (profile_id, barbershop_id, role)
+        VALUES (new.id, barbershop_id_val, role_val)
+        ON CONFLICT DO NOTHING;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -133,6 +166,8 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 -- Habilitar RLS em todas as tabelas
 ALTER TABLE public.barbershops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profile_barbershops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.barber_services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 
@@ -168,6 +203,22 @@ CREATE POLICY "Usuário atualiza próprio perfil" ON public.profiles
     USING (id = auth.uid())
     WITH CHECK (id = auth.uid());
 
+-- POLÍTICAS PARA: profile_barbershops
+-- Usuários podem ler seus próprios vínculos
+CREATE POLICY "Usuários lêem seus próprios vínculos" ON public.profile_barbershops
+    FOR SELECT TO authenticated
+    USING (profile_id = auth.uid());
+
+-- Apenas admins da barbearia podem gerenciar vínculos dela
+CREATE POLICY "Admins gerenciam vínculos da sua barbearia" ON public.profile_barbershops
+    FOR ALL TO authenticated
+    USING (
+        auth.uid() IN (
+            SELECT id FROM public.profiles 
+            WHERE role = 'admin' AND barbershop_id = profile_barbershops.barbershop_id
+        )
+    );
+
 -- POLÍTICAS PARA: services
 -- Qualquer pessoa pode ver os serviços cadastrados (catálogo público)
 CREATE POLICY "Leitura pública de serviços" ON public.services
@@ -201,6 +252,23 @@ CREATE POLICY "Barbeiros e Admins gerenciam agendamentos da barbearia" ON public
             WHERE profiles.id = auth.uid() 
             AND profiles.barbershop_id = appointments.barbershop_id 
             AND profiles.role IN ('admin', 'barber')
+        )
+    );
+
+-- POLÍTICAS PARA: barber_services
+-- Qualquer autenticado pode ver as configurações de barbeiro
+CREATE POLICY "Leitura pública de configurações de barbeiro" ON public.barber_services
+    FOR SELECT TO authenticated USING (true);
+
+-- Admins da barbearia podem gerenciar
+CREATE POLICY "Admins gerenciam barber_services" ON public.barber_services
+    FOR ALL TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE profiles.id = auth.uid() 
+            AND profiles.barbershop_id = barber_services.barbershop_id 
+            AND profiles.role = 'admin'
         )
     );
 
