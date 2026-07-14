@@ -44,6 +44,7 @@ export const SettingsExperience = () => {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
+  const [cep, setCep] = useState('');
   const [phone, setPhone] = useState('');
   const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
@@ -57,6 +58,42 @@ export const SettingsExperience = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+
+  const fetchAddressByCep = async (rawCep: string) => {
+    const cleanCep = rawCep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        setNotice({ tone: 'danger', message: 'CEP não encontrado.' });
+        return;
+      }
+      // Formatar endereço completo: Rua, Bairro, Cidade - UF, Brasil
+      const addressString = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}, Brasil`;
+      setAddress(addressString);
+      setNotice({ tone: 'success', message: 'Endereço preenchido automaticamente!' });
+    } catch (err) {
+      console.warn('ViaCEP fetch failed:', err);
+    }
+  };
+
+  const handleCepChange = (val: string) => {
+    let formatted = val.replace(/\D/g, '');
+    if (formatted.length > 8) {
+      formatted = formatted.substring(0, 8);
+    }
+    if (formatted.length > 5) {
+      formatted = `${formatted.substring(0, 5)}-${formatted.substring(5)}`;
+    }
+    setCep(formatted);
+
+    const clean = formatted.replace(/\D/g, '');
+    if (clean.length === 8) {
+      fetchAddressByCep(clean);
+    }
+  };
 
   const requestPermission = async () => {
     if (Platform.OS !== 'web') {
@@ -242,7 +279,10 @@ export const SettingsExperience = () => {
             </FormSection>
 
             <FormSection testID="settings-contact-section" title="Contato, localização e redes" description="Esses dados aparecem no perfil público e ajudam o cliente antes da visita.">
-              <AppInput label="Endereço" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
+              <View style={styles.fieldsRow}>
+                <AppInput containerStyle={styles.flexField} label="CEP (Preenchimento automático)" testID="settings-cep-input" icon={<MapPin color={colors.textMuted} size={17} />} value={cep} onChangeText={handleCepChange} keyboardType="numeric" placeholder="01001-000" />
+                <AppInput containerStyle={styles.flexField} label="Endereço completo" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
+              </View>
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Telefone" testID="settings-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
                 <AppInput containerStyle={styles.flexField} label="Instagram (sem @)" testID="settings-instagram-input" value={instagram} onChangeText={setInstagram} placeholder="ex: barbeariadobruno" />

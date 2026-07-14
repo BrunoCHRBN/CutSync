@@ -33,6 +33,44 @@ export const RegisterExperience = () => {
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cep, setCep] = useState('');
+  const [address, setAddress] = useState('');
+
+  const fetchAddressByCep = async (rawCep: string) => {
+    const cleanCep = rawCep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        setError('CEP não encontrado.');
+        return;
+      }
+      // Formatar endereço completo: Rua, Bairro, Cidade - UF, Brasil
+      const addressString = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}, Brasil`;
+      setAddress(addressString);
+      setError('');
+    } catch (err) {
+      console.warn('ViaCEP fetch failed:', err);
+    }
+  };
+
+  const handleCepChange = (val: string) => {
+    let formatted = val.replace(/\D/g, '');
+    if (formatted.length > 8) {
+      formatted = formatted.substring(0, 8);
+    }
+    if (formatted.length > 5) {
+      formatted = `${formatted.substring(0, 5)}-${formatted.substring(5)}`;
+    }
+    setCep(formatted);
+
+    const clean = formatted.replace(/\D/g, '');
+    if (clean.length === 8) {
+      fetchAddressByCep(clean);
+    }
+  };
 
   const cleanSlug = useMemo(() => slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, ''), [slug]);
 
@@ -68,6 +106,7 @@ export const RegisterExperience = () => {
           name: shopName.trim(),
           slug: cleanSlug,
           primary_color: primaryColor,
+          address: address.trim(),
           timezone: 'America/Sao_Paulo',
           currency: 'BRL',
         }).select('id').single();
@@ -153,6 +192,10 @@ export const RegisterExperience = () => {
                   <View style={styles.fieldsRow}>
                     <AppInput containerStyle={styles.halfField} label="Endereço digital" testID="register-shop-slug-input" icon={<Link2 color={colors.textMuted} size={17} />} placeholder="navalha-studio" value={slug} onChangeText={setSlug} autoCapitalize="none" hint={cleanSlug ? `cutsync.com/${cleanSlug}` : 'Use letras, números e hífens.'} />
                     <AppInput containerStyle={styles.halfField} label="Cor da marca" testID="register-shop-color-input" placeholder="#F5A524" value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" />
+                  </View>
+                  <View style={styles.fieldsRow}>
+                    <AppInput containerStyle={styles.halfField} label="CEP (Preenchimento automático)" testID="register-shop-cep-input" placeholder="01001-000" value={cep} onChangeText={handleCepChange} keyboardType="numeric" />
+                    <AppInput containerStyle={styles.halfField} label="Endereço completo" testID="register-shop-address-input" placeholder="Rua, número, bairro e cidade" value={address} onChangeText={setAddress} />
                   </View>
                 </View>
               )}
