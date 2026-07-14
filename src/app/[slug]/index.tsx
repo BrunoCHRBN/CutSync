@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
@@ -19,6 +19,53 @@ const portfolioPhotos = [
   'https://images.unsplash.com/photo-1605497746444-ac9dbd324d48?auto=format&fit=crop&q=80&w=400',
   'https://images.unsplash.com/photo-1599351431247-f5094087e842?auto=format&fit=crop&q=80&w=400'
 ];
+
+function BarbershopProfileSkeleton() {
+  return (
+    <ScreenBackground testID="barbershop-profile-skeleton" style={{ backgroundColor: colors.canvas }}>
+      {/* Skeleton Topbar */}
+      <View style={[styles.topbar, { opacity: 0.6 }]}>
+        <View style={[styles.backButton, { backgroundColor: colors.surfaceRaised, borderWidth: 0 }]} />
+        <View style={{ width: 140, height: 18, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
+        <View style={{ width: 80, height: 38, backgroundColor: colors.surfaceRaised, borderRadius: 8, marginLeft: 'auto' }} />
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.scroll} scrollEnabled={false}>
+        {/* Skeleton Hero */}
+        <View style={[styles.heroContainer, { backgroundColor: colors.surfaceRaised }]} />
+        
+        {/* Skeleton Profile Details */}
+        <View style={styles.heroCopy}>
+          <View style={styles.brandContainer}>
+            <View style={[styles.logoCircle, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderWidth: 1 }]} />
+            <View style={[styles.titleInfo, { gap: 8 }]}>
+              <View style={{ width: 220, height: 26, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
+              <View style={{ width: 150, height: 14, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
+              <View style={{ width: '100%', height: 40, backgroundColor: colors.surfaceRaised, borderRadius: 6, marginTop: 4 }} />
+            </View>
+          </View>
+        </View>
+
+        {/* Skeleton Info Grid */}
+        <View style={styles.infoGrid}>
+          <View style={[styles.infoItem, { height: 60, backgroundColor: colors.surfaceRaised, borderColor: colors.border }]} />
+          <View style={[styles.infoItem, { height: 60, backgroundColor: colors.surfaceRaised, borderColor: colors.border }]} />
+          <View style={[styles.infoItem, { height: 60, backgroundColor: colors.surfaceRaised, borderColor: colors.border }]} />
+        </View>
+
+        {/* Skeleton Services Section */}
+        <View style={styles.section}>
+          <View style={{ width: 100, height: 20, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
+          <View style={styles.cardsGrid}>
+            <View style={[styles.serviceCard, { height: 120, backgroundColor: colors.surfaceRaised, borderColor: colors.border }]} />
+            <View style={[styles.serviceCard, { height: 120, backgroundColor: colors.surfaceRaised, borderColor: colors.border }]} />
+            <View style={[styles.serviceCard, { height: 120, backgroundColor: colors.surfaceRaised, borderColor: colors.border }]} />
+          </View>
+        </View>
+      </ScrollView>
+    </ScreenBackground>
+  );
+}
 
 export default function BarbershopSlugScreen() {
   const { t, i18n } = useTranslation();
@@ -82,7 +129,7 @@ export default function BarbershopSlugScreen() {
 
   // Cálculo de Status em Tempo Real
   const statusInfo = useMemo(() => {
-    if (!barbershop?.openingHours) return { isOpen: false, text: 'Fechado' };
+    if (!barbershop?.openingHours) return { isOpen: false, text: '' };
     try {
       const schedule = JSON.parse(barbershop.openingHours);
       const now = new Date();
@@ -90,6 +137,19 @@ export default function BarbershopSlugScreen() {
       const todaySchedule = schedule.find((s: any) => s.day === day);
 
       if (!todaySchedule || !todaySchedule.isOpen) {
+        let nextDay = (day + 1) % 7;
+        let nextSchedule = schedule.find((s: any) => s.day === nextDay);
+        let daysCount = 1;
+        while ((!nextSchedule || !nextSchedule.isOpen) && daysCount < 7) {
+          nextDay = (nextDay + 1) % 7;
+          nextSchedule = schedule.find((s: any) => s.day === nextDay);
+          daysCount++;
+        }
+        if (nextSchedule && nextSchedule.isOpen) {
+          const dayNames = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+          const dayLabel = daysCount === 1 ? 'amanhã' : `na ${dayNames[nextDay]}`;
+          return { isOpen: false, text: `Abre ${dayLabel} às ${nextSchedule.open}` };
+        }
         return { isOpen: false, text: 'Fechado hoje' };
       }
 
@@ -101,20 +161,35 @@ export default function BarbershopSlugScreen() {
       const closeMinutes = closeH * 60 + closeM;
 
       if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
-        return { isOpen: true, text: `Aberto até às ${todaySchedule.close}` };
+        return { isOpen: true, text: `Até às ${todaySchedule.close}` };
       }
-      return { isOpen: false, text: `Fechado agora (Abre às ${todaySchedule.open})` };
+      
+      if (currentMinutes < openMinutes) {
+        return { isOpen: false, text: `Abre hoje às ${todaySchedule.open}` };
+      }
+      
+      let nextDay = (day + 1) % 7;
+      let nextSchedule = schedule.find((s: any) => s.day === nextDay);
+      let daysCount = 1;
+      while ((!nextSchedule || !nextSchedule.isOpen) && daysCount < 7) {
+        nextDay = (nextDay + 1) % 7;
+        nextSchedule = schedule.find((s: any) => s.day === nextDay);
+        daysCount++;
+      }
+      if (nextSchedule && nextSchedule.isOpen) {
+        const dayNames = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+        const dayLabel = daysCount === 1 ? 'amanhã' : `na ${dayNames[nextDay]}`;
+        return { isOpen: false, text: `Abre ${dayLabel} às ${nextSchedule.open}` };
+      }
+
+      return { isOpen: false, text: '' };
     } catch {
-      return { isOpen: false, text: 'Fechado' };
+      return { isOpen: false, text: '' };
     }
   }, [barbershop?.openingHours]);
 
   if (loading) {
-    return (
-      <ScreenBackground testID="barbershop-profile-loading" style={styles.center}>
-        <ActivityIndicator color={colors.brand} size="large" />
-      </ScreenBackground>
-    );
+    return <BarbershopProfileSkeleton />;
   }
 
   if (!barbershop) {
@@ -203,7 +278,9 @@ export default function BarbershopSlugScreen() {
                 <Text style={[styles.statusLabelText, { color: statusInfo.isOpen ? '#30d158' : '#ff453a', fontWeight: 'bold' }]}>
                   {statusInfo.isOpen ? 'Aberto' : 'Fechado'}
                 </Text>
-                <Text style={styles.infoValue}>· {statusInfo.text}</Text>
+                {!!statusInfo.text && (
+                  <Text style={styles.infoValue}>· {statusInfo.text}</Text>
+                )}
               </View>
             </View>
           </View>
@@ -224,26 +301,45 @@ export default function BarbershopSlugScreen() {
         </View>
 
         {/* Mapa Estético Integrado */}
-        <View style={styles.mapCard}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600' }} 
-            style={styles.mapThumbnail} 
-            resizeMode="cover"
-          />
-          <View style={styles.mapOverlay}>
-            <MapPin color={accent} size={28} />
-            <Text style={styles.mapAddress}>{barbershop.address || 'Endereço da barbearia'}</Text>
-            <AppButton 
-              label="Como Chegar (Rota)" 
-              onPress={() => {
-                const query = encodeURIComponent(barbershop.address || '');
-                Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
-              }}
-              style={[styles.routeBtn, { backgroundColor: accent, borderColor: accent }]}
-              icon={<MapPin color={colors.ink} size={15} />}
-            />
+        {!!barbershop.address && (
+          <View style={styles.mapCard}>
+            <View style={{ flex: 1, height: 180 }}>
+              {Platform.OS === 'web' ? (
+                React.createElement('iframe', {
+                  src: `https://maps.google.com/maps?q=${encodeURIComponent(barbershop.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`,
+                  width: '100%',
+                  height: '100%',
+                  style: { border: 0 },
+                  loading: 'lazy',
+                  title: 'Mapa da Barbearia'
+                })
+              ) : (
+                <Image 
+                  source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600' }} 
+                  style={styles.mapThumbnail} 
+                  resizeMode="cover"
+                />
+              )}
+            </View>
+            <View style={styles.mapInfoBar}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.mapInfoAddress} numberOfLines={1}>
+                  {barbershop.address}
+                </Text>
+              </View>
+              <AppButton 
+                testID="barbershop-profile-route-button"
+                label="Como Chegar (Rota)" 
+                onPress={() => {
+                  const query = encodeURIComponent(barbershop.address || '');
+                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+                }}
+                style={[styles.routeBtn, { backgroundColor: accent, borderColor: accent }]}
+                icon={<MapPin color={colors.ink} size={13} />}
+              />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Serviços */}
         <View style={styles.section}>
@@ -268,7 +364,7 @@ export default function BarbershopSlugScreen() {
 
         {/* Galeria de Inspirações */}
         <View style={styles.section}>
-          <SectionHeading eyebrow="Galeria" title="Inspirações & Cortes" description="" />
+          <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & Cortes" description="" />
           <FlatList
             data={portfolioPhotos}
             keyExtractor={(url) => url}
@@ -321,7 +417,7 @@ export default function BarbershopSlugScreen() {
         </View>
 
         {/* CTA Barra Flutuante */}
-        <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: colors.border, backgroundColor: '#1C1C1EE6' }]}>
+        <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: colors.border, backgroundColor: 'rgba(28, 28, 30, 0.75)', ...({ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' } as any) }]}>
           <View style={styles.ctaCopy}>
             <Text style={styles.ctaEyebrow}>{t('slug.cta')}</Text>
             <Text style={styles.ctaTitle}>Garanta o seu horário na agenda.</Text>
@@ -349,7 +445,7 @@ const styles = StyleSheet.create({
   // Hero Capa Styles
   heroContainer: { width: '100%', height: 180, position: 'relative' },
   bannerImage: { width: '100%', height: '100%' },
-  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 15, 18, 0.4)' },
+  bannerOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 15, 18, 0.4)' },
   heroCopy: { paddingHorizontal: 20, marginTop: -40, zIndex: 2 },
   heroCopyWide: { paddingHorizontal: 40 },
   brandContainer: { flexDirection: 'row', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' },
@@ -360,7 +456,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1, fontWeight: 'bold' },
   slogan: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.brand}12`, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderHeight: 1, borderColor: `${colors.brand}44` },
+  instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.brand}12`, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: `${colors.brand}44` },
   instagramBadgeText: { fontSize: 10, fontFamily: typography.bodyStrong },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 8 },
   // Info Grid
@@ -373,11 +469,11 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusLabelText: { fontSize: 11 },
   // Mapa
-  mapCard: { marginHorizontal: 20, marginTop: 24, height: 160, borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', position: 'relative' },
+  mapCard: { marginHorizontal: 20, marginTop: 24, borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', backgroundColor: colors.surface },
   mapThumbnail: { width: '100%', height: '100%' },
-  mapOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 15, 18, 0.75)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  mapAddress: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11, textAlign: 'center', marginTop: 8, marginBottom: 12, maxWidth: 380 },
-  routeBtn: { minHeight: 36, paddingVertical: 6, paddingHorizontal: 16 },
+  mapInfoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: colors.surfaceRaised, borderTopWidth: 1, borderTopColor: colors.border },
+  mapInfoAddress: { color: colors.text, fontFamily: typography.body, fontSize: 12 },
+  routeBtn: { minHeight: 32, paddingVertical: 5, paddingHorizontal: 12 },
   section: { marginTop: 40, paddingHorizontal: 20, gap: 16 },
   cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   serviceCard: { flex: 1, minWidth: 160, maxWidth: 260 },

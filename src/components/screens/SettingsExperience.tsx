@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { database } from '../../database';
 import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -55,6 +57,75 @@ export const SettingsExperience = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+
+  const requestPermission = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setNotice({ tone: 'danger', message: 'Permissão de acesso à galeria de fotos é necessária para esta ação.' });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleImageUpload = async (uri: string, onUploadSuccess: (url: string) => void) => {
+    try {
+      setSaving(true);
+      setNotice(null);
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
+      const fileName = `${profile?.barbershop_id || 'public'}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const bucketName = 'banners';
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(fileName, blob, {
+          contentType: blob.type || 'image/jpeg',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(fileName);
+
+      onUploadSuccess(publicUrl);
+      setNotice({ tone: 'success', message: 'Imagem enviada com sucesso!' });
+    } catch (error: any) {
+      console.error('Image upload failed:', error);
+      setNotice({
+        tone: 'danger',
+        message: `Não foi possível carregar a imagem. Verifique se o bucket 'banners' está configurado no seu Supabase. Detalhe: ${error.message || error}`,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pickImage = async (onSelected: (url: string) => void, aspect: [number, number]) => {
+    const hasPermission = await requestPermission();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      await handleImageUpload(asset.uri, onSelected);
+    }
+  };
 
   useEffect(() => {
     if (!profile?.barbershop_id) { setLoading(false); return; }
@@ -156,6 +227,12 @@ export const SettingsExperience = () => {
                 <View style={styles.logoCopy}>
                   <Text style={styles.logoTitle}>Logo da barbearia</Text>
                   <Text style={styles.logoHint}>A logo atual é exibida aqui; nome e cor controlam a identidade principal.</Text>
+                  <AppButton
+                    label="Alterar Logo"
+                    testID="settings-upload-logo-button"
+                    onPress={() => pickImage((url) => setLogoUrl(url), [1, 1])}
+                    style={styles.compactUploadButton}
+                  />
                 </View>
               </View>
               <View style={styles.fieldsRow}>
@@ -168,13 +245,21 @@ export const SettingsExperience = () => {
               <AppInput label="Endereço" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Telefone" testID="settings-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
-                <AppInput containerStyle={styles.flexField} label="Instagram (sem @)" value={instagram} onChangeText={setInstagram} placeholder="ex: barbeariadobruno" />
+                <AppInput containerStyle={styles.flexField} label="Instagram (sem @)" testID="settings-instagram-input" value={instagram} onChangeText={setInstagram} placeholder="ex: barbeariadobruno" />
               </View>
-              <AppInput label="Capa do perfil (URL do Banner)" value={bannerUrl} onChangeText={setBannerUrl} placeholder="ex: https://images.unsplash.com/photo-..." />
-              <AppInput label="Slogan / Frase de efeito (máx 150 car.)" value={slogan} onChangeText={setSlogan} placeholder="ex: A verdadeira experiência clássica" maxLength={150} />
+              <View style={{ gap: 8 }}>
+                <AppInput label="Capa do perfil (URL do Banner)" testID="settings-banner-input" value={bannerUrl} onChangeText={setBannerUrl} placeholder="ex: https://images.unsplash.com/photo-..." />
+                <AppButton
+                  label="Selecionar Imagem do Banner"
+                  testID="settings-upload-banner-button"
+                  onPress={() => pickImage((url) => setBannerUrl(url), [16, 9])}
+                  style={styles.uploadButton}
+                />
+              </View>
+              <AppInput label="Slogan / Frase de efeito (máx 150 car.)" testID="settings-slogan-input" value={slogan} onChangeText={setSlogan} placeholder="ex: A verdadeira experiência clássica" maxLength={150} />
             </FormSection>
 
-            <FormSection title="Grade de Funcionamento Estruturada" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
+            <FormSection title="Grade de Funcionamento Estruturada" testID="settings-schedule-section" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
               <View style={styles.scheduleGrid}>
                 {schedule.map((dayItem, idx) => (
                   <View key={dayItem.day} style={styles.scheduleRow}>
@@ -275,10 +360,12 @@ const styles = StyleSheet.create({
   linkText: { flex: 1, color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10 },
   copyButton: { width: 30, height: 30, borderRadius: radii.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
-  scheduleGrid: { backgroundColor: colors.surface, borderHeight: 1, borderColor: colors.border, borderRadius: radii.lg, padding: 16, gap: 10 },
+  scheduleGrid: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, padding: 16, gap: 10 },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
   scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
   timeInput: { width: 56, height: 34, textAlign: 'center', color: colors.text, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
-  closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' }
+  closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' },
+  compactUploadButton: { minHeight: 32, paddingVertical: 5, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 },
+  uploadButton: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' }
 });
