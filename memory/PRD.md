@@ -35,13 +35,20 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 - Build web alterado para SPA autenticada (`output: single`).
 - Correções de base: estado offline em `useSync`, tema ausente, notificações Expo 57, configuração LokiJS web e tipagens antigas.
 - Dependências alinhadas; `expo-doctor` aprovado em 20/20 verificações e TypeScript sem erros.
+- Cadastro redesenhado como onboarding por perfil, com campos específicos para cliente, gestor e profissional.
+- Gestão de Equipe migrada: convite por código, comissões inline, remoção confirmada e estados vazios.
+- Gestão de Serviços migrada: cadastro validado, catálogo responsivo e ativação/pausa contextual.
+- Configurações migradas: identidade, contato, slug público e preview em tempo real.
+- Painel do Barbeiro migrado: KPIs, agenda própria/equipe, status e encaixe rápido com prevenção de conflito.
+- Deep-links amigáveis e protegidos: `/admin/barbers`, `/admin/services`, `/admin/settings` e `/barber`.
+- Diálogos bloqueantes removidos das experiências migradas; feedback agora usa avisos inline.
+- Guia de autenticação de QA adicionado em `/app/auth_testing.md`.
 
 ## Backlog priorizado
 
 ### P0
 
 - Criar conta e seed oficial de QA para validar os fluxos autenticados ponta a ponta.
-- Aplicar o `AdminShell` às páginas Equipe, Serviços e Configurações.
 - Remover as implementações legadas mantidas abaixo dos novos exports nas três rotas migradas.
 
 ### P1
@@ -61,7 +68,7 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 
 ## Próximas tarefas
 
-1. Redesenhar cadastro e onboarding específico para cliente, dono e profissional.
-2. Migrar Equipe, Serviços e Configurações para o novo design system.
-3. Redesenhar o painel do barbeiro e seu encaixe rápido.
-4. Criar seed/credenciais de QA e validar Dashboard e Agendamento com dados reais.
+1. Redesenhar Explorar, Meus Agendamentos e Perfil da Barbearia do cliente.
+2. Remover definitivamente o código legado das rotas já migradas.
+3. Criar seed/credenciais de QA e validar áreas autenticadas com dados reais.
+4. Adicionar analytics de conversão entre perfil público, escolha de serviço e confirmação.

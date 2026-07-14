@@ -24,11 +24,7 @@ function LegacyRegisterScreen() {
   const router = useRouter();
 
   const displayAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    console.warn(`${title}: ${message}`);
   };
 
   const handleRegister = async () => {

@@ -23,11 +23,7 @@ function LegacyManageBarbersScreen() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const displayAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    console.warn(`${title}: ${message}`);
   };
 
   useEffect(() => {
@@ -67,23 +63,8 @@ function LegacyManageBarbersScreen() {
   const handleRemoveBarber = async (barberId: string) => {
     const confirmText = 'Você tem certeza que deseja remover este barbeiro da sua equipe? Ele não aparecerá mais para agendamentos de clientes.';
     
-    if (Platform.OS === 'web') {
-      if (!window.confirm(confirmText)) return;
-    } else {
-      // No mobile
-      let confirmed = false;
-      await new Promise<void>((resolve) => {
-        Alert.alert(
-          'Desvincular Barbeiro',
-          confirmText,
-          [
-            { text: 'Cancelar', style: 'cancel', onPress: () => resolve() },
-            { text: 'Remover', style: 'destructive', onPress: () => { confirmed = true; resolve(); } }
-          ]
-        );
-      });
-      if (!confirmed) return;
-    }
+    console.warn(confirmText);
+    return;
 
     setActionLoadingId(barberId);
     try {
@@ -106,15 +87,7 @@ function LegacyManageBarbersScreen() {
   const handleUpdateCommission = async (barberId: string, currentRate?: number) => {
     const currentPercent = currentRate !== undefined && currentRate !== null ? currentRate * 100 : 50;
     
-    let inputVal: string | null = null;
-    if (Platform.OS === 'web') {
-      inputVal = window.prompt(
-        `Defina a nova taxa de comissão em % (de 0 a 100) para este profissional:\n(Atual: ${currentPercent}%)`,
-        currentPercent.toString()
-      );
-    } else {
-      inputVal = '50';
-    }
+    const inputVal: string | null = null;
 
     if (inputVal === null) return;
     const parsedPercent = parseFloat(inputVal);

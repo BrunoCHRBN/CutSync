@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { Copy, ExternalLink, ImagePlus, Link2, MapPin, Palette, Phone, Save, Store } from 'lucide-react-native';
+import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store } from 'lucide-react-native';
 import { database } from '../../database';
 import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
-import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -29,7 +27,6 @@ export const SettingsExperience = () => {
   const [openingHours, setOpeningHours] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
@@ -53,23 +50,6 @@ export const SettingsExperience = () => {
     return () => sub.unsubscribe();
   }, [profile]);
 
-  const pickImage = async () => {
-    setNotice(null);
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
-  };
-
-  const uploadImage = async () => {
-    if (!imageUri || !barbershop) return logoUrl;
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    const extension = imageUri.split('.').pop()?.split('?')[0] || 'jpg';
-    const path = `${barbershop.id}/logo-${Date.now()}.${extension}`;
-    const { error } = await supabase.storage.from('barbershop-logos').upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
-    if (error) throw error;
-    return supabase.storage.from('barbershop-logos').getPublicUrl(path).data.publicUrl;
-  };
-
   const saveSettings = async () => {
     setNotice(null);
     const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '');
@@ -85,7 +65,6 @@ export const SettingsExperience = () => {
 
     setSaving(true);
     try {
-      const nextLogo = await uploadImage();
       await database.write(async () => {
         await barbershop.update((record) => {
           record.name = name.trim();
@@ -94,11 +73,9 @@ export const SettingsExperience = () => {
           record.phone = phone.trim();
           record.openingHours = openingHours.trim();
           record.primaryColor = primaryColor.toUpperCase();
-          record.logoUrl = nextLogo || undefined;
+          record.logoUrl = logoUrl || undefined;
         });
       });
-      setLogoUrl(nextLogo || null);
-      setImageUri(null);
       setSlug(cleanSlug);
       setNotice({ tone: 'success', message: 'Configurações atualizadas com sucesso.' });
       sync();
@@ -133,12 +110,11 @@ export const SettingsExperience = () => {
           <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
             <View style={styles.logoRow}>
               <View testID="settings-logo-preview" style={[styles.logoPreview, { borderColor: primaryColor }]}> 
-                {imageUri || logoUrl ? <Image source={{ uri: imageUri || logoUrl || '' }} style={styles.logoImage} /> : <Store color={primaryColor} size={30} />}
+                {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={primaryColor} size={30} />}
               </View>
               <View style={styles.logoCopy}>
                 <Text style={styles.logoTitle}>Logo da barbearia</Text>
-                <Text style={styles.logoHint}>Use uma imagem quadrada de boa qualidade.</Text>
-                <AppButton label="Escolher imagem" testID="settings-pick-logo-button" onPress={pickImage} variant="secondary" icon={<ImagePlus color={colors.text} size={16} />} style={styles.compactButton} />
+                <Text style={styles.logoHint}>A logo atual é exibida aqui; nome e cor controlam a identidade principal.</Text>
               </View>
             </View>
             <View style={styles.fieldsRow}>
@@ -160,7 +136,7 @@ export const SettingsExperience = () => {
           <AppCard testID="settings-public-profile-preview" style={styles.previewCard} elevated>
             <Text style={styles.previewEyebrow}>PERFIL PÚBLICO</Text>
             <View style={[styles.previewLogo, { backgroundColor: `${primaryColor}22`, borderColor: `${primaryColor}55` }]}>
-              {imageUri || logoUrl ? <Image source={{ uri: imageUri || logoUrl || '' }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
+              {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
             </View>
             <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
             <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>

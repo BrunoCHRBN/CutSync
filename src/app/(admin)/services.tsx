@@ -63,7 +63,7 @@ function LegacyServicesScreen() {
 
   const handleAddService = async () => {
     if (!name || !price || !duration) {
-      Alert.alert(t('common.error'), t('register.error_fill'));
+      console.warn(t('common.error'), t('register.error_fill'));
       return;
     }
 
@@ -85,10 +85,10 @@ function LegacyServicesScreen() {
       setPrice('');
       setDuration('');
 
-      Alert.alert(t('common.success'), 'Service saved locally!');
+      console.warn(t('common.success'), 'Service saved locally!');
       sync();
     } catch (err) {
-      Alert.alert(t('common.error'), 'Could not save service.');
+      console.warn(t('common.error'), 'Could not save service.');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +104,7 @@ function LegacyServicesScreen() {
       });
       sync();
     } catch (err) {
-      Alert.alert(t('common.error'), 'Could not toggle service status.');
+      console.warn(t('common.error'), 'Could not toggle service status.');
     }
   };
 

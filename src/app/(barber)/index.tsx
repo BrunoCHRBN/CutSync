@@ -49,11 +49,7 @@ function LegacyBarberDashboardScreen() {
   const [bookedSegmentsMap, setBookedSegmentsMap] = useState<Record<string, { start: number; end: number }[]>>({});
 
   const displayAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    console.warn(`${title}: ${message}`);
   };
 
   const getNext7Days = () => {
