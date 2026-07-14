@@ -29,7 +29,7 @@ function RootLayoutNavigation() {
       // Se estiver logado e perfil carregado, direciona para o respectivo fluxo
       const firstSegment = segments[0] as string | undefined;
       const inAdminGroup = firstSegment === '(admin)' || firstSegment === 'admin';
-      const inClientGroup = segments[0] === '(client)';
+      const inClientGroup = firstSegment === '(client)' || firstSegment === 'explore' || firstSegment === 'appointments';
       const inBarberGroup = firstSegment === '(barber)' || firstSegment === 'barber';
 
       if (profile.role === 'admin') {

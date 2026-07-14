@@ -5,8 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
 import { Service, Profile, Barbershop } from '../../database/models';
+import { BarbershopProfileExperience } from '../../components/screens/BarbershopProfileExperience';
 
-export default function BarbershopDetailsScreen() {
+export default BarbershopProfileExperience;
+
+function LegacyBarbershopDetailsScreen() {
   const { t, i18n } = useTranslation();
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
   const router = useRouter();
@@ -17,11 +20,7 @@ export default function BarbershopDetailsScreen() {
   const [loading, setLoading] = useState(true);
 
   const displayAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    console.warn(`${title}: ${message}`);
   };
 
   useEffect(() => {
@@ -118,21 +117,21 @@ export default function BarbershopDetailsScreen() {
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>📍 ENDEREÇO</Text>
             <Text style={styles.detailValue}>
-              {barbershop.address || 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP'}
+              {barbershop.address || 'Endereço não informado'}
             </Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>📞 TELEFONE</Text>
             <Text style={styles.detailValue}>
-              {barbershop.phone || '+55 (11) 99999-9999'}
+              {barbershop.phone || 'Telefone não informado'}
             </Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>⏰ FUNCIONAMENTO</Text>
             <Text style={styles.detailValue}>
-              {barbershop.openingHours || 'Segunda a Sábado: 09:00 - 20:00'}
+              {barbershop.openingHours || 'Horário não informado'}
             </Text>
           </View>
 
