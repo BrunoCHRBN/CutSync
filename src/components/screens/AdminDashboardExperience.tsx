@@ -468,7 +468,7 @@ export const AdminDashboardExperience = () => {
                   <Text style={styles.panelTitle}>Histórico do Dia</Text>
                   <Text style={styles.panelSubtitle}>{finishedAppointments.length} atendimentos encerrados</Text>
                 </View>
-                <StatusBadge label="Concluídos/Cancelados" tone="secondary" />
+                <StatusBadge testID="admin-finished-appointments-badge" label="Concluídos/Cancelados" tone="neutral" />
               </View>
               {finishedAppointments.map((item) => renderAppointmentRow(item, true))}
             </>
