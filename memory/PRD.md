@@ -27,16 +27,22 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 - Direção visual documentada em `/app/design_guidelines.json`.
 - Diagnóstico e roadmap detalhados em `/app/FRONTEND_AUDIT.md`.
 - Identificação de riscos técnicos relevantes para o redesign.
+- Design system compartilhado com tokens, botões, campos, cartões, marca, badges, títulos, seletores e fundos responsivos.
+- Login redesenhado para mobile e desktop, com narrativa visual, imagem editorial, feedback inline e acessibilidade.
+- Dashboard Admin redesenhado com sidebar desktop, navegação inferior mobile, KPIs, agenda operacional, status e desempenho da equipe.
+- Agendamento redesenhado em fluxo progressivo com serviço, profissional, próximos 14 dias, horários, resumo e CTA protegido contra conflito.
+- Rota pública `/admin` adicionada com redirecionamento seguro ao fluxo autenticado.
+- Build web alterado para SPA autenticada (`output: single`).
+- Correções de base: estado offline em `useSync`, tema ausente, notificações Expo 57, configuração LokiJS web e tipagens antigas.
+- Dependências alinhadas; `expo-doctor` aprovado em 20/20 verificações e TypeScript sem erros.
 
 ## Backlog priorizado
 
 ### P0
 
-- Instalar dependências e validar build real do Expo.
-- Corrigir inconsistências de base (`isOffline`, tema ausente e configuração do projeto).
-- Criar tokens e componentes compartilhados.
-- Criar navegação responsiva por perfil.
-- Redesenhar Login, Visão Geral Admin e Agendamento.
+- Criar conta e seed oficial de QA para validar os fluxos autenticados ponta a ponta.
+- Aplicar o `AdminShell` às páginas Equipe, Serviços e Configurações.
+- Remover as implementações legadas mantidas abaixo dos novos exports nas três rotas migradas.
 
 ### P1
 
@@ -55,7 +61,7 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 
 ## Próximas tarefas
 
-1. Preparar e validar o ambiente de desenvolvimento.
-2. Implementar design system e shells de navegação.
-3. Construir as três telas-piloto.
-4. Validar mobile e web antes de migrar as telas restantes.
+1. Redesenhar cadastro e onboarding específico para cliente, dono e profissional.
+2. Migrar Equipe, Serviços e Configurações para o novo design system.
+3. Redesenhar o painel do barbeiro e seu encaixe rápido.
+4. Criar seed/credenciais de QA e validar Dashboard e Agendamento com dados reais.

@@ -7,6 +7,9 @@ const adapter = new LokiJSAdapter({
   schema,
   useWebWorker: false,
   useIncrementalIndexedDB: true,
+  extraLokiOptions: {
+    autosave: false,
+  },
 });
 
 export const database = new Database({
