@@ -13,6 +13,9 @@ export default class Barbershop extends Model {
   @text('name') name!: string;
   @text('slug') slug!: string;
   @text('logo_url') logoUrl?: string;
+  @text('banner_url') bannerUrl?: string | null;
+  @text('slogan') slogan?: string | null;
+  @text('instagram') instagram?: string | null;
   @text('primary_color') primaryColor!: string;
   @text('timezone') timezone!: string;
   @text('currency') currency!: string;

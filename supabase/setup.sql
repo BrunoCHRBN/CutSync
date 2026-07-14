@@ -14,6 +14,9 @@ CREATE TABLE public.barbershops (
     name TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
     logo_url TEXT,
+    banner_url TEXT,
+    slogan TEXT,
+    instagram TEXT,
     primary_color TEXT DEFAULT '#D4AF37',
     timezone TEXT DEFAULT 'America/Sao_Paulo' NOT NULL,
     currency TEXT DEFAULT 'BRL' NOT NULL,
@@ -39,6 +42,8 @@ CREATE TABLE public.profiles (
     commission_rate NUMERIC DEFAULT 0.50 NOT NULL,
     push_token TEXT,
     work_hours TEXT,
+    specialties TEXT,
+    instagram TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     deleted_at TIMESTAMP WITH TIME ZONE

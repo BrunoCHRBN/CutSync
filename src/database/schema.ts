@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 4,
+  version: 5,
   tables: [
     tableSchema({
       name: 'barbershops',
@@ -9,6 +9,9 @@ export default appSchema({
         { name: 'name', type: 'string' },
         { name: 'slug', type: 'string' },
         { name: 'logo_url', type: 'string', isOptional: true },
+        { name: 'banner_url', type: 'string', isOptional: true },
+        { name: 'slogan', type: 'string', isOptional: true },
+        { name: 'instagram', type: 'string', isOptional: true },
         { name: 'primary_color', type: 'string' },
         { name: 'timezone', type: 'string' },
         { name: 'currency', type: 'string' },
@@ -33,6 +36,8 @@ export default appSchema({
         { name: 'commission_rate', type: 'number', isOptional: true },
         { name: 'push_token', type: 'string', isOptional: true },
         { name: 'work_hours', type: 'string', isOptional: true },
+        { name: 'specialties', type: 'string', isOptional: true },
+        { name: 'instagram', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

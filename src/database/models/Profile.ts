@@ -18,6 +18,8 @@ export default class Profile extends Model {
   @field('commission_rate') commissionRate?: number;
   @text('push_token') pushToken?: string | null;
   @text('work_hours') workHours?: string | null;
+  @text('specialties') specialties?: string | null;
+  @text('instagram') instagram?: string | null;
 
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

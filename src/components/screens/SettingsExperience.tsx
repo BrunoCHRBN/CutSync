@@ -46,6 +46,12 @@ export const SettingsExperience = () => {
   const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  
+  // Novos campos estéticos
+  const [slogan, setSlogan] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [instagram, setInstagram] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
@@ -61,6 +67,9 @@ export const SettingsExperience = () => {
         setPhone(shop.phone || '');
         setPrimaryColor(shop.primaryColor || '#F5A524');
         setLogoUrl(shop.logoUrl || null);
+        setSlogan(shop.slogan || '');
+        setBannerUrl(shop.bannerUrl || '');
+        setInstagram(shop.instagram || '');
 
         let parsedHours = defaultSchedule;
         if (shop.openingHours) {
@@ -99,6 +108,9 @@ export const SettingsExperience = () => {
           record.slug = cleanSlug;
           record.address = address.trim();
           record.phone = phone.trim();
+          record.slogan = slogan.trim() || null;
+          record.bannerUrl = bannerUrl.trim() || null;
+          record.instagram = instagram.trim() || null;
           record.openingHours = JSON.stringify(schedule);
           record.primaryColor = primaryColor.toUpperCase();
           record.logoUrl = logoUrl || undefined;
@@ -152,11 +164,14 @@ export const SettingsExperience = () => {
               </View>
             </FormSection>
 
-            <FormSection testID="settings-contact-section" title="Contato e localização" description="Esses dados aparecem no perfil público e ajudam o cliente antes da visita.">
+            <FormSection testID="settings-contact-section" title="Contato, localização e redes" description="Esses dados aparecem no perfil público e ajudam o cliente antes da visita.">
               <AppInput label="Endereço" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Telefone" testID="settings-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
+                <AppInput containerStyle={styles.flexField} label="Instagram (sem @)" value={instagram} onChangeText={setInstagram} placeholder="ex: barbeariadobruno" />
               </View>
+              <AppInput label="Capa do perfil (URL do Banner)" value={bannerUrl} onChangeText={setBannerUrl} placeholder="ex: https://images.unsplash.com/photo-..." />
+              <AppInput label="Slogan / Frase de efeito (máx 150 car.)" value={slogan} onChangeText={setSlogan} placeholder="ex: A verdadeira experiência clássica" maxLength={150} />
             </FormSection>
 
             <FormSection title="Grade de Funcionamento Estruturada" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
@@ -216,6 +231,7 @@ export const SettingsExperience = () => {
                 {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
               </View>
               <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
+              {!!slogan && <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 4, textAlign: 'center' }}>“{slogan}”</Text>}
               <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>
               <Text testID="settings-preview-phone" style={styles.previewMeta}>{phone || 'Adicione seu telefone'}</Text>
               <View style={styles.linkBox}>
@@ -259,7 +275,6 @@ const styles = StyleSheet.create({
   linkText: { flex: 1, color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10 },
   copyButton: { width: 30, height: 30, borderRadius: radii.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
-  // Estilos da matriz de horários
   scheduleGrid: { backgroundColor: colors.surface, borderHeight: 1, borderColor: colors.border, borderRadius: radii.lg, padding: 16, gap: 10 },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
   scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },

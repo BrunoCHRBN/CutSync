@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
-import { ArrowLeft, ArrowRight, Clock3, Coins, MapPin, Phone, Scissors, Store, UserRound, UsersRound } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UserRound, UsersRound } from 'lucide-react-native';
 import { database } from '../../database';
 import { Barbershop, Profile, Service } from '../../database/models';
 import { AppButton } from '../../components/ui/AppButton';
@@ -80,6 +80,35 @@ export default function BarbershopSlugScreen() {
     }).format(value);
   };
 
+  // Cálculo de Status em Tempo Real
+  const statusInfo = useMemo(() => {
+    if (!barbershop?.openingHours) return { isOpen: false, text: 'Fechado' };
+    try {
+      const schedule = JSON.parse(barbershop.openingHours);
+      const now = new Date();
+      const day = now.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+      const todaySchedule = schedule.find((s: any) => s.day === day);
+
+      if (!todaySchedule || !todaySchedule.isOpen) {
+        return { isOpen: false, text: 'Fechado hoje' };
+      }
+
+      const [openH, openM] = todaySchedule.open.split(':').map(Number);
+      const [closeH, closeM] = todaySchedule.close.split(':').map(Number);
+
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const openMinutes = openH * 60 + openM;
+      const closeMinutes = closeH * 60 + closeM;
+
+      if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
+        return { isOpen: true, text: `Aberto até às ${todaySchedule.close}` };
+      }
+      return { isOpen: false, text: `Fechado agora (Abre às ${todaySchedule.open})` };
+    } catch {
+      return { isOpen: false, text: 'Fechado' };
+    }
+  }, [barbershop?.openingHours]);
+
   if (loading) {
     return (
       <ScreenBackground testID="barbershop-profile-loading" style={styles.center}>
@@ -122,28 +151,97 @@ export default function BarbershopSlugScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Banner Hero */}
-        <View style={[styles.hero, isWide && styles.heroWide]}>
-          <View style={[styles.heroVisual, { backgroundColor: `${accent}16`, borderColor: `${accent}44` }]}>
-            {barbershop.logoUrl ? (
-              <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} resizeMode="cover" style={styles.heroLogo} />
-            ) : (
-              <Text style={[styles.heroMonogram, { color: accent }]}>{barbershop.name.charAt(0).toUpperCase()}</Text>
-            )}
-            <View style={[styles.heroAccent, { backgroundColor: accent }]} />
-          </View>
-          <View style={styles.heroCopy}>
-            <Text testID="barbershop-profile-eyebrow" style={[styles.eyebrow, { color: accent }]}>{t('slug.partner')}</Text>
-            <Text testID="barbershop-profile-name" style={styles.title}>{barbershop.name}</Text>
-            <Text testID="barbershop-profile-description" style={styles.description}>
-              {barbershop.description || t('slug.description_empty')}
-            </Text>
-            <View style={styles.infoGrid}>
-              <InfoItem testID="barbershop-profile-address" icon={<MapPin color={accent} size={17} />} label="Endereço" value={barbershop.address || 'Não informado'} />
-              <InfoItem testID="barbershop-profile-phone" icon={<Phone color={accent} size={17} />} label="Telefone" value={barbershop.phone || 'Não informado'} />
-              <InfoItem testID="barbershop-profile-hours" icon={<Clock3 color={accent} size={17} />} label="Funcionamento" value={barbershop.openingHours || 'Não informado'} />
-              <InfoItem testID="barbershop-profile-currency" icon={<Coins color={accent} size={17} />} label="Moeda" value={barbershop.currency || 'BRL'} />
+        {/* Banner Hero Premium */}
+        <View style={styles.heroContainer}>
+          <Image 
+            source={{ uri: barbershop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=1200' }} 
+            style={styles.bannerImage} 
+            resizeMode="cover"
+          />
+          <View style={styles.bannerOverlay} />
+        </View>
+
+        {/* Informações Principais */}
+        <View style={[styles.heroCopy, isWide && styles.heroCopyWide]}>
+          <View style={styles.brandContainer}>
+            <View style={[styles.logoCircle, { borderColor: accent }]}>
+              {barbershop.logoUrl ? (
+                <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} />
+              ) : (
+                <Text style={[styles.logoLetter, { color: accent }]}>{barbershop.name.charAt(0).toUpperCase()}</Text>
+              )}
             </View>
+            <View style={styles.titleInfo}>
+              <View style={styles.titleRow}>
+                <Text testID="barbershop-profile-name" style={styles.title}>{barbershop.name}</Text>
+                {!!barbershop.instagram && (
+                  <Pressable 
+                    onPress={() => Linking.openURL(`https://instagram.com/${barbershop.instagram}`)}
+                    style={styles.instagramBadge}
+                  >
+                    <Instagram color={accent} size={13} />
+                    <Text style={[styles.instagramBadgeText, { color: accent }]}>@{barbershop.instagram}</Text>
+                  </Pressable>
+                )}
+              </View>
+              {!!barbershop.slogan && <Text style={styles.slogan}>“{barbershop.slogan}”</Text>}
+              <Text testID="barbershop-profile-description" style={styles.description}>
+                {barbershop.description || t('slug.description_empty')}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Informações Rápidas */}
+        <View style={styles.infoGrid}>
+          <View style={styles.infoItem}>
+            <View style={styles.infoIcon}><Clock3 color={accent} size={16} /></View>
+            <View style={styles.infoCopyText}>
+              <Text style={styles.infoLabel}>Funcionamento</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                <View style={[styles.statusDot, { backgroundColor: statusInfo.isOpen ? '#30d158' : '#ff453a' }]} />
+                <Text style={[styles.statusLabelText, { color: statusInfo.isOpen ? '#30d158' : '#ff453a', fontWeight: 'bold' }]}>
+                  {statusInfo.isOpen ? 'Aberto' : 'Fechado'}
+                </Text>
+                <Text style={styles.infoValue}>· {statusInfo.text}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.infoItem}>
+            <View style={styles.infoIcon}><Phone color={accent} size={16} /></View>
+            <View style={styles.infoCopyText}>
+              <Text style={styles.infoLabel}>Contato</Text>
+              <Text style={styles.infoValue}>{barbershop.phone || 'Telefone não informado'}</Text>
+            </View>
+          </View>
+          <View style={styles.infoItem}>
+            <View style={styles.infoIcon}><Coins color={accent} size={16} /></View>
+            <View style={styles.infoCopyText}>
+              <Text style={styles.infoLabel}>Moeda Oficial</Text>
+              <Text style={styles.infoValue}>{barbershop.currency || 'BRL'}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Mapa Estético Integrado */}
+        <View style={styles.mapCard}>
+          <Image 
+            source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600' }} 
+            style={styles.mapThumbnail} 
+            resizeMode="cover"
+          />
+          <View style={styles.mapOverlay}>
+            <MapPin color={accent} size={28} />
+            <Text style={styles.mapAddress}>{barbershop.address || 'Endereço da barbearia'}</Text>
+            <AppButton 
+              label="Como Chegar (Rota)" 
+              onPress={() => {
+                const query = encodeURIComponent(barbershop.address || '');
+                Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+              }}
+              style={[styles.routeBtn, { backgroundColor: accent, borderColor: accent }]}
+              icon={<MapPin color={colors.ink} size={15} />}
+            />
           </View>
         </View>
 
@@ -168,9 +266,9 @@ export default function BarbershopSlugScreen() {
           )}
         </View>
 
-        {/* Galeria de Estilos e Fotos */}
+        {/* Galeria de Inspirações */}
         <View style={styles.section}>
-          <SectionHeading eyebrow="Galeria" title="Estilos & Inspirações" description="" />
+          <SectionHeading eyebrow="Galeria" title="Inspirações & Cortes" description="" />
           <FlatList
             data={portfolioPhotos}
             keyExtractor={(url) => url}
@@ -183,31 +281,50 @@ export default function BarbershopSlugScreen() {
           />
         </View>
 
-        {/* Equipe */}
+        {/* Equipe (LGPD Safe) */}
         <View style={styles.section}>
-          <SectionHeading testID="barbershop-team-heading" eyebrow={t('booking.step_barber')} title={t('slug.about')} description="" />
+          <SectionHeading testID="barbershop-team-heading" eyebrow={t('booking.step_barber')} title="Nossa Equipe" description="" />
           {barbers.length === 0 ? (
             <EmptyState testID="barbershop-team-empty" title={t('slug.about')} description={t('slug.team_empty')} icon={<UsersRound color={accent} size={22} />} />
           ) : (
-            <View testID="barbershop-team-grid" style={styles.cardsGrid}>
-              {barbers.map((barber) => (
-                <AppCard key={barber.id} testID={`barbershop-professional-${barber.id}`} style={styles.professionalCard}>
-                  <View style={[styles.avatar, { backgroundColor: `${accent}18` }]}>
-                    {barber.avatarUrl ? <Image source={{ uri: barber.avatarUrl }} style={styles.avatarImage} /> : <UserRound color={accent} size={22} />}
+            <FlatList
+              data={barbers}
+              keyExtractor={(barber) => barber.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12 }}
+              renderItem={({ item }) => (
+                <AppCard testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
+                  <View style={[styles.avatarCircleSmall, { backgroundColor: `${accent}18` }]}>
+                    {item.avatarUrl ? (
+                      <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                    ) : (
+                      <UserRound color={accent} size={24} />
+                    )}
                   </View>
-                  <Text style={styles.professionalName}>{barber.name}</Text>
-                  <Text style={styles.professionalRole}>{barber.role === 'admin' ? 'Proprietário' : 'Barbeiro'}</Text>
+                  <Text style={styles.professionalName}>{item.name}</Text>
+                  <Text style={styles.professionalRole}>{item.role === 'admin' ? 'Proprietário' : 'Barbeiro'}</Text>
+                  {!!item.specialties && <Text style={styles.professionalSpecialties}>{item.specialties}</Text>}
+                  {!!item.instagram && (
+                    <Pressable 
+                      onPress={() => Linking.openURL(`https://instagram.com/${item.instagram}`)}
+                      style={styles.barberInstaBtn}
+                    >
+                      <Instagram color={colors.textMuted} size={11} />
+                      <Text style={styles.barberInstaText}>@{item.instagram}</Text>
+                    </Pressable>
+                  )}
                 </AppCard>
-              ))}
-            </View>
+              )}
+            />
           )}
         </View>
 
-        {/* CTA */}
+        {/* CTA Barra Flutuante */}
         <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: colors.border, backgroundColor: '#1C1C1EE6' }]}>
           <View style={styles.ctaCopy}>
             <Text style={styles.ctaEyebrow}>{t('slug.cta')}</Text>
-            <Text style={styles.ctaTitle}>Escolha serviço, profissional e horário.</Text>
+            <Text style={styles.ctaTitle}>Garanta o seu horário na agenda.</Text>
           </View>
           <AppButton 
             label={t('slug.cta_button')} 
@@ -222,54 +339,64 @@ export default function BarbershopSlugScreen() {
   );
 }
 
-const InfoItem = ({ icon, label, value, testID }: { icon: React.ReactNode; label: string; value: string; testID: string }) => (
-  <View testID={testID} style={styles.infoItem}>
-    <View style={styles.infoIcon}>{icon}</View>
-    <View style={styles.infoCopy}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  </View>
-);
-
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: 20 },
   topbar: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, backgroundColor: '#0F0F12F2', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 3 },
   backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   topbarTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   topbarBook: { minHeight: 38, paddingVertical: 7 },
-  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 30, paddingBottom: 60 },
-  hero: { gap: 26 },
-  heroWide: { flexDirection: 'row', alignItems: 'stretch' },
-  heroVisual: { minHeight: 270, flex: 0.85, borderWidth: 1, borderRadius: radii.xl, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  heroLogo: { width: '100%', height: '100%' },
-  heroMonogram: { fontFamily: typography.display, fontSize: 76 },
-  heroAccent: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 5 },
-  heroCopy: { flex: 1.15, justifyContent: 'center', paddingVertical: 12 },
-  eyebrow: { fontFamily: typography.bodyStrong, fontSize: 10, letterSpacing: 2 },
-  title: { color: colors.text, fontFamily: typography.display, fontSize: 39, lineHeight: 44, letterSpacing: -1.8, marginTop: 10 },
-  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 20, maxWidth: 570, marginTop: 12 },
-  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
-  infoItem: { width: '48%', minWidth: 190, flexGrow: 1, flexDirection: 'row', gap: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 12 },
-  infoIcon: { width: 31, height: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.sm },
-  infoCopy: { flex: 1 },
-  infoLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.7 },
-  infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 10, lineHeight: 15, marginTop: 4 },
-  section: { marginTop: 48, gap: 18 },
+  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', paddingBottom: 80 },
+  // Hero Capa Styles
+  heroContainer: { width: '100%', height: 180, position: 'relative' },
+  bannerImage: { width: '100%', height: '100%' },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 15, 18, 0.4)' },
+  heroCopy: { paddingHorizontal: 20, marginTop: -40, zIndex: 2 },
+  heroCopyWide: { paddingHorizontal: 40 },
+  brandContainer: { flexDirection: 'row', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' },
+  logoCircle: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  logoImage: { width: '100%', height: '100%' },
+  logoLetter: { fontFamily: typography.display, fontSize: 36, fontWeight: 'bold' },
+  titleInfo: { flex: 1, minWidth: 260, justifyContent: 'flex-end' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
+  title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1, fontWeight: 'bold' },
+  slogan: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+  instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${colors.brand}12`, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderHeight: 1, borderColor: `${colors.brand}44` },
+  instagramBadgeText: { fontSize: 10, fontFamily: typography.bodyStrong },
+  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 8 },
+  // Info Grid
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, marginTop: 20 },
+  infoItem: { flex: 1, minWidth: 200, flexDirection: 'row', gap: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, padding: 14 },
+  infoIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.md },
+  infoCopyText: { flex: 1 },
+  infoLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
+  infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusLabelText: { fontSize: 11 },
+  // Mapa
+  mapCard: { marginHorizontal: 20, marginTop: 24, height: 160, borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', position: 'relative' },
+  mapThumbnail: { width: '100%', height: '100%' },
+  mapOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 15, 18, 0.75)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  mapAddress: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11, textAlign: 'center', marginTop: 8, marginBottom: 12, maxWidth: 380 },
+  routeBtn: { minHeight: 36, paddingVertical: 6, paddingHorizontal: 16 },
+  section: { marginTop: 40, paddingHorizontal: 20, gap: 16 },
   cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   serviceCard: { flex: 1, minWidth: 160, maxWidth: 260 },
   cardIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 16 },
   servicePrice: { fontFamily: typography.display, fontSize: 16, marginTop: 8 },
   serviceDuration: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
-  professionalCard: { width: 170, alignItems: 'center' },
-  avatar: { width: 58, height: 58, borderRadius: radii.lg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  // Equipe
+  professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 16 },
+  avatarCircleSmall: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
-  professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 12 },
-  professionalRole: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
+  professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 4 },
+  professionalRole: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, textTransform: 'uppercase' },
+  professionalSpecialties: { color: colors.brand, fontFamily: typography.body, fontSize: 9, textAlign: 'center', marginTop: 2 },
+  barberInstaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4, paddingHorizontal: 8, borderRadius: radii.md, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border },
+  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 9 },
   galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover', borderWidth: 1, borderColor: colors.border },
-  cta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 18, borderWidth: 1, borderRadius: radii.xl, padding: 24, marginTop: 52 },
+  cta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 18, borderWidth: 1, borderRadius: radii.xl, padding: 24, marginHorizontal: 20, marginTop: 40 },
   ctaCopy: { flex: 1, minWidth: 240 },
   ctaEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.7 },
-  ctaTitle: { color: colors.text, fontFamily: typography.display, fontSize: 20, lineHeight: 25, letterSpacing: -0.6, marginTop: 7 },
+  ctaTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, lineHeight: 22, letterSpacing: -0.6, marginTop: 7 },
 });

@@ -61,7 +61,7 @@ BEGIN
     -- ----------------------------------------------------
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -69,7 +69,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -77,7 +77,7 @@ BEGIN
         ) x;
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_created FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -85,7 +85,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO barbershops_updated FROM (
-            SELECT id, name, slug, logo_url, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.barbershops 
@@ -98,7 +98,7 @@ BEGIN
     -- ----------------------------------------------------
     IF user_role IN ('admin', 'barber') AND user_barbershop_id IS NOT NULL THEN
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -106,7 +106,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -119,7 +119,7 @@ BEGIN
         ) x;
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -127,7 +127,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
-            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours,
+            SELECT id, barbershop_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -306,7 +306,7 @@ BEGIN
 
     -- PROCESSAR TABELA: BARBERSHOPS
     IF changes->'barbershops' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'barbershops'->'updated') AS x(id uuid, name text, logo_url text, primary_color text, timezone text, currency text, description text, address text, phone text, opening_hours text, share_agendas boolean, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'barbershops'->'updated') AS x(id uuid, name text, logo_url text, banner_url text, slogan text, instagram text, primary_color text, timezone text, currency text, description text, address text, phone text, opening_hours text, share_agendas boolean, updated_at bigint) LOOP
             IF user_role != 'admin' OR user_barbershop_id != item.id THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar dados desta barbearia';
             END IF;
@@ -314,6 +314,9 @@ BEGIN
             UPDATE public.barbershops 
             SET name = COALESCE(item.name, name),
                 logo_url = COALESCE(item.logo_url, logo_url),
+                banner_url = COALESCE(item.banner_url, banner_url),
+                slogan = COALESCE(item.slogan, slogan),
+                instagram = COALESCE(item.instagram, instagram),
                 primary_color = COALESCE(item.primary_color, primary_color),
                 timezone = COALESCE(item.timezone, timezone),
                 currency = COALESCE(item.currency, currency),
@@ -427,7 +430,7 @@ BEGIN
 
     -- PROCESSAR TABELA: PROFILES
     IF changes->'profiles' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, barbershop_id uuid, name text, phone text, avatar_url text, commission_rate numeric, push_token text, work_hours text, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, barbershop_id uuid, name text, phone text, avatar_url text, commission_rate numeric, push_token text, work_hours text, specialties text, instagram text, updated_at bigint) LOOP
             IF user_id != item.id AND NOT (user_role = 'admin' AND user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
             END IF;
@@ -440,6 +443,8 @@ BEGIN
                 commission_rate = COALESCE(item.commission_rate, commission_rate),
                 push_token = COALESCE(item.push_token, push_token),
                 work_hours = COALESCE(item.work_hours, work_hours),
+                specialties = COALESCE(item.specialties, specialties),
+                instagram = COALESCE(item.instagram, instagram),
                 updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;

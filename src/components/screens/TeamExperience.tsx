@@ -41,8 +41,12 @@ export const TeamExperience = () => {
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
   const [barbers, setBarbers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Edição do barbeiro
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commission, setCommission] = useState('50');
+  const [specialties, setSpecialties] = useState('');
+  const [barberInstagram, setBarberInstagram] = useState('');
   
   // Escalas e jornadas de trabalho do barbeiro
   const [editingWorkHoursId, setEditingWorkHoursId] = useState<string | null>(null);
@@ -60,7 +64,7 @@ export const TeamExperience = () => {
     const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.barbershop_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
     const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('role', 'barber'))
+      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('role', Q.where('role', 'barber')))
       .observe().subscribe({ next: (items) => { setBarbers(items); setLoading(false); }, error: () => setLoading(false) });
     return () => { shopSub.unsubscribe(); teamSub.unsubscribe(); };
   }, [profile]);
@@ -68,6 +72,8 @@ export const TeamExperience = () => {
   const startEditing = (barber: Profile) => {
     setEditingId(barber.id);
     setCommission(String(Math.round((barber.commissionRate ?? 0.5) * 100)));
+    setSpecialties(barber.specialties || '');
+    setBarberInstagram(barber.instagram || '');
     setNotice(null);
   };
 
@@ -83,7 +89,7 @@ export const TeamExperience = () => {
     setNotice(null);
   };
 
-  const saveCommission = async (barberId: string) => {
+  const saveBarberInfo = async (barberId: string) => {
     const value = Number(commission.replace(',', '.'));
     if (!Number.isFinite(value) || value < 0 || value > 100) {
       setNotice({ tone: 'danger', message: 'Informe uma comissão entre 0% e 100%.' });
@@ -93,13 +99,17 @@ export const TeamExperience = () => {
     try {
       await database.write(async () => {
         const barber = await database.collections.get<Profile>('profiles').find(barberId);
-        await barber.update((record) => { record.commissionRate = value / 100; });
+        await barber.update((record) => { 
+          record.commissionRate = value / 100; 
+          record.specialties = specialties.trim() || null;
+          record.instagram = barberInstagram.trim() || null;
+        });
       });
       setEditingId(null);
-      setNotice({ tone: 'success', message: 'Comissão atualizada e pronta para sincronizar.' });
+      setNotice({ tone: 'success', message: 'Dados do profissional atualizados e prontos para sincronizar.' });
       sync();
     } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível atualizar a comissão.' });
+      setNotice({ tone: 'danger', message: 'Não foi possível atualizar os dados do barbeiro.' });
     } finally {
       setActionLoading(false);
     }
@@ -196,6 +206,7 @@ export const TeamExperience = () => {
                       <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                       <View style={styles.memberCopy}>
                         <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
+                        {!!barber.specialties && <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 2 }}>{barber.specialties}</Text>}
                         <Text style={styles.memberContact}>{barber.email}</Text>
                         <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
                       </View>
@@ -206,10 +217,17 @@ export const TeamExperience = () => {
                     </View>
 
                     {editingId === barber.id ? (
-                      <View testID={`team-member-${barber.id}-commission-form`} style={styles.inlineForm}>
-                        <AppInput containerStyle={styles.commissionInput} label="Nova comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
-                        <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveCommission(barber.id)} loading={actionLoading} style={styles.smallButton} />
-                        <AppButton label="Cancelar" testID={`team-member-${barber.id}-commission-cancel-button`} onPress={() => setEditingId(null)} variant="secondary" style={styles.smallButton} />
+                      <View testID={`team-member-${barber.id}-commission-form`} style={styles.expandedForm}>
+                        <Text style={styles.workHoursTitle}>Configurações do Profissional (LGPD Safe)</Text>
+                        <View style={styles.fieldsRow}>
+                          <AppInput containerStyle={{ flex: 0.5, minWidth: 100 }} label="Comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
+                          <AppInput containerStyle={{ flex: 1, minWidth: 180 }} label="Instagram (sem @)" value={barberInstagram} onChangeText={setBarberInstagram} placeholder="ex: joaobarber" />
+                        </View>
+                        <AppInput label="Especialidades / Portfólio" value={specialties} onChangeText={setSpecialties} placeholder="ex: Especialista em Degradê e Barboterapia" />
+                        <View style={styles.formActions}>
+                          <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveBarberInfo(barber.id)} loading={actionLoading} style={styles.smallButton} />
+                          <AppButton label="Cancelar" testID={`team-member-${barber.id}-commission-cancel-button`} onPress={() => setEditingId(null)} variant="secondary" style={styles.smallButton} />
+                        </View>
                       </View>
                     ) : editingWorkHoursId === barber.id ? (
                       <View testID={`team-member-${barber.id}-hours-form`} style={styles.workHoursForm}>
@@ -275,7 +293,7 @@ export const TeamExperience = () => {
                       />
                     ) : (
                       <View style={styles.memberActions}>
-                        <AppButton label="Editar comissão" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
+                        <AppButton label="Editar perfil" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
                         <AppButton label="Jornada / Escala" testID={`team-member-${barber.id}-edit-hours-button`} onPress={() => startEditingWorkHours(barber)} variant="secondary" icon={<Clock color={colors.text} size={15} />} style={styles.smallButton} />
                         <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
                       </View>
@@ -319,12 +337,12 @@ const styles = StyleSheet.create({
   commissionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.brandSoft, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
   commissionText: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
   memberActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
-  inlineForm: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
-  commissionInput: { flex: 1, minWidth: 160 },
-  confirmActions: { gap: 6 },
+  expandedForm: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, backgroundColor: colors.surface, borderRadius: radii.md },
+  fieldsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  formActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   smallButton: { minHeight: 38, paddingVertical: 7, paddingHorizontal: 12 },
   pressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
-  // Estilos da matriz de horários do profissional
+  confirmActions: { gap: 6 },
   workHoursForm: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   workHoursTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   scheduleGrid: { backgroundColor: colors.canvas, borderRadius: radii.md, padding: 12, gap: 8, borderWidth: 1, borderColor: colors.border },
