@@ -434,6 +434,8 @@ BEGIN
             IF user_id != item.id AND NOT (user_role = 'admin' AND (
                 user_barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = item.id)
                 OR (SELECT barbershop_id FROM public.profiles WHERE id = item.id) IS NULL
+                OR user_barbershop_id IS NULL
+                OR user_barbershop_id = item.barbershop_id
             )) THEN
                 RAISE EXCEPTION 'Sem permissão para atualizar este perfil';
             END IF;
