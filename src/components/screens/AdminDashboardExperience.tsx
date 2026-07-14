@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   Clock3,
+  MessageSquare,
   RefreshCw,
   Scissors,
   TrendingUp,
@@ -19,6 +20,7 @@ import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -31,6 +33,7 @@ interface RichAppointment {
   dateTime: Date;
   status: string;
   clientName: string;
+  clientPhone: string;
   serviceName: string;
   price: number;
   barberId: string;
@@ -106,17 +109,22 @@ export const AdminDashboardExperience = () => {
       .subscribe(async (items) => {
         const rich = await Promise.all(items.map(async (item) => {
           let clientName = item.clientName || 'Cliente sem cadastro';
+          let clientPhone = '';
           let serviceName = 'Serviço indisponível';
           let price = 0;
           if (item.clientId) {
-            try { clientName = (await database.collections.get<Profile>('profiles').find(item.clientId)).name; } catch {}
+            try {
+              const cl = await database.collections.get<Profile>('profiles').find(item.clientId);
+              clientName = cl.name;
+              clientPhone = cl.phone || '';
+            } catch {}
           }
           try {
             const service = await database.collections.get<Service>('services').find(item.serviceId);
             serviceName = service.name;
             price = service.price;
           } catch {}
-          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, serviceName, price, barberId: item.barberId };
+          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, clientPhone, serviceName, price, barberId: item.barberId };
         }));
         setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
         setLoading(false);
@@ -270,6 +278,18 @@ export const AdminDashboardExperience = () => {
                   </View>
                   {(item.status === 'pending' || item.status === 'confirmed') && (
                     <View style={styles.rowActions}>
+                      {!!item.clientPhone && (
+                        <AppButton 
+                          label="WhatsApp" 
+                          onPress={() => {
+                            const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${barberName(item.barberId)}.`;
+                            sendWhatsAppMessage(item.clientPhone, text);
+                          }}
+                          variant="secondary"
+                          icon={<MessageSquare color={colors.brand} size={14} />}
+                          style={styles.compactButton}
+                        />
+                      )}
                       <AppButton
                         label={item.status === 'pending' ? 'Recusar' : 'Marcar falta'}
                         testID={`admin-appointment-${item.id}-cancel-button`}

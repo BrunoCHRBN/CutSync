@@ -16,6 +16,7 @@ export default class Profile extends Model {
   @text('phone') phone?: string;
   @text('avatar_url') avatarUrl?: string;
   @field('commission_rate') commissionRate?: number;
+  @text('push_token') pushToken?: string | null;
 
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

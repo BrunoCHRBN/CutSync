@@ -37,6 +37,7 @@ CREATE TABLE public.profiles (
     phone TEXT,
     avatar_url TEXT,
     commission_rate NUMERIC DEFAULT 0.50 NOT NULL,
+    push_token TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     deleted_at TIMESTAMP WITH TIME ZONE

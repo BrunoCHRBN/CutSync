@@ -64,8 +64,8 @@ export const AppointmentsExperience = () => {
   }, [profile]);
 
   const visible = useMemo(() => appointments.filter((item) => {
-    const historical = item.dateTime.getTime() < Date.now() || item.status === 'completed' || item.status === 'cancelled';
-    return tab === 'history' ? historical : !historical;
+    const isFuture = item.dateTime.getTime() >= Date.now();
+    return tab === 'upcoming' ? isFuture : !isFuture;
   }), [appointments, tab]);
 
   const cancelAppointment = async () => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { ArrowLeft, ArrowRight, Clock3, Coins, MapPin, Phone, Scissors, Store, UserRound, UsersRound } from 'lucide-react-native';
 import { database } from '../../database';
@@ -12,7 +13,15 @@ import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { SectionHeading } from '../../components/ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
+const portfolioPhotos = [
+  'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=400',
+  'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&q=80&w=400',
+  'https://images.unsplash.com/photo-1605497746444-ac9dbd324d48?auto=format&fit=crop&q=80&w=400',
+  'https://images.unsplash.com/photo-1599351431247-f5094087e842?auto=format&fit=crop&q=80&w=400'
+];
+
 export default function BarbershopSlugScreen() {
+  const { t, i18n } = useTranslation();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
@@ -62,7 +71,14 @@ export default function BarbershopSlugScreen() {
   }, [slug]);
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/(client)');
-  const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
+  
+  const currency = (value: number) => {
+    const localeStr = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+    return new Intl.NumberFormat(localeStr, { 
+      style: 'currency', 
+      currency: barbershop?.currency || 'BRL' 
+    }).format(value);
+  };
 
   if (loading) {
     return (
@@ -77,10 +93,10 @@ export default function BarbershopSlugScreen() {
       <ScreenBackground testID="barbershop-profile-not-found" style={styles.center}>
         <EmptyState 
           testID="barbershop-profile-error" 
-          title="Barbearia não encontrada" 
+          title={t('slug.not_found')} 
           description="Este perfil pode ter sido removido ou o endereço está incorreto." 
           icon={<Store color={colors.brand} size={22} />} 
-          action={<AppButton label="Voltar para explorar" testID="barbershop-profile-error-back-button" onPress={goBack} />} 
+          action={<AppButton label={t('common.back')} testID="barbershop-profile-error-back-button" onPress={goBack} />} 
         />
       </ScreenBackground>
     );
@@ -98,7 +114,7 @@ export default function BarbershopSlugScreen() {
           {barbershop.name}
         </Text>
         <AppButton 
-          label="Agendar" 
+          label={t('client.book_button')} 
           testID="barbershop-profile-topbar-book-button" 
           onPress={() => router.push(`/${slug}/booking`)} 
           style={[styles.topbarBook, { backgroundColor: accent, borderColor: accent }]} 
@@ -106,6 +122,7 @@ export default function BarbershopSlugScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Banner Hero */}
         <View style={[styles.hero, isWide && styles.heroWide]}>
           <View style={[styles.heroVisual, { backgroundColor: `${accent}16`, borderColor: `${accent}44` }]}>
             {barbershop.logoUrl ? (
@@ -116,10 +133,10 @@ export default function BarbershopSlugScreen() {
             <View style={[styles.heroAccent, { backgroundColor: accent }]} />
           </View>
           <View style={styles.heroCopy}>
-            <Text testID="barbershop-profile-eyebrow" style={[styles.eyebrow, { color: accent }]}>PARCEIRO CUTSYNC</Text>
+            <Text testID="barbershop-profile-eyebrow" style={[styles.eyebrow, { color: accent }]}>{t('slug.partner')}</Text>
             <Text testID="barbershop-profile-name" style={styles.title}>{barbershop.name}</Text>
             <Text testID="barbershop-profile-description" style={styles.description}>
-              {barbershop.description || 'Este estabelecimento ainda não adicionou uma descrição.'}
+              {barbershop.description || t('slug.description_empty')}
             </Text>
             <View style={styles.infoGrid}>
               <InfoItem testID="barbershop-profile-address" icon={<MapPin color={accent} size={17} />} label="Endereço" value={barbershop.address || 'Não informado'} />
@@ -130,10 +147,11 @@ export default function BarbershopSlugScreen() {
           </View>
         </View>
 
+        {/* Serviços */}
         <View style={styles.section}>
-          <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços disponíveis" description="Escolha o atendimento que combina com seu momento." />
+          <SectionHeading testID="barbershop-services-heading" eyebrow={t('services.title')} title={t('slug.catalog')} description="" />
           {services.length === 0 ? (
-            <EmptyState testID="barbershop-services-empty" title="Catálogo em atualização" description="A barbearia ainda não publicou serviços ativos." icon={<Scissors color={accent} size={22} />} />
+            <EmptyState testID="barbershop-services-empty" title={t('slug.catalog')} description={t('slug.services_empty')} icon={<Scissors color={accent} size={22} />} />
           ) : (
             <View testID="barbershop-services-grid" style={styles.cardsGrid}>
               {services.map((service) => (
@@ -143,17 +161,33 @@ export default function BarbershopSlugScreen() {
                   </View>
                   <Text style={styles.serviceName}>{service.name}</Text>
                   <Text style={[styles.servicePrice, { color: accent }]}>{currency(service.price)}</Text>
-                  <Text style={styles.serviceDuration}>{service.durationMinutes} minutos</Text>
+                  <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
                 </AppCard>
               ))}
             </View>
           )}
         </View>
 
+        {/* Galeria de Estilos e Fotos */}
         <View style={styles.section}>
-          <SectionHeading testID="barbershop-team-heading" eyebrow="Profissionais" title="Quem cuida do seu estilo" description="Escolha seu profissional durante o agendamento." />
+          <SectionHeading eyebrow="Galeria" title="Estilos & Inspirações" description="" />
+          <FlatList
+            data={portfolioPhotos}
+            keyExtractor={(url) => url}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12 }}
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={styles.galleryImage} />
+            )}
+          />
+        </View>
+
+        {/* Equipe */}
+        <View style={styles.section}>
+          <SectionHeading testID="barbershop-team-heading" eyebrow={t('booking.step_barber')} title={t('slug.about')} description="" />
           {barbers.length === 0 ? (
-            <EmptyState testID="barbershop-team-empty" title="Equipe em atualização" description="Os profissionais aparecerão aqui em breve." icon={<UsersRound color={accent} size={22} />} />
+            <EmptyState testID="barbershop-team-empty" title={t('slug.about')} description={t('slug.team_empty')} icon={<UsersRound color={accent} size={22} />} />
           ) : (
             <View testID="barbershop-team-grid" style={styles.cardsGrid}>
               {barbers.map((barber) => (
@@ -169,13 +203,14 @@ export default function BarbershopSlugScreen() {
           )}
         </View>
 
+        {/* CTA */}
         <View testID="barbershop-booking-cta" style={[styles.cta, { borderColor: `${accent}55`, backgroundColor: `${accent}12` }]}>
           <View style={styles.ctaCopy}>
-            <Text style={styles.ctaEyebrow}>PRONTO PARA MUDAR O VISUAL?</Text>
+            <Text style={styles.ctaEyebrow}>{t('slug.cta')}</Text>
             <Text style={styles.ctaTitle}>Escolha serviço, profissional e horário.</Text>
           </View>
           <AppButton 
-            label="Agendar agora" 
+            label={t('slug.cta_button')} 
             testID="barbershop-profile-book-button" 
             onPress={() => router.push(`/${slug}/booking`)} 
             icon={<ArrowRight color={colors.ink} size={17} />} 
@@ -232,6 +267,7 @@ const styles = StyleSheet.create({
   avatarImage: { width: '100%', height: '100%' },
   professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 12 },
   professionalRole: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
+  galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover', borderWidth: 1, borderColor: colors.border },
   cta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 18, borderWidth: 1, borderRadius: radii.xl, padding: 24, marginTop: 52 },
   ctaCopy: { flex: 1, minWidth: 240 },
   ctaEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.7 },

@@ -48,8 +48,10 @@
   "booking": {
     "title": "Agendar Horário",
     "step_service": "1. Escolha o Serviço",
+    "service_label": "Escolha o Serviço",
     "no_services": "Nenhum serviço disponível.",
     "step_barber": "2. Escolha o Barbeiro",
+    "barber_label": "Escolha o Barbeiro",
     "no_barbers": "Nenhum profissional disponível.",
     "date_info": "📅 Data do Teste: Amanhã às 14:00h",
     "date_subinfo": "(Em um fluxo de produção real, carregaríamos a grade de horários disponíveis livres do barbeiro).",
@@ -81,5 +83,16 @@
     "no_services": "Nenhum serviço cadastrado localmente.",
     "active": "Ativo",
     "inactive": "Inativo"
+  },
+  "slug": {
+    "partner": "PARCEIRO CUTSYNC",
+    "about": "Quem cuida do seu estilo",
+    "catalog": "Serviços disponíveis",
+    "cta": "PRONTO PARA MUDAR O VISUAL?",
+    "cta_button": "Agendar agora",
+    "not_found": "Barbearia não encontrada",
+    "description_empty": "Este estabelecimento ainda não adicionou uma descrição.",
+    "services_empty": "A barbearia ainda não publicou serviços ativos.",
+    "team_empty": "Os profissionais aparecerão aqui em breve."
   }
 }

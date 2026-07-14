@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { User, Session } from '@supabase/supabase-js';
+import * as Notifications from 'expo-notifications';
 import { supabase } from '../services/supabase';
 import { database } from '../database';
 
@@ -12,6 +14,7 @@ interface Profile {
   phone: string | null;
   avatar_url: string | null;
   commission_rate?: number | null;
+  push_token?: string | null;
 }
 
 interface AuthContextData {
@@ -43,6 +46,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Erro ao carregar perfil:', error);
       } else {
         setProfile(data);
+
+        // Registrar Push Token assincronamente e atualizar se mudou
+        registerForPushNotificationsAsync().then(async (token) => {
+          if (token && data.push_token !== token) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({ push_token: token })
+                .eq('id', userId);
+            } catch (e) {
+              console.warn('Erro ao atualizar push_token remoto:', e);
+            }
+          }
+        });
       }
     } catch (err) {
       console.error('Erro no catch do perfil:', err);
@@ -116,4 +133,23 @@ export function useAuth() {
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
   return context;
+}
+
+async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'web') return null;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return null;
+    
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    return tokenData.data;
+  } catch (e) {
+    console.warn('[Push] Erro ao obter token de notificação:', e);
+    return null;
+  }
 }

@@ -48,8 +48,10 @@
   "booking": {
     "title": "Book Appointment",
     "step_service": "1. Choose Service",
+    "service_label": "Choose Service",
     "no_services": "No services available.",
     "step_barber": "2. Choose Barber",
+    "barber_label": "Choose Barber",
     "no_barbers": "No professionals available.",
     "date_info": "📅 Test Date: Tomorrow at 2:00 PM",
     "date_subinfo": "(In a real production flow, we would load the barber's available schedule).",
@@ -81,5 +83,16 @@
     "no_services": "No services registered locally.",
     "active": "Active",
     "inactive": "Inactive"
+  },
+  "slug": {
+    "partner": "CUTSYNC PARTNER",
+    "about": "Who cares for your style",
+    "catalog": "Available services",
+    "cta": "READY TO CHANGE YOUR LOOK?",
+    "cta_button": "Book now",
+    "not_found": "Barbershop not found",
+    "description_empty": "This establishment has not added a description yet.",
+    "services_empty": "The barbershop has not published active services yet.",
+    "team_empty": "Professionals will appear here soon."
   }
 }

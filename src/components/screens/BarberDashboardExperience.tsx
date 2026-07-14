@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
-import { CalendarDays, Check, Clock3, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
+import { CalendarDays, Check, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
+import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { BarberShell } from '../layout/BarberShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -25,6 +26,7 @@ interface RichAppointment {
   barberId: string;
   barberName: string;
   clientName: string;
+  clientPhone: string;
   serviceName: string;
   price: number;
   dateTime: Date;
@@ -68,7 +70,13 @@ export const BarberDashboardExperience = () => {
 
   useEffect(() => {
     if (!profile?.barbershop_id) { setLoading(false); return; }
-    const shopSub = database.collections.get<Barbershop>('barbershops').findAndObserve(profile.barbershop_id).subscribe(setBarbershop);
+    const shopSub = database.collections
+      .get<Barbershop>('barbershops')
+      .findAndObserve(profile.barbershop_id)
+      .subscribe({
+        next: (data) => setBarbershop(data),
+        error: () => console.log('Barbershop not found locally yet in barber dashboard'),
+      });
     const serviceSub = database.collections.get<Service>('services').query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true)).observe().subscribe(setServices);
     return () => { shopSub.unsubscribe(); serviceSub.unsubscribe(); };
   }, [profile]);
@@ -83,15 +91,20 @@ export const BarberDashboardExperience = () => {
     ).observe().subscribe(async (items) => {
       const rich = await Promise.all(items.map(async (appointment) => {
         let clientName = appointment.clientName || 'Cliente sem cadastro';
+        let clientPhone = '';
         let serviceName = 'Serviço indisponível';
         let price = 0;
         let barberName = 'Profissional';
         if (appointment.clientId) {
-          try { clientName = (await database.collections.get<Profile>('profiles').find(appointment.clientId)).name; } catch {}
+          try {
+            const cl = await database.collections.get<Profile>('profiles').find(appointment.clientId);
+            clientName = cl.name;
+            clientPhone = cl.phone || '';
+          } catch {}
         }
         try { const service = await database.collections.get<Service>('services').find(appointment.serviceId); serviceName = service.name; price = service.price; } catch {}
         try { barberName = (await database.collections.get<Profile>('profiles').find(appointment.barberId)).name; } catch {}
-        return { id: appointment.id, barberId: appointment.barberId, barberName, clientName, serviceName, price, dateTime: appointment.dateTime, status: appointment.status };
+        return { id: appointment.id, barberId: appointment.barberId, barberName, clientName, clientPhone, serviceName, price, dateTime: appointment.dateTime, status: appointment.status };
       }));
       setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
       setLoading(false);
@@ -217,7 +230,22 @@ export const BarberDashboardExperience = () => {
                     {cancelCandidateId === item.id ? (
                       <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
                     ) : (item.status === 'pending' || item.status === 'confirmed') && item.barberId === profile?.id ? (
-                      <View style={styles.appointmentActions}><AppButton label="Cancelar" testID={`barber-appointment-${item.id}-cancel-button`} onPress={() => setCancelCandidateId(item.id)} variant="danger" icon={<X color={colors.danger} size={14} />} style={styles.smallButton} /><AppButton label={item.status === 'pending' ? 'Confirmar' : 'Concluir'} testID={`barber-appointment-${item.id}-advance-button`} onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')} loading={actionLoadingId === item.id} icon={<Check color={colors.ink} size={14} />} style={styles.smallButton} /></View>
+                      <View style={styles.appointmentActions}>
+                        {!!item.clientPhone && (
+                          <AppButton 
+                            label="WhatsApp" 
+                            onPress={() => {
+                              const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${item.barberName}.`;
+                              sendWhatsAppMessage(item.clientPhone, text);
+                            }}
+                            variant="secondary"
+                            icon={<MessageSquare color={colors.brand} size={14} />}
+                            style={styles.smallButton}
+                          />
+                        )}
+                        <AppButton label="Cancelar" testID={`barber-appointment-${item.id}-cancel-button`} onPress={() => setCancelCandidateId(item.id)} variant="danger" icon={<X color={colors.danger} size={14} />} style={styles.smallButton} />
+                        <AppButton label={item.status === 'pending' ? 'Confirmar' : 'Concluir'} testID={`barber-appointment-${item.id}-advance-button`} onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')} loading={actionLoadingId === item.id} icon={<Check color={colors.ink} size={14} />} style={styles.smallButton} />
+                      </View>
                     ) : null}
                   </View>
                 </AppCard>

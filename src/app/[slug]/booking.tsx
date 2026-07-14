@@ -414,7 +414,7 @@ export default function BookingSlugScreen() {
             <Text style={styles.sectionTitle}>{t('booking.barber_label')}</Text>
             {filteredBarbers.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Sem profissionais disponíveis para este serviço.</Text>
+                <Text style={styles.emptyText}>{t('booking.no_barbers')}</Text>
               </View>
             ) : (
               <FlatList
@@ -449,7 +449,7 @@ export default function BookingSlugScreen() {
           {/* 3. Escolha de Dia (Grade Grid) */}
           <View style={styles.section}>
             <View style={styles.calendarHeader}>
-              <Text style={styles.sectionTitle}>Escolha o Dia</Text>
+              <Text style={styles.sectionTitle}>{t('booking.step_date', 'Escolha o Dia')}</Text>
               <View style={styles.monthSelector}>
                 <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavButton}>
                   <Text style={styles.monthNavText}>‹</Text>
@@ -505,7 +505,7 @@ export default function BookingSlugScreen() {
           {/* 4. Escolha do Horário */}
           {selectedBarber && selectedService && selectedDate && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Escolha o Horário</Text>
+              <Text style={styles.sectionTitle}>{t('booking.step_time', 'Escolha o Horário')}</Text>
               <View style={styles.timeGrid}>
                 {availableTimes.map((time) => {
                   const { duration: durationMinutes } = getServicePriceAndDuration(selectedService, selectedBarber);
@@ -558,7 +558,7 @@ export default function BookingSlugScreen() {
                 <ActivityIndicator color="#121212" />
               ) : (
                 <Text style={styles.confirmButtonText}>
-                  {user ? t('booking.button') : 'Logar e Confirmar'}
+                  {user ? t('booking.button') : t('booking.login_confirm', 'Logar e Confirmar')}
                 </Text>
               )}
             </TouchableOpacity>
@@ -574,14 +574,14 @@ export default function BookingSlugScreen() {
       <Modal visible={isAuthModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { color: primaryColor }]}>Identifique-se</Text>
-            <Text style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
+            <Text style={[styles.modalTitle, { color: primaryColor }]}>{t('login.identify', 'Identifique-se')}</Text>
+            <Text style={styles.modalDesc}>{t('login.identify_desc', 'Você precisa de uma conta rápida para concluir seu agendamento.')}</Text>
 
             {magicLinkSent ? (
               <View style={styles.magicLinkState}>
-                <Text style={styles.magicSuccessTitle}>📬 E-mail Enviado!</Text>
+                <Text style={styles.magicSuccessTitle}>📬 {t('login.email_sent', 'E-mail Enviado!')}</Text>
                 <Text style={styles.magicSuccessDesc}>
-                  Enviamos um link de login rápido para **{authEmail}**. Abra o link em seu celular/computador e retorne aqui para finalizar o agendamento!
+                  {t('login.email_sent_desc', 'Enviamos um link de login rápido para')} **{authEmail}**. {t('login.email_sent_return', 'Abra o link e retorne aqui para finalizar o agendamento!')}
                 </Text>
                 <TouchableOpacity 
                   style={[styles.modalBtn, { backgroundColor: primaryColor, marginTop: 16 }]}
@@ -601,13 +601,13 @@ export default function BookingSlugScreen() {
                     style={[styles.authTab, !isRegisterMode && styles.authTabActive]}
                     onPress={() => setIsRegisterMode(false)}
                   >
-                    <Text style={[styles.authTabText, !isRegisterMode && { color: primaryColor }]}>Sem Senha</Text>
+                    <Text style={[styles.authTabText, !isRegisterMode && { color: primaryColor }]}>{t('login.magic_link_tab', 'Sem Senha')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[styles.authTab, isRegisterMode && styles.authTabActive]}
                     onPress={() => setIsRegisterMode(true)}
                   >
-                    <Text style={[styles.authTabText, isRegisterMode && { color: primaryColor }]}>Criar Conta</Text>
+                    <Text style={[styles.authTabText, isRegisterMode && { color: primaryColor }]}>{t('register.title')}</Text>
                   </TouchableOpacity>
                 </View>
 
