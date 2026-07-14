@@ -11,12 +11,12 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
-type Role = 'client' | 'admin' | 'barber';
+type Role = 'client' | 'admin' | 'professional';
 
 const roleOptions = [
-  { value: 'client' as const, title: 'Sou cliente', description: 'Quero encontrar barbearias e marcar horários.', Icon: UserRound },
-  { value: 'admin' as const, title: 'Tenho uma barbearia', description: 'Quero organizar agenda, equipe e resultados.', Icon: Building2 },
-  { value: 'barber' as const, title: 'Sou profissional', description: 'Quero entrar na equipe de uma barbearia.', Icon: Scissors },
+  { value: 'client' as const, title: 'Sou cliente', description: 'Quero encontrar estabelecimentos e marcar horários.', Icon: UserRound },
+  { value: 'admin' as const, title: 'Tenho um estabelecimento', description: 'Quero organizar agenda, equipe e resultados.', Icon: Building2 },
+  { value: 'professional' as const, title: 'Sou profissional', description: 'Quero entrar na equipe de um estabelecimento.', Icon: Scissors },
 ];
 
 export const RegisterExperience = () => {
@@ -89,8 +89,8 @@ export const RegisterExperience = () => {
       setError('Informe o nome e o endereço digital da sua barbearia.');
       return;
     }
-    if (role === 'barber' && !cleanSlug) {
-      setError('Informe o código da barbearia que convidou você.');
+    if (role === 'professional' && !cleanSlug) {
+      setError('Informe o código do estabelecimento que convidou você.');
       return;
     }
     if (role === 'admin' && !/^#[0-9A-Fa-f]{6}$/.test(primaryColor)) {
@@ -110,13 +110,13 @@ export const RegisterExperience = () => {
           timezone: 'America/Sao_Paulo',
           currency: 'BRL',
         }).select('id').single();
-        if (shopError) throw new Error(shopError.code === '23505' ? 'Este endereço digital já está em uso.' : 'Não foi possível criar a barbearia.');
+        if (shopError) throw new Error(shopError.code === '23505' ? 'Este endereço digital já está em uso.' : 'Não foi possível criar o estabelecimento.');
         barbershopId = data.id;
       }
 
-      if (role === 'barber') {
+      if (role === 'professional') {
         const { data, error: shopError } = await supabase.from('establishments').select('id').eq('slug', cleanSlug).single();
-        if (shopError || !data) throw new Error('Não encontramos uma barbearia com esse código.');
+        if (shopError || !data) throw new Error('Não encontramos um estabelecimento com esse código.');
         barbershopId = data.id;
       }
 
@@ -187,7 +187,7 @@ export const RegisterExperience = () => {
 
               {role === 'admin' && (
                 <View testID="register-admin-fields" style={styles.extraFields}>
-                  <Text style={styles.extraTitle}>Sua barbearia</Text>
+                  <Text style={styles.extraTitle}>Seu estabelecimento</Text>
                   <AppInput label="Nome comercial" testID="register-shop-name-input" icon={<Building2 color={colors.textMuted} size={17} />} placeholder="Ex.: Navalha Studio" value={shopName} onChangeText={setShopName} />
                   <View style={styles.fieldsRow}>
                     <AppInput containerStyle={styles.halfField} label="Endereço digital" testID="register-shop-slug-input" icon={<Link2 color={colors.textMuted} size={17} />} placeholder="navalha-studio" value={slug} onChangeText={setSlug} autoCapitalize="none" hint={cleanSlug ? `cutsync.com/${cleanSlug}` : 'Use letras, números e hífens.'} />
@@ -200,10 +200,10 @@ export const RegisterExperience = () => {
                 </View>
               )}
 
-              {role === 'barber' && (
+              {role === 'professional' && (
                 <View testID="register-barber-fields" style={styles.extraFields}>
                   <Text style={styles.extraTitle}>Entrar em uma equipe</Text>
-                  <AppInput label="Código da barbearia" testID="register-barbershop-code-input" icon={<Link2 color={colors.textMuted} size={17} />} placeholder="Código enviado pelo gestor" value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Peça esse código ao responsável pela barbearia." />
+                  <AppInput label="Código do estabelecimento" testID="register-barbershop-code-input" icon={<Link2 color={colors.textMuted} size={17} />} placeholder="Código enviado pelo gestor" value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Peça esse código ao responsável pelo estabelecimento." />
                 </View>
               )}
 

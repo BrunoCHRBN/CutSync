@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 8,
+  version: 9,
   tables: [
     tableSchema({
       name: 'establishments',
@@ -39,6 +39,7 @@ export default appSchema({
         { name: 'work_hours', type: 'string', isOptional: true },
         { name: 'specialties', type: 'string', isOptional: true },
         { name: 'instagram', type: 'string', isOptional: true },
+        { name: 'titulo_profissional', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

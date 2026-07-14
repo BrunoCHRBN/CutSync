@@ -409,7 +409,7 @@ export default function ManageServicesScreen() {
                     onPress={() => openPricesConfig(item)}
                   >
                     <Text style={[styles.ratesConfigLinkText, { color: primaryColor }]}>
-                      ⚙️ Configurar Tarifas por Barbeiro
+                      ⚙️ Configurar Tarifas por Profissional
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -419,13 +419,13 @@ export default function ManageServicesScreen() {
         )}
       </View>
 
-      {/* Modal: Tarifas por Barbeiro */}
+      {/* Modal: Tarifas por Profissional */}
       {isPricesModalOpen && selectedServiceForPrices && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Configurar Tarifas</Text>
             <Text style={styles.modalSubtitle}>
-              Defina preços e durações específicos para cada barbeiro para o serviço: {selectedServiceForPrices.name}
+              Defina preços e durações específicos para cada profissional para o serviço: {selectedServiceForPrices.name}
             </Text>
 
             <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>

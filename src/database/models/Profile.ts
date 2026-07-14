@@ -20,6 +20,7 @@ export default class Profile extends Model {
   @text('work_hours') workHours?: string | null;
   @text('specialties') specialties?: string | null;
   @text('instagram') instagram?: string | null;
+  @text('titulo_profissional') tituloProfissional?: string | null;
 
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

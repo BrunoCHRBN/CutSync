@@ -42,13 +42,14 @@ export const TeamExperience = () => {
   const [barbers, setBarbers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Edição do barbeiro
+  // Edição do profissional
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commission, setCommission] = useState('50');
   const [specialties, setSpecialties] = useState('');
   const [barberInstagram, setBarberInstagram] = useState('');
+  const [tituloProfissional, setTituloProfissional] = useState('');
   
-  // Escalas e jornadas de trabalho do barbeiro
+  // Escalas e jornadas de trabalho do profissional
   const [editingWorkHoursId, setEditingWorkHoursId] = useState<string | null>(null);
   const [workHoursSchedule, setWorkHoursSchedule] = useState<DaySchedule[]>(defaultSchedule);
 
@@ -64,7 +65,7 @@ export const TeamExperience = () => {
     const shopSub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id)
       .subscribe({ next: setBarbershop, error: () => setLoading(false) });
     const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', 'barber'))
+      .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', Q.oneOf(['professional', 'barber'])))
       .observe().subscribe({ next: (items) => { setBarbers(items); setLoading(false); }, error: () => setLoading(false) });
     return () => { shopSub.unsubscribe(); teamSub.unsubscribe(); };
   }, [profile]);
@@ -74,6 +75,7 @@ export const TeamExperience = () => {
     setCommission(String(Math.round((barber.commissionRate ?? 0.5) * 100)));
     setSpecialties(barber.specialties || '');
     setBarberInstagram(barber.instagram || '');
+    setTituloProfissional(barber.tituloProfissional || '');
     setNotice(null);
   };
 
@@ -103,13 +105,14 @@ export const TeamExperience = () => {
           record.commissionRate = value / 100; 
           record.specialties = specialties.trim() || null;
           record.instagram = barberInstagram.trim() || null;
+          record.tituloProfissional = tituloProfissional.trim() || null;
         });
       });
       setEditingId(null);
       setNotice({ tone: 'success', message: 'Dados do profissional atualizados e prontos para sincronizar.' });
       sync();
     } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível atualizar os dados do barbeiro.' });
+      setNotice({ tone: 'danger', message: 'Não foi possível atualizar os dados do profissional.' });
     } finally {
       setActionLoading(false);
     }
@@ -206,7 +209,9 @@ export const TeamExperience = () => {
                       <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                       <View style={styles.memberCopy}>
                         <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
-                        {!!barber.specialties && <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 2 }}>{barber.specialties}</Text>}
+                        <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 2 }}>
+                          {barber.tituloProfissional || 'Especialista'}{barber.specialties ? ` • ${barber.specialties}` : ''}
+                        </Text>
                         <Text style={styles.memberContact}>{barber.email}</Text>
                         <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
                       </View>
@@ -223,6 +228,7 @@ export const TeamExperience = () => {
                           <AppInput containerStyle={{ flex: 0.5, minWidth: 100 }} label="Comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
                           <AppInput containerStyle={{ flex: 1, minWidth: 180 }} label="Instagram (sem @)" testID={`team-member-${barber.id}-instagram-input`} value={barberInstagram} onChangeText={setBarberInstagram} placeholder="ex: joaobarber" />
                         </View>
+                        <AppInput label="Título Profissional (Ex: Nail Designer, Barbeiro, Manicure)" testID={`team-member-${barber.id}-title-input`} value={tituloProfissional} onChangeText={setTituloProfissional} placeholder="Ex: Nail Designer" />
                         <AppInput label="Especialidades / Portfólio" testID={`team-member-${barber.id}-specialties-input`} value={specialties} onChangeText={setSpecialties} placeholder="ex: Especialista em Degradê e Barboterapia" />
                         <View style={styles.formActions}>
                           <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveBarberInfo(barber.id)} loading={actionLoading} style={styles.smallButton} />

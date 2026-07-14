@@ -593,22 +593,50 @@ export const AdminDashboardExperience = () => {
           <ChevronLeft color={colors.textSecondary} size={18} />
         </Pressable>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector} style={{ flex: 1 }}>
-          {dateOptions.map((item) => {
-            const selected = selectedDate.toDateString() === item.date.toDateString();
-            return (
-              <Pressable
-                key={item.id}
-                testID={`admin-date-${item.id}`}
-                onPress={() => setSelectedDate(item.date)}
-                style={({ pressed }) => [styles.dateItem, selected && styles.dateItemSelected, pressed && styles.pressed]}
-              >
-                <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>{item.weekDay}</Text>
-                <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{item.day}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+          {isWide ? (
+            <View style={styles.dateSelectorWide}>
+              {dateOptions.map((item) => {
+                const selected = selectedDate.toDateString() === item.date.toDateString();
+                return (
+                  <Pressable
+                    key={item.id}
+                    testID={`admin-date-${item.id}`}
+                    onPress={() => setSelectedDate(item.date)}
+                    style={({ pressed }) => [
+                      styles.dateItem,
+                      styles.dateItemWide,
+                      selected && styles.dateItemSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>{item.weekDay}</Text>
+                    <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{item.day}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector} style={{ flex: 1 }}>
+              {dateOptions.map((item) => {
+                const selected = selectedDate.toDateString() === item.date.toDateString();
+                return (
+                  <Pressable
+                    key={item.id}
+                    testID={`admin-date-${item.id}`}
+                    onPress={() => setSelectedDate(item.date)}
+                    style={({ pressed }) => [
+                      styles.dateItem,
+                      selected && styles.dateItemSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>{item.weekDay}</Text>
+                    <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{item.day}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
 
         <Pressable 
           testID="admin-calendar-next"
@@ -924,7 +952,9 @@ const styles = StyleSheet.create({
   quickActionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, flex: 1 },
   dateHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 42 },
   dateSelector: { flexDirection: 'row', gap: 8, marginTop: 18, overflow: 'hidden' },
+  dateSelectorWide: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 8, marginTop: 18 },
   dateItem: { flex: 1, minWidth: 48, maxWidth: 76, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
+  dateItemWide: { flex: 1, maxWidth: 120 },
   dateItemSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 17, marginTop: 3 },

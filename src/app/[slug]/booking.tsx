@@ -467,7 +467,7 @@ export default function BookingSlugScreen() {
                     >
                       <Text style={styles.cardName}>{item.name}</Text>
                       <Text style={styles.cardSubText}>
-                        {item.role === 'admin' ? 'PROPRIETÁRIO' : 'COLABORADOR'}
+                        {item.tituloProfissional ? item.tituloProfissional.toUpperCase() : 'ESPECIALISTA'}
                         {selectedService && customPrice > 0 && ` • ${formatPrice(customPrice)}`}
                       </Text>
                     </TouchableOpacity>

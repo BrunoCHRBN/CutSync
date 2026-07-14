@@ -507,7 +507,7 @@ function LegacyAdminDashboard() {
                   <View style={[styles.columnHeader, { borderBottomColor: primaryColor }]}>
                     <Text style={styles.columnBarberName} numberOfLines={1}>{barber.name}</Text>
                     <Text style={styles.columnBarberRole}>
-                      {barber.role === 'admin' ? 'PROPRIETÁRIO' : 'COLABORADOR'}
+                      {barber.tituloProfissional ? barber.tituloProfissional.toUpperCase() : 'ESPECIALISTA'}
                     </Text>
                   </View>
 

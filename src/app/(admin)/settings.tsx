@@ -188,7 +188,7 @@ function LegacyBarbershopSettingsScreen() {
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={styles.toggleLabel}>Compartilhar Agendas</Text>
             <Text style={styles.toggleSubText}>
-              Permitir que barbeiros vejam os horários ocupados uns dos outros para agendamento cruzado.
+              Permitir que os profissionais vejam os horários ocupados uns dos outros para agendamento cruzado.
             </Text>
           </View>
           <Switch

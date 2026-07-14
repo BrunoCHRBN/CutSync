@@ -523,7 +523,7 @@ BEGIN
 
     -- PROCESSAR TABELA: PROFILES
     IF changes->'profiles' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, establishment_id uuid, name text, phone text, avatar_url text, commission_rate numeric, push_token text, work_hours text, specialties text, instagram text, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'profiles'->'updated') AS x(id uuid, establishment_id uuid, name text, phone text, avatar_url text, commission_rate numeric, push_token text, work_hours text, specialties text, instagram text, titulo_profissional text, updated_at bigint) LOOP
             IF user_id != item.id AND NOT EXISTS (
                 SELECT 1 FROM public.profile_establishments admin_link
                 WHERE admin_link.profile_id = user_id 
@@ -547,6 +547,7 @@ BEGIN
                 work_hours = COALESCE(item.work_hours, work_hours),
                 specialties = COALESCE(item.specialties, specialties),
                 instagram = COALESCE(item.instagram, instagram),
+                titulo_profissional = COALESCE(item.titulo_profissional, titulo_profissional),
                 updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;

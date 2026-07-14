@@ -362,13 +362,60 @@ export const BarberDashboardExperience = () => {
             <ChevronLeft color={colors.textSecondary} size={18} />
           </Pressable>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList} style={{ flex: 1 }}>
-            {dateOptions.map((date) => {
-              const id = date.toISOString().split('T')[0];
-              const selected = selectedDate.toDateString() === date.toDateString();
-              return <Pressable key={id} testID={`barber-date-${id}`} onPress={() => setSelectedDate(date)} style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, pressed && styles.pressed]}><Text style={[styles.dateWeek, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text><Text style={[styles.dateDay, selected && styles.selectedInk]}>{date.getDate()}</Text></Pressable>;
-            })}
-          </ScrollView>
+          {isWide ? (
+            <View style={styles.dateListWide}>
+              {dateOptions.map((date) => {
+                const id = date.toISOString().split('T')[0];
+                const selected = selectedDate.toDateString() === date.toDateString();
+                return (
+                  <Pressable
+                    key={id}
+                    testID={`barber-date-${id}`}
+                    onPress={() => setSelectedDate(date)}
+                    style={({ pressed }) => [
+                      styles.dateCard,
+                      styles.dateCardWide,
+                      selected && styles.dateCardSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.dateWeek, selected && styles.selectedInk]}>
+                      {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                    </Text>
+                    <Text style={[styles.dateDay, selected && styles.selectedInk]}>
+                      {date.getDate()}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList} style={{ flex: 1 }}>
+              {dateOptions.map((date) => {
+                const id = date.toISOString().split('T')[0];
+                const selected = selectedDate.toDateString() === date.toDateString();
+                return (
+                  <Pressable
+                    key={id}
+                    testID={`barber-date-${id}`}
+                    onPress={() => setSelectedDate(date)}
+                    style={({ pressed }) => [
+                      styles.dateCard,
+                      selected && styles.dateCardSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.dateWeek, selected && styles.selectedInk]}>
+                      {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                    </Text>
+                    <Text style={[styles.dateDay, selected && styles.selectedInk]}>
+                      {date.getDate()}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <Pressable 
             testID="barber-calendar-next"
@@ -613,7 +660,9 @@ const styles = StyleSheet.create({
   agendaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 14, marginTop: 42, marginBottom: 17 },
   syncButton: { minHeight: 40, paddingVertical: 8 },
   dateList: { gap: 8, paddingVertical: 14 },
+  dateListWide: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 14, gap: 8 },
   dateCard: { width: 62, alignItems: 'center', paddingVertical: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  dateCardWide: { flex: 1, maxWidth: 120 },
   dateCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },

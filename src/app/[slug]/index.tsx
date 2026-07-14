@@ -415,7 +415,7 @@ export default function BarbershopSlugScreen() {
                       )}
                     </View>
                     <Text style={styles.professionalName}>{item.name}</Text>
-                    <Text style={styles.professionalRole}>{item.role === 'admin' ? 'Proprietário' : 'Profissional'}</Text>
+                    <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                     {!!item.specialties && <Text style={styles.professionalSpecialties}>{item.specialties}</Text>}
                     {!!item.instagram && (
                       <View style={styles.barberInstaBtn}>

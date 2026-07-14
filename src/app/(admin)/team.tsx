@@ -44,7 +44,7 @@ function LegacyManageBarbersScreen() {
       .get<Profile>('profiles')
       .query(
         Q.where('establishment_id', profile.establishment_id),
-        Q.where('role', 'barber')
+        Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))
       );
 
     const bListSub = barbersQuery.observe().subscribe({
@@ -62,7 +62,7 @@ function LegacyManageBarbersScreen() {
   }, [profile]);
 
   const handleRemoveBarber = async (barberId: string) => {
-    const confirmText = 'Você tem certeza que deseja remover este barbeiro da sua equipe? Ele não aparecerá mais para agendamentos de clientes.';
+    const confirmText = 'Você tem certeza que deseja remover este profissional da sua equipe? Ele não aparecerá mais para agendamentos de clientes.';
     
     console.warn(confirmText);
     return;
@@ -72,14 +72,14 @@ function LegacyManageBarbersScreen() {
       await database.write(async () => {
         const pRecord = await database.collections.get<Profile>('profiles').find(barberId);
         await pRecord.update((record) => {
-          record.establishmentId = null; // desvincula da barbearia
+          record.establishmentId = null; // desvincula do estabelecimento
         });
       });
       
       displayAlert('Sucesso', 'Profissional removido da equipe com sucesso!');
       sync();
     } catch (err) {
-      displayAlert('Erro', 'Não foi possível desvincular o barbeiro.');
+      displayAlert('Erro', 'Não foi possível desvincular o profissional.');
     } finally {
       setActionLoadingId(null);
     }
@@ -139,9 +139,9 @@ function LegacyManageBarbersScreen() {
         ListHeaderComponent={
           /* Instruções de convite (Como o barbeiro se cadastra e entra na equipe) */
           <View style={styles.instructionCard}>
-            <Text style={[styles.instructionTitle, { color: primaryColor }]}>Como Adicionar Barbeiros</Text>
+            <Text style={[styles.instructionTitle, { color: primaryColor }]}>Como Adicionar Profissionais</Text>
             <Text style={styles.instructionText}>
-              Para adicionar profissionais à sua equipe contratada, instrua-os a fazer o cadastro no Cutsync escolhendo a opção de perfil <Text style={{ fontWeight: 'bold', color: colors.text }}>Barbeiro</Text> e informando o seguinte código do salão:
+              Para adicionar profissionais à sua equipe contratada, instrua-os a fazer o cadastro no Cutsync escolhendo a opção de perfil <Text style={{ fontWeight: 'bold', color: colors.text }}>Profissional</Text> e informando o seguinte código do estabelecimento:
             </Text>
             <View style={styles.slugContainer}>
               <Text style={[styles.slugText, { color: primaryColor }]}>{barbershop?.slug}</Text>
@@ -153,7 +153,7 @@ function LegacyManageBarbersScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Nenhum barbeiro funcionário cadastrado na equipe ainda.</Text>
+            <Text style={styles.emptyText}>Nenhum profissional cadastrado na equipe ainda.</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -166,6 +166,7 @@ function LegacyManageBarbersScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.barberName}>{item.name}</Text>
+                <Text style={{ fontSize: 10, color: colors.brand, fontWeight: 'bold', marginVertical: 2 }}>{item.tituloProfissional || 'Especialista'}</Text>
                 <Text style={styles.barberEmail}>{item.email}</Text>
                 <Text style={styles.barberPhone}>{item.phone || 'Sem telefone cadastrado'}</Text>
                 <TouchableOpacity 

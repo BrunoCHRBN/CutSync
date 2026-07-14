@@ -186,7 +186,7 @@ function LegacyBarbershopDetailsScreen() {
                   </View>
                   <Text style={styles.barberName} numberOfLines={1}>{item.name}</Text>
                   <Text style={styles.barberRole}>
-                    {item.role === 'admin' ? 'PROPRIETÁRIO' : 'BARBEIRO'}
+                    {item.tituloProfissional ? item.tituloProfissional.toUpperCase() : 'ESPECIALISTA'}
                   </Text>
                 </View>
               )}

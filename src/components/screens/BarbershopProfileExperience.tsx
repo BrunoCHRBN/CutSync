@@ -387,7 +387,7 @@ export const BarbershopProfileExperience = () => {
                     )}
                   </View>
                   <Text style={styles.professionalName}>{item.name}</Text>
-                  <Text style={styles.professionalRole}>{item.role === 'admin' ? 'Proprietário' : 'Barbeiro'}</Text>
+                  <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                   {!!item.specialties && <Text style={styles.professionalSpecialties}>{item.specialties}</Text>}
                   {!!item.instagram && (
                     <Pressable 

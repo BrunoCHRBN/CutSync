@@ -45,6 +45,7 @@ CREATE TABLE public.profiles (
     work_hours TEXT,
     specialties TEXT,
     instagram TEXT,
+    titulo_profissional TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     deleted_at TIMESTAMP WITH TIME ZONE
