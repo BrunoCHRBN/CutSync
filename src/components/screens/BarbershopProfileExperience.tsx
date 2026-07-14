@@ -80,14 +80,25 @@ export const BarbershopProfileExperience = () => {
     if (!barbershopId) { setLoading(false); return; }
     const load = async () => {
       try {
-        const [shop, serviceList, barberList] = await Promise.all([
-          database.collections.get<Barbershop>('barbershops').find(barbershopId),
-          database.collections.get<Service>('services').query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true)).fetch(),
-          database.collections.get<Profile>('profiles').query(Q.where('barbershop_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
-        ]);
-        setBarbershop(shop); setServices(serviceList); setBarbers(barberList);
+        const shops = await database.collections.get<Barbershop>('barbershops')
+          .query(Q.where('id', barbershopId))
+          .fetch();
+        const shop = shops[0] || null;
+        setBarbershop(shop);
+
+        if (shop) {
+          const [serviceList, barberList] = await Promise.all([
+            database.collections.get<Service>('services').query(Q.where('barbershop_id', barbershopId), Q.where('is_active', true)).fetch(),
+            database.collections.get<Profile>('profiles').query(Q.where('barbershop_id', barbershopId), Q.where('role', Q.oneOf(['barber', 'admin']))).fetch(),
+          ]);
+          setServices(serviceList);
+          setBarbers(barberList);
+        } else {
+          setServices([]);
+          setBarbers([]);
+        }
       } catch (err) {
-        console.error('Erro ao carregar detalhes da barbearia:', err);
+        console.warn('Erro ao carregar detalhes da barbearia:', err);
       } finally {
         setLoading(false);
       }
