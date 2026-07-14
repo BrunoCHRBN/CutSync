@@ -10,6 +10,11 @@ const adapter = new LokiJSAdapter({
   extraLokiOptions: {
     autosave: false,
   },
+  extraIncrementalIDBOptions: {
+    onversionchange: () => {
+      window.location.reload();
+    },
+  },
 });
 
 export const database = new Database({

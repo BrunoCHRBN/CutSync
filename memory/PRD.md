@@ -43,6 +43,13 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 - Deep-links amigáveis e protegidos: `/admin/barbers`, `/admin/services`, `/admin/settings` e `/barber`.
 - Diálogos bloqueantes removidos das experiências migradas; feedback agora usa avisos inline.
 - Guia de autenticação de QA adicionado em `/app/auth_testing.md`.
+- Jornada do cliente migrada com navegação própria responsiva para Explorar e Agendamentos.
+- Explorar redesenhado com busca, cards responsivos e informações reais de cada estabelecimento.
+- Meus Agendamentos criado com filtro obrigatório por cliente, abas de próximos/histórico e cancelamento inline apenas para horários futuros.
+- Perfil da Barbearia redesenhado com dados reais, serviços ativos, profissionais e CTAs de agendamento.
+- Deep-links `/explore` e `/appointments` adicionados e protegidos por sessão.
+- IndexedDB web reforçado para recargas concorrentes com `onversionchange`.
+- Dados fictícios e diálogos bloqueantes removidos de todo o fluxo do cliente.
 
 ## Backlog priorizado
 
@@ -68,7 +75,7 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 
 ## Próximas tarefas
 
-1. Redesenhar Explorar, Meus Agendamentos e Perfil da Barbearia do cliente.
-2. Remover definitivamente o código legado das rotas já migradas.
-3. Criar seed/credenciais de QA e validar áreas autenticadas com dados reais.
+1. Remover definitivamente o código legado das rotas já migradas.
+2. Criar seed/credenciais de QA e validar áreas autenticadas com dados reais.
+3. Criar perfil público por slug, compartilhável sem login.
 4. Adicionar analytics de conversão entre perfil público, escolha de serviço e confirmação.

@@ -6,8 +6,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { database } from '../../database';
 import { Barbershop, Appointment } from '../../database/models';
+import { ExploreExperience } from '../../components/screens/ExploreExperience';
 
-export default function ClientDashboard() {
+export default ExploreExperience;
+
+function LegacyClientDashboard() {
   const { t, i18n } = useTranslation();
   const { profile, signOut } = useAuth();
   const { isSyncing, syncError, sync } = useSync();
