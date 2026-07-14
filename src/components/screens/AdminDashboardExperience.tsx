@@ -84,6 +84,11 @@ export const AdminDashboardExperience = () => {
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [occupiedTimes, setOccupiedTimes] = useState<string[]>([]);
+
+  // Estados locais para Encaixe Rápido
+  const [quickDate, setQuickDate] = useState<Date>(new Date());
+  const [quickOccupiedTimes, setQuickOccupiedTimes] = useState<string[]>([]);
 
   const dateOptions = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const offset = index - 3;
@@ -180,6 +185,59 @@ export const AdminDashboardExperience = () => {
 
     return () => sub.unsubscribe();
   }, [profile, selectedDate, period]);
+
+  useEffect(() => {
+    if (!rescheduleItem || !newRescheduleDate) {
+      setOccupiedTimes([]);
+      return;
+    }
+    const startOfDay = new Date(newRescheduleDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(newRescheduleDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    database.collections.get<Appointment>('appointments')
+      .query(
+        Q.where('barber_id', rescheduleItem.barberId),
+        Q.where('status', Q.notEq('cancelled')),
+        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime())),
+        Q.where('id', Q.notEq(rescheduleItem.id))
+      )
+      .fetch()
+      .then((items) => {
+        const times = items.map(item => {
+          return item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        });
+        setOccupiedTimes(times);
+      })
+      .catch(() => setOccupiedTimes([]));
+  }, [rescheduleItem, newRescheduleDate]);
+
+  useEffect(() => {
+    if (!quickOpen || !quickBarber || !quickDate) {
+      setQuickOccupiedTimes([]);
+      return;
+    }
+    const startOfDay = new Date(quickDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(quickDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    database.collections.get<Appointment>('appointments')
+      .query(
+        Q.where('barber_id', quickBarber),
+        Q.where('status', Q.notEq('cancelled')),
+        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
+      )
+      .fetch()
+      .then((items) => {
+        const times = items.map(item => {
+          return item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        });
+        setQuickOccupiedTimes(times);
+      })
+      .catch(() => setQuickOccupiedTimes([]));
+  }, [quickOpen, quickBarber, quickDate]);
 
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed', reason?: string) => {
     if (status === 'cancelled' && !reason) {
@@ -281,7 +339,7 @@ export const AdminDashboardExperience = () => {
       }
       return;
     }
-    const dateTime = new Date(selectedDate);
+    const dateTime = new Date(quickDate);
     const [hours, minutes] = quickTime.split(':').map(Number);
     dateTime.setHours(hours, minutes, 0, 0);
     const service = services.find((item) => item.id === quickService);
@@ -466,7 +524,13 @@ export const AdminDashboardExperience = () => {
           <AppButton
             label="+ Novo Agendamento"
             testID="admin-new-booking-button"
-            onPress={() => setQuickOpen(true)}
+            onPress={() => {
+              setQuickOpen(true);
+              setQuickDate(selectedDate);
+              setQuickTime(null);
+              setQuickBarber(null);
+              setQuickService(null);
+            }}
             icon={<Plus color={colors.ink} size={17} />}
             style={{ backgroundColor: colors.brand, borderColor: colors.brand }}
           />
@@ -634,6 +698,27 @@ export const AdminDashboardExperience = () => {
                 ))}
               </View>
 
+               <Text style={styles.fieldLabel}>Selecione o Dia</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector}>
+                {dateOptions.map((opt) => {
+                  const selected = quickDate.toDateString() === opt.date.toDateString();
+                  return (
+                    <Pressable 
+                      key={opt.id} 
+                      onPress={() => { setQuickDate(opt.date); setQuickTime(null); }} 
+                      style={[styles.dateItem, selected && styles.dateItemSelected]}
+                    >
+                      <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>
+                        {opt.weekDay}
+                      </Text>
+                      <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>
+                        {opt.day}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
               <Text style={styles.fieldLabel}>Serviço</Text>
               <View style={styles.choiceGrid}>
                 {services.map((service) => (
@@ -651,18 +736,33 @@ export const AdminDashboardExperience = () => {
                 ))}
               </View>
 
-              <Text style={styles.fieldLabel}>Horário em {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
+              <Text style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
               <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => (
-                  <Pressable 
-                    key={slot} 
-                    testID={`admin-quick-time-${slot.replace(':', '-')}`} 
-                    onPress={() => setQuickTime(slot)} 
-                    style={({ pressed }) => [styles.timeSlot, quickTime === slot && styles.timeSlotSelected, pressed && styles.pressed]}
-                  >
-                    <Text style={[styles.timeSlotText, quickTime === slot && styles.selectedInk]}>{slot}</Text>
-                  </Pressable>
-                ))}
+                {quickTimes.map((slot) => {
+                  const isOccupied = quickOccupiedTimes.includes(slot);
+                  return (
+                    <Pressable 
+                      key={slot} 
+                      testID={`admin-quick-time-${slot.replace(':', '-')}`} 
+                      disabled={isOccupied}
+                      onPress={() => setQuickTime(slot)} 
+                      style={({ pressed }) => [
+                        styles.timeSlot, 
+                        quickTime === slot && styles.timeSlotSelected, 
+                        isOccupied && styles.timeSlotOccupied,
+                        pressed && styles.pressed
+                      ]}
+                    >
+                      <Text style={[
+                        styles.timeSlotText, 
+                        quickTime === slot && styles.dateTextSelected,
+                        isOccupied && styles.timeSlotTextOccupied
+                      ]}>
+                        {slot}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               <AppButton 
@@ -718,17 +818,29 @@ export const AdminDashboardExperience = () => {
 
               <Text style={styles.fieldLabel}>Selecione o novo horário</Text>
               <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => (
-                  <Pressable 
-                    key={slot} 
-                    onPress={() => setNewRescheduleTime(slot)} 
-                    style={[styles.timeSlot, newRescheduleTime === slot && styles.timeSlotSelected]}
-                  >
-                    <Text style={[styles.timeSlotText, newRescheduleTime === slot && styles.dateTextSelected]}>
-                      {slot}
-                    </Text>
-                  </Pressable>
-                ))}
+                {quickTimes.map((slot) => {
+                  const isOccupied = occupiedTimes.includes(slot);
+                  return (
+                    <Pressable 
+                      key={slot} 
+                      disabled={isOccupied}
+                      onPress={() => setNewRescheduleTime(slot)} 
+                      style={[
+                        styles.timeSlot, 
+                        newRescheduleTime === slot && styles.timeSlotSelected,
+                        isOccupied && styles.timeSlotOccupied
+                      ]}
+                    >
+                      <Text style={[
+                        styles.timeSlotText, 
+                        newRescheduleTime === slot && styles.dateTextSelected,
+                        isOccupied && styles.timeSlotTextOccupied
+                      ]}>
+                        {slot}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               <AppButton 
@@ -830,4 +942,13 @@ const styles = StyleSheet.create({
   periodTabText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.bodyStrong },
   periodTabActiveText: { color: colors.ink },
   cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
+  timeSlotOccupied: {
+    backgroundColor: '#ff444408',
+    borderColor: '#ff444422',
+    opacity: 0.5,
+  },
+  timeSlotTextOccupied: {
+    color: '#ff444470',
+    textDecorationLine: 'line-through',
+  },
 });
