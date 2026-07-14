@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
-import { Appointment, Service, Profile, Barbershop } from '../../database/models';
+import { Appointment, Service, Profile, Barbershop, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 
@@ -30,6 +30,7 @@ export default function BarberDashboardScreen() {
   const [allAppointments, setAllAppointments] = useState<AppointmentDetail[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [barberServices, setBarberServices] = useState<BarberService[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,23 @@ export default function BarberDashboardScreen() {
     } else {
       Alert.alert(title, message);
     }
+  };
+
+  const getServicePriceAndDuration = (serviceId: string | null, barberId: string | null) => {
+    if (!serviceId) return { price: 0, duration: 30, isActive: false };
+    const globalSrv = services.find(s => s.id === serviceId);
+    if (!globalSrv) return { price: 0, duration: 30, isActive: false };
+
+    if (!barberId) {
+      return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
+    }
+
+    const custom = barberServices.find(bs => bs.barberId === barberId && bs.serviceId === serviceId);
+    if (custom) {
+      return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
+    }
+
+    return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
   };
 
   const getNext7Days = () => {
@@ -76,7 +94,7 @@ export default function BarberDashboardScreen() {
     '17:00', '18:00', '19:00', '20:00'
   ];
 
-  // 1. Carregar barbearia, equipe e serviços
+  // 1. Carregar barbearia, equipe, serviços e tarifas diferenciadas
   useEffect(() => {
     if (!profile?.barbershop_id) return;
 
@@ -94,7 +112,6 @@ export default function BarberDashboardScreen() {
       )
       .observe()
       .subscribe((data) => {
-        // Filtra para não listar a si mesmo na equipe
         setTeamMembers(data.filter(p => p.id !== user?.id));
       });
 
@@ -104,10 +121,17 @@ export default function BarberDashboardScreen() {
       .observe()
       .subscribe((data) => setServices(data));
 
+    const bsSub = database.collections
+      .get<BarberService>('barber_services')
+      .query(Q.where('barbershop_id', profile.barbershop_id))
+      .observe()
+      .subscribe((data) => setBarberServices(data));
+
     return () => {
       bSub.unsubscribe();
       teamSub.unsubscribe();
       sSub.unsubscribe();
+      bsSub.unsubscribe();
     };
   }, [profile, user]);
 
@@ -149,15 +173,12 @@ export default function BarberDashboardScreen() {
             }
           }
 
-          // Obter dados do serviço
+          // Obter dados do serviço com base nas exceções de preço e tempo do profissional
+          const { price, duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
           let serviceName = 'Serviço Removido';
-          let price = 0;
-          let duration = 30;
           try {
             const sv = await database.collections.get<Service>('services').find(apt.serviceId);
             serviceName = sv.name;
-            price = sv.price;
-            duration = sv.durationMinutes;
           } catch (e) {
             // mantém padrão
           }
@@ -192,7 +213,7 @@ export default function BarberDashboardScreen() {
     });
 
     return () => subscription.unsubscribe();
-  }, [profile, selectedDate]);
+  }, [profile, selectedDate, services, barberServices]);
 
   const handleUpdateStatus = async (appointmentId: string, newStatus: 'confirmed' | 'completed' | 'cancelled') => {
     setActionLoadingId(appointmentId);
@@ -241,7 +262,7 @@ export default function BarberDashboardScreen() {
           record.barberId = targetBarber;
           record.serviceId = selectedWalkInService;
           record.dateTime = slotDate;
-          record.status = 'confirmed'; // Encaixes já entram confirmados
+          record.status = 'confirmed';
         });
       });
 
@@ -290,8 +311,7 @@ export default function BarberDashboardScreen() {
 
   // Filtrar horários livres para Encaixe Rápido
   const getWalkInAvailableTimes = (barberId: string) => {
-    const selectedSrv = services.find(s => s.id === selectedWalkInService);
-    const duration = selectedSrv ? selectedSrv.durationMinutes : 30;
+    const { duration } = getServicePriceAndDuration(selectedWalkInService, barberId);
     const barberSegments = bookedSegmentsMap[barberId] || [];
 
     return availableTimes.filter((time) => {
@@ -307,6 +327,18 @@ export default function BarberDashboardScreen() {
       );
     });
   };
+
+  // Filtrar apenas os serviços que o profissional selecionado de fato realiza
+  const getEligibleServicesForWalkIn = () => {
+    const targetBarber = selectedWalkInBarber || user?.id;
+    if (!targetBarber) return services;
+    return services.filter(s => {
+      const { isActive } = getServicePriceAndDuration(s.id, targetBarber);
+      return isActive;
+    });
+  };
+
+  const eligibleServices = getEligibleServicesForWalkIn();
 
   // Filtrar apenas a agenda do próprio barbeiro
   const myAppointments = allAppointments.filter(a => a.barberId === user?.id);
@@ -636,24 +668,32 @@ export default function BarberDashboardScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.modalLabel}>Selecione o Serviço</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-                {services.map(s => (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[
-                      styles.modalOptionCard,
-                      selectedWalkInService === s.id && [styles.modalOptionCardActive, { borderColor: primaryColor }]
-                    ]}
-                    onPress={() => {
-                      setSelectedWalkInService(s.id);
-                      setSelectedWalkInTime(null);
-                    }}
-                  >
-                    <Text style={styles.modalOptionText}>{s.name}</Text>
-                    <Text style={styles.modalOptionSubText}>{s.durationMinutes} min</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {eligibleServices.length === 0 ? (
+                <Text style={styles.emptyText}>Sem serviços ativos para este profissional.</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                  {eligibleServices.map(s => {
+                    const { price: customPrice, duration: customDuration } = getServicePriceAndDuration(s.id, selectedWalkInBarber || user?.id);
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[
+                          styles.modalOptionCard,
+                          selectedWalkInService === s.id && [styles.modalOptionCardActive, { borderColor: primaryColor }]
+                        ]}
+                        onPress={() => {
+                          setSelectedWalkInService(s.id);
+                          setSelectedWalkInTime(null);
+                        }}
+                      >
+                        <Text style={styles.modalOptionText}>{s.name}</Text>
+                        <Text style={[styles.modalOptionSubText, { color: primaryColor }]}>{formatPrice(customPrice)}</Text>
+                        <Text style={styles.modalOptionSubText}>{customDuration} min</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
             </View>
 
             {selectedWalkInService && (
@@ -1129,9 +1169,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalOptionSubText: {
-    color: '#a0a0a0',
     fontSize: 10,
     marginTop: 2,
+    color: '#a0a0a0',
   },
   modalTimeGrid: {
     flexDirection: 'row',

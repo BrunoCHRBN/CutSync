@@ -28,6 +28,9 @@ export default function AdminDashboard() {
   const [barbers, setBarbers] = useState<Profile[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Estado de Período do Dashboard Analítico
+  const [period, setPeriod] = useState<'today' | '7days' | '30days'>('today');
   
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -59,13 +62,13 @@ export default function AdminDashboard() {
 
   const next7Days = getNext7Days();
 
+  // 1. Ouvir dados principais
   useEffect(() => {
     if (!profile?.barbershop_id) {
       setLoading(false);
       return;
     }
 
-    // 1. Ouvir barbearia
     const barbershopSub = database.collections
       .get<Barbershop>('barbershops')
       .findAndObserve(profile.barbershop_id)
@@ -74,7 +77,6 @@ export default function AdminDashboard() {
         error: () => console.log('Barbershop not found locally yet'),
       });
 
-    // 2. Ouvir barbeiros da equipe
     const barbersSub = database.collections
       .get<Profile>('profiles')
       .query(
@@ -84,7 +86,6 @@ export default function AdminDashboard() {
       .observe()
       .subscribe((data) => setBarbers(data));
 
-    // 3. Ouvir serviços do salão
     const servicesSub = database.collections
       .get<Service>('services')
       .query(Q.where('barbershop_id', profile.barbershop_id))
@@ -98,48 +99,50 @@ export default function AdminDashboard() {
     };
   }, [profile]);
 
-  // 4. Ouvir agendamentos da data selecionada
+  // 2. Ouvir agendamentos com base no Período Selecionado
   useEffect(() => {
     if (!profile?.barbershop_id) return;
 
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
+    const startPeriod = new Date(selectedDate);
+    if (period === 'today') {
+      startPeriod.setHours(0, 0, 0, 0);
+    } else if (period === '7days') {
+      startPeriod.setDate(startPeriod.getDate() - 6);
+      startPeriod.setHours(0, 0, 0, 0);
+    } else if (period === '30days') {
+      startPeriod.setDate(startPeriod.getDate() - 29);
+      startPeriod.setHours(0, 0, 0, 0);
+    }
 
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const endPeriod = new Date(selectedDate);
+    endPeriod.setHours(23, 59, 59, 999);
 
     const appointmentsSub = database.collections
       .get<Appointment>('appointments')
       .query(
         Q.where('barbershop_id', profile.barbershop_id),
-        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
+        Q.where('date_time', Q.between(startPeriod.getTime(), endPeriod.getTime()))
       )
       .observe()
       .subscribe(async (list) => {
         try {
           const richList: RichAppointment[] = [];
           for (const apt of list) {
-            // Obter nome do cliente
             let clientName = apt.clientName || 'Cliente Walk-in';
             if (apt.clientId) {
               try {
                 const cl = await database.collections.get<Profile>('profiles').find(apt.clientId);
                 clientName = cl.name;
-              } catch (e) {
-                // mantém padrão
-              }
+              } catch (e) {}
             }
 
-            // Obter nome e preço do serviço
             let serviceName = 'Serviço Removido';
             let price = 0;
             try {
               const sv = await database.collections.get<Service>('services').find(apt.serviceId);
               serviceName = sv.name;
               price = sv.price;
-            } catch (e) {
-              // mantém padrão
-            }
+            } catch (e) {}
 
             richList.push({
               id: apt.id,
@@ -151,7 +154,6 @@ export default function AdminDashboard() {
               barberId: apt.barberId,
             });
           }
-          // Ordenar por hora
           richList.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
           setAppointments(richList);
           setLoading(false);
@@ -161,7 +163,7 @@ export default function AdminDashboard() {
       });
 
     return () => appointmentsSub.unsubscribe();
-  }, [profile, selectedDate]);
+  }, [profile, selectedDate, period]);
 
   const handleUpdateStatus = async (appointmentId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
     setActionLoadingId(appointmentId);
@@ -205,22 +207,21 @@ export default function AdminDashboard() {
     }
   };
 
-  // KPIs Financeiros
+  // KPIs Calculados dinamicamente com base no período
   const activeAppointments = appointments.filter(a => a.status !== 'cancelled');
   const completedAppointments = appointments.filter(a => a.status === 'completed');
   
   const dailyRevenue = completedAppointments.reduce((acc, curr) => acc + curr.price, 0);
   const totalCuts = completedAppointments.length;
   
-  // Taxa de ocupação (12 slots por barbeiro)
-  const totalSlots = 12 * Math.max(1, barbers.length);
-  const occupancyRate = Math.min(100, Math.round((activeAppointments.length / totalSlots) * 100));
+  const daysCount = period === 'today' ? 1 : (period === '7days' ? 7 : 30);
+  const totalSlotsPeriod = 12 * Math.max(1, barbers.length) * daysCount;
+  const occupancyRate = Math.min(100, Math.round((activeAppointments.length / totalSlotsPeriod) * 100));
 
-  // Extrato de Comissões por Barbeiro
   const getBarberCommissionStatement = (barber: Profile) => {
     const barberCuts = appointments.filter(a => a.barberId === barber.id && a.status === 'completed');
     const faturamento = barberCuts.reduce((acc, curr) => acc + curr.price, 0);
-    const taxaComissao = barber.commissionRate !== undefined && barber.commissionRate !== null ? barber.commissionRate : 0.50; // 50% padrão
+    const taxaComissao = barber.commissionRate !== undefined && barber.commissionRate !== null ? barber.commissionRate : 0.50;
     const valorComissao = faturamento * taxaComissao;
     return {
       faturamento,
@@ -290,9 +291,33 @@ export default function AdminDashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* KPIs Financeiros (Fechamento de Caixa) */}
+      {/* Seletor de Período do Dashboard Analítico */}
+      <View style={styles.periodSelector}>
+        <TouchableOpacity 
+          style={[styles.periodButton, period === 'today' && [styles.periodButtonActive, { backgroundColor: primaryColor }]]}
+          onPress={() => setPeriod('today')}
+        >
+          <Text style={[styles.periodButtonText, period === 'today' && { color: '#121212' }]}>Hoje</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.periodButton, period === '7days' && [styles.periodButtonActive, { backgroundColor: primaryColor }]]}
+          onPress={() => setPeriod('7days')}
+        >
+          <Text style={[styles.periodButtonText, period === '7days' && { color: '#121212' }]}>7 Dias</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.periodButton, period === '30days' && [styles.periodButtonActive, { backgroundColor: primaryColor }]]}
+          onPress={() => setPeriod('30days')}
+        >
+          <Text style={[styles.periodButtonText, period === '30days' && { color: '#121212' }]}>30 Dias</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* KPIs Financeiros */}
       <View style={styles.kpiContainer}>
-        <Text style={styles.sectionTitle}>Fechamento de Caixa do Dia</Text>
+        <Text style={styles.sectionTitle}>
+          {period === 'today' ? 'Fechamento de Caixa do Dia' : (period === '7days' ? 'Caixa Acumulado de 7 Dias' : 'Caixa Acumulado de 30 Dias')}
+        </Text>
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiLabel}>Faturamento Total</Text>
@@ -331,6 +356,109 @@ export default function AdminDashboard() {
         </View>
       </View>
 
+      {/* Gráficos Analíticos */}
+      {period !== 'today' && (
+        <View style={styles.chartsContainer}>
+          <Text style={styles.sectionTitle}>
+            Análise do Período ({period === '7days' ? 'Últimos 7 dias' : 'Últimos 30 dias'})
+          </Text>
+          
+          {/* Gráfico 1: Evolução do Faturamento Diário (Barras Verticais) */}
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Evolução do Faturamento</Text>
+            {(() => {
+              const daysList = [];
+              const totalDays = period === '7days' ? 7 : 30;
+
+              for (let i = totalDays - 1; i >= 0; i--) {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() - i);
+                daysList.push({
+                  dateStr: d.toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: '2-digit' }),
+                  dateKey: d.toDateString(),
+                  revenue: 0,
+                });
+              }
+
+              // Agrupar faturamento concluído por data
+              daysList.forEach(day => {
+                const dayApts = appointments.filter(
+                  a => a.status === 'completed' && new Date(a.dateTime).toDateString() === day.dateKey
+                );
+                day.revenue = dayApts.reduce((acc, curr) => acc + curr.price, 0);
+              });
+
+              const maxRevenue = Math.max(...daysList.map(d => d.revenue), 1);
+
+              return (
+                <View style={styles.verticalChartWrapper}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barGrid}>
+                    {daysList.map((day, idx) => {
+                      const percentage = (day.revenue / maxRevenue) * 100;
+                      return (
+                        <View key={idx} style={styles.verticalBarCol}>
+                          <Text style={styles.barValueText}>{day.revenue > 0 ? formatPrice(day.revenue) : ''}</Text>
+                          <View style={styles.barTrack}>
+                            <View 
+                              style={[
+                                styles.barFill, 
+                                { height: `${percentage}%`, backgroundColor: primaryColor }
+                              ]} 
+                            />
+                          </View>
+                          <Text style={styles.barLabelText}>{day.dateStr}</Text>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              );
+            })()}
+          </View>
+
+          {/* Gráfico 2: Desempenho e Ranking por Barbeiro (Barras Horizontais) */}
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Ranking de Contribuição da Equipe</Text>
+            {(() => {
+              const totalRevenue = appointments
+                .filter(a => a.status === 'completed')
+                .reduce((acc, curr) => acc + curr.price, 0);
+
+              return (
+                <View style={{ gap: 14 }}>
+                  {barbers.map(barber => {
+                    const barberRevenue = appointments
+                      .filter(a => a.barberId === barber.id && a.status === 'completed')
+                      .reduce((acc, curr) => acc + curr.price, 0);
+
+                    const percentage = totalRevenue > 0 ? Math.round((barberRevenue / totalRevenue) * 100) : 0;
+
+                    return (
+                      <View key={barber.id} style={styles.horizontalBarRow}>
+                        <View style={styles.horizontalBarMeta}>
+                          <Text style={styles.horizontalBarName}>{barber.name}</Text>
+                          <Text style={styles.horizontalBarValue}>
+                            {formatPrice(barberRevenue)} ({percentage}%)
+                          </Text>
+                        </View>
+                        <View style={styles.horizontalBarTrack}>
+                          <View 
+                            style={[
+                              styles.horizontalBarFill, 
+                              { width: `${percentage}%`, backgroundColor: primaryColor }
+                            ]} 
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })()}
+          </View>
+        </View>
+      )}
+
       {/* Seletor de Data Rápido */}
       <View style={styles.dateSection}>
         <Text style={styles.sectionTitle}>Selecionar Dia da Agenda</Text>
@@ -367,7 +495,6 @@ export default function AdminDashboard() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.panoramicScroll}>
             {barbers.map(barber => {
-              // Filtrar agendamentos deste profissional
               const barberAppointments = appointments.filter(a => a.barberId === barber.id);
               
               return (
@@ -429,13 +556,13 @@ export default function AdminDashboard() {
                                 style={[styles.miniBtn, styles.miniBtnCancel]} 
                                 onPress={() => handleUpdateStatus(item.id, 'cancelled')}
                               >
-                                <Text style={styles.miniBtnCancelText}>Falta</Text>
+                                <Text style={styles.miniBtnCancelText}>✕</Text>
                               </TouchableOpacity>
                               <TouchableOpacity 
                                 style={[styles.miniBtn, { backgroundColor: '#30d158' }]} 
                                 onPress={() => handleUpdateStatus(item.id, 'completed')}
                               >
-                                <Text style={styles.miniBtnConfirmText}>Fim</Text>
+                                <Text style={styles.miniBtnConfirmText}>✓</Text>
                               </TouchableOpacity>
                             </View>
                           )}
@@ -461,13 +588,12 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 24,
     paddingTop: 48,
-    paddingBottom: 48,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   barberName: {
     fontSize: 12,
@@ -545,24 +671,48 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 13,
   },
+  // Períodos
+  periodSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#1c1c1e',
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 20,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  periodButtonActive: {},
+  periodButtonText: {
+    color: '#a0a0a0',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
   // KPIs
   kpiContainer: {
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#2c2c2e',
-    padding: 20,
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
     color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 16,
     fontFamily: 'Montserrat_700Bold',
-    marginBottom: 12,
   },
   kpiGrid: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 8,
     marginBottom: 20,
   },
@@ -571,40 +721,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#2c2c2e',
     borderRadius: 8,
     padding: 12,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#3a3a3c',
+    alignItems: 'center',
   },
   kpiLabel: {
-    fontSize: 10,
     color: '#a0a0a0',
+    fontSize: 10,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
   kpiValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    fontFamily: 'Montserrat_700Bold',
     marginTop: 6,
+    fontFamily: 'Montserrat_700Bold',
   },
-  // Tabela de Repasse
   earningsTable: {
     borderTopWidth: 1,
     borderTopColor: '#2c2c2e',
     paddingTop: 16,
   },
   tableTitle: {
-    color: '#a0a0a0',
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   tableRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#2c2c2e',
   },
@@ -619,15 +767,105 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tableFaturamento: {
-    color: '#a0a0a0',
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 13,
   },
   tableComissao: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     marginTop: 2,
   },
-  // Data Section
+  // Gráficos
+  chartsContainer: {
+    marginBottom: 24,
+    width: '100%',
+  },
+  chartCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    marginBottom: 16,
+  },
+  chartTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  verticalChartWrapper: {
+    height: 160,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingTop: 10,
+  },
+  barGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    paddingHorizontal: 8,
+  },
+  verticalBarCol: {
+    alignItems: 'center',
+    width: 42,
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  barValueText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  barTrack: {
+    flex: 1,
+    width: 14,
+    backgroundColor: '#2c2c2e',
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: 4,
+  },
+  barLabelText: {
+    color: '#666',
+    fontSize: 8,
+    marginTop: 6,
+    fontWeight: 'bold',
+  },
+  horizontalBarRow: {
+    marginBottom: 12,
+  },
+  horizontalBarMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  horizontalBarName: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  horizontalBarValue: {
+    color: '#a0a0a0',
+    fontSize: 12,
+  },
+  horizontalBarTrack: {
+    height: 8,
+    backgroundColor: '#2c2c2e',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  horizontalBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  // Dias rápidos
   dateSection: {
     marginBottom: 24,
   },
@@ -637,10 +875,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#2c2c2e',
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     marginRight: 8,
-    minWidth: 64,
     alignItems: 'center',
+    minWidth: 64,
   },
   dateCardActive: {
     borderWidth: 2,
@@ -658,43 +896,39 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 4,
   },
-  // Agenda Section (Grade Panorâmica)
   agendaSection: {
-    marginBottom: 12,
+    marginBottom: 24,
   },
   emptyCard: {
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2c2c2e',
   },
   emptyText: {
     color: '#666',
   },
   panoramicScroll: {
-    paddingVertical: 8,
+    marginTop: 8,
   },
   barberColumn: {
+    width: 200,
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#2c2c2e',
-    width: 200,
-    marginRight: 12,
-    height: 400,
     padding: 12,
+    marginRight: 12,
+    height: 420,
   },
   columnHeader: {
-    borderBottomWidth: 1.5,
+    borderBottomWidth: 3,
     paddingBottom: 8,
     marginBottom: 12,
   },
   columnBarberName: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   columnBarberRole: {
@@ -713,7 +947,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
-  // Mini cards na grade
   miniAppointmentCard: {
     backgroundColor: '#2c2c2e',
     borderRadius: 8,

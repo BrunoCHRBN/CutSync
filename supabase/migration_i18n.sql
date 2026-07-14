@@ -157,3 +157,23 @@ ADD COLUMN IF NOT EXISTS phone TEXT,
 ADD COLUMN IF NOT EXISTS opening_hours TEXT,
 ADD COLUMN IF NOT EXISTS share_agendas BOOLEAN DEFAULT TRUE;
 
+-- Criar a tabela de junção barber_services
+CREATE TABLE IF NOT EXISTS public.barber_services (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    barbershop_id UUID REFERENCES public.barbershops(id) ON DELETE CASCADE NOT NULL,
+    barber_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    service_id TEXT REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (barber_id, service_id)
+);
+
+ALTER TABLE public.barber_services ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Barbeiros e Admins leem e gerenciam barber_services" ON public.barber_services
+    FOR ALL TO authenticated
+    USING (barbershop_id = (SELECT barbershop_id FROM public.profiles WHERE id = auth.uid()));
+

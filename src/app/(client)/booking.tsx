@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
-import { Service, Profile, Barbershop, Appointment } from '../../database/models';
+import { Service, Profile, Barbershop, Appointment, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
@@ -19,6 +19,7 @@ export default function BookingScreen() {
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<Profile[]>([]);
+  const [barberServices, setBarberServices] = useState<BarberService[]>([]);
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -40,6 +41,25 @@ export default function BookingScreen() {
     }
   };
 
+  // Função auxiliar para resolver preço e duração com base no barbeiro selecionado (Fallback)
+  const getServicePriceAndDuration = (serviceId: string | null, barberId: string | null) => {
+    if (!serviceId) return { price: 0, duration: 30, isActive: false };
+    const globalSrv = services.find(s => s.id === serviceId);
+    if (!globalSrv) return { price: 0, duration: 30, isActive: false };
+
+    if (!barberId) {
+      return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
+    }
+
+    const custom = barberServices.find(bs => bs.barberId === barberId && bs.serviceId === serviceId);
+    if (custom) {
+      return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
+    }
+
+    return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
+  };
+
+  // 1. Monitorar slots de tempo ocupados
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
       setBookedSegments([]);
@@ -65,13 +85,8 @@ export default function BookingScreen() {
 
         const segments = [];
         for (const apt of list) {
-          let duration = 30; // 30 minutos padrão
-          try {
-            const sv = await database.collections.get<Service>('services').find(apt.serviceId);
-            duration = sv.durationMinutes;
-          } catch (e) {
-            // mantém padrão
-          }
+          // Utiliza a duração correta do barbeiro que realizou o agendamento
+          const { duration } = getServicePriceAndDuration(apt.serviceId, apt.barberId);
           const startTime = new Date(apt.dateTime).getTime();
           const endTime = startTime + duration * 60 * 1000;
           segments.push({ start: startTime, end: endTime });
@@ -84,7 +99,7 @@ export default function BookingScreen() {
     };
 
     fetchBookedSegments();
-  }, [selectedBarber, selectedDate]);
+  }, [selectedBarber, selectedDate, services, barberServices]);
 
   const availableTimes = [
     '08:00', '09:00', '10:00', '11:00', 
@@ -101,12 +116,10 @@ export default function BookingScreen() {
     
     const grid: (Date | null)[] = [];
     
-    // Preencher dias vazios do mês anterior para alinhar
     for (let i = 0; i < startDayOfWeek; i++) {
       grid.push(null);
     }
     
-    // Preencher dias do mês atual
     for (let day = 1; day <= daysInMonth; day++) {
       grid.push(new Date(year, month, day));
     }
@@ -138,6 +151,7 @@ export default function BookingScreen() {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
+  // 2. Carregar informações iniciais da barbearia
   useEffect(() => {
     if (!barbershopId) {
       setLoading(false);
@@ -163,6 +177,12 @@ export default function BookingScreen() {
           )
           .fetch();
         setBarbers(bList);
+
+        const bsList = await database.collections
+          .get<BarberService>('barber_services')
+          .query(Q.where('barbershop_id', barbershopId))
+          .fetch();
+        setBarberServices(bsList);
 
         // Selecionar o dia de hoje por padrão
         const today = new Date();
@@ -250,11 +270,10 @@ export default function BookingScreen() {
     }).format(price);
   };
 
-  const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
-  const monthYearLabel = viewDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  const localeStr = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+  const monthYearLabel = viewDate.toLocaleDateString(localeStr, { month: 'long', year: 'numeric' });
   const formattedMonthYearLabel = monthYearLabel.charAt(0).toUpperCase() + monthYearLabel.slice(1);
 
-  // Iniciais dos dias da semana
   const weekDays = i18n.language === 'en' 
     ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] 
     : ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -269,65 +288,87 @@ export default function BookingScreen() {
 
   const primaryColor = barbershop?.primaryColor || '#D4AF37';
 
+  // Filtrar barbeiros que realizam o serviço selecionado
+  const filteredBarbers = barbers.filter(b => {
+    if (!selectedService) return true;
+    const { isActive } = getServicePriceAndDuration(selectedService, b.id);
+    return isActive;
+  });
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.cardContainer}>
+    <View style={styles.container}>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('booking.title')}</Text>
         <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
+      </View>
 
-        {/* 1. Escolha de Serviço */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        {/* 1. Escolha do Serviço */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('booking.step_service')}</Text>
-          {services.length === 0 ? (
-            <Text style={styles.emptyText}>{t('booking.no_services')}</Text>
-          ) : (
-            <FlatList
-              data={services}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.card,
-                    selectedService === item.id && [styles.cardActive, { borderColor: primaryColor }]
-                  ]}
-                  onPress={() => setSelectedService(item.id)}
-                >
-                  <Text style={styles.cardName}>{item.name}</Text>
-                  <Text style={[styles.cardPrice, { color: primaryColor }]}>{formatPrice(item.price)}</Text>
-                  <Text style={styles.cardDuration}>{item.durationMinutes} min</Text>
-                </TouchableOpacity>
-              )}
-            />
-          )}
+          <Text style={styles.sectionTitle}>{t('booking.service_label')}</Text>
+          <FlatList
+            data={services}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  selectedService === item.id && [styles.cardActive, { borderColor: primaryColor }]
+                ]}
+                onPress={() => {
+                  setSelectedService(item.id);
+                  // Reseta barbeiro se ele não realizar o novo serviço escolhido
+                  if (selectedBarber) {
+                    const { isActive } = getServicePriceAndDuration(item.id, selectedBarber);
+                    if (!isActive) setSelectedBarber(null);
+                  }
+                  setSelectedTime(null);
+                }}
+              >
+                <Text style={styles.cardName}>{item.name}</Text>
+                <Text style={styles.cardSubText}>
+                  {formatPrice(item.price)} • {item.durationMinutes} min
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
         </View>
 
-        {/* 2. Escolha de Profissional */}
+        {/* 2. Escolha do Barbeiro */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('booking.step_barber')}</Text>
-          {barbers.length === 0 ? (
-            <Text style={styles.emptyText}>{t('booking.no_barbers')}</Text>
+          <Text style={styles.sectionTitle}>{t('booking.barber_label')}</Text>
+          {filteredBarbers.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>Sem profissionais disponíveis para este serviço.</Text>
+            </View>
           ) : (
             <FlatList
-              data={barbers}
+              data={filteredBarbers}
               keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.card,
-                    selectedBarber === item.id && [styles.cardActive, { borderColor: primaryColor }]
-                  ]}
-                  onPress={() => setSelectedBarber(item.id)}
-                >
-                  <Text style={styles.cardName}>{item.name}</Text>
-                  <Text style={styles.cardSubText}>
-                    {item.role === 'admin' ? 'PROPRIETÁRIO' : item.role.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              scrollEnabled={false}
+              renderItem={({ item }) => {
+                const { price: customPrice } = getServicePriceAndDuration(selectedService, item.id);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.card,
+                      selectedBarber === item.id && [styles.cardActive, { borderColor: primaryColor }]
+                    ]}
+                    onPress={() => {
+                      setSelectedBarber(item.id);
+                      setSelectedTime(null);
+                    }}
+                  >
+                    <Text style={styles.cardName}>{item.name}</Text>
+                    <Text style={styles.cardSubText}>
+                      {item.role === 'admin' ? 'PROPRIETÁRIO' : 'COLABORADOR'}
+                      {selectedService && customPrice > 0 && ` • ${formatPrice(customPrice)}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
           )}
         </View>
@@ -349,14 +390,12 @@ export default function BookingScreen() {
 
           {/* Grid do Calendário */}
           <View style={styles.calendarGrid}>
-            {/* Dias da semana em formato compacto */}
             <View style={styles.weekDaysRow}>
               {weekDays.map((wd, index) => (
                 <Text key={index} style={styles.weekDayText}>{wd}</Text>
               ))}
             </View>
 
-            {/* Dias do mês */}
             <View style={styles.daysRow}>
               {monthGrid.map((date, index) => {
                 if (!date) {
@@ -392,67 +431,70 @@ export default function BookingScreen() {
         </View>
 
         {/* 4. Escolha do Horário */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Escolha o Horário</Text>
-          <View style={styles.timeGrid}>
-            {availableTimes.map((time) => {
-              const currentService = services.find(s => s.id === selectedService);
-              const durationMinutes = currentService ? currentService.durationMinutes : 30;
+        {selectedBarber && selectedService && selectedDate && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Escolha o Horário</Text>
+            <View style={styles.timeGrid}>
+              {availableTimes.map((time) => {
+                const { duration: durationMinutes } = getServicePriceAndDuration(selectedService, selectedBarber);
 
-              const slotDate = new Date(selectedDate || new Date());
-              const [hours, minutes] = time.split(':');
-              slotDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-              
-              const slotStart = slotDate.getTime();
-              const slotEnd = slotStart + durationMinutes * 60 * 1000;
+                const slotDate = new Date(selectedDate);
+                const [hours, minutes] = time.split(':');
+                slotDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                
+                const slotStart = slotDate.getTime();
+                const slotEnd = slotStart + durationMinutes * 60 * 1000;
 
-              const isBooked = bookedSegments.some(
-                (seg) => slotStart < seg.end && slotEnd > seg.start
-              );
-              const isSelected = selectedTime === time;
+                const isBooked = bookedSegments.some(
+                  (seg) => slotStart < seg.end && slotEnd > seg.start
+                );
+                const isSelected = selectedTime === time;
 
-              return (
-                <TouchableOpacity
-                  key={time}
-                  style={[
-                    styles.timeCard,
-                    isSelected && [styles.timeCardActive, { backgroundColor: primaryColor }],
-                    isBooked && styles.timeCardDisabled
-                  ]}
-                  onPress={() => !isBooked && setSelectedTime(time)}
-                  disabled={isBooked}
-                >
-                  <Text style={[
-                    styles.timeText,
-                    isSelected && { color: '#121212' },
-                    isBooked && styles.timeTextDisabled
-                  ]}>
-                    {time}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                return (
+                  <TouchableOpacity
+                    key={time}
+                    style={[
+                      styles.timeCard,
+                      isSelected && [styles.timeCardActive, { backgroundColor: primaryColor }],
+                      isBooked && styles.timeCardDisabled
+                    ]}
+                    onPress={() => !isBooked && setSelectedTime(time)}
+                    disabled={isBooked}
+                  >
+                    <Text style={[
+                      styles.timeText,
+                      isSelected && { color: '#121212' },
+                      isBooked && styles.timeTextDisabled
+                    ]}>
+                      {time}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Confirmar Agendamento */}
-        <TouchableOpacity
-          style={[styles.confirmButton, { backgroundColor: primaryColor }]}
-          onPress={handleConfirmBooking}
-          disabled={bookingLoading}
-        >
-          {bookingLoading ? (
-            <ActivityIndicator color="#121212" />
-          ) : (
-            <Text style={styles.confirmButtonText}>{t('booking.button')}</Text>
-          )}
-        </TouchableOpacity>
+        {selectedTime && (
+          <TouchableOpacity
+            style={[styles.confirmButton, { backgroundColor: primaryColor }]}
+            onPress={handleConfirmBooking}
+            disabled={bookingLoading}
+          >
+            {bookingLoading ? (
+              <ActivityIndicator color="#121212" />
+            ) : (
+              <Text style={styles.confirmButtonText}>{t('booking.button')}</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -461,245 +503,202 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#121212',
   },
-  contentContainer: {
-    padding: 16,
-    paddingTop: 48,
-    paddingBottom: 48,
-    alignItems: 'center',
-  },
-  cardContainer: {
-    width: '100%',
-    maxWidth: 600,
-    backgroundColor: '#1c1c1e',
-    borderRadius: 16,
+  scrollContent: {
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    paddingBottom: 48,
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#121212',
-    justifyContent: 'center',
-    alignItems: 'center',
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 16,
+    backgroundColor: '#1c1c1e',
   },
   headerTitle: {
     fontSize: 12,
     color: '#a0a0a0',
-    fontFamily: 'Inter_400Regular',
     textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   barbershopName: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
-    marginBottom: 28,
   },
   section: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 16,
     color: '#fff',
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: '#2c2c2e',
+  },
+  cardActive: {
+    backgroundColor: '#1c1c1e',
+  },
+  cardName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  cardSubText: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  emptyCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#666',
   },
   calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  monthNavButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     backgroundColor: '#2c2c2e',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderRadius: 6,
+  },
+  monthNavText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   monthLabel: {
     fontSize: 13,
     fontWeight: 'bold',
-    fontFamily: 'Inter_600SemiBold',
-    paddingHorizontal: 12,
-  },
-  monthNavButton: {
-    paddingHorizontal: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monthNavText: {
-    color: '#fff',
-    fontSize: 22,
-    lineHeight: 22,
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    color: '#666',
-    marginTop: 8,
-  },
-  card: {
-    backgroundColor: '#2c2c2e',
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#3a3a3c',
-    padding: 16,
-    marginRight: 12,
-    minWidth: 120,
-    alignItems: 'center',
-    marginTop: 8,
   },
   calendarGrid: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: '#1c1c1e',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#3a3a3c',
-    marginTop: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#3a3a3c',
+    borderBottomColor: '#2c2c2e',
     paddingBottom: 8,
   },
   weekDayText: {
-    color: '#a0a0a0',
-    fontSize: 12,
-    fontWeight: 'bold',
-    width: '13.5%',
+    color: '#666',
+    width: '14.28%',
     textAlign: 'center',
-    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   daysRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 8,
   },
   dayCell: {
-    width: '13.5%',
+    width: '14.28%',
     aspectRatio: 1,
-    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  dayCellEmpty: {
-    width: '13.5%',
-    aspectRatio: 1,
-  },
-  dayCellDisabled: {
-    backgroundColor: 'transparent',
+    borderRadius: 8,
+    marginVertical: 2,
   },
   dayCellActive: {
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderRadius: 8,
+  },
+  dayCellDisabled: {
+    opacity: 0.15,
+  },
+  dayCellEmpty: {
+    width: '14.28%',
+    aspectRatio: 1,
   },
   dayCellText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-    fontFamily: 'Inter_600SemiBold',
   },
   dayCellTextActive: {
     color: '#121212',
   },
   dayCellTextDisabled: {
-    color: '#4a4a4c',
-    fontWeight: 'normal',
+    color: '#666',
   },
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 8,
   },
   timeCard: {
-    backgroundColor: '#2c2c2e',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#3a3a3c',
-    paddingVertical: 10,
     width: '23%',
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1.5,
+    borderColor: '#2c2c2e',
+    borderRadius: 8,
+    paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   timeCardActive: {
     borderWidth: 0,
+  },
+  timeCardDisabled: {
+    backgroundColor: '#2c2c2e',
+    borderColor: 'transparent',
+    opacity: 0.2,
   },
   timeText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: 'bold',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  timeCardDisabled: {
-    opacity: 0.3,
-    borderColor: '#2c2c2e',
-    backgroundColor: '#1c1c1e',
   },
   timeTextDisabled: {
-    color: '#4a4a4c',
-    textDecorationLine: 'line-through',
-  },
-  cardActive: {
-    borderWidth: 2.5,
-    backgroundColor: '#1c1c1e',
-  },
-  cardName: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  cardPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 6,
-  },
-  cardDuration: {
-    color: '#a0a0a0',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  cardSubText: {
-    color: '#a0a0a0',
-    fontSize: 9,
-    marginTop: 6,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#666',
   },
   confirmButton: {
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 12,
+    marginTop: 20,
   },
   confirmButtonText: {
     color: '#121212',
     fontWeight: 'bold',
     fontSize: 16,
-    fontFamily: 'Montserrat_700Bold',
   },
   backButton: {
     paddingVertical: 12,
     alignItems: 'center',
+    marginTop: 12,
   },
   backButtonText: {
     color: '#ff453a',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#121212',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
