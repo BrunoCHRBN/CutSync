@@ -189,7 +189,7 @@ export const LoginExperience = () => {
                     </View>
                   </>
                 )}
-              </AppCard>AppCard>
+              </AppCard>
 
               <View testID="login-security-note" style={styles.securityNote}>
                 <ShieldCheck color={colors.success} size={16} />
