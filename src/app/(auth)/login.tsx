@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -111,7 +112,7 @@ function LegacyLoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -132,17 +133,17 @@ const styles = StyleSheet.create({
   tagline: {
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   form: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
   },
   title: {
     fontSize: 20,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     marginBottom: 24,
     textAlign: 'center',
@@ -152,20 +153,20 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   input: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   loginButton: {
     backgroundColor: '#D4AF37',
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   registerLinkText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 14,
   },
 });

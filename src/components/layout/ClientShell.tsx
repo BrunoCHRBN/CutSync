@@ -76,7 +76,7 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
-  header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, backgroundColor: '#0F0F12F2', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 5 },
+  header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, backgroundColor: colors.surface + 'F2', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 5 },
   desktopNav: { flexDirection: 'row', gap: 5, marginLeft: 22 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 12, borderRadius: radii.md },
   navItemActive: { backgroundColor: colors.brand },
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   identityName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 },
   iconButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   content: { flex: 1 },
-  bottomNav: { position: 'absolute', left: 16, right: 16, bottom: 12, minHeight: 66, flexDirection: 'row', backgroundColor: '#151518F2', borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, padding: 7, ...Platform.select({ web: { boxShadow: '0 12px 28px rgba(0,0,0,0.38)' } as any, default: { elevation: 12, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 18 } }) },
+  bottomNav: { position: 'absolute', left: 16, right: 16, bottom: 12, minHeight: 66, flexDirection: 'row', backgroundColor: colors.surface + 'F2', borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, padding: 7, ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,0,0,0.06)' } as any, default: { elevation: 8, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12 } }) },
   bottomItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9 },
   bottomLabelActive: { color: colors.brand },

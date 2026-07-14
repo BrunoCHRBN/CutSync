@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Platform, ScrollView, Modal, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -761,7 +762,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   scrollContent: {
     padding: 24,
@@ -777,11 +778,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1c1c1e',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   welcomeText: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   barberName: {
@@ -790,21 +791,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_700Bold',
   },
   logoutButton: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
   logoutButtonText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 14,
   },
   tabSelector: {
     flexDirection: 'row',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1.5,
-    borderBottomColor: '#2c2c2e',
+    borderBottomColor: colors.border,
   },
   tabButton: {
     flex: 1,
@@ -819,7 +820,7 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#a0a0a0',
+    color: colors.textSecondary,
   },
   fullWidth: {
     width: '100%',
@@ -831,15 +832,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 20,
   },
   syncText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
   },
   syncButton: {
@@ -853,17 +854,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   earningsCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     alignItems: 'center',
     marginBottom: 24,
   },
   earningsLabel: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -875,7 +876,7 @@ const styles = StyleSheet.create({
   },
   earningsSubText: {
     fontSize: 11,
-    color: '#666',
+    color: colors.textMuted,
     textAlign: 'center',
   },
   dateSection: {
@@ -899,15 +900,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
   },
   dateCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginRight: 8,
@@ -916,16 +917,16 @@ const styles = StyleSheet.create({
   },
   dateCardActive: {
     borderWidth: 2,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   dateLabel: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
   dateDayStr: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 4,
@@ -934,16 +935,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginTop: 8,
   },
   emptyText: {
-    color: '#666',
+    color: colors.textMuted,
   },
   warningCard: {
     backgroundColor: '#ff453a15',
@@ -954,22 +955,22 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   warningTitle: {
-    color: '#ff453a',
+    color: colors.danger,
     fontSize: 15,
     fontWeight: 'bold',
     marginBottom: 6,
   },
   warningText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   appointmentCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     marginBottom: 12,
   },
   appointmentHeader: {
@@ -977,7 +978,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#2c2c2e',
+    borderBottomColor: colors.border,
     paddingBottom: 10,
     marginBottom: 10,
   },
@@ -1006,7 +1007,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 9,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.text,
   },
   appointmentBody: {
     gap: 4,
@@ -1014,22 +1015,22 @@ const styles = StyleSheet.create({
   },
   clientLabel: {
     fontSize: 9,
-    color: '#666',
+    color: colors.textMuted,
     fontWeight: 'bold',
   },
   clientName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 15,
     fontWeight: 'bold',
   },
   serviceLabel: {
     fontSize: 9,
-    color: '#666',
+    color: colors.textMuted,
     fontWeight: 'bold',
     marginTop: 8,
   },
   serviceText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   actionsRow: {
@@ -1048,7 +1049,7 @@ const styles = StyleSheet.create({
     borderColor: '#ff453a55',
   },
   btnTextCancel: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
   },
   btnTextComplete: {
@@ -1057,10 +1058,10 @@ const styles = StyleSheet.create({
   },
   // Equipe / A Loja
   teamBarberSection: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
     padding: 16,
     marginBottom: 16,
   },
@@ -1070,12 +1071,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   teamBarberName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 16,
     fontWeight: 'bold',
   },
   teamBarberRole: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 10,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -1096,20 +1097,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   availSlotLivre: {
-    backgroundColor: '#2c2c2e',
-    borderColor: '#3a3a3c',
+    backgroundColor: colors.surfacePressed,
+    borderColor: colors.border,
   },
   availSlotOcupado: {
     backgroundColor: '#ff453a0a',
     borderColor: '#ff453a22',
   },
   availSlotTime: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: 'bold',
   },
   availSlotStatus: {
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -1132,13 +1133,13 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
     width: '100%',
     maxWidth: 480,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   modalTitle: {
     fontSize: 20,
@@ -1149,27 +1150,27 @@ const styles = StyleSheet.create({
   },
   modalLabel: {
     fontSize: 11,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#fff',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
   },
   modalOptionCard: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     padding: 12,
     marginRight: 8,
     alignItems: 'center',
@@ -1177,17 +1178,17 @@ const styles = StyleSheet.create({
   },
   modalOptionCardActive: {
     borderWidth: 2,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
   },
   modalOptionText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 12,
     fontWeight: 'bold',
   },
   modalOptionSubText: {
     fontSize: 10,
     marginTop: 2,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
   },
   modalTimeGrid: {
     flexDirection: 'row',
@@ -1196,10 +1197,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalTimeCard: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     paddingVertical: 8,
     width: '22%',
     alignItems: 'center',
@@ -1208,7 +1209,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   modalTimeText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -1219,13 +1220,13 @@ const styles = StyleSheet.create({
   },
   modalCancelBtn: {
     flex: 1,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   modalCancelText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 15,
   },

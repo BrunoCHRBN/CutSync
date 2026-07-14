@@ -45,20 +45,20 @@ export const ExploreExperience = () => {
           <View style={styles.heroCopy}>
             <Text testID="client-explore-eyebrow" style={styles.eyebrow}>DESCUBRA SEU PRÓXIMO ESTILO</Text>
             <Text testID="client-explore-title" style={styles.title}>Sua cadeira ideal{`\n`}está por perto.</Text>
-            <Text testID="client-explore-description" style={styles.description}>Compare barbearias, conheça os serviços e marque sem ligações ou espera.</Text>
+            <Text testID="client-explore-description" style={styles.description}>Compare estabelecimentos, conheça os serviços e marque sem ligações ou espera.</Text>
           </View>
           <View style={styles.searchBox}>
-            <AppInput label="Buscar barbearia" testID="client-search-input" icon={<Search color={colors.textMuted} size={18} />} placeholder="Nome, bairro ou cidade" value={search} onChangeText={setSearch} />
-            <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'barbearia encontrada' : 'barbearias encontradas'}</Text>
+            <AppInput label="Buscar estabelecimento" testID="client-search-input" icon={<Search color={colors.textMuted} size={18} />} placeholder="Nome, bairro ou cidade" value={search} onChangeText={setSearch} />
+            <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento encontrado' : 'estabelecimentos encontrados'}</Text>
           </View>
         </View>
 
-        <SectionHeading testID="client-shops-heading" eyebrow="Seleção CutSync" title="Barbearias disponíveis" description="Informações reais do estabelecimento, sem endereço ou telefone inventados." />
+        <SectionHeading testID="client-shops-heading" eyebrow="Seleção CutSync" title="Estabelecimentos disponíveis" description="Informações reais do estabelecimento, sem endereço ou telefone inventados." />
 
         {loading ? (
           <ActivityIndicator testID="client-shops-loading" color={colors.brand} size="large" style={styles.loader} />
         ) : filtered.length === 0 ? (
-          <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novas barbearias em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Sincronize novamente para verificar novos parceiros.'} icon={<Store color={colors.brand} size={22} />} />
+          <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Sincronize novamente para verificar novos parceiros.'} icon={<Store color={colors.brand} size={22} />} />
         ) : (
           <View testID="client-shops-grid" style={styles.grid}>
             {filtered.map((shop) => {

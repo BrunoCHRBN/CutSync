@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -20,7 +21,7 @@ function LegacyClientDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    // 1. Ouvir as barbearias ativas localmente no WatermelonDB
+    // 1. Ouvir as estabelecimentos ativas localmente no WatermelonDB
     const barbershopsSub = database.collections
       .get<Barbershop>('establishments')
       .query()
@@ -136,7 +137,7 @@ function LegacyClientDashboard() {
         )}
       </View>
 
-      {/* Catálogo de Barbearias */}
+      {/* Catálogo de Estabelecimentos */}
       <View style={[styles.section, { flex: 1 }]}>
         <Text style={styles.sectionTitle}>{t('client.partners_title')}</Text>
         {loading ? (
@@ -176,7 +177,7 @@ function LegacyClientDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     padding: 24,
     paddingTop: 48,
   },
@@ -188,12 +189,12 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontFamily: 'Inter_400Regular',
   },
   userName: {
     fontSize: 24,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
   },
@@ -201,10 +202,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
   },
   logoutText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -212,22 +213,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   syncStatusContainer: {
     flex: 1,
   },
   syncStatusText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 13,
   },
   syncErrorText: {
-    color: '#ff453a',
+    color: colors.danger,
     fontSize: 11,
     marginTop: 2,
   },
@@ -250,34 +251,34 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     marginBottom: 12,
     fontFamily: 'Montserrat_700Bold',
   },
   emptyCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyText: {
-    color: '#666',
+    color: colors.textMuted,
     textAlign: 'center',
     fontSize: 14,
   },
   appointmentCard: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   appointmentDate: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   appointmentStatus: {
@@ -290,25 +291,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
     borderWidth: 1,
-    borderColor: '#2c2c2e',
+    borderColor: colors.border,
   },
   barbershopInfo: {
     flex: 1,
   },
   barbershopName: {
     fontSize: 18,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   barbershopSlug: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textMuted,
     marginTop: 2,
   },
   bookButton: {

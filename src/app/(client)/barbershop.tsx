@@ -1,3 +1,4 @@
+import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Alert, ImageBackground } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -78,7 +79,7 @@ function LegacyBarbershopDetailsScreen() {
   if (!barbershop) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Barbearia não encontrada.</Text>
+        <Text style={styles.errorText}>Estabelecimento não encontrado.</Text>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backBtnText}>{t('common.back')}</Text>
         </TouchableOpacity>
@@ -108,7 +109,7 @@ function LegacyBarbershopDetailsScreen() {
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Sobre nós</Text>
           <Text style={styles.descriptionText}>
-            {barbershop.description || 'Uma barbearia moderna com foco na experiência, combinando técnicas tradicionais e contemporâneas para oferecer o melhor visual aos clientes.'}
+            {barbershop.description || 'Um estabelecimento moderno com foco na experiência, combinando técnicas tradicionais e contemporâneas para oferecer o melhor visual aos clientes.'}
           </Text>
         </View>
 
@@ -222,7 +223,7 @@ function LegacyBarbershopDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
   },
   contentContainer: {
     padding: 16,
@@ -233,19 +234,19 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: '100%',
     maxWidth: 600,
-    backgroundColor: '#1c1c1e',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -257,13 +258,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   backBtn: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
   },
   backBtnText: {
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
   },
   bannerContainer: {
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
-    color: '#fff',
+    color: colors.text,
     textAlign: 'center',
   },
   tagline: {
@@ -301,40 +302,40 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.text,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
     marginBottom: 8,
   },
   descriptionText: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     fontFamily: 'Inter_400Regular',
   },
   detailsGrid: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     gap: 16,
     marginBottom: 28,
   },
   detailItem: {
     borderBottomWidth: 1,
-    borderBottomColor: '#3a3a3c',
+    borderBottomColor: colors.border,
     paddingBottom: 10,
   },
   detailLabel: {
     fontSize: 10,
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontWeight: 'bold',
     letterSpacing: 1,
     marginBottom: 4,
   },
   detailValue: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
   },
@@ -342,22 +343,22 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   emptyText: {
-    color: '#666',
+    color: colors.textMuted,
     marginTop: 4,
   },
   serviceCard: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 10,
     padding: 16,
     marginRight: 10,
     minWidth: 110,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     marginTop: 6,
   },
   serviceName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -368,19 +369,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   serviceDuration: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 11,
     marginTop: 2,
   },
   barberCard: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 10,
     padding: 16,
     marginRight: 10,
     width: 110,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: colors.border,
     marginTop: 6,
   },
   avatarCircle: {
@@ -396,13 +397,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   barberName: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   barberRole: {
-    color: '#a0a0a0',
+    color: colors.textSecondary,
     fontSize: 9,
     marginTop: 2,
     fontWeight: 'bold',
