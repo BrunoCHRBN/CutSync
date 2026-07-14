@@ -15,6 +15,8 @@ interface Profile {
   avatar_url: string | null;
   commission_rate?: number | null;
   push_token?: string | null;
+  work_hours?: string | null;
+  titulo_profissional?: string | null;
 }
 
 interface AuthContextData {

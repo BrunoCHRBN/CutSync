@@ -71,6 +71,7 @@ export const BarberDashboardExperience = () => {
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [occupiedTimes, setOccupiedTimes] = useState<string[]>([]);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [nextAppointment, setNextAppointment] = useState<RichAppointment | null>(null);
 
   const weekOffset = useMemo(() => {
     const today = new Date();
@@ -134,6 +135,58 @@ export const BarberDashboardExperience = () => {
   }, [profile, selectedDate]);
 
   useEffect(() => {
+    if (!profile?.id) return;
+    const now = Date.now();
+    const query = database.collections.get<Appointment>('appointments').query(
+      Q.where('professional_id', profile.id),
+      Q.where('status', Q.oneOf(['pending', 'confirmed'])),
+      Q.where('date_time', Q.gte(now)),
+      Q.sortBy('date_time', Q.asc),
+      Q.take(1)
+    );
+    const sub = query.observe().subscribe(async (items) => {
+      if (items.length === 0) {
+        setNextAppointment(null);
+        return;
+      }
+      const appointment = items[0];
+      let clientName = appointment.clientName || 'Cliente sem cadastro';
+      let clientPhone = '';
+      let serviceName = 'Serviço indisponível';
+      let price = 0;
+      let barberName = 'Profissional';
+      if (appointment.clientId) {
+        try {
+          const cl = await database.collections.get<Profile>('profiles').find(appointment.clientId);
+          clientName = cl.name;
+          clientPhone = cl.phone || '';
+        } catch {}
+      }
+      try {
+        const service = await database.collections.get<Service>('services').find(appointment.serviceId);
+        serviceName = service.name;
+        price = service.price;
+      } catch {}
+      try {
+        barberName = (await database.collections.get<Profile>('profiles').find(appointment.professionalId)).name;
+      } catch {}
+      setNextAppointment({
+        id: appointment.id,
+        professionalId: appointment.professionalId,
+        barberName,
+        clientName,
+        clientPhone,
+        serviceName,
+        price,
+        dateTime: appointment.dateTime,
+        status: appointment.status,
+        cancellationReason: appointment.cancellationReason || ''
+      });
+    });
+    return () => sub.unsubscribe();
+  }, [profile, appointments]);
+
+  useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
       setOccupiedTimes([]);
       return;
@@ -190,9 +243,106 @@ export const BarberDashboardExperience = () => {
   const completed = visibleAppointments.filter((item) => item.status === 'completed');
   const revenue = completed.reduce((sum, item) => sum + item.price, 0);
   const commission = revenue * (profile?.commission_rate ?? 0.5);
-  const nextAppointment = visibleAppointments.find((item) => item.status !== 'completed' && item.status !== 'cancelled' && item.dateTime.getTime() >= Date.now());
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  // expediente padrão
+  const defaultSchedule = [
+    { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
+    { day: 2, name: 'Terça-feira', isOpen: true, open: '09:00', close: '20:00' },
+    { day: 3, name: 'Quarta-feira', isOpen: true, open: '09:00', close: '20:00' },
+    { day: 4, name: 'Quinta-feira', isOpen: true, open: '09:00', close: '20:00' },
+    { day: 5, name: 'Sexta-feira', isOpen: true, open: '09:00', close: '20:00' },
+    { day: 6, name: 'Sábado', isOpen: true, open: '09:00', close: '20:00' },
+    { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
+  ];
+
+  const timeSlots = useMemo(() => {
+    const dayOfWeek = selectedDate.getDay();
+    let schedule = defaultSchedule.find(s => s.day === dayOfWeek);
+    if (profile?.work_hours) {
+      try {
+        const parsed = JSON.parse(profile.work_hours);
+        const found = parsed.find((s: any) => s.day === dayOfWeek);
+        if (found) schedule = found;
+      } catch {}
+    }
+    
+    const startStr = schedule?.isOpen ? schedule.open : '09:00';
+    const endStr = schedule?.isOpen ? schedule.close : '18:00';
+    
+    const [startHour, startMin] = startStr.split(':').map(Number);
+    const [endHour, endMin] = endStr.split(':').map(Number);
+    
+    const slots: string[] = [];
+    let current = new Date();
+    current.setHours(startHour, startMin, 0, 0);
+    
+    const end = new Date();
+    end.setHours(endHour, endMin, 0, 0);
+    
+    while (current <= end) {
+      const timeString = current.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      slots.push(timeString);
+      current.setMinutes(current.getMinutes() + 30);
+    }
+    return slots;
+  }, [selectedDate, profile?.work_hours]);
+
+  const activeAppointments = useMemo(() => {
+    return visibleAppointments.filter(app => app.status === 'pending' || app.status === 'confirmed');
+  }, [visibleAppointments]);
+  
+  const inactiveAppointments = useMemo(() => {
+    return visibleAppointments.filter(app => app.status === 'completed' || app.status === 'cancelled');
+  }, [visibleAppointments]);
+
+  const activeAppointmentsBySlot = useMemo(() => {
+    const map: Record<string, RichAppointment[]> = {};
+    activeAppointments.forEach(app => {
+      const tStr = app.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      if (!map[tStr]) map[tStr] = [];
+      map[tStr].push(app);
+    });
+    return map;
+  }, [activeAppointments]);
+
+  const timelineSlots = useMemo(() => {
+    const slotsSet = new Set(timeSlots);
+    activeAppointments.forEach(app => {
+      const tStr = app.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      slotsSet.add(tStr);
+    });
+    return Array.from(slotsSet).sort((a, b) => {
+      const [ha, ma] = a.split(':').map(Number);
+      const [hb, mb] = b.split(':').map(Number);
+      return (ha * 60 + ma) - (hb * 60 + mb);
+    });
+  }, [timeSlots, activeAppointments]);
+
+  const filteredQuickTimes = useMemo(() => {
+    const isToday = quickDate.toDateString() === new Date().toDateString();
+    if (!isToday) return quickTimes;
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMin = now.getMinutes();
+    return quickTimes.filter(slot => {
+      const [h, m] = slot.split(':').map(Number);
+      return h > currentHour || (h === currentHour && m >= currentMin);
+    });
+  }, [quickDate]);
+
+  const filteredRescheduleTimes = useMemo(() => {
+    const isToday = newRescheduleDate.toDateString() === new Date().toDateString();
+    if (!isToday) return quickTimes;
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMin = now.getMinutes();
+    return quickTimes.filter(slot => {
+      const [h, m] = slot.split(':').map(Number);
+      return h > currentHour || (h === currentHour && m >= currentMin);
+    });
+  }, [newRescheduleDate]);
 
   const updateStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled', reason?: string) => {
     if (status === 'cancelled' && !reason) {
@@ -325,7 +475,7 @@ export const BarberDashboardExperience = () => {
               testID="barber-quick-booking-button" 
               onPress={() => {
                 setQuickOpen(true);
-                setQuickDate(selectedDate);
+                setQuickDate(new Date());
                 setQuickTime(null);
                 setQuickService(null);
               }} 
@@ -440,59 +590,116 @@ export const BarberDashboardExperience = () => {
           )}
         </View>
 
-        {loading ? <ActivityIndicator testID="barber-agenda-loading" color={colors.brand} style={styles.loader} /> : visibleAppointments.length === 0 ? (
-          <EmptyState testID="barber-agenda-empty" title="Agenda livre nesta data" description="Use o encaixe rápido para registrar um atendimento de balcão." icon={<CalendarDays color={colors.brand} size={22} />} />
-        ) : (
-          <View style={styles.appointmentList}>
-            {visibleAppointments.map((item) => {
-              const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
-              return (
-                <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={styles.appointmentCard}>
-                  <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={styles.appointmentTime}>{time(item.dateTime)}</Text></View>
-                  <View style={styles.appointmentCopy}>
-                    <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
-                    <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
-                    {item.status === 'cancelled' && !!item.cancellationReason ? (
-                      <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
-                    ) : null}
-                    {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
-                    {cancelCandidateId === item.id ? (
-                      <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
-                    ) : (item.status === 'pending' || item.status === 'confirmed') && item.professionalId === profile?.id ? (
-                      <View style={styles.appointmentActions}>
-                        {!!item.clientPhone && (
-                          <AppButton 
-                            label="WhatsApp" 
-                            testID={`barber-appointment-${item.id}-whatsapp-button`} 
-                            onPress={() => {
-                              const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${item.barberName}.`;
-                              sendWhatsAppMessage(item.clientPhone, text);
-                            }}
-                            variant="secondary"
-                            icon={<MessageSquare color={colors.brand} size={14} />}
-                            style={styles.smallButton}
-                          />
-                        )}
-                        <AppButton 
-                          label="Reagendar" 
-                          testID={`barber-appointment-${item.id}-reschedule-button`} 
-                          onPress={() => {
-                            setRescheduleItem(item);
-                            setNewRescheduleDate(new Date(item.dateTime));
-                            setNewRescheduleTime(time(item.dateTime));
-                          }} 
-                          variant="secondary" 
-                          icon={<RefreshCw color={colors.textSecondary} size={13} />} 
-                          style={styles.smallButton} 
-                        />
-                        <AppButton label="Cancelar" testID={`barber-appointment-${item.id}-cancel-button`} onPress={() => setCancelCandidateId(item.id)} variant="danger" icon={<X color={colors.danger} size={14} />} style={styles.smallButton} />
-                        <AppButton label={item.status === 'pending' ? 'Confirmar' : 'Concluir'} testID={`barber-appointment-${item.id}-advance-button`} onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')} loading={actionLoadingId === item.id} icon={<Check color={colors.ink} size={14} />} style={styles.smallButton} />
-                      </View>
-                    ) : null}
-                  </View>
-                </AppCard>
-              );
-            })}
+        {loading ? <ActivityIndicator testID="barber-agenda-loading" color={colors.brand} style={styles.loader} /> : (
+          <View style={{ gap: 20 }}>
+            {/* Timeline Real (Slots de Horários Ativos e Livres) */}
+            <View style={styles.appointmentList}>
+              {timelineSlots.map((slot) => {
+                const slotApps = activeAppointmentsBySlot[slot] || [];
+                
+                if (slotApps.length > 0) {
+                  return slotApps.map((item) => {
+                    const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
+                    return (
+                      <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={styles.appointmentCard}>
+                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={styles.appointmentTime}>{time(item.dateTime)}</Text></View>
+                        <View style={styles.appointmentCopy}>
+                          <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
+                          <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
+                          {item.status === 'cancelled' && !!item.cancellationReason ? (
+                            <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
+                          ) : null}
+                          {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
+                          {cancelCandidateId === item.id ? (
+                            <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
+                          ) : (item.status === 'pending' || item.status === 'confirmed') && item.professionalId === profile?.id ? (
+                            <View style={styles.appointmentActions}>
+                              {!!item.clientPhone && (
+                                <AppButton 
+                                  label="WhatsApp" 
+                                  testID={`barber-appointment-${item.id}-whatsapp-button`} 
+                                  onPress={() => {
+                                    const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${item.barberName}.`;
+                                    sendWhatsAppMessage(item.clientPhone, text);
+                                  }}
+                                  variant="secondary"
+                                  icon={<MessageSquare color={colors.brand} size={14} />}
+                                  style={styles.smallButton}
+                                />
+                              )}
+                              <AppButton 
+                                label="Reagendar" 
+                                testID={`barber-appointment-${item.id}-reschedule-button`} 
+                                onPress={() => {
+                                  setRescheduleItem(item);
+                                  setNewRescheduleDate(new Date(item.dateTime));
+                                  setNewRescheduleTime(time(item.dateTime));
+                                }} 
+                                variant="secondary" 
+                                icon={<RefreshCw color={colors.textSecondary} size={13} />} 
+                                style={styles.smallButton} 
+                              />
+                              <AppButton label="Cancelar" testID={`barber-appointment-${item.id}-cancel-button`} onPress={() => setCancelCandidateId(item.id)} variant="danger" icon={<X color={colors.danger} size={14} />} style={styles.smallButton} />
+                              <AppButton label={item.status === 'pending' ? 'Confirmar' : 'Concluir'} testID={`barber-appointment-${item.id}-advance-button`} onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')} loading={actionLoadingId === item.id} icon={<Check color={colors.ink} size={14} />} style={styles.smallButton} />
+                            </View>
+                          ) : null}
+                        </View>
+                      </AppCard>
+                    );
+                  });
+                }
+                
+                // Mostrar slot livre
+                return (
+                  <Pressable
+                    key={`free-${slot}`}
+                    onPress={() => {
+                      setQuickTime(slot);
+                      const newDate = new Date(selectedDate);
+                      const [h, m] = slot.split(':').map(Number);
+                      newDate.setHours(h, m, 0, 0);
+                      setQuickDate(newDate);
+                      setQuickOpen(true);
+                    }}
+                    style={({ pressed }) => [styles.freeSlotCard, pressed && styles.pressed]}
+                  >
+                    <View style={styles.timeBox}>
+                      <Text style={styles.freeSlotTime}>{slot}</Text>
+                    </View>
+                    <View style={styles.freeSlotCopy}>
+                      <Text style={styles.freeSlotLabel}>Horário Livre</Text>
+                      <Text style={styles.freeSlotSubLabel}>Horário Livre - Adicionar Encaixe</Text>
+                    </View>
+                    <Plus size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Seção final com Concluídos / Cancelados */}
+            {inactiveAppointments.length > 0 && (
+              <View style={styles.inactiveSection}>
+                <Text style={styles.inactiveSectionTitle}>Atendimentos Finalizados ou Cancelados</Text>
+                <View style={styles.appointmentList}>
+                  {inactiveAppointments.map((item) => {
+                    const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
+                    return (
+                      <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={[styles.appointmentCard, { opacity: 0.65 }]}>
+                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={styles.appointmentTime}>{time(item.dateTime)}</Text></View>
+                        <View style={styles.appointmentCopy}>
+                          <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
+                          <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
+                          {item.status === 'cancelled' && !!item.cancellationReason ? (
+                            <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
+                          ) : null}
+                          {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
+                        </View>
+                      </AppCard>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -529,7 +736,7 @@ export const BarberDashboardExperience = () => {
               <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.durationMinutes} min`} meta={currency(service.price)} selected={quickService === service.id} onPress={() => { setQuickService(service.id); setQuickTime(null); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
               <Text style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
               <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => {
+                {filteredQuickTimes.map((slot) => {
                   const isOccupied = quickOccupiedTimes.includes(slot);
                   return (
                     <Pressable 
@@ -602,7 +809,7 @@ export const BarberDashboardExperience = () => {
 
               <Text style={styles.fieldLabel}>Selecione o novo horário</Text>
               <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => {
+                {filteredRescheduleTimes.map((slot) => {
                   const isOccupied = occupiedTimes.includes(slot);
                   return (
                     <Pressable 
@@ -736,5 +943,50 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyStrong,
     fontSize: 10,
     textTransform: 'uppercase',
+  },
+  freeSlotCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    marginBottom: 9,
+    minHeight: 68,
+  },
+  freeSlotTime: {
+    color: colors.textSecondary,
+    fontFamily: typography.display,
+    fontSize: 15,
+  },
+  freeSlotCopy: {
+    flex: 1,
+    paddingLeft: 14,
+  },
+  freeSlotLabel: {
+    color: colors.textSecondary,
+    fontFamily: typography.bodyStrong,
+    fontSize: 13,
+  },
+  freeSlotSubLabel: {
+    color: colors.textMuted,
+    fontFamily: typography.body,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  inactiveSection: {
+    marginTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 20,
+  },
+  inactiveSectionTitle: {
+    color: colors.textSecondary,
+    fontFamily: typography.display,
+    fontSize: 15,
+    marginBottom: 12,
+    letterSpacing: -0.4,
   },
 });
