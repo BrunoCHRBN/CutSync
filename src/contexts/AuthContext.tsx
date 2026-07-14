@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import { database } from '../database';
 
 interface Profile {
   id: string;
@@ -56,6 +57,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setLoading(true);
+    try {
+      // Limpar banco local no logout para evitar vazamento de fila de push de outras sessões
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+    } catch (e) {
+      console.warn('Erro ao resetar banco local no logout:', e);
+    }
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
