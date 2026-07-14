@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
-import { BadgePercent, Copy, Link2, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
+import { BadgePercent, Clock, Copy, Link2, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
 import { database } from '../../database';
 import { Barbershop, Profile } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,6 +15,24 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
+interface DaySchedule {
+  day: number; // 1 = Segunda, 2 = Terça, etc., 0 = Domingo
+  name: string;
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+const defaultSchedule: DaySchedule[] = [
+  { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 2, name: 'Terça-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 3, name: 'Quarta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 4, name: 'Quinta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 5, name: 'Sexta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 6, name: 'Sábado', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
+];
+
 export const TeamExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
@@ -25,6 +43,11 @@ export const TeamExperience = () => {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commission, setCommission] = useState('50');
+  
+  // Escalas e jornadas de trabalho do barbeiro
+  const [editingWorkHoursId, setEditingWorkHoursId] = useState<string | null>(null);
+  const [workHoursSchedule, setWorkHoursSchedule] = useState<DaySchedule[]>(defaultSchedule);
+
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
@@ -48,6 +71,18 @@ export const TeamExperience = () => {
     setNotice(null);
   };
 
+  const startEditingWorkHours = (barber: Profile) => {
+    setEditingWorkHoursId(barber.id);
+    let parsedHours = defaultSchedule;
+    if (barber.workHours) {
+      try {
+        parsedHours = JSON.parse(barber.workHours);
+      } catch {}
+    }
+    setWorkHoursSchedule(parsedHours);
+    setNotice(null);
+  };
+
   const saveCommission = async (barberId: string) => {
     const value = Number(commission.replace(',', '.'));
     if (!Number.isFinite(value) || value < 0 || value > 100) {
@@ -65,6 +100,25 @@ export const TeamExperience = () => {
       sync();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar a comissão.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const saveWorkHours = async (barberId: string) => {
+    setActionLoading(true);
+    try {
+      await database.write(async () => {
+        const barber = await database.collections.get<Profile>('profiles').find(barberId);
+        await barber.update((record) => {
+          record.workHours = JSON.stringify(workHoursSchedule);
+        });
+      });
+      setEditingWorkHoursId(null);
+      setNotice({ tone: 'success', message: 'Jornada e escala do profissional salvas com sucesso.' });
+      sync();
+    } catch {
+      setNotice({ tone: 'danger', message: 'Não foi possível atualizar a escala do profissional.' });
     } finally {
       setActionLoading(false);
     }
@@ -100,82 +154,139 @@ export const TeamExperience = () => {
 
   return (
     <AdminShell testID="team-screen" activeRoute="team" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut}>
-      <SectionHeading testID="team-heading" eyebrow="Pessoas" title="Equipe e comissões" description="Convide profissionais, acompanhe vínculos e mantenha os repasses organizados." />
+      <SectionHeading testID="team-heading" eyebrow="Pessoas" title="Equipe e escalas" description="Convide profissionais, configure jornadas de trabalho, folgas e comissões." />
 
       {!!notice && <InlineNotice testID="team-action-notice" tone={notice.tone} message={notice.message} />}
 
-      <View style={[styles.workspace, isWide && styles.workspaceWide]}>
-        <AppCard testID="team-invite-card" style={styles.inviteCard} elevated>
-          <View style={styles.inviteIcon}><UserPlus color={colors.brand} size={22} /></View>
-          <Text style={styles.inviteEyebrow}>CONVITE DE EQUIPE</Text>
-          <Text testID="team-invite-title" style={styles.inviteTitle}>Traga seu time para o CutSync.</Text>
-          <Text style={styles.inviteDescription}>Envie o código abaixo. O profissional escolhe “Sou profissional” no cadastro e entra automaticamente na sua equipe.</Text>
-          <View testID="team-invite-code" style={styles.codeBox}>
-            <Link2 color={colors.brand} size={17} />
-            <Text selectable style={styles.code}>{barbershop?.slug || '—'}</Text>
-            <Pressable testID="team-copy-invite-code-button" onPress={copyCode} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}>
-              <Copy color={colors.ink} size={16} />
-            </Pressable>
-          </View>
-          <Text style={styles.inviteHint}>O código também forma o endereço público cutsync.com/{barbershop?.slug || 'sua-barbearia'}.</Text>
-        </AppCard>
-
-        <View style={styles.teamColumn}>
-          <View style={styles.listHeader}>
-            <View>
-              <Text testID="team-list-title" style={styles.listTitle}>Profissionais vinculados</Text>
-              <Text style={styles.listSubtitle}>{barbers.length} {barbers.length === 1 ? 'pessoa na equipe' : 'pessoas na equipe'}</Text>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={[styles.workspace, isWide && styles.workspaceWide]}>
+          <AppCard testID="team-invite-card" style={styles.inviteCard} elevated>
+            <View style={styles.inviteIcon}><UserPlus color={colors.brand} size={22} /></View>
+            <Text style={styles.inviteEyebrow}>CONVITE DE EQUIPE</Text>
+            <Text testID="team-invite-title" style={styles.inviteTitle}>Traga seu time para o CutSync.</Text>
+            <Text style={styles.inviteDescription}>Envie o código abaixo. O profissional escolhe “Sou profissional” no cadastro e entra automaticamente na sua equipe.</Text>
+            <View testID="team-invite-code" style={styles.codeBox}>
+              <Link2 color={colors.brand} size={17} />
+              <Text selectable style={styles.code}>{barbershop?.slug || '—'}</Text>
+              <Pressable testID="team-copy-invite-code-button" onPress={copyCode} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}>
+                <Copy color={colors.ink} size={16} />
+              </Pressable>
             </View>
-            <UsersRound color={colors.textMuted} size={22} />
-          </View>
+            <Text style={styles.inviteHint}>O código também forma o endereço público cutsync.com/{barbershop?.slug || 'sua-barbearia'}.</Text>
+          </AppCard>
 
-          {loading ? (
-            <ActivityIndicator testID="team-loading" color={colors.brand} style={styles.loader} />
-          ) : barbers.length === 0 ? (
-            <EmptyState testID="team-empty-state" title="Sua equipe começa aqui" description="Compartilhe o código de convite para vincular o primeiro profissional." icon={<UsersRound color={colors.brand} size={22} />} />
-          ) : (
-            <View style={styles.teamList}>
-              {barbers.map((barber) => (
-                <AppCard key={barber.id} testID={`team-member-${barber.id}`} style={styles.memberCard}>
-                  <View style={styles.memberMain}>
-                    <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
-                    <View style={styles.memberCopy}>
-                      <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
-                      <Text style={styles.memberContact}>{barber.email}</Text>
-                      <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
-                    </View>
-                    <View style={styles.commissionBadge}>
-                      <BadgePercent color={colors.brand} size={14} />
-                      <Text testID={`team-member-${barber.id}-commission`} style={styles.commissionText}>{Math.round((barber.commissionRate ?? 0.5) * 100)}%</Text>
-                    </View>
-                  </View>
-
-                  {editingId === barber.id ? (
-                    <View testID={`team-member-${barber.id}-commission-form`} style={styles.inlineForm}>
-                      <AppInput containerStyle={styles.commissionInput} label="Nova comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
-                      <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveCommission(barber.id)} loading={actionLoading} style={styles.smallButton} />
-                      <AppButton label="Cancelar" testID={`team-member-${barber.id}-commission-cancel-button`} onPress={() => setEditingId(null)} variant="secondary" style={styles.smallButton} />
-                    </View>
-                  ) : removingId === barber.id ? (
-                    <InlineNotice
-                      testID={`team-member-${barber.id}-remove-confirmation`}
-                      tone="danger"
-                      title="Remover da equipe?"
-                      message="O profissional deixa de aparecer para novos agendamentos."
-                      action={<View style={styles.confirmActions}><AppButton label="Remover" testID={`team-member-${barber.id}-remove-confirm-button`} onPress={() => removeBarber(barber.id)} loading={actionLoading} variant="danger" style={styles.smallButton} /><AppButton label="Cancelar" testID={`team-member-${barber.id}-remove-cancel-button`} onPress={() => setRemovingId(null)} variant="secondary" style={styles.smallButton} /></View>}
-                    />
-                  ) : (
-                    <View style={styles.memberActions}>
-                      <AppButton label="Editar comissão" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
-                      <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
-                    </View>
-                  )}
-                </AppCard>
-              ))}
+          <View style={styles.teamColumn}>
+            <View style={styles.listHeader}>
+              <View>
+                <Text testID="team-list-title" style={styles.listTitle}>Profissionais vinculados</Text>
+                <Text style={styles.listSubtitle}>{barbers.length} {barbers.length === 1 ? 'pessoa na equipe' : 'pessoas na equipe'}</Text>
+              </View>
+              <UsersRound color={colors.textMuted} size={22} />
             </View>
-          )}
+
+            {loading ? (
+              <ActivityIndicator testID="team-loading" color={colors.brand} style={styles.loader} />
+            ) : barbers.length === 0 ? (
+              <EmptyState testID="team-empty-state" title="Sua equipe começa aqui" description="Compartilhe o código de convite para vincular o primeiro profissional." icon={<UsersRound color={colors.brand} size={22} />} />
+            ) : (
+              <View style={styles.teamList}>
+                {barbers.map((barber) => (
+                  <AppCard key={barber.id} testID={`team-member-${barber.id}`} style={styles.memberCard}>
+                    <View style={styles.memberMain}>
+                      <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
+                      <View style={styles.memberCopy}>
+                        <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
+                        <Text style={styles.memberContact}>{barber.email}</Text>
+                        <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
+                      </View>
+                      <View style={styles.commissionBadge}>
+                        <BadgePercent color={colors.brand} size={14} />
+                        <Text testID={`team-member-${barber.id}-commission`} style={styles.commissionText}>{Math.round((barber.commissionRate ?? 0.5) * 100)}%</Text>
+                      </View>
+                    </View>
+
+                    {editingId === barber.id ? (
+                      <View testID={`team-member-${barber.id}-commission-form`} style={styles.inlineForm}>
+                        <AppInput containerStyle={styles.commissionInput} label="Nova comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
+                        <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveCommission(barber.id)} loading={actionLoading} style={styles.smallButton} />
+                        <AppButton label="Cancelar" testID={`team-member-${barber.id}-commission-cancel-button`} onPress={() => setEditingId(null)} variant="secondary" style={styles.smallButton} />
+                      </View>
+                    ) : editingWorkHoursId === barber.id ? (
+                      <View testID={`team-member-${barber.id}-hours-form`} style={styles.workHoursForm}>
+                        <Text style={styles.workHoursTitle}>Jornada e Escala de Trabalho</Text>
+                        <View style={styles.scheduleGrid}>
+                          {workHoursSchedule.map((dayItem, idx) => (
+                            <View key={dayItem.day} style={styles.scheduleRow}>
+                              <Text style={styles.scheduleDayName}>{dayItem.name}</Text>
+                              <Switch
+                                value={dayItem.isOpen}
+                                onValueChange={(val) => {
+                                  const copy = [...workHoursSchedule];
+                                  copy[idx].isOpen = val;
+                                  setWorkHoursSchedule(copy);
+                                }}
+                                trackColor={{ false: '#2C2C2E', true: `${colors.brand}44` }}
+                                thumbColor={dayItem.isOpen ? colors.brand : '#8E8E93'}
+                              />
+                              {dayItem.isOpen ? (
+                                <View style={styles.scheduleTimes}>
+                                  <TextInput
+                                    style={styles.timeInput}
+                                    value={dayItem.open}
+                                    onChangeText={(val) => {
+                                      const copy = [...workHoursSchedule];
+                                      copy[idx].open = val;
+                                      setWorkHoursSchedule(copy);
+                                    }}
+                                    placeholder="09:00"
+                                    placeholderTextColor="#666"
+                                  />
+                                  <Text style={{ color: colors.textMuted, fontSize: 10 }}>às</Text>
+                                  <TextInput
+                                    style={styles.timeInput}
+                                    value={dayItem.close}
+                                    onChangeText={(val) => {
+                                      const copy = [...workHoursSchedule];
+                                      copy[idx].close = val;
+                                      setWorkHoursSchedule(copy);
+                                    }}
+                                    placeholder="20:00"
+                                    placeholderTextColor="#666"
+                                  />
+                                </View>
+                              ) : (
+                                <Text style={styles.closedText}>Folga</Text>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                        <View style={styles.workHoursActions}>
+                          <AppButton label="Salvar Escala" testID={`team-member-${barber.id}-hours-save-button`} onPress={() => saveWorkHours(barber.id)} loading={actionLoading} style={styles.smallButton} />
+                          <AppButton label="Cancelar" testID={`team-member-${barber.id}-hours-cancel-button`} onPress={() => setEditingWorkHoursId(null)} variant="secondary" style={styles.smallButton} />
+                        </View>
+                      </View>
+                    ) : removingId === barber.id ? (
+                      <InlineNotice
+                        testID={`team-member-${barber.id}-remove-confirmation`}
+                        tone="danger"
+                        title="Remover da equipe?"
+                        message="O profissional deixa de aparecer para novos agendamentos."
+                        action={<View style={styles.confirmActions}><AppButton label="Remover" testID={`team-member-${barber.id}-remove-confirm-button`} onPress={() => removeBarber(barber.id)} loading={actionLoading} variant="danger" style={styles.smallButton} /><AppButton label="Cancelar" testID={`team-member-${barber.id}-remove-cancel-button`} onPress={() => setRemovingId(null)} variant="secondary" style={styles.smallButton} /></View>}
+                      />
+                    ) : (
+                      <View style={styles.memberActions}>
+                        <AppButton label="Editar comissão" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
+                        <AppButton label="Jornada / Escala" testID={`team-member-${barber.id}-edit-hours-button`} onPress={() => startEditingWorkHours(barber)} variant="secondary" icon={<Clock color={colors.text} size={15} />} style={styles.smallButton} />
+                        <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
+                      </View>
+                    )}
+                  </AppCard>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </AdminShell>
   );
 };
@@ -213,4 +324,14 @@ const styles = StyleSheet.create({
   confirmActions: { gap: 6 },
   smallButton: { minHeight: 38, paddingVertical: 7, paddingHorizontal: 12 },
   pressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
+  // Estilos da matriz de horários do profissional
+  workHoursForm: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  workHoursTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  scheduleGrid: { backgroundColor: colors.canvas, borderRadius: radii.md, padding: 12, gap: 8, borderWidth: 1, borderColor: colors.border },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
+  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
+  scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
+  timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 10, paddingHorizontal: 4 },
+  closedText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
+  workHoursActions: { flexDirection: 'row', gap: 8, marginTop: 10 }
 });

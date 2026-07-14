@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store } from 'lucide-react-native';
 import { database } from '../../database';
 import { Barbershop } from '../../database/models';
@@ -14,17 +14,36 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
+interface DaySchedule {
+  day: number; // 1 = Segunda, 2 = Terça, etc., 0 = Domingo
+  name: string;
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+const defaultSchedule: DaySchedule[] = [
+  { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 2, name: 'Terça-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 3, name: 'Quarta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 4, name: 'Quinta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 5, name: 'Sexta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 6, name: 'Sábado', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
+];
+
 export const SettingsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
   const { sync } = useSync();
+  
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
-  const [openingHours, setOpeningHours] = useState('');
+  const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,9 +59,18 @@ export const SettingsExperience = () => {
         setSlug(shop.slug || '');
         setAddress(shop.address || '');
         setPhone(shop.phone || '');
-        setOpeningHours(shop.openingHours || '');
         setPrimaryColor(shop.primaryColor || '#F5A524');
         setLogoUrl(shop.logoUrl || null);
+
+        let parsedHours = defaultSchedule;
+        if (shop.openingHours) {
+          try {
+            parsedHours = JSON.parse(shop.openingHours);
+          } catch {
+            // Caso seja texto livre legado, mantém o default estruturado
+          }
+        }
+        setSchedule(parsedHours);
         setLoading(false);
       },
       error: () => setLoading(false),
@@ -71,7 +99,7 @@ export const SettingsExperience = () => {
           record.slug = cleanSlug;
           record.address = address.trim();
           record.phone = phone.trim();
-          record.openingHours = openingHours.trim();
+          record.openingHours = JSON.stringify(schedule);
           record.primaryColor = primaryColor.toUpperCase();
           record.logoUrl = logoUrl || undefined;
         });
@@ -102,55 +130,105 @@ export const SettingsExperience = () => {
 
   return (
     <AdminShell testID="settings-screen" activeRoute="settings" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut}>
-      <SectionHeading testID="settings-heading" eyebrow="Preferências" title="Identidade e contato" description="Mantenha as informações que seus clientes veem e a marca que sua equipe usa todos os dias." />
+      <SectionHeading testID="settings-heading" eyebrow="Preferências" title="Identidade e funcionamento" description="Mantenha as informações que seus clientes veem e a marca que sua equipe usa todos os dias." />
       {!!notice && <InlineNotice testID="settings-action-notice" tone={notice.tone} message={notice.message} />}
 
-      <View style={[styles.workspace, isWide && styles.workspaceWide]}>
-        <View style={styles.formColumn}>
-          <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
-            <View style={styles.logoRow}>
-              <View testID="settings-logo-preview" style={[styles.logoPreview, { borderColor: primaryColor }]}> 
-                {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={primaryColor} size={30} />}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={[styles.workspace, isWide && styles.workspaceWide]}>
+          <View style={styles.formColumn}>
+            <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
+              <View style={styles.logoRow}>
+                <View testID="settings-logo-preview" style={[styles.logoPreview, { borderColor: primaryColor }]}> 
+                  {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={primaryColor} size={30} />}
+                </View>
+                <View style={styles.logoCopy}>
+                  <Text style={styles.logoTitle}>Logo da barbearia</Text>
+                  <Text style={styles.logoHint}>A logo atual é exibida aqui; nome e cor controlam a identidade principal.</Text>
+                </View>
               </View>
-              <View style={styles.logoCopy}>
-                <Text style={styles.logoTitle}>Logo da barbearia</Text>
-                <Text style={styles.logoHint}>A logo atual é exibida aqui; nome e cor controlam a identidade principal.</Text>
+              <View style={styles.fieldsRow}>
+                <AppInput containerStyle={styles.flexField} label="Nome comercial" testID="settings-name-input" icon={<Store color={colors.textMuted} size={17} />} value={name} onChangeText={setName} placeholder="Nome da barbearia" />
+                <AppInput containerStyle={styles.colorField} label="Cor da marca" testID="settings-color-input" icon={<Palette color={colors.textMuted} size={17} />} value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" />
               </View>
-            </View>
-            <View style={styles.fieldsRow}>
-              <AppInput containerStyle={styles.flexField} label="Nome comercial" testID="settings-name-input" icon={<Store color={colors.textMuted} size={17} />} value={name} onChangeText={setName} placeholder="Nome da barbearia" />
-              <AppInput containerStyle={styles.colorField} label="Cor da marca" testID="settings-color-input" icon={<Palette color={colors.textMuted} size={17} />} value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" />
-            </View>
-          </FormSection>
+            </FormSection>
 
-          <FormSection testID="settings-contact-section" title="Contato e localização" description="Esses dados aparecem no perfil público e ajudam o cliente antes da visita.">
-            <AppInput label="Endereço" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
-            <View style={styles.fieldsRow}>
-              <AppInput containerStyle={styles.flexField} label="Telefone" testID="settings-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
-              <AppInput containerStyle={styles.flexField} label="Horário de funcionamento" testID="settings-hours-input" value={openingHours} onChangeText={setOpeningHours} placeholder="Seg–Sáb, 9h às 20h" />
-            </View>
-          </FormSection>
-        </View>
+            <FormSection testID="settings-contact-section" title="Contato e localização" description="Esses dados aparecem no perfil público e ajudam o cliente antes da visita.">
+              <AppInput label="Endereço" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
+              <View style={styles.fieldsRow}>
+                <AppInput containerStyle={styles.flexField} label="Telefone" testID="settings-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
+              </View>
+            </FormSection>
 
-        <View style={styles.previewColumn}>
-          <AppCard testID="settings-public-profile-preview" style={styles.previewCard} elevated>
-            <Text style={styles.previewEyebrow}>PERFIL PÚBLICO</Text>
-            <View style={[styles.previewLogo, { backgroundColor: `${primaryColor}22`, borderColor: `${primaryColor}55` }]}>
-              {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
-            </View>
-            <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
-            <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>
-            <Text testID="settings-preview-phone" style={styles.previewMeta}>{phone || 'Adicione seu telefone'}</Text>
-            <View style={styles.linkBox}>
-              <Link2 color={colors.brand} size={15} />
-              <Text testID="settings-public-link" numberOfLines={1} style={styles.linkText}>cutsync.com/{slug || 'sua-barbearia'}</Text>
-              <Pressable testID="settings-copy-public-link-button" onPress={copyPublicLink} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.ink} size={14} /></Pressable>
-            </View>
-            <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
-          </AppCard>
-          <AppButton label="Salvar alterações" testID="settings-save-button" onPress={saveSettings} loading={saving} fullWidth icon={<Save color={colors.ink} size={17} />} />
+            <FormSection title="Grade de Funcionamento Estruturada" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
+              <View style={styles.scheduleGrid}>
+                {schedule.map((dayItem, idx) => (
+                  <View key={dayItem.day} style={styles.scheduleRow}>
+                    <Text style={styles.scheduleDayName}>{dayItem.name}</Text>
+                    <Switch
+                      value={dayItem.isOpen}
+                      onValueChange={(val) => {
+                        const copy = [...schedule];
+                        copy[idx].isOpen = val;
+                        setSchedule(copy);
+                      }}
+                      trackColor={{ false: '#2C2C2E', true: `${primaryColor}44` }}
+                      thumbColor={dayItem.isOpen ? primaryColor : '#8E8E93'}
+                    />
+                    {dayItem.isOpen ? (
+                      <View style={styles.scheduleTimes}>
+                        <TextInput
+                          style={styles.timeInput}
+                          value={dayItem.open}
+                          onChangeText={(val) => {
+                            const copy = [...schedule];
+                            copy[idx].open = val;
+                            setSchedule(copy);
+                          }}
+                          placeholder="09:00"
+                          placeholderTextColor="#666"
+                        />
+                        <Text style={{ color: colors.textMuted, fontSize: 10 }}>às</Text>
+                        <TextInput
+                          style={styles.timeInput}
+                          value={dayItem.close}
+                          onChangeText={(val) => {
+                            const copy = [...schedule];
+                            copy[idx].close = val;
+                            setSchedule(copy);
+                          }}
+                          placeholder="20:00"
+                          placeholderTextColor="#666"
+                        />
+                      </View>
+                    ) : (
+                      <Text style={styles.closedText}>Fechado</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </FormSection>
+          </View>
+
+          <View style={styles.previewColumn}>
+            <AppCard testID="settings-public-profile-preview" style={styles.previewCard} elevated>
+              <Text style={styles.previewEyebrow}>PERFIL PÚBLICO</Text>
+              <View style={[styles.previewLogo, { backgroundColor: `${primaryColor}22`, borderColor: `${primaryColor}55` }]}>
+                {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
+              </View>
+              <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
+              <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>
+              <Text testID="settings-preview-phone" style={styles.previewMeta}>{phone || 'Adicione seu telefone'}</Text>
+              <View style={styles.linkBox}>
+                <Link2 color={colors.brand} size={15} />
+                <Text testID="settings-public-link" numberOfLines={1} style={styles.linkText}>cutsync.com/{slug || 'sua-barbearia'}</Text>
+                <Pressable testID="settings-copy-public-link-button" onPress={copyPublicLink} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.ink} size={14} /></Pressable>
+              </View>
+              <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
+            </AppCard>
+            <AppButton label="Salvar configurações" testID="settings-save-button" onPress={saveSettings} loading={saving} fullWidth icon={<Save color={colors.ink} size={17} />} />
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </AdminShell>
   );
 };
@@ -181,4 +259,11 @@ const styles = StyleSheet.create({
   linkText: { flex: 1, color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10 },
   copyButton: { width: 30, height: 30, borderRadius: radii.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
+  // Estilos da matriz de horários
+  scheduleGrid: { backgroundColor: colors.surface, borderHeight: 1, borderColor: colors.border, borderRadius: radii.lg, padding: 16, gap: 10 },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
+  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
+  scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
+  timeInput: { width: 56, height: 34, textAlign: 'center', color: colors.text, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
+  closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' }
 });

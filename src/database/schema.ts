@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema({
       name: 'barbershops',
@@ -32,6 +32,7 @@ export default appSchema({
         { name: 'avatar_url', type: 'string', isOptional: true },
         { name: 'commission_rate', type: 'number', isOptional: true },
         { name: 'push_token', type: 'string', isOptional: true },
+        { name: 'work_hours', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
 import {
@@ -9,6 +9,7 @@ import {
   Check,
   Clock3,
   MessageSquare,
+  Plus,
   RefreshCw,
   Scissors,
   TrendingUp,
@@ -26,6 +27,8 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { SectionHeading } from '../ui/SectionHeading';
 import { StatusBadge } from '../ui/StatusBadge';
+import { ChoiceCard } from '../ui/ChoiceCard';
+import { AppInput } from '../ui/AppInput';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
 interface RichAppointment {
@@ -46,6 +49,8 @@ const statusConfig: Record<string, { label: string; tone: 'warning' | 'info' | '
   cancelled: { label: 'Cancelado', tone: 'danger' },
 };
 
+const quickTimes = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+
 export const AdminDashboardExperience = () => {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -53,12 +58,25 @@ export const AdminDashboardExperience = () => {
   const isTablet = width >= layout.mobileBreakpoint;
   const { profile, signOut } = useAuth();
   const { isSyncing, syncError, sync } = useSync();
+  
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
   const [barbers, setBarbers] = useState<Profile[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Estados locais para Encaixe Rápido
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState('');
+  const [quickService, setQuickService] = useState<string | null>(null);
+  const [quickBarber, setQuickBarber] = useState<string | null>(null);
+  const [quickTime, setQuickTime] = useState<string | null>(null);
+  const [quickLoading, setQuickLoading] = useState(false);
+
+  // Filtro de Caixa do Painel de Desempenho e Faturamento
+  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
 
   const dateOptions = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const offset = index - 3;
@@ -87,18 +105,41 @@ export const AdminDashboardExperience = () => {
       .observe()
       .subscribe(setBarbers);
 
+    const servicesSub = database.collections.get<Service>('services')
+      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true))
+      .observe()
+      .subscribe(setServices);
+
     return () => {
       shopSub.unsubscribe();
       teamSub.unsubscribe();
+      servicesSub.unsubscribe();
     };
   }, [profile]);
 
   useEffect(() => {
     if (!profile?.barbershop_id) return;
+
+    // Calcular a janela de data baseado no período selecionado
     const start = new Date(selectedDate);
-    start.setHours(0, 0, 0, 0);
     const end = new Date(selectedDate);
-    end.setHours(23, 59, 59, 999);
+
+    if (period === 'today') {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (period === 'week') {
+      const day = start.getDay();
+      start.setDate(start.getDate() - day);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(end.getDate() + (6 - day));
+      end.setHours(23, 59, 59, 999);
+    } else if (period === 'month') {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      end.setHours(23, 59, 59, 999);
+    }
 
     const sub = database.collections.get<Appointment>('appointments')
       .query(
@@ -131,7 +172,7 @@ export const AdminDashboardExperience = () => {
       });
 
     return () => sub.unsubscribe();
-  }, [profile, selectedDate]);
+  }, [profile, selectedDate, period]);
 
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed') => {
     setActionLoadingId(id);
@@ -165,19 +206,151 @@ export const AdminDashboardExperience = () => {
     }
   };
 
-  const active = appointments.filter((item) => item.status !== 'cancelled');
-  const completed = appointments.filter((item) => item.status === 'completed');
-  const revenue = completed.reduce((total, item) => total + item.price, 0);
-  const occupancy = Math.min(100, Math.round((active.length / (Math.max(barbers.length, 1) * 12)) * 100));
+  const createQuickBooking = async () => {
+    if (!quickName.trim() || !quickService || !quickBarber || !quickTime || !barbershop?.id) {
+      const msg = 'Informe cliente, serviço, profissional e horário para criar o encaixe.';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Atenção', msg);
+      }
+      return;
+    }
+    const dateTime = new Date(selectedDate);
+    const [hours, minutes] = quickTime.split(':').map(Number);
+    dateTime.setHours(hours, minutes, 0, 0);
+    const service = services.find((item) => item.id === quickService);
+    const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
+    
+    const conflict = appointments.some((item) => {
+      if (item.barberId !== quickBarber || item.status === 'cancelled') return false;
+      const itemService = services.find((candidate) => candidate.name === item.serviceName);
+      const itemEnd = item.dateTime.getTime() + (itemService?.durationMinutes || 30) * 60 * 1000;
+      return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
+    });
+    
+    if (conflict) {
+      const msg = 'Esse horário conflita com outro atendimento do profissional selecionado.';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Atenção', msg);
+      }
+      return;
+    }
+
+    setQuickLoading(true);
+    try {
+      await database.write(async () => {
+        await database.collections.get('appointments').create((record: any) => {
+          record.barbershopId = barbershop.id;
+          record.barberId = quickBarber;
+          record.clientName = quickName.trim();
+          record.serviceId = quickService;
+          record.dateTime = dateTime;
+          record.status = 'confirmed';
+        });
+      });
+      setQuickOpen(false); 
+      setQuickName(''); 
+      setQuickService(null); 
+      setQuickBarber(null); 
+      setQuickTime(null);
+      sync();
+    } catch {
+      const msg = 'Não foi possível criar o encaixe.';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Erro', msg);
+      }
+    } finally {
+      setQuickLoading(false);
+    }
+  };
+
+  const isSameDay = (d1: Date, d2: Date) => d1.toDateString() === d2.toDateString();
+
+  // A fila da agenda do dia filtra apenas o dia específico selecionado
+  const activeAppointments = appointments.filter((item) => 
+    isSameDay(item.dateTime, selectedDate) && (item.status === 'pending' || item.status === 'confirmed')
+  );
+  const finishedAppointments = appointments.filter((item) => 
+    isSameDay(item.dateTime, selectedDate) && (item.status === 'completed' || item.status === 'cancelled')
+  );
+
+  // Cálculos do período selecionado (Hoje, Semana ou Mês) para métricas e repasses
+  const periodActive = appointments.filter((item) => item.status !== 'cancelled');
+  const periodCompleted = appointments.filter((item) => item.status === 'completed');
+  const revenue = periodCompleted.reduce((total, item) => total + item.price, 0);
+  const occupancy = Math.min(100, Math.round((periodActive.length / (Math.max(barbers.length, 1) * 12 * (period === 'today' ? 1 : period === 'week' ? 6 : 26))) * 100));
+  
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const time = (value: Date) => value.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const barberName = (id: string) => barbers.find((barber) => barber.id === id)?.name || 'Profissional';
 
   const metrics = [
-    { key: 'revenue', label: 'Faturamento do dia', value: currency(revenue), note: `${completed.length} atendimentos concluídos`, Icon: Banknote, tone: colors.success },
-    { key: 'occupancy', label: 'Ocupação estimada', value: `${occupancy}%`, note: `${active.length} horários em operação`, Icon: TrendingUp, tone: colors.brand },
+    { key: 'revenue', label: period === 'today' ? 'Faturamento do dia' : period === 'week' ? 'Faturamento da semana' : 'Faturamento do mês', value: currency(revenue), note: `${periodCompleted.length} atendimentos concluídos`, Icon: Banknote, tone: colors.success },
+    { key: 'occupancy', label: 'Ocupação estimada', value: `${occupancy}%`, note: `${periodActive.length} horários no período`, Icon: TrendingUp, tone: colors.brand },
     { key: 'team', label: 'Equipe em agenda', value: String(barbers.length), note: 'profissionais disponíveis', Icon: Users, tone: colors.info },
   ];
+
+  const renderAppointmentRow = (item: RichAppointment, isFinished = false) => {
+    const status = statusConfig[item.status] || { label: item.status, tone: 'warning' as const };
+    return (
+      <View key={item.id} testID={`admin-appointment-${item.id}`} style={[styles.appointmentRow, isFinished && styles.appointmentRowFinished]}>
+        <View style={styles.timeColumn}>
+          <Text testID={`admin-appointment-${item.id}-time`} style={[styles.appointmentTime, isFinished && styles.timeFinished]}>{time(item.dateTime)}</Text>
+          <View style={[styles.timelineDot, isFinished && styles.dotFinished]} />
+        </View>
+        <View style={styles.appointmentCopy}>
+          <View style={styles.appointmentTitleRow}>
+            <Text testID={`admin-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text>
+            <StatusBadge testID={`admin-appointment-${item.id}-status`} label={status.label} tone={status.tone} />
+          </View>
+          <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
+          <View style={styles.professionalRow}>
+            <UserRound color={colors.textMuted} size={13} />
+            <Text style={styles.professionalName}>{barberName(item.barberId)}</Text>
+          </View>
+          {!isFinished && (
+            <View style={styles.rowActions}>
+              {!!item.clientPhone && (
+                <AppButton 
+                  label="WhatsApp" 
+                  onPress={() => {
+                    const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${barberName(item.barberId)}.`;
+                    sendWhatsAppMessage(item.clientPhone, text);
+                  }}
+                  variant="secondary"
+                  icon={<MessageSquare color={colors.brand} size={14} />}
+                  style={styles.compactButton}
+                />
+              )}
+              <AppButton
+                label={item.status === 'pending' ? 'Recusar' : 'Marcar falta'}
+                testID={`admin-appointment-${item.id}-cancel-button`}
+                variant="danger"
+                disabled={!!actionLoadingId}
+                onPress={() => updateStatus(item.id, 'cancelled')}
+                icon={<X color={colors.danger} size={15} />}
+                style={styles.compactButton}
+              />
+              <AppButton
+                label={item.status === 'pending' ? 'Confirmar' : 'Concluir'}
+                testID={`admin-appointment-${item.id}-advance-button`}
+                loading={actionLoadingId === item.id}
+                disabled={!!actionLoadingId && actionLoadingId !== item.id}
+                onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')}
+                icon={<Check color={colors.ink} size={15} />}
+                style={styles.compactButton}
+              />
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <AdminShell
@@ -192,7 +365,7 @@ export const AdminDashboardExperience = () => {
           testID="admin-dashboard-heading"
           eyebrow="Central de operação"
           title={`Bom dia, ${profile?.name?.split(' ')[0] || 'gestor'}.`}
-          description="Acompanhe o ritmo da loja e resolva pendências sem perder a visão do dia."
+          description="Acompanhe o ritmo da loja e filtre faturamento e repasses por período."
         />
         <View style={styles.headerActions}>
           <StatusBadge
@@ -207,6 +380,13 @@ export const AdminDashboardExperience = () => {
             loading={isSyncing}
             onPress={sync}
             icon={!isSyncing ? <RefreshCw color={colors.text} size={16} /> : undefined}
+          />
+          <AppButton
+            label="+ Novo Agendamento"
+            testID="admin-new-booking-button"
+            onPress={() => setQuickOpen(true)}
+            icon={<Plus color={colors.ink} size={17} />}
+            style={{ backgroundColor: colors.brand, borderColor: colors.brand }}
           />
         </View>
       </View>
@@ -264,83 +444,53 @@ export const AdminDashboardExperience = () => {
           <View style={styles.panelHeader}>
             <View>
               <Text testID="admin-appointments-title" style={styles.panelTitle}>Próximos atendimentos</Text>
-              <Text style={styles.panelSubtitle}>{active.length} horários ativos nesta data</Text>
+              <Text style={styles.panelSubtitle}>{activeAppointments.length} horários ativos nesta data</Text>
             </View>
-            <StatusBadge testID="admin-active-appointments-count" label={`${active.length} ativos`} tone="info" />
+            <StatusBadge testID="admin-active-appointments-count" label={`${activeAppointments.length} ativos`} tone="info" />
           </View>
 
           {loading ? (
             <ActivityIndicator testID="admin-appointments-loading" color={colors.brand} style={styles.loader} />
-          ) : appointments.length === 0 ? (
+          ) : activeAppointments.length === 0 ? (
             <View testID="admin-appointments-empty" style={styles.empty}>
               <Clock3 color={colors.textMuted} size={28} />
               <Text style={styles.emptyTitle}>Agenda livre por aqui</Text>
-              <Text style={styles.emptyText}>Nenhum atendimento encontrado para esta data.</Text>
+              <Text style={styles.emptyText}>Nenhum atendimento pendente ou confirmado para esta data.</Text>
             </View>
-          ) : appointments.map((item) => {
-            const status = statusConfig[item.status] || { label: item.status, tone: 'warning' as const };
-            return (
-              <View key={item.id} testID={`admin-appointment-${item.id}`} style={styles.appointmentRow}>
-                <View style={styles.timeColumn}>
-                  <Text testID={`admin-appointment-${item.id}-time`} style={styles.appointmentTime}>{time(item.dateTime)}</Text>
-                  <View style={styles.timelineDot} />
+          ) : (
+            activeAppointments.map((item) => renderAppointmentRow(item))
+          )}
+
+          {finishedAppointments.length > 0 && (
+            <>
+              <View style={[styles.panelHeader, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 16 }]}>
+                <View>
+                  <Text style={styles.panelTitle}>Histórico do Dia</Text>
+                  <Text style={styles.panelSubtitle}>{finishedAppointments.length} atendimentos encerrados</Text>
                 </View>
-                <View style={styles.appointmentCopy}>
-                  <View style={styles.appointmentTitleRow}>
-                    <Text testID={`admin-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text>
-                    <StatusBadge testID={`admin-appointment-${item.id}-status`} label={status.label} tone={status.tone} />
-                  </View>
-                  <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
-                  <View style={styles.professionalRow}>
-                    <UserRound color={colors.textMuted} size={13} />
-                    <Text style={styles.professionalName}>{barberName(item.barberId)}</Text>
-                  </View>
-                  {(item.status === 'pending' || item.status === 'confirmed') && (
-                    <View style={styles.rowActions}>
-                      {!!item.clientPhone && (
-                        <AppButton 
-                          label="WhatsApp" 
-                          onPress={() => {
-                            const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${barberName(item.barberId)}.`;
-                            sendWhatsAppMessage(item.clientPhone, text);
-                          }}
-                          variant="secondary"
-                          icon={<MessageSquare color={colors.brand} size={14} />}
-                          style={styles.compactButton}
-                        />
-                      )}
-                      <AppButton
-                        label={item.status === 'pending' ? 'Recusar' : 'Marcar falta'}
-                        testID={`admin-appointment-${item.id}-cancel-button`}
-                        variant="danger"
-                        disabled={!!actionLoadingId}
-                        onPress={() => updateStatus(item.id, 'cancelled')}
-                        icon={<X color={colors.danger} size={15} />}
-                        style={styles.compactButton}
-                      />
-                      <AppButton
-                        label={item.status === 'pending' ? 'Confirmar' : 'Concluir'}
-                        testID={`admin-appointment-${item.id}-advance-button`}
-                        loading={actionLoadingId === item.id}
-                        disabled={!!actionLoadingId && actionLoadingId !== item.id}
-                        onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')}
-                        icon={<Check color={colors.ink} size={15} />}
-                        style={styles.compactButton}
-                      />
-                    </View>
-                  )}
-                </View>
+                <StatusBadge label="Concluídos/Cancelados" tone="secondary" />
               </View>
-            );
-          })}
+              {finishedAppointments.map((item) => renderAppointmentRow(item, true))}
+            </>
+          )}
         </AppCard>
 
         <AppCard testID="admin-team-performance-panel" style={styles.performancePanel}>
-          <Text style={styles.panelTitle}>Desempenho da equipe</Text>
-          <Text style={styles.panelSubtitle}>Produção e repasse na data selecionada</Text>
+          <View style={styles.performanceCardHeader}>
+            <View style={{ flex: 1, minWidth: 160 }}>
+              <Text style={styles.panelTitle}>Desempenho da equipe</Text>
+              <Text style={styles.panelSubtitle}>Produção e repasse por profissional</Text>
+            </View>
+            <View style={styles.periodTabs}>
+              <Pressable onPress={() => setPeriod('today')} style={[styles.periodTab, period === 'today' && styles.periodTabActive]}><Text style={[styles.periodTabText, period === 'today' && styles.periodTabActiveText]}>Hoje</Text></Pressable>
+              <Pressable onPress={() => setPeriod('week')} style={[styles.periodTab, period === 'week' && styles.periodTabActive]}><Text style={[styles.periodTabText, period === 'week' && styles.periodTabActiveText]}>Semana</Text></Pressable>
+              <Pressable onPress={() => setPeriod('month')} style={[styles.periodTab, period === 'month' && styles.periodTabActive]}><Text style={[styles.periodTabText, period === 'month' && styles.periodTabActiveText]}>Mês</Text></Pressable>
+            </View>
+          </View>
+
           <View style={styles.teamList}>
             {barbers.map((barber) => {
-              const barberAppointments = completed.filter((item) => item.barberId === barber.id);
+              const barberAppointments = periodCompleted.filter((item) => item.barberId === barber.id);
               const gross = barberAppointments.reduce((total, item) => total + item.price, 0);
               const rate = barber.commissionRate ?? 0.5;
               return (
@@ -361,6 +511,90 @@ export const AdminDashboardExperience = () => {
           {barbers.length === 0 && <Text testID="admin-team-performance-empty" style={styles.emptyText}>Nenhum profissional vinculado.</Text>}
         </AppCard>
       </View>
+
+      {/* Modal de Encaixe Rápido para o Administrador */}
+      <Modal visible={quickOpen} transparent animationType="fade" onRequestClose={() => setQuickOpen(false)}>
+        <View testID="admin-quick-booking-modal" style={styles.modalOverlay}>
+          <AppCard testID="admin-quick-booking-card" style={styles.modalCard} elevated>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalEyebrow}>ENCAIXE ADMINISTRATIVO</Text>
+                <Text testID="admin-quick-booking-title" style={styles.modalTitle}>Reservar um horário</Text>
+              </View>
+              <Pressable testID="admin-quick-booking-close-button" onPress={() => setQuickOpen(false)} style={styles.closeButton}>
+                <X color={colors.textSecondary} size={18} />
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <AppInput 
+                label="Nome do cliente" 
+                testID="admin-quick-client-input" 
+                icon={<UserRound color={colors.textMuted} size={17} />} 
+                value={quickName} 
+                onChangeText={setQuickName} 
+                placeholder="Cliente de balcão" 
+              />
+              
+              <Text style={styles.fieldLabel}>Profissional</Text>
+              <View style={styles.choiceGrid}>
+                {barbers.map((barber) => (
+                  <ChoiceCard 
+                    key={barber.id} 
+                    testID={`admin-quick-barber-${barber.id}`} 
+                    title={barber.name} 
+                    subtitle={barber.role === 'admin' ? 'Proprietário' : 'Barbeiro'} 
+                    selected={quickBarber === barber.id} 
+                    onPress={() => { setQuickBarber(barber.id); setQuickTime(null); }} 
+                    icon={<UserRound color={colors.textSecondary} size={15} />} 
+                    style={styles.choiceCard} 
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Serviço</Text>
+              <View style={styles.choiceGrid}>
+                {services.map((service) => (
+                  <ChoiceCard 
+                    key={service.id} 
+                    testID={`admin-quick-service-${service.id}`} 
+                    title={service.name} 
+                    subtitle={`${service.durationMinutes} min`} 
+                    meta={currency(service.price)} 
+                    selected={quickService === service.id} 
+                    onPress={() => { setQuickService(service.id); setQuickTime(null); }} 
+                    icon={<Scissors color={colors.textSecondary} size={15} />} 
+                    style={styles.choiceCard} 
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Horário em {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
+              <View style={styles.timeGrid}>
+                {quickTimes.map((slot) => (
+                  <Pressable 
+                    key={slot} 
+                    testID={`admin-quick-time-${slot.replace(':', '-')}`} 
+                    onPress={() => setQuickTime(slot)} 
+                    style={({ pressed }) => [styles.timeSlot, quickTime === slot && styles.timeSlotSelected, pressed && styles.pressed]}
+                  >
+                    <Text style={[styles.timeSlotText, quickTime === slot && styles.selectedInk]}>{slot}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <AppButton 
+                label="Criar agendamento" 
+                testID="admin-quick-submit-button" 
+                onPress={createQuickBooking} 
+                loading={quickLoading} 
+                fullWidth 
+                icon={<Plus color={colors.ink} size={16} />} 
+              />
+            </ScrollView>
+          </AppCard>
+        </View>
+      </Modal>
     </AdminShell>
   );
 };
@@ -399,9 +633,12 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 12 },
   emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 5, textAlign: 'center' },
   appointmentRow: { flexDirection: 'row', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
+  appointmentRowFinished: { opacity: 0.65 },
   timeColumn: { width: 70, alignItems: 'flex-start' },
   appointmentTime: { color: colors.brand, fontFamily: typography.display, fontSize: 15 },
+  timeFinished: { color: colors.textMuted },
   timelineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand, marginTop: 10, marginLeft: 4 },
+  dotFinished: { backgroundColor: colors.border },
   appointmentCopy: { flex: 1 },
   appointmentTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   clientName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14 },
@@ -420,4 +657,27 @@ const styles = StyleSheet.create({
   teamValue: { alignItems: 'flex-end' },
   teamGross: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
   teamCommission: { color: colors.brand, fontFamily: typography.body, fontSize: 9, marginTop: 3 },
+  // Modal de Encaixe Estilos
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 15, 18, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { width: '100%', maxWidth: 520, maxHeight: '90%', padding: 0 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase' },
+  modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },
+  closeButton: { padding: 4, borderRadius: radii.md, backgroundColor: colors.surface, borderHeight: 1, borderColor: colors.border },
+  modalContent: { padding: 20, gap: 16 },
+  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
+  choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  choiceCard: { flex: 1, minWidth: 140 },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  timeSlot: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  timeSlotText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  selectedInk: { color: colors.ink },
+  // Filtro de Período Estilos
+  performanceCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexWrap: 'wrap', gap: 12 },
+  periodTabs: { flexDirection: 'row', backgroundColor: colors.canvas, borderRadius: radii.md, padding: 3, gap: 2, borderHeight: 1, borderColor: colors.border },
+  periodTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.sm },
+  periodTabActive: { backgroundColor: colors.brand },
+  periodTabText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.bodyStrong },
+  periodTabActiveText: { color: colors.ink }
 });

@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, ActivityIndicator, Modal, ScrollView, Platform, Switch } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Platform, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../../database';
-import { Service, Barbershop, Profile, BarberService } from '../../database/models';
+import { Service, Profile, Barbershop, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 
-export default function ServicesScreen() {
-  const { t, i18n } = useTranslation();
+export default function ManageServicesScreen() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { sync } = useSync();
   const router = useRouter();
@@ -26,6 +26,7 @@ export default function ServicesScreen() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   // Estados para tarifas customizadas de barbeiro (Modal)
   const [selectedServiceForPrices, setSelectedServiceForPrices] = useState<Service | null>(null);
@@ -46,23 +47,21 @@ export default function ServicesScreen() {
       return;
     }
 
-    // 1. Carregar barbearia
     const bSub = database.collections
       .get<Barbershop>('barbershops')
       .findAndObserve(profile.barbershop_id)
       .subscribe((data) => setBarbershop(data));
 
-    // 2. Carregar serviços globais
+    // Carregar apenas serviços ativos (is_active = true) para permitir a deleção lógica limpa
     const sSub = database.collections
       .get<Service>('services')
-      .query(Q.where('barbershop_id', profile.barbershop_id))
+      .query(Q.where('barbershop_id', profile.barbershop_id), Q.where('is_active', true))
       .observe()
       .subscribe((data) => {
         setServices(data);
         setLoading(false);
       });
 
-    // 3. Carregar profissionais da equipe
     const teamSub = database.collections
       .get<Profile>('profiles')
       .query(
@@ -72,7 +71,6 @@ export default function ServicesScreen() {
       .observe()
       .subscribe((data) => setBarbers(data));
 
-    // 4. Carregar tarifas diferenciadas
     const bsSub = database.collections
       .get<BarberService>('barber_services')
       .query(Q.where('barbershop_id', profile.barbershop_id))
@@ -96,8 +94,16 @@ export default function ServicesScreen() {
   };
 
   const handleAddService = async () => {
-    if (!name || !price || !duration) {
+    if (!name.trim() || !price || !duration) {
       displayAlert(t('common.error'), t('register.error_fill'));
+      return;
+    }
+
+    const parsedPrice = parseFloat(price);
+    const parsedDuration = parseInt(duration);
+
+    if (isNaN(parsedPrice) || parsedPrice <= 0 || isNaN(parsedDuration) || parsedDuration <= 0) {
+      displayAlert(t('common.error'), 'Por favor, informe preço e duração em formato numérico válido.');
       return;
     }
 
@@ -106,25 +112,63 @@ export default function ServicesScreen() {
     setIsSubmitting(true);
     try {
       await database.write(async () => {
-        await database.collections.get('services').create((record: any) => {
-          record.barbershopId = profile.barbershop_id;
-          record.name = name;
-          record.price = parseFloat(price);
-          record.durationMinutes = parseInt(duration);
-          record.isActive = true;
-        });
+        if (editingServiceId) {
+          const service = await database.collections.get<Service>('services').find(editingServiceId);
+          await service.update((record) => {
+            record.name = name.trim();
+            record.price = parsedPrice;
+            record.durationMinutes = parsedDuration;
+          });
+        } else {
+          await database.collections.get('services').create((record: any) => {
+            record.barbershopId = profile.barbershop_id;
+            record.name = name.trim();
+            record.price = parsedPrice;
+            record.durationMinutes = parsedDuration;
+            record.isActive = true;
+          });
+        }
       });
 
       setName('');
       setPrice('');
       setDuration('');
+      setEditingServiceId(null);
 
-      displayAlert(t('common.success'), 'Serviço global adicionado com sucesso!');
+      displayAlert(t('common.success'), editingServiceId ? 'Serviço atualizado com sucesso!' : 'Serviço global adicionado com sucesso!');
       sync();
     } catch (err) {
       displayAlert(t('common.error'), 'Não foi possível salvar o serviço.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const startEditingService = (service: Service) => {
+    setEditingServiceId(service.id);
+    setName(service.name);
+    setPrice(service.price.toString());
+    setDuration(service.durationMinutes.toString());
+  };
+
+  const handleRemoveService = async (serviceId: string) => {
+    const confirm = Platform.OS === 'web' 
+      ? window.confirm('Deseja realmente arquivar/remover este serviço?')
+      : true;
+
+    if (!confirm) return;
+
+    try {
+      await database.write(async () => {
+        const service = await database.collections.get<Service>('services').find(serviceId);
+        await service.update((record) => {
+          record.isActive = false;
+        });
+      });
+      displayAlert('Sucesso', 'Serviço removido com sucesso!');
+      sync();
+    } catch {
+      displayAlert('Erro', 'Não foi possível remover o serviço.');
     }
   };
 
@@ -224,7 +268,6 @@ export default function ServicesScreen() {
           await existing.destroyPermanently();
         });
 
-        // Reseta formulário local para o padrão global
         setCustomRatesForm(prev => ({
           ...prev,
           [barberId]: {
@@ -238,17 +281,15 @@ export default function ServicesScreen() {
         sync();
       }
     } catch (err) {
-      displayAlert('Erro', 'Não foi possível redefinir a tarifa.');
+      displayAlert('Erro', 'Não foi possível redefinir a comissão.');
     }
   };
 
-  const formatPrice = (price: number) => {
-    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
-    const currencyCode = barbershop?.currency || 'BRL';
-    return new Intl.NumberFormat(locale, {
+  const formatPrice = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: currencyCode,
-    }).format(price);
+      currency: barbershop?.currency || 'BRL',
+    }).format(value);
   };
 
   if (loading) {
@@ -266,9 +307,9 @@ export default function ServicesScreen() {
       <Text style={styles.headerTitle}>{t('services.title')}</Text>
       <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
 
-      {/* Formulário de Adicionar Serviço */}
+      {/* Formulário de Adicionar/Editar Serviço */}
       <View style={styles.formCard}>
-        <Text style={styles.formTitle}>{t('services.new_service')}</Text>
+        <Text style={styles.formTitle}>{editingServiceId ? 'Editar Serviço' : t('services.new_service')}</Text>
 
         <TextInput
           style={styles.input}
@@ -297,17 +338,32 @@ export default function ServicesScreen() {
           />
         </View>
 
-        <TouchableOpacity 
-          style={[styles.addButton, { backgroundColor: primaryColor }]}
-          onPress={handleAddService}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="#121212" />
-          ) : (
-            <Text style={styles.addButtonText}>{t('services.save_button')}</Text>
+        <View style={styles.formButtonsRow}>
+          <TouchableOpacity 
+            style={[styles.addButton, { backgroundColor: primaryColor, flex: 1 }]}
+            onPress={handleAddService}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#121212" />
+            ) : (
+              <Text style={styles.addButtonText}>{editingServiceId ? 'Atualizar Serviço' : t('services.save_button')}</Text>
+            )}
+          </TouchableOpacity>
+          {!!editingServiceId && (
+            <TouchableOpacity 
+              style={styles.cancelEditBtn}
+              onPress={() => {
+                setEditingServiceId(null);
+                setName('');
+                setPrice('');
+                setDuration('');
+              }}
+            >
+              <Text style={styles.cancelEditBtnText}>Cancelar</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Lista de Serviços */}
@@ -325,7 +381,17 @@ export default function ServicesScreen() {
             renderItem={({ item }) => (
               <View style={styles.serviceCard}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.serviceName}>{item.name}</Text>
+                  <View style={styles.serviceHeaderRow}>
+                    <Text style={styles.serviceName}>{item.name}</Text>
+                    <View style={styles.crudActions}>
+                      <TouchableOpacity onPress={() => startEditingService(item)} style={styles.crudBtn}>
+                        <Text style={[styles.crudBtnText, { color: primaryColor }]}>Editar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveService(item.id)} style={styles.crudBtn}>
+                        <Text style={[styles.crudBtnText, { color: '#ff453a' }]}>Excluir</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                   <Text style={styles.serviceDetails}>
                     {formatPrice(item.price)} | {item.durationMinutes} min
                   </Text>
@@ -338,54 +404,45 @@ export default function ServicesScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity 
-                  style={[
-                    styles.statusButton, 
-                    { backgroundColor: item.isActive ? '#30d158' : '#ff453a' }
-                  ]}
-                  onPress={() => handleToggleActive(item.id, item.isActive)}
-                >
-                  <Text style={styles.statusButtonText}>
-                    {item.isActive ? t('services.active') : t('services.inactive')}
-                  </Text>
-                </TouchableOpacity>
               </View>
             )}
           />
         )}
       </View>
 
-      <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={handleBack}
+      >
         <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
 
       {/* Modal: Tarifas por Barbeiro */}
-      <Modal visible={isPricesModalOpen} transparent animationType="slide">
+      {isPricesModalOpen && selectedServiceForPrices && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { color: primaryColor }]}>Preço/Tempo por Barbeiro</Text>
-            <Text style={styles.modalSubTitle}>{selectedServiceForPrices?.name}</Text>
+            <Text style={styles.modalTitle}>Configurar Tarifas</Text>
+            <Text style={styles.modalSubtitle}>
+              Defina preços e durações específicos para cada barbeiro para o serviço: {selectedServiceForPrices.name}
+            </Text>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 20 }} style={{ maxHeight: 400 }}>
-              {barbers.map(barber => {
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+              {barbers.map((barber) => {
                 const form = customRatesForm[barber.id] || { price: '', duration: '', isActive: true };
                 const hasCustomRate = barberServices.some(
-                  bs => bs.barberId === barber.id && bs.serviceId === selectedServiceForPrices?.id
+                  bs => bs.barberId === barber.id && bs.serviceId === selectedServiceForPrices.id
                 );
 
                 return (
-                  <View key={barber.id} style={styles.barberRateRow}>
-                    <View style={styles.barberRowHeader}>
-                      <Text style={styles.barberRowName}>{barber.name}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.activeLabel}>Realiza?</Text>
-                        <Switch
-                          value={form.isActive}
-                          onValueChange={(val) => handleUpdateFormValue(barber.id, 'isActive', val)}
-                          trackColor={{ false: '#3a3a3c', true: primaryColor + '44' }}
-                          thumbColor={form.isActive ? primaryColor : '#8e8e93'}
-                        />
-                      </View>
+                  <View key={barber.id} style={styles.barberRateCard}>
+                    <View style={styles.barberRateHeader}>
+                      <Text style={styles.barberRateName}>{barber.name}</Text>
+                      <Switch
+                        value={form.isActive}
+                        onValueChange={(val) => handleUpdateFormValue(barber.id, 'isActive', val)}
+                        trackColor={{ false: '#3a3a3c', true: primaryColor + '44' }}
+                        thumbColor={form.isActive ? primaryColor : '#8e8e93'}
+                      />
                     </View>
 
                     {form.isActive && (
@@ -440,7 +497,7 @@ export default function ServicesScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -462,225 +519,277 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#a0a0a0',
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   barbershopName: {
     fontSize: 24,
     fontWeight: 'bold',
     fontFamily: 'Montserrat_700Bold',
+    marginTop: 4,
     marginBottom: 20,
   },
   formCard: {
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#2c2c2e',
+    marginBottom: 16,
   },
   formTitle: {
-    color: '#fff',
     fontSize: 16,
+    color: '#fff',
     fontWeight: 'bold',
-    marginBottom: 12,
-    fontFamily: 'Montserrat_700Bold',
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   input: {
     backgroundColor: '#2c2c2e',
-    color: '#fff',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#fff',
     fontSize: 14,
     borderWidth: 1,
     borderColor: '#3a3a3c',
     marginBottom: 12,
   },
+  row: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  formButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   addButton: {
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   addButtonText: {
     color: '#121212',
     fontWeight: 'bold',
     fontSize: 14,
   },
-  sectionTitle: {
+  cancelEditBtn: {
+    flex: 0.4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a3a3c',
+    backgroundColor: '#121212',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelEditBtnText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    color: '#fff',
     fontWeight: 'bold',
     marginBottom: 12,
-    fontFamily: 'Montserrat_700Bold',
   },
   emptyCard: {
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
   },
   emptyText: {
-    color: '#666',
+    color: '#a0a0a0',
+    fontSize: 14,
+    textAlign: 'center',
   },
   serviceCard: {
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#2c2c2e',
+    marginBottom: 10,
+  },
+  serviceHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   serviceName: {
-    color: '#fff',
     fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  crudActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  crudBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    backgroundColor: '#2c2c2e',
+    borderWidth: 1,
+    borderColor: '#3a3a3c',
+  },
+  crudBtnText: {
+    fontSize: 11,
     fontWeight: 'bold',
   },
   serviceDetails: {
+    fontSize: 14,
     color: '#a0a0a0',
-    fontSize: 13,
     marginTop: 4,
   },
   ratesConfigLink: {
-    marginTop: 8,
+    marginTop: 12,
+    alignSelf: 'flex-start',
   },
   ratesConfigLinkText: {
     fontSize: 12,
     fontWeight: 'bold',
   },
-  statusButton: {
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  statusButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
   backButton: {
-    paddingVertical: 12,
+    marginTop: 16,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 12,
-  },
-  backButtonText: {
-    color: '#ff453a',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  // Modal de tarifas
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: '#000000aa',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    backgroundColor: '#1c1c1e',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 480,
     borderWidth: 1,
     borderColor: '#2c2c2e',
+    borderRadius: 8,
+    backgroundColor: '#1c1c1e',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  // Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    zIndex: 10,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+    backgroundColor: '#1c1c1e',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    padding: 20,
   },
   modalTitle: {
     fontSize: 18,
+    color: '#fff',
     fontWeight: 'bold',
-    fontFamily: 'Montserrat_700Bold',
-    textAlign: 'center',
+    marginBottom: 6,
   },
-  modalSubTitle: {
-    fontSize: 13,
+  modalSubtitle: {
+    fontSize: 12,
     color: '#a0a0a0',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 20,
-    textTransform: 'uppercase',
+    marginBottom: 16,
+    lineHeight: 18,
   },
-  barberRateRow: {
+  modalList: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  barberRateCard: {
     backgroundColor: '#2c2c2e',
-    borderRadius: 10,
+    borderRadius: 8,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#3a3a3c',
-    padding: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  barberRowHeader: {
+  barberRateHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  barberRowName: {
+  barberRateName: {
     color: '#fff',
-    fontSize: 14,
     fontWeight: 'bold',
-  },
-  activeLabel: {
-    fontSize: 11,
-    color: '#a0a0a0',
+    fontSize: 14,
   },
   barberFormInputs: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginTop: 10,
   },
   fieldLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#a0a0a0',
     marginBottom: 4,
   },
   miniInput: {
     backgroundColor: '#1c1c1e',
-    color: '#fff',
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#3a3a3c',
     paddingHorizontal: 8,
     paddingVertical: 6,
+    color: '#fff',
     fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
   },
   rowActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 6,
+    gap: 8,
+    marginTop: 12,
   },
   saveBtn: {
     borderRadius: 6,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
+    alignItems: 'center',
   },
   saveBtnText: {
     color: '#121212',
+    fontSize: 12,
     fontWeight: 'bold',
-    fontSize: 11,
   },
   resetBtn: {
     borderRadius: 6,
-    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#ff453a',
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#3a3a3c',
+    alignItems: 'center',
   },
   resetBtnText: {
     color: '#ff453a',
+    fontSize: 12,
     fontWeight: 'bold',
-    fontSize: 11,
   },
   closeBtn: {
-    paddingVertical: 12,
-    backgroundColor: '#2c2c2e',
-    borderRadius: 8,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 12,
+    borderRadius: 8,
+    backgroundColor: '#2c2c2e',
   },
   closeBtnText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  switchLabel: {
+    color: '#fff',
+    fontSize: 13,
   },
 });
