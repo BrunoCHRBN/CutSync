@@ -209,7 +209,7 @@ export const LoginExperience = () => {
                 <View style={styles.heroOverlay} />
                 <View style={styles.heroTopline}>
                   <Sparkles color={colors.brand} size={16} />
-                  <Text style={styles.heroToplineText}>GESTÃO FEITA PARA BARBEARIAS</Text>
+                  <Text style={styles.heroToplineText}>GESTÃO PARA BELEZA & ESTÉTICA</Text>
                 </View>
                 <View style={styles.heroCopy}>
                   <Text testID="login-hero-stat" style={styles.heroStat}>Menos ruído.{`\n`}Mais cadeira ocupada.</Text>
