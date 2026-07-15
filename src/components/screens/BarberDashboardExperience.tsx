@@ -41,15 +41,12 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
   cancelled: { label: 'Cancelado', tone: 'danger' },
 };
 
-<<<<<<< HEAD
 const quickTimes = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
   '20:00'
 ];
-=======
-const quickTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 const hitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
 const defaultSchedule = [
   { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
@@ -67,7 +64,6 @@ const readableForeground = (hex: string) => {
   const [r, g, b] = [0, 2, 4].map((index) => parseInt(normalized.slice(index, index + 2), 16));
   return ((r * 299 + g * 587 + b * 114) / 1000) > 160 ? '#171717' : '#FFFFFF';
 };
->>>>>>> fe9aa4994d3d6dad0705c6701cd9c05a5f10c6de
 
 export const BarberDashboardExperience = () => {
   const { width } = useWindowDimensions();
@@ -958,13 +954,8 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choiceCard: { width: '47%', minWidth: 150, flexGrow: 1 },
-<<<<<<< HEAD
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' },
   timeSlot: { width: '23%', height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
-=======
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8 },
-  timeSlot: { width: '23%', alignItems: 'center', justifyContent: 'center', minHeight: 42, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: radii.md },
->>>>>>> fe9aa4994d3d6dad0705c6701cd9c05a5f10c6de
   timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   timeSlotText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
   cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
