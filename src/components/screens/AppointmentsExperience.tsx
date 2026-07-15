@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, useWindowDimensions, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
-import { CalendarDays, Clock3, MapPin, Scissors, UserRound, X, RefreshCw, MessageSquare } from 'lucide-react-native';
+import { CalendarDays, MapPin, Scissors, UserRound, X, RefreshCw } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,7 +15,8 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+import { colors, radii, typography } from '../../theme/tokens';
+import { tapLight } from '../../utils/haptics';
 
 type AppointmentTab = 'upcoming' | 'history';
 
@@ -41,8 +42,6 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
 };
 
 export const AppointmentsExperience = () => {
-  const { width } = useWindowDimensions();
-  const isWide = width >= layout.mobileBreakpoint;
   const { profile, signOut } = useAuth();
   const { isSyncing, syncError, sync } = useSync();
   const router = useRouter();
@@ -202,10 +201,17 @@ export const AppointmentsExperience = () => {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SectionHeading testID="client-appointments-heading" eyebrow="Sua agenda" title="Meus agendamentos" description="Acompanhe confirmações, próximos horários e seu histórico em um só lugar." />
         {!!notice && <InlineNotice testID="client-appointments-notice" tone={notice.tone} message={notice.message} />}
-        <View style={styles.tabBox}><SegmentedControl<AppointmentTab> testID="client-appointments-tabs" value={tab} onChange={setTab} options={[{ value: 'upcoming', label: 'Próximos' }, { value: 'history', label: 'Histórico' }]} /></View>
+        <View style={styles.tabBox}>
+          <SegmentedControl<AppointmentTab>
+            testID="client-appointments-tabs"
+            value={tab}
+            onChange={(next) => { tapLight(); setTab(next); }}
+            options={[{ value: 'upcoming', label: 'Próximos' }, { value: 'history', label: 'Histórico' }]}
+          />
+        </View>
 
-        {loading ? <ActivityIndicator testID="client-appointments-loading" color={colors.brand} style={styles.loader} /> : visible.length === 0 ? (
-          <EmptyState testID="client-appointments-empty" title={tab === 'upcoming' ? 'Nenhum horário marcado' : 'Histórico vazio'} description={tab === 'upcoming' ? 'Explore barbearias e reserve seu próximo atendimento.' : 'Seus atendimentos concluídos aparecerão aqui.'} icon={<CalendarDays color={colors.brand} size={22} />} />
+        {loading ? <ActivityIndicator testID="client-appointments-loading" color={colors.accent} style={styles.loader} /> : visible.length === 0 ? (
+          <EmptyState testID="client-appointments-empty" title={tab === 'upcoming' ? 'Nenhum horário marcado' : 'Histórico vazio'} description={tab === 'upcoming' ? 'Explore os estabelecimentos e reserve seu próximo atendimento.' : 'Seus atendimentos concluídos aparecerão aqui.'} icon={<CalendarDays color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
         ) : (
           <View testID="client-appointments-list" style={styles.list}>
             {visible.map((item) => {
@@ -219,7 +225,7 @@ export const AppointmentsExperience = () => {
               const isLateCancellation = hoursDiff > 0 && hoursDiff < 2;
 
               return (
-                <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={[styles.card, isWide && styles.cardWide]}>
+                <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={styles.card}>
                   <View style={styles.dateBlock}>
                     <Text style={styles.month}>{item.dateTime.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</Text>
                     <Text style={styles.day}>{item.dateTime.getDate()}</Text>
@@ -227,9 +233,9 @@ export const AppointmentsExperience = () => {
                   </View>
                   <View style={styles.copy}>
                     <View style={styles.titleRow}><Text testID={`client-appointment-${item.id}-shop`} style={styles.shopName}>{item.shopName}</Text><StatusBadge testID={`client-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
-                    <View style={styles.metaRow}><Scissors color={colors.textMuted} size={13} /><Text style={styles.meta}>{item.serviceName}</Text></View>
-                    <View style={styles.metaRow}><UserRound color={colors.textMuted} size={13} /><Text style={styles.meta}>{item.barberName}</Text></View>
-                    <View style={styles.metaRow}><MapPin color={colors.textMuted} size={13} /><Text style={styles.meta}>{item.shopAddress || 'Endereço não informado'}</Text></View>
+                    <View style={styles.metaRow}><Scissors color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text style={styles.meta}>{item.serviceName}</Text></View>
+                    <View style={styles.metaRow}><UserRound color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text style={styles.meta}>{item.barberName}</Text></View>
+                    <View style={styles.metaRow}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text style={styles.meta}>{item.shopAddress || 'Endereço não informado'}</Text></View>
                     
                     {item.rescheduleCount > 0 ? (
                       <View style={styles.rescheduleBadge}>
@@ -250,10 +256,11 @@ export const AppointmentsExperience = () => {
                           {['Imprevisto de trabalho', 'Questões de saúde', 'Problema de transporte', 'Vou reagendar', 'Outro'].map((reason) => (
                             <Pressable 
                               key={reason}
-                              onPress={() => setSelectedReason(reason)}
-                              style={[
+                              onPress={() => { tapLight(); setSelectedReason(reason); }}
+                              style={({ pressed }) => [
                                 styles.reasonChip,
-                                selectedReason === reason && styles.reasonChipActive
+                                selectedReason === reason && styles.reasonChipActive,
+                                pressed && styles.pressedScale,
                               ]}
                             >
                               <Text style={[
@@ -285,7 +292,7 @@ export const AppointmentsExperience = () => {
                       isLateCancellation ? (
                         <View style={styles.lateNoticeContainer}>
                           <Text style={styles.lateNoticeText}>
-                            Cancelamentos/Reagendamentos com menos de 2h de antecedência devem ser combinados via WhatsApp.
+                            Cancelamentos e reagendamentos com menos de 2h de antecedência devem ser combinados via WhatsApp.
                           </Text>
                           {reschedulePromptId === item.id ? (
                             <View style={styles.promptContainer}>
@@ -296,6 +303,7 @@ export const AppointmentsExperience = () => {
                                   <TextInput 
                                     style={styles.minInput}
                                     placeholder="Ex: 15/07"
+                                    placeholderTextColor={colors.textMuted}
                                     value={targetDate}
                                     onChangeText={setTargetDate}
                                   />
@@ -305,6 +313,7 @@ export const AppointmentsExperience = () => {
                                   <TextInput 
                                     style={styles.minInput}
                                     placeholder="Ex: 16:30"
+                                    placeholderTextColor={colors.textMuted}
                                     value={targetTime}
                                     onChangeText={setTargetTime}
                                   />
@@ -334,13 +343,14 @@ export const AppointmentsExperience = () => {
                                 testID={`client-appointment-${item.id}-whatsapp-cancel`} 
                                 onPress={() => sendWhatsAppCancel(item)} 
                                 variant="danger" 
-                                icon={<X color={colors.danger} size={14} />}
-                                style={styles.lateActionBtn}
+                                icon={<X color={colors.danger} size={14} strokeWidth={1.8} />}
+                                style={styles.actionBtn}
                               />
                               <AppButton 
                                 label="Reagendar" 
                                 testID={`client-appointment-${item.id}-whatsapp-reschedule`} 
                                 onPress={() => {
+                                  tapLight();
                                   setReschedulePromptId(item.id);
                                   const tomorrow = new Date();
                                   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -348,8 +358,8 @@ export const AppointmentsExperience = () => {
                                   setTargetTime(item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
                                 }} 
                                 variant="primary" 
-                                icon={<RefreshCw color={colors.ink} size={13} />}
-                                style={styles.lateActionBtn}
+                                icon={<RefreshCw color={colors.ink} size={13} strokeWidth={1.8} />}
+                                style={styles.actionBtn}
                               />
                             </View>
                           )}
@@ -361,7 +371,7 @@ export const AppointmentsExperience = () => {
                             testID={`client-appointment-${item.id}-reschedule-button`} 
                             onPress={() => handleReschedule(item)} 
                             variant="secondary" 
-                            icon={<RefreshCw color={colors.textSecondary} size={13} />}
+                            icon={<RefreshCw color={colors.textSecondary} size={13} strokeWidth={1.8} />}
                             style={styles.actionBtn}
                           />
                           <AppButton 
@@ -369,7 +379,7 @@ export const AppointmentsExperience = () => {
                             testID={`client-appointment-${item.id}-cancel-button`} 
                             onPress={() => setCancelId(item.id)} 
                             variant="ghost" 
-                            icon={<X color={colors.danger} size={14} />} 
+                            icon={<X color={colors.danger} size={14} strokeWidth={1.8} />} 
                             style={styles.actionBtn}
                           />
                         </View>
@@ -386,31 +396,29 @@ export const AppointmentsExperience = () => {
   );
 };
 
+const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
+
 const styles = StyleSheet.create({
-  scroll: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 20, paddingTop: 34, paddingBottom: 110 },
-  tabBox: { width: '100%', maxWidth: 420, marginTop: 26, marginBottom: 16 },
+  scroll: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 20, paddingTop: 34, paddingBottom: 120 },
+  tabBox: { width: '100%', maxWidth: 300, marginTop: 28, marginBottom: 18 },
   loader: { margin: 50 },
-  list: { gap: 10 },
-  card: { gap: 15 },
-  cardWide: { flexDirection: 'row' },
-  dateBlock: { width: 82, minHeight: 92, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft, borderRadius: radii.md },
-  month: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
-  day: { color: colors.text, fontFamily: typography.display, fontSize: 25, marginTop: 2 },
-  time: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, marginTop: 3 },
-  copy: { flex: 1, minWidth: 0 },
+  list: { gap: 12 },
+  card: { flexDirection: 'row', gap: 18 },
+  dateBlock: { width: 58, alignItems: 'flex-start', paddingTop: 2 },
+  month: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase', letterSpacing: 2 },
+  day: { color: colors.text, fontFamily: typography.serif, fontSize: 32, lineHeight: 38, marginTop: 2 },
+  time: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 },
+  copy: { flex: 1, minWidth: 0, borderLeftWidth: hairlineW, borderLeftColor: colors.hairline, paddingLeft: 18 },
   titleRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8 },
-  meta: { flex: 1, color: colors.textMuted, fontFamily: typography.body, fontSize: 10 },
-  cancelButton: { alignSelf: 'flex-start', minHeight: 35, paddingVertical: 6, marginTop: 10 },
-  confirmActions: { gap: 6 },
-  compactButton: { minHeight: 36, paddingVertical: 7, paddingHorizontal: 10 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 9 },
+  meta: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 10 },
   cancelReasonContainer: {
-    marginTop: 14,
-    padding: 12,
+    marginTop: 16,
+    padding: 14,
     backgroundColor: colors.canvasSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
     borderRadius: radii.md,
     gap: 8,
   },
@@ -426,16 +434,16 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   reasonChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radii.pill,
+    borderWidth: hairlineW,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   reasonChipActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   reasonChipText: {
     color: colors.textSecondary,
@@ -454,7 +462,7 @@ const styles = StyleSheet.create({
   upcomingActionsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 14,
+    marginTop: 16,
     width: '100%',
   },
   actionBtn: {
@@ -463,48 +471,42 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   lateNoticeContainer: {
-    marginTop: 14,
-    padding: 12,
-    backgroundColor: '#ff444415',
-    borderWidth: 1,
-    borderColor: '#ff444433',
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: 'rgba(217,119,6,0.06)',
     borderRadius: radii.md,
     gap: 10,
   },
   lateNoticeText: {
-    color: '#ffaaaa',
+    color: colors.warning,
     fontFamily: typography.bodyStrong,
     fontSize: 11,
-    lineHeight: 15,
-  },
-  whatsappBtn: {
-    minHeight: 38,
-    paddingVertical: 8,
-    alignSelf: 'stretch',
+    lineHeight: 16,
   },
   rescheduleBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceRaised,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    marginTop: 8,
+    backgroundColor: 'rgba(37,99,235,0.06)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    marginTop: 10,
   },
   rescheduleBadgeText: {
-    color: colors.brand,
+    color: colors.info,
     fontFamily: typography.bodyStrong,
     fontSize: 9,
+    letterSpacing: 0.4,
   },
   reasonDisplay: {
     alignSelf: 'flex-start',
-    backgroundColor: '#ff444410',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(220,38,38,0.05)',
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: radii.sm,
-    marginTop: 8,
+    borderRadius: radii.pill,
+    marginTop: 10,
   },
   reasonDisplayText: {
-    color: colors.textMuted,
+    color: colors.danger,
     fontFamily: typography.body,
     fontSize: 10,
   },
@@ -514,18 +516,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     width: '100%',
   },
-  lateActionBtn: {
-    flex: 1,
-    minHeight: 36,
-    paddingVertical: 7,
-  },
   promptContainer: {
     marginTop: 10,
-    padding: 12,
-    backgroundColor: colors.canvasSoft,
+    padding: 14,
+    backgroundColor: colors.surface,
     borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
     gap: 8,
   },
   promptTitle: {
@@ -538,24 +535,28 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   inputMinLabel: {
-    color: colors.textSecondary,
-    fontFamily: typography.body,
-    fontSize: 10,
-    marginBottom: 4,
+    color: colors.labelSoft,
+    fontFamily: typography.bodyStrong,
+    fontSize: 9,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 5,
   },
   minInput: {
-    height: 38,
+    height: 40,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(228,228,231,0.8)',
     borderRadius: radii.md,
     paddingHorizontal: 12,
     fontSize: 12,
+    fontFamily: typography.body,
     color: colors.text,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.surface,
   },
   promptActionsRow: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 8,
   },
+  pressedScale: { transform: [{ scale: 0.98 }] },
 });

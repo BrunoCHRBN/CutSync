@@ -8,6 +8,9 @@ export const colors = {
   surfacePressed: '#F0F0F2',
   border: '#E4E4E7',
   borderStrong: '#D4D4D8',
+  hairline: 'rgba(228,228,231,0.6)',
+  labelSoft: '#88888F',
+  accent: '#18181B',
   text: '#171717',
   textSecondary: '#52525B',
   textMuted: '#A1A1AA',
@@ -48,7 +51,18 @@ export const typography = {
   display: 'Montserrat_700Bold',
   body: 'Inter_400Regular',
   bodyStrong: 'Inter_600SemiBold',
+  serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, "Times New Roman", serif' }) as string,
 };
+
+export const atmosphericShadow = Platform.select({
+  web: { boxShadow: '0 8px 30px rgba(0,0,0,0.04)' } as any,
+  default: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 20, elevation: 2 },
+});
+
+export const glassSurface = Platform.select({
+  web: { backgroundColor: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any,
+  default: { backgroundColor: 'rgba(255,255,255,0.94)' },
+});
 
 export const shadows = Platform.select({
   web: {

@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, radii } from '../../theme/tokens';
+import { atmosphericShadow, colors, radii } from '../../theme/tokens';
 
 interface AppCardProps {
   children: ReactNode;
@@ -18,16 +18,16 @@ export const AppCard = ({ children, testID, style, elevated = false }: AppCardPr
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth,
+    borderColor: colors.hairline,
     borderRadius: radii.lg,
     padding: 20,
+    ...atmosphericShadow,
   },
   elevated: {
-    backgroundColor: colors.surface,
     ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' } as any,
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 2 },
+      web: { boxShadow: '0 12px 40px rgba(0,0,0,0.06)' } as any,
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 24, elevation: 3 },
     }),
   },
 });

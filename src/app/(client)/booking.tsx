@@ -1,17 +1,18 @@
-import { colors } from '../../theme/tokens';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Platform, Pressable, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
 import { Q } from '@nozbe/watermelondb';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Scissors, UserRound } from 'lucide-react-native';
 import { database } from '../../database';
 import { Service, Profile, Barbershop, Appointment, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSync } from '../../hooks/useSync';
 import { scheduleAppointmentNotification } from '../../services/notifications';
+import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
+import { readableForeground } from '../../theme/color';
+import { tapLight, tapSuccess } from '../../utils/haptics';
 
 export default function BookingScreen() {
-  const { t, i18n } = useTranslation();
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
   const { user, profile } = useAuth();
   const { sync } = useSync();
@@ -35,7 +36,11 @@ export default function BookingScreen() {
   const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
 
   const displayAlert = (title: string, message: string) => {
-    console.warn(`${title}: ${message}`);
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
   };
 
   // Função auxiliar para resolver preço e duração com base no barbeiro selecionado (Fallback)
@@ -141,10 +146,12 @@ export default function BookingScreen() {
   };
 
   const handlePrevMonth = () => {
+    tapLight();
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   };
 
   const handleNextMonth = () => {
+    tapLight();
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
@@ -205,22 +212,22 @@ export default function BookingScreen() {
 
   const handleConfirmBooking = async () => {
     if (!selectedService) {
-      displayAlert(t('common.attention'), 'Por favor, selecione um serviço.');
+      displayAlert('Atenção', 'Por favor, selecione um serviço.');
       return;
     }
 
     if (!selectedBarber) {
-      displayAlert(t('common.attention'), 'Por favor, selecione um profissional.');
+      displayAlert('Atenção', 'Por favor, selecione um profissional.');
       return;
     }
 
     if (!selectedDate || !selectedTime) {
-      displayAlert(t('common.attention'), 'Por favor, escolha a data e o horário.');
+      displayAlert('Atenção', 'Por favor, escolha a data e o horário.');
       return;
     }
 
     if (!user) {
-      displayAlert(t('common.error'), 'Login required.');
+      displayAlert('Erro', 'Sua sessão expirou. Entre novamente para concluir o agendamento.');
       return;
     }
 
@@ -248,43 +255,42 @@ export default function BookingScreen() {
         await scheduleAppointmentNotification(newAppointmentId, barbershop.name, appointmentDate);
       }
 
-      displayAlert(t('common.success'), t('booking.success_message'));
+      tapSuccess();
+      displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       
       sync();
       router.replace('/(client)');
     } catch (error) {
-      displayAlert(t('common.error'), 'Could not save booking.');
+      displayAlert('Erro', 'Não foi possível salvar o agendamento.');
     } finally {
       setBookingLoading(false);
     }
   };
 
   const formatPrice = (price: number) => {
-    const locale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
     const currencyCode = barbershop?.currency || 'BRL';
-    return new Intl.NumberFormat(locale, {
+    return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: currencyCode,
     }).format(price);
   };
 
-  const localeStr = i18n.language === 'en' ? 'en-US' : 'pt-BR';
-  const monthYearLabel = viewDate.toLocaleDateString(localeStr, { month: 'long', year: 'numeric' });
+  const monthYearLabel = viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const formattedMonthYearLabel = monthYearLabel.charAt(0).toUpperCase() + monthYearLabel.slice(1);
 
-  const weekDays = i18n.language === 'en' 
-    ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] 
-    : ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#D4AF37" />
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.loadingText}>Preparando horários disponíveis...</Text>
       </View>
     );
   }
 
-  const primaryColor = barbershop?.primaryColor || '#D4AF37';
+  const primaryColor = barbershop?.primaryColor || colors.accent;
+  const primaryFg = readableForeground(primaryColor);
 
   // Filtrar barbeiros que realizam o serviço selecionado
   const filteredBarbers = barbers.filter(b => {
@@ -293,30 +299,42 @@ export default function BookingScreen() {
     return isActive;
   });
 
+  const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
+  const summaryReady = !!(selectedService && selectedBarber && selectedDate && selectedTime);
+  const { price: summaryPrice } = getServicePriceAndDuration(selectedService, selectedBarber);
+
   return (
     <View style={styles.container}>
-      <View style={styles.innerContainer}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t('booking.title')}</Text>
-          <Text style={[styles.barbershopName, { color: primaryColor }]}>{barbershop?.name}</Text>
+      <View style={styles.header}>
+        <Pressable testID="booking-back-button" onPress={handleBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressedScale]}>
+          <ArrowLeft color={colors.text} size={18} strokeWidth={1.8} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Agendamento online</Text>
+          <Text numberOfLines={1} style={styles.barbershopName}>{barbershop?.name}</Text>
         </View>
+      </View>
 
+      <View style={styles.innerContainer}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
           {/* 1. Escolha do Serviço */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('booking.service_label')}</Text>
-            <FlatList
-              data={services}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
+            <Text style={styles.sectionEyebrow}>Etapa 01</Text>
+            <Text style={styles.sectionTitle}>Escolha o serviço</Text>
+            {services.map((item) => {
+              const active = selectedService === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  testID={`booking-service-${item.id}`}
+                  style={({ pressed }) => [
                     styles.card,
-                    selectedService === item.id && [styles.cardActive, { borderColor: primaryColor }]
+                    active && { borderColor: primaryColor, borderWidth: 1.5 },
+                    pressed && styles.pressedScale,
                   ]}
                   onPress={() => {
+                    tapLight();
                     setSelectedService(item.id);
                     // Reseta barbeiro se ele não realizar o novo serviço escolhido
                     if (selectedBarber) {
@@ -326,69 +344,90 @@ export default function BookingScreen() {
                     setSelectedTime(null);
                   }}
                 >
-                  <Text style={styles.cardName}>{item.name}</Text>
-                  <Text style={styles.cardSubText}>
-                    {formatPrice(item.price)} • {item.durationMinutes} min
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
+                  <View style={styles.cardIcon}>
+                    <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
+                  </View>
+                  <View style={styles.cardCopy}>
+                    <Text style={styles.cardName}>{item.name}</Text>
+                    <Text style={styles.cardSubText}>
+                      {formatPrice(item.price)} · {item.durationMinutes} min
+                    </Text>
+                  </View>
+                  {active && (
+                    <View style={[styles.checkCircle, { backgroundColor: primaryColor }]}>
+                      <Check color={primaryFg} size={12} strokeWidth={3} />
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
 
-          {/* 2. Escolha do Barbeiro */}
+          {/* 2. Escolha do Profissional */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('booking.professional_label')}</Text>
+            <Text style={styles.sectionEyebrow}>Etapa 02</Text>
+            <Text style={styles.sectionTitle}>Escolha o profissional</Text>
             {filteredBarbers.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyText}>Sem profissionais disponíveis para este serviço.</Text>
               </View>
             ) : (
-              <FlatList
-                data={filteredBarbers}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-                renderItem={({ item }) => {
-                  const { price: customPrice } = getServicePriceAndDuration(selectedService, item.id);
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        styles.card,
-                        selectedBarber === item.id && [styles.cardActive, { borderColor: primaryColor }]
-                      ]}
-                      onPress={() => {
-                        setSelectedBarber(item.id);
-                        setSelectedTime(null);
-                      }}
-                    >
+              filteredBarbers.map((item) => {
+                const { price: customPrice } = getServicePriceAndDuration(selectedService, item.id);
+                const active = selectedBarber === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    testID={`booking-barber-${item.id}`}
+                    style={({ pressed }) => [
+                      styles.card,
+                      active && { borderColor: primaryColor, borderWidth: 1.5 },
+                      pressed && styles.pressedScale,
+                    ]}
+                    onPress={() => {
+                      tapLight();
+                      setSelectedBarber(item.id);
+                      setSelectedTime(null);
+                    }}
+                  >
+                    <View style={styles.cardIcon}>
+                      <UserRound color={colors.textSecondary} size={14} strokeWidth={1.6} />
+                    </View>
+                    <View style={styles.cardCopy}>
                       <Text style={styles.cardName}>{item.name}</Text>
                       <Text style={styles.cardSubText}>
-                        {item.tituloProfissional ? item.tituloProfissional.toUpperCase() : 'ESPECIALISTA'}
-                        {selectedService && customPrice > 0 && ` • ${formatPrice(customPrice)}`}
+                        {item.tituloProfissional || 'Especialista'}
+                        {selectedService && customPrice > 0 ? ` · ${formatPrice(customPrice)}` : ''}
                       </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
+                    </View>
+                    {active && (
+                      <View style={[styles.checkCircle, { backgroundColor: primaryColor }]}>
+                        <Check color={primaryFg} size={12} strokeWidth={3} />
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })
             )}
           </View>
 
-          {/* 3. Escolha de Dia (Grade Mensal / Grid) */}
+          {/* 3. Escolha do Dia (Calendário estilo Fresha) */}
           <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>Etapa 03</Text>
             <View style={styles.calendarHeader}>
-              <Text style={styles.sectionTitle}>Escolha o Dia</Text>
+              <Text style={styles.sectionTitle}>Escolha o dia</Text>
               <View style={styles.monthSelector}>
-                <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavButton}>
-                  <Text style={styles.monthNavText}>‹</Text>
-                </TouchableOpacity>
-                <Text style={[styles.monthLabel, { color: primaryColor }]}>{formattedMonthYearLabel}</Text>
-                <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavButton}>
-                  <Text style={styles.monthNavText}>›</Text>
-                </TouchableOpacity>
+                <Pressable onPress={handlePrevMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
+                  <ChevronLeft color={colors.textSecondary} size={16} strokeWidth={1.8} />
+                </Pressable>
+                <Text style={styles.monthLabel}>{formattedMonthYearLabel}</Text>
+                <Pressable onPress={handleNextMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
+                  <ChevronRight color={colors.textSecondary} size={16} strokeWidth={1.8} />
+                </Pressable>
               </View>
             </View>
 
-            {/* Grid do Calendário */}
-            <View style={styles.calendarGrid}>
+            <View style={styles.calendarCard}>
               <View style={styles.weekDaysRow}>
                 {weekDays.map((wd, index) => (
                   <Text key={index} style={styles.weekDayText}>{wd}</Text>
@@ -403,26 +442,30 @@ export default function BookingScreen() {
 
                   const selectable = isDateSelectable(date);
                   const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+                  const today = isToday(date);
 
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={date.toISOString()}
-                      style={[
-                        styles.dayCell,
-                        isSelected && [styles.dayCellActive, { backgroundColor: primaryColor }],
-                        !selectable && styles.dayCellDisabled
-                      ]}
-                      onPress={() => selectable && setSelectedDate(date)}
+                      testID={`booking-day-${date.toISOString().split('T')[0]}`}
+                      style={({ pressed }) => [styles.dayCell, pressed && selectable && styles.pressedScale]}
+                      onPress={() => { if (selectable) { tapLight(); setSelectedDate(date); setSelectedTime(null); } }}
                       disabled={!selectable}
                     >
-                      <Text style={[
-                        styles.dayCellText,
-                        isSelected && styles.dayCellTextActive,
-                        !selectable && styles.dayCellTextDisabled
+                      <View style={[
+                        styles.dayCircle,
+                        today && !isSelected && styles.dayCircleToday,
+                        isSelected && { backgroundColor: primaryColor },
                       ]}>
-                        {date.getDate()}
-                      </Text>
-                    </TouchableOpacity>
+                        <Text style={[
+                          styles.dayCellText,
+                          !selectable && styles.dayCellTextDisabled,
+                          isSelected && { color: primaryFg, fontFamily: typography.bodyStrong },
+                        ]}>
+                          {date.getDate()}
+                        </Text>
+                      </View>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -432,7 +475,8 @@ export default function BookingScreen() {
           {/* 4. Escolha do Horário */}
           {selectedBarber && selectedService && selectedDate && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Escolha o Horário</Text>
+              <Text style={styles.sectionEyebrow}>Etapa 04</Text>
+              <Text style={styles.sectionTitle}>Escolha o horário</Text>
               <View style={styles.timeGrid}>
                 {availableTimes.map((time) => {
                   const { duration: durationMinutes } = getServicePriceAndDuration(selectedService, selectedBarber);
@@ -450,53 +494,64 @@ export default function BookingScreen() {
                   const isSelected = selectedTime === time;
 
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={time}
-                      style={[
+                      testID={`booking-time-${time.replace(':', '-')}`}
+                      style={({ pressed }) => [
                         styles.timeCard,
-                        isSelected && [styles.timeCardActive, { backgroundColor: primaryColor }],
-                        isBooked && styles.timeCardDisabled
+                        isSelected && { backgroundColor: primaryColor, borderColor: primaryColor },
+                        isBooked && styles.timeCardDisabled,
+                        pressed && !isBooked && styles.pressedScale,
                       ]}
-                      onPress={() => !isBooked && setSelectedTime(time)}
+                      onPress={() => { if (!isBooked) { tapLight(); setSelectedTime(time); } }}
                       disabled={isBooked}
                     >
                       <Text style={[
                         styles.timeText,
-                        isSelected && { color: '#121212' },
+                        isSelected && { color: primaryFg },
                         isBooked && styles.timeTextDisabled
                       ]}>
                         {time}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })}
               </View>
             </View>
           )}
-
-          {/* Confirmar Agendamento */}
-          {selectedTime && (
-            <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: primaryColor }]}
-              onPress={handleConfirmBooking}
-              disabled={bookingLoading}
-            >
-              {bookingLoading ? (
-                <ActivityIndicator color="#121212" />
-              ) : (
-                <Text style={styles.confirmButtonText}>{t('booking.button')}</Text>
-              )}
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-            <Text style={styles.backButtonText}>{t('common.back')}</Text>
-          </TouchableOpacity>
         </ScrollView>
       </View>
+
+      {/* Barra flutuante de confirmação */}
+      {summaryReady && (
+        <View style={styles.floatingWrap} pointerEvents="box-none">
+          <View style={styles.floatingBar}>
+            <View style={styles.floatingCopy}>
+              <Text style={styles.floatingEyebrow}>
+                {selectedDate?.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')} · {selectedTime}
+              </Text>
+              <Text numberOfLines={1} style={styles.floatingTitle}>{formatPrice(summaryPrice)}</Text>
+            </View>
+            <Pressable
+              testID="booking-confirm-button"
+              onPress={handleConfirmBooking}
+              disabled={bookingLoading}
+              style={({ pressed }) => [styles.confirmButton, { backgroundColor: primaryColor }, pressed && styles.pressedScale, bookingLoading && { opacity: 0.7 }]}
+            >
+              {bookingLoading ? (
+                <ActivityIndicator color={primaryFg} />
+              ) : (
+                <Text style={[styles.confirmButtonText, { color: primaryFg }]}>Confirmar agendamento</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
+
+const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
 
 const styles = StyleSheet.create({
   container: {
@@ -508,115 +563,169 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 600,
     alignSelf: 'center',
-    backgroundColor: colors.canvas,
   },
   scrollContent: {
-    padding: 24,
-    paddingBottom: 48,
+    padding: 20,
+    paddingTop: 26,
+    paddingBottom: 140,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 16,
-    backgroundColor: colors.surface,
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: hairlineW,
+    borderBottomColor: colors.hairline,
+    ...glassSurface,
+    zIndex: 3,
   },
+  backButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    borderRadius: radii.pill,
+  },
+  headerCopy: { flex: 1, minWidth: 0 },
   headerTitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: 8,
+    color: colors.labelSoft,
+    fontFamily: typography.bodyStrong,
     textTransform: 'uppercase',
+    letterSpacing: 1.8,
   },
   barbershopName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontFamily: 'Montserrat_700Bold',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
     fontSize: 16,
     color: colors.text,
-    fontWeight: 'bold',
-    fontFamily: 'Montserrat_700Bold',
-    marginBottom: 12,
+    fontFamily: typography.display,
+    letterSpacing: -0.4,
+    marginTop: 2,
+  },
+  section: {
+    marginBottom: 34,
+  },
+  sectionEyebrow: {
+    color: colors.labelSoft,
+    fontFamily: typography.bodyStrong,
+    fontSize: 9,
+    textTransform: 'uppercase',
+    letterSpacing: 2.2,
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    color: colors.text,
+    fontFamily: typography.display,
+    letterSpacing: -0.5,
+    marginBottom: 14,
   },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
     backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: 15,
+    marginBottom: 9,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    ...atmosphericShadow,
   },
-  cardActive: {
-    backgroundColor: colors.surface,
+  cardIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+    backgroundColor: colors.canvas,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
   },
+  cardCopy: { flex: 1, minWidth: 0 },
   cardName: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
   },
   cardSubText: {
     color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    fontFamily: typography.body,
+    marginTop: 3,
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.canvasSoft,
+    borderRadius: radii.lg,
+    padding: 18,
     alignItems: 'center',
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
   },
   emptyText: {
     color: colors.textMuted,
+    fontFamily: typography.body,
+    fontSize: 11,
   },
   calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    marginBottom: 14,
   },
   monthNavButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: colors.surfacePressed,
-    borderRadius: 6,
-  },
-  monthNavText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: 'bold',
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    borderRadius: radii.pill,
   },
   monthLabel: {
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontFamily: typography.bodyStrong,
+    minWidth: 110,
+    textAlign: 'center',
   },
-  calendarGrid: {
+  calendarCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radii.xl,
+    padding: 14,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    ...atmosphericShadow,
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: 8,
+    marginBottom: 6,
   },
   weekDayText: {
-    color: colors.textMuted,
+    color: colors.labelSoft,
     width: '14.28%',
     textAlign: 'center',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 9,
+    fontFamily: typography.bodyStrong,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
   },
   daysRow: {
     flexDirection: 'row',
@@ -627,29 +736,30 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  dayCellActive: {
-    borderRadius: 8,
-  },
-  dayCellDisabled: {
-    opacity: 0.15,
   },
   dayCellEmpty: {
     width: '14.28%',
     aspectRatio: 1,
   },
+  dayCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCircleToday: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
   dayCellText: {
     color: colors.text,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  dayCellTextActive: {
-    color: '#121212',
+    fontSize: 13,
+    fontFamily: typography.body,
   },
   dayCellTextDisabled: {
     color: colors.textMuted,
+    opacity: 0.4,
   },
   timeGrid: {
     flexDirection: 'row',
@@ -658,54 +768,69 @@ const styles = StyleSheet.create({
   },
   timeCard: {
     width: '23%',
+    minWidth: 72,
+    flexGrow: 1,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: 10,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    borderRadius: radii.pill,
+    paddingVertical: 11,
     alignItems: 'center',
-  },
-  timeCardActive: {
-    borderWidth: 0,
+    ...atmosphericShadow,
   },
   timeCardDisabled: {
-    backgroundColor: colors.surfacePressed,
-    borderColor: 'transparent',
-    opacity: 0.2,
+    backgroundColor: colors.canvas,
+    opacity: 0.35,
   },
   timeText: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
   },
   timeTextDisabled: {
     color: colors.textMuted,
+    textDecorationLine: 'line-through',
   },
-  confirmButton: {
-    borderRadius: 8,
-    paddingVertical: 14,
+  floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
+  floatingBar: {
+    width: '100%',
+    maxWidth: 560,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    gap: 14,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    borderRadius: radii.xl,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    ...glassSurface,
+    ...Platform.select({
+      web: { boxShadow: '0 16px 44px rgba(0,0,0,0.10)' } as any,
+      default: { elevation: 9, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+    }),
+  },
+  floatingCopy: { flex: 1, minWidth: 0 },
+  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase' },
+  floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 2 },
+  confirmButton: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    borderRadius: radii.pill,
   },
   confirmButtonText: {
-    color: '#121212',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  backButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  backButtonText: {
-    color: '#ff453a',
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontFamily: typography.bodyStrong,
+    fontSize: 13,
   },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.canvas,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 14,
   },
+  loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
+  pressedScale: { transform: [{ scale: 0.98 }], opacity: 0.9 },
 });

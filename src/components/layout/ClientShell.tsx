@@ -4,7 +4,8 @@ import { CalendarDays, Compass, LogOut, RefreshCw } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
 import { StatusBadge } from '../ui/StatusBadge';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
+import { tapLight } from '../../utils/haptics';
 
 type ClientRoute = 'explore' | 'appointments';
 
@@ -38,8 +39,8 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
             {navItems.map(({ key, label, path, Icon }) => {
               const active = activeRoute === key;
               return (
-                <Pressable key={key} testID={`client-nav-${key}`} onPress={() => router.push(path as never)} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}>
-                  <Icon color={active ? colors.ink : colors.textSecondary} size={16} />
+                <Pressable key={key} testID={`client-nav-${key}`} onPress={() => { tapLight(); router.push(path as never); }} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}>
+                  <Icon color={active ? colors.ink : colors.textSecondary} size={15} strokeWidth={1.8} />
                   <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
                 </Pressable>
               );
@@ -51,8 +52,8 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
           <Text testID="client-shell-user-name" numberOfLines={1} style={styles.identityName}>{userName || 'Cliente'}</Text>
         </View>
         <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha' : isSyncing ? 'Sincronizando' : 'Sincronizado'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
-        <Pressable testID="client-sync-button" disabled={isSyncing} onPress={onSync} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={17} /></Pressable>
-        <Pressable testID="client-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><LogOut color={colors.danger} size={17} /></Pressable>
+        <Pressable testID="client-sync-button" disabled={isSyncing} onPress={() => { tapLight(); onSync(); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
+        <Pressable testID="client-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><LogOut color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
       </View>
 
       <View style={styles.content}>{children}</View>
@@ -62,8 +63,8 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
           {navItems.map(({ key, label, path, Icon }) => {
             const active = activeRoute === key;
             return (
-              <Pressable key={key} testID={`client-mobile-nav-${key}`} onPress={() => router.push(path as never)} style={({ pressed }) => [styles.bottomItem, pressed && styles.pressed]}>
-                <Icon color={active ? colors.brand : colors.textMuted} size={20} />
+              <Pressable key={key} testID={`client-mobile-nav-${key}`} onPress={() => { tapLight(); router.push(path as never); }} style={({ pressed }) => [styles.bottomItem, pressed && styles.pressed]}>
+                <Icon color={active ? colors.text : colors.textMuted} size={20} strokeWidth={active ? 2 : 1.7} />
                 <Text style={[styles.bottomLabel, active && styles.bottomLabelActive]}>{label}</Text>
               </Pressable>
             );
@@ -76,20 +77,55 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
-  header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, backgroundColor: colors.surface + 'F2', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 5 },
+  header: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    borderBottomWidth: Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth,
+    borderBottomColor: colors.hairline,
+    zIndex: 5,
+    ...glassSurface,
+  },
   desktopNav: { flexDirection: 'row', gap: 5, marginLeft: 22 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 12, borderRadius: radii.md },
-  navItemActive: { backgroundColor: colors.brand },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 14, borderRadius: radii.pill },
+  navItemActive: { backgroundColor: colors.accent },
   navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
   navLabelActive: { color: colors.ink },
   identity: { flex: 1, alignItems: 'flex-end', minWidth: 0 },
-  identityLabel: { color: colors.textMuted, fontFamily: typography.body, fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.8 },
+  identityLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.4 },
   identityName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 },
-  iconButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  iconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth,
+    borderColor: colors.hairline,
+    borderRadius: radii.pill,
+  },
   content: { flex: 1 },
-  bottomNav: { position: 'absolute', left: 16, right: 16, bottom: 12, minHeight: 66, flexDirection: 'row', backgroundColor: colors.surface + 'F2', borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, padding: 7, ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,0,0,0.06)' } as any, default: { elevation: 8, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12 } }) },
+  bottomNav: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 12,
+    minHeight: 64,
+    flexDirection: 'row',
+    borderWidth: Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth,
+    borderColor: colors.hairline,
+    borderRadius: radii.xl,
+    padding: 7,
+    ...glassSurface,
+    ...Platform.select({
+      web: { boxShadow: '0 16px 40px rgba(0,0,0,0.08)' } as any,
+      default: { elevation: 8, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+    }),
+  },
   bottomItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9 },
-  bottomLabelActive: { color: colors.brand },
-  pressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
+  bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 0.3 },
+  bottomLabelActive: { color: colors.text },
+  pressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
 });
