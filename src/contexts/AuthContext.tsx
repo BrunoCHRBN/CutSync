@@ -46,6 +46,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
+        if (error.message?.includes('JWT expired') || error.code === 'PGRST303') {
+          try {
+            await database.write(async () => {
+              await database.unsafeResetDatabase();
+            });
+          } catch (dbErr) {
+            console.warn('Erro ao resetar banco local:', dbErr);
+          }
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+          setSession(null);
+        }
       } else {
         setProfile(data);
 
