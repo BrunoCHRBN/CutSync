@@ -18,7 +18,6 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Eye,
 } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
@@ -30,6 +29,7 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { SectionHeading } from '../ui/SectionHeading';
 import { StatusBadge } from '../ui/StatusBadge';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { ChoiceCard } from '../ui/ChoiceCard';
 import { AppInput } from '../ui/AppInput';
 import { colors, layout, radii, typography } from '../../theme/tokens';
@@ -54,6 +54,12 @@ const statusConfig: Record<string, { label: string; tone: 'warning' | 'info' | '
 };
 
 const quickTimes = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+
+const periodOptions = [
+  { value: 'today' as const, label: 'Hoje' },
+  { value: 'week' as const, label: 'Semana' },
+  { value: 'month' as const, label: 'Mês' },
+];
 
 export const AdminDashboardExperience = () => {
   const router = useRouter();
@@ -426,9 +432,9 @@ export const AdminDashboardExperience = () => {
   const barberName = (id: string) => barbers.find((barber) => barber.id === id)?.name || 'Profissional';
 
   const metrics = [
-    { key: 'revenue', label: period === 'today' ? 'Faturamento do dia' : period === 'week' ? 'Faturamento da semana' : 'Faturamento do mês', value: currency(revenue), note: `${periodCompleted.length} atendimentos concluídos`, Icon: Banknote, tone: colors.success },
-    { key: 'occupancy', label: 'Ocupação estimada', value: `${occupancy}%`, note: `${periodActive.length} horários no período`, Icon: TrendingUp, tone: colors.brand },
-    { key: 'team', label: 'Equipe em agenda', value: String(barbers.length), note: 'profissionais disponíveis', Icon: Users, tone: colors.info },
+    { key: 'revenue', label: period === 'today' ? 'Faturamento do dia' : period === 'week' ? 'Faturamento da semana' : 'Faturamento do mês', value: currency(revenue), note: `${periodCompleted.length} atendimentos concluídos`, Icon: Banknote, actionLabel: 'Gerenciar serviços', action: () => router.push('/(admin)/services') },
+    { key: 'occupancy', label: 'Ocupação estimada', value: `${occupancy}%`, note: `${periodActive.length} horários no período`, Icon: TrendingUp, actionLabel: 'Ver vitrine', action: barbershop?.slug ? () => router.push(`/salon/${barbershop.slug}` as never) : undefined },
+    { key: 'team', label: 'Equipe em agenda', value: String(barbers.length), note: 'profissionais disponíveis', Icon: Users, actionLabel: 'Ver equipe', action: () => router.push('/(admin)/team') },
   ];
 
   const renderAppointmentRow = (item: RichAppointment, isFinished = false) => {
@@ -463,7 +469,7 @@ export const AdminDashboardExperience = () => {
                     sendWhatsAppMessage(item.clientPhone, text);
                   }}
                   variant="secondary"
-                  icon={<MessageSquare color={colors.brand} size={14} />}
+                  icon={<MessageSquare color={colors.textSecondary} size={14} />}
                   style={styles.compactButton}
                 />
               )}
@@ -495,7 +501,8 @@ export const AdminDashboardExperience = () => {
                 loading={actionLoadingId === item.id}
                 disabled={!!actionLoadingId && actionLoadingId !== item.id}
                 onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')}
-                icon={<Check color={colors.ink} size={15} />}
+                variant="admin"
+                icon={<Check color={colors.white} size={15} />}
                 style={styles.compactButton}
               />
             </View>
@@ -544,46 +551,33 @@ export const AdminDashboardExperience = () => {
               setQuickBarber(null);
               setQuickService(null);
             }}
-            icon={<Plus color={colors.ink} size={17} />}
-            style={{ backgroundColor: colors.brand, borderColor: colors.brand }}
+            variant="admin"
+            icon={<Plus color={colors.white} size={17} />}
           />
         </View>
       </View>
 
       <View testID="admin-metrics-grid" style={[styles.metrics, !isTablet && styles.metricsMobile]}>
-        {metrics.map(({ key, label, value, note, Icon, tone }) => (
+        {metrics.map(({ key, label, value, note, Icon, actionLabel, action }) => (
           <AppCard key={key} testID={`admin-metric-${key}`} style={styles.metricCard}>
             <View style={styles.metricTop}>
               <Text style={styles.metricLabel}>{label}</Text>
-              <View style={[styles.metricIcon, { backgroundColor: `${tone}1A` }]}><Icon color={tone} size={18} /></View>
+              <Pressable
+                testID={`admin-metric-${key}-action`}
+                accessibilityRole="link"
+                accessibilityLabel={actionLabel}
+                disabled={!action}
+                onPress={action}
+                style={({ pressed }) => [styles.metricAction, !action && styles.metricActionDisabled, pressed && styles.pressed]}
+              >
+                <Icon color={colors.textSecondary} size={16} strokeWidth={1.8} />
+                <ArrowUpRight color={colors.textMuted} size={14} />
+              </Pressable>
             </View>
             <Text testID={`admin-metric-${key}-value`} style={styles.metricValue}>{value}</Text>
             <Text style={styles.metricNote}>{note}</Text>
           </AppCard>
         ))}
-      </View>
-
-      <View testID="admin-quick-actions" style={styles.quickActions}>
-        <Pressable testID="admin-open-services-button" onPress={() => router.push('/(admin)/services')} style={styles.quickAction}>
-          <Scissors color={colors.brand} size={18} />
-          <Text style={styles.quickActionText}>Gerenciar serviços</Text>
-          <ArrowUpRight color={colors.textMuted} size={15} />
-        </Pressable>
-        <Pressable testID="admin-open-team-button" onPress={() => router.push('/(admin)/barbers')} style={styles.quickAction}>
-          <Users color={colors.info} size={18} />
-          <Text style={styles.quickActionText}>Ver equipe</Text>
-          <ArrowUpRight color={colors.textMuted} size={15} />
-        </Pressable>
-        <Pressable 
-          testID="admin-open-vitrine-button" 
-          onPress={() => barbershop?.slug && router.push(`/${barbershop.slug}`)} 
-          style={[styles.quickAction, !barbershop?.slug && { opacity: 0.5 }]}
-          disabled={!barbershop?.slug}
-        >
-          <Eye color={colors.success} size={18} />
-          <Text style={styles.quickActionText}>Ver vitrine</Text>
-          <ArrowUpRight color={colors.textMuted} size={15} />
-        </Pressable>
       </View>
 
       <View style={styles.dateHeader}>
@@ -683,7 +677,7 @@ export const AdminDashboardExperience = () => {
           </View>
 
           {loading ? (
-            <ActivityIndicator testID="admin-appointments-loading" color={colors.brand} style={styles.loader} />
+            <ActivityIndicator testID="admin-appointments-loading" color={colors.accent} style={styles.loader} />
           ) : activeAppointments.length === 0 ? (
             <View testID="admin-appointments-empty" style={styles.empty}>
               <Clock3 color={colors.textMuted} size={28} />
@@ -714,11 +708,7 @@ export const AdminDashboardExperience = () => {
               <Text style={styles.panelTitle}>Desempenho da equipe</Text>
               <Text style={styles.panelSubtitle}>Produção e repasse por profissional</Text>
             </View>
-            <View style={styles.periodTabs}>
-              <Pressable onPress={() => setPeriod('today')} style={[styles.periodTab, period === 'today' && styles.periodTabActive]}><Text style={[styles.periodTabText, period === 'today' && styles.periodTabActiveText]}>Hoje</Text></Pressable>
-              <Pressable onPress={() => setPeriod('week')} style={[styles.periodTab, period === 'week' && styles.periodTabActive]}><Text style={[styles.periodTabText, period === 'week' && styles.periodTabActiveText]}>Semana</Text></Pressable>
-              <Pressable onPress={() => setPeriod('month')} style={[styles.periodTab, period === 'month' && styles.periodTabActive]}><Text style={[styles.periodTabText, period === 'month' && styles.periodTabActiveText]}>Mês</Text></Pressable>
-            </View>
+            <SegmentedControl testID="admin-performance-period" value={period} options={periodOptions} onChange={setPeriod} />
           </View>
 
           <View style={styles.teamList}>
@@ -858,7 +848,8 @@ export const AdminDashboardExperience = () => {
                 onPress={createQuickBooking} 
                 loading={quickLoading} 
                 fullWidth 
-                icon={<Plus color={colors.ink} size={16} />} 
+                variant="admin"
+                icon={<Plus color={colors.white} size={16} />}
               />
             </ScrollView>
           </AppCard>
@@ -937,7 +928,8 @@ export const AdminDashboardExperience = () => {
                 loading={rescheduleLoading} 
                 disabled={!newRescheduleTime}
                 fullWidth 
-                icon={<RefreshCw color={colors.ink} size={16} />} 
+                variant="admin"
+                icon={<RefreshCw color={colors.white} size={16} />}
               />
             </ScrollView>
           </AppCard>
@@ -955,21 +947,19 @@ const styles = StyleSheet.create({
   metricCard: { flex: 1, minWidth: 190 },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metricLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
-  metricIcon: { width: 36, height: 36, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
+  metricAction: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 34, paddingHorizontal: 9, borderRadius: radii.sm, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.hairline },
+  metricActionDisabled: { opacity: 0.35 },
   metricValue: { color: colors.text, fontFamily: typography.display, fontSize: 27, letterSpacing: -1, marginTop: 18 },
   metricNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, marginTop: 5 },
-  quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-  quickAction: { flex: 1, minWidth: 190, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 13 },
-  quickActionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, flex: 1 },
   dateHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 42 },
   dateSelector: { flexDirection: 'row', gap: 8, marginTop: 18, overflow: 'hidden' },
   dateSelectorWide: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 8, marginTop: 18 },
   dateItem: { flex: 1, minWidth: 48, maxWidth: 76, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   dateItemWide: { flex: 1, maxWidth: 120 },
-  dateItemSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  dateItemSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
   dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 17, marginTop: 3 },
-  dateTextSelected: { color: colors.ink },
+  dateTextSelected: { color: colors.white },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   workspace: { gap: 16, marginTop: 18 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -985,9 +975,9 @@ const styles = StyleSheet.create({
   appointmentRow: { flexDirection: 'row', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
   appointmentRowFinished: { opacity: 0.65 },
   timeColumn: { width: 70, alignItems: 'flex-start' },
-  appointmentTime: { color: colors.brand, fontFamily: typography.display, fontSize: 15 },
+  appointmentTime: { color: colors.text, fontFamily: typography.display, fontSize: 15 },
   timeFinished: { color: colors.textMuted },
-  timelineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand, marginTop: 10, marginLeft: 4 },
+  timelineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent, marginTop: 10, marginLeft: 4 },
   dotFinished: { backgroundColor: colors.border },
   appointmentCopy: { flex: 1 },
   appointmentTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
@@ -999,19 +989,19 @@ const styles = StyleSheet.create({
   compactButton: { minHeight: 36, paddingVertical: 7, paddingHorizontal: 12 },
   teamList: { marginTop: 20 },
   teamRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10 },
-  avatar: { width: 35, height: 35, borderRadius: radii.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.brand, fontFamily: typography.display, fontSize: 13 },
+  avatar: { width: 35, height: 35, borderRadius: radii.md, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.text, fontFamily: typography.display, fontSize: 13, letterSpacing: -0.3 },
   teamCopy: { flex: 1 },
   teamName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
   teamMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 3 },
   teamValue: { alignItems: 'flex-end' },
   teamGross: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
-  teamCommission: { color: colors.brand, fontFamily: typography.body, fontSize: 9, marginTop: 3 },
+  teamCommission: { color: colors.success, fontFamily: typography.body, fontSize: 9, marginTop: 3 },
   // Modal de Encaixe Estilos
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 15, 18, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 520, maxHeight: '90%', padding: 0 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase' },
+  modalEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.5, textTransform: 'uppercase' },
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },
   closeButton: { padding: 4, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   modalContent: { padding: 20, gap: 16 },
@@ -1020,16 +1010,10 @@ const styles = StyleSheet.create({
   choiceCard: { flex: 1, minWidth: 140 },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   timeSlot: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  timeSlotSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
   timeSlotText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
   selectedInk: { color: colors.ink },
-  // Filtro de Período Estilos
   performanceCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexWrap: 'wrap', gap: 12 },
-  periodTabs: { flexDirection: 'row', backgroundColor: colors.canvas, borderRadius: radii.md, padding: 3, gap: 2, borderWidth: 1, borderColor: colors.border },
-  periodTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.sm },
-  periodTabActive: { backgroundColor: colors.brand },
-  periodTabText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.bodyStrong },
-  periodTabActiveText: { color: colors.ink },
   cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
   timeSlotOccupied: {
     backgroundColor: '#ff444408',
@@ -1061,13 +1045,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: radii.md,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 38,
   },
   todayBtnText: {
-    color: colors.ink,
+    color: colors.white,
     fontFamily: typography.bodyStrong,
     fontSize: 10,
     textTransform: 'uppercase',

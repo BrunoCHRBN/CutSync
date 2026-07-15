@@ -282,7 +282,7 @@ function LegacyAdminDashboard() {
 
         <TouchableOpacity 
           style={styles.shortcutButton}
-          onPress={() => router.push('/(admin)/barbers')}
+          onPress={() => router.push('/(admin)/team')}
         >
           <Text style={[styles.shortcutButtonText, { color: primaryColor }]}>Equipe</Text>
         </TouchableOpacity>

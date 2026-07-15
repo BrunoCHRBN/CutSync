@@ -97,7 +97,7 @@ export const AdminShell = ({
     <View testID={testID} style={styles.root}>
       {isDesktop && (
         <View testID="admin-sidebar" style={styles.sidebar}>
-          <BrandMark compact />
+          <BrandMark compact monochrome />
           <View style={styles.shopBlock}>
             <Text style={styles.shopOverline}>Operação atual</Text>
             {availableShops.length > 1 ? (
@@ -163,7 +163,8 @@ export const AdminShell = ({
                     pressed && styles.navItemPressed,
                   ]}
                 >
-                  <Icon color={active ? colors.ink : colors.textSecondary} size={18} strokeWidth={2} />
+                  {active ? <View style={styles.activeIndicator} /> : null}
+                  <Icon color={active ? colors.text : colors.textSecondary} size={18} strokeWidth={active ? 2.2 : 1.8} />
                   <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
                 </Pressable>
               );
@@ -218,7 +219,7 @@ export const AdminShell = ({
                   onPress={() => navigate(path)}
                   style={({ pressed }) => [styles.bottomItem, pressed && styles.navItemPressed]}
                 >
-                  <Icon color={active ? colors.brand : colors.textMuted} size={20} />
+                  <Icon color={active ? colors.text : colors.textMuted} size={20} />
                   <Text style={[styles.bottomLabel, active && styles.bottomLabelActive]}>{label}</Text>
                 </Pressable>
               );
@@ -228,7 +229,7 @@ export const AdminShell = ({
       </View>
       {switching && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.brand} />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Sincronizando estabelecimento...</Text>
         </View>
       )}
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'row', backgroundColor: colors.canvas },
   sidebar: {
     width: 252,
-    backgroundColor: colors.canvasSoft,
+    backgroundColor: colors.surface,
     borderRightWidth: 1,
     borderRightColor: colors.border,
     paddingHorizontal: 20,
@@ -250,12 +251,13 @@ const styles = StyleSheet.create({
   shopOverline: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.5, textTransform: 'uppercase' },
   shopName: { color: colors.text, fontFamily: typography.display, fontSize: 18, lineHeight: 23, marginTop: 6 },
   nav: { flex: 1, gap: 7, marginTop: 30 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 12, borderRadius: radii.md },
-  navItemActive: { backgroundColor: colors.brand },
+  navItem: { position: 'relative', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radii.sm },
+  navItemActive: { backgroundColor: colors.surfacePressed },
+  activeIndicator: { position: 'absolute', left: 0, top: 9, bottom: 9, width: 2, borderRadius: 2, backgroundColor: colors.accent },
   navItemHover: { backgroundColor: colors.surfaceRaised },
   navItemPressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
-  navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 13 },
-  navLabelActive: { color: colors.ink },
+  navLabel: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 13 },
+  navLabelActive: { color: colors.text, fontFamily: typography.bodyStrong },
   sidebarFooter: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 18, gap: 12 },
   connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   connectionText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10 },
@@ -286,7 +288,7 @@ const styles = StyleSheet.create({
   },
   bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
   bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9 },
-  bottomLabelActive: { color: colors.brand },
+  bottomLabelActive: { color: colors.text },
   selectWrapper: { marginTop: 6, width: '100%' },
   mobileSelectContainer: { marginTop: 6, width: '100%' },
   mobileSelectButton: {
@@ -343,7 +345,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   mobileTopbarButtonText: {
-    color: colors.brand,
+    color: colors.text,
     fontFamily: typography.bodyStrong,
     fontSize: 12,
   },

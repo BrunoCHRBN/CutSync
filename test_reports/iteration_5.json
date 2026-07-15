@@ -1,0 +1,76 @@
+{
+  "summary": "Validated requested admin refactor mainly via static review plus web runtime smoke. TypeScript and web export pass, required public/shortcut routes exist, but runtime is blocked by missing Supabase env (supabaseUrl is required), preventing authenticated/visual end-to-end confirmation.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "N/A",
+        "issue": "Backend API testing could not run because /app/backend service/tests are not present in this workspace while testing_type was both.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "App bootstrap",
+        "issue": "Web runtime crashes before UI rendering with 'supabaseUrl is required' from src/services/supabase.ts createClient initialization.",
+        "selector": "N/A (startup)",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Admin dashboard/sidebar/services/settings runtime validation",
+        "issue": "Could not fully validate interactive visual behavior (sidebar active indicator, metrics interactions, segmented control behavior, switches spacing, save actions) because app fails at startup without EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.",
+        "affected_selectors": [
+          "admin-dashboard-screen",
+          "admin-sidebar",
+          "services-screen",
+          "settings-screen",
+          "team-screen"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/src/components/layout/AdminShell.tsx",
+    "/app/src/components/screens/AdminDashboardExperience.tsx",
+    "/app/src/components/screens/ServicesExperience.tsx",
+    "/app/src/components/screens/SettingsExperience.tsx",
+    "/app/src/components/screens/TeamExperience.tsx",
+    "/app/src/components/ui/AppButton.tsx",
+    "/app/src/components/ui/SegmentedControl.tsx",
+    "/app/src/app/_layout.tsx",
+    "/app/src/app/salon/[slug].tsx",
+    "/app/src/app/salon/[slug]/booking.tsx",
+    "/app/src/app/admin/barbers.tsx",
+    "/app/src/services/supabase.ts"
+  ],
+  "action_items": [
+    "Provide EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in preview runtime to unblock UI testing.",
+    "After env fix, rerun full UI e2e on admin routes to confirm visual requirements in runtime (not only static code).",
+    "Keep routing map cleanup as follow-up: legacy /(admin) files still contain old dialog-based/deprecated implementations in same file after `export default ...Experience` (dead code risk, maintainability concern)."
+  ],
+  "critical_code_review_comments": [
+    "Requested route fixes are present: /app/src/app/admin/barbers.tsx redirects to /(admin)/team; public aliases /salon/[slug] and /salon/[slug]/booking are defined.",
+    "Admin neutral theme implementation is consistent in new experience components: accent/text use dark neutral (#18181B/#171717) and admin buttons use variant 'admin'.",
+    "Dynamic establishment color appears intentionally in Settings public preview and public salon pages; no leakage found in new admin experience components during static review.",
+    "WatermelonDB reactive patterns remain in place (observe/query usage) across admin experience screens.",
+    "Maintainability issue: route files under /(admin) keep large legacy implementations below `export default ...Experience`; this dead code includes browser dialogs and can confuse future changes despite not being active export."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_5.json"
+  ],
+  "success_rate": {
+    "backend": "0%",
+    "frontend": "58%"
+  },
+  "test_credentials": "Read /app/memory/test_credentials.md. No test accounts provided; plus required Supabase env keys are missing, blocking authenticated validation.",
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Build health is green (`yarn tsc --noEmit`, `yarn build:web`). Runtime still fails before rendering with supabaseUrl missing. Once env keys are provided, prioritize runtime verification of admin visual acceptance criteria and route behavior under authenticated state.",
+  "rca of the issue": "Repro: open web root (127.0.0.1:3000) -> Expo overlay shows 'supabaseUrl is required' at src/services/supabase.ts createClient call. Root cause: eager client creation with empty env variables. Mitigation: provide env keys in preview and/or guard/lazy init to avoid hard crash when env is absent."
+}

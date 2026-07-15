@@ -253,7 +253,7 @@ export const SettingsExperience = () => {
   };
 
   const copyPublicLink = async () => {
-    const link = `cutsync.com/${slug || 'sua-barbearia'}`;
+    const link = `cutsync.com/salon/${slug || 'sua-barbearia'}`;
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) await navigator.clipboard.writeText(link);
       setNotice({ tone: 'success', message: 'Link público copiado.' });
@@ -263,7 +263,7 @@ export const SettingsExperience = () => {
   };
 
   if (loading) {
-    return <View testID="settings-loading-screen" style={styles.loading}><ActivityIndicator color={colors.brand} size="large" /></View>;
+    return <View testID="settings-loading-screen" style={styles.loading}><ActivityIndicator color={colors.accent} size="large" /></View>;
   }
 
   return (
@@ -276,8 +276,8 @@ export const SettingsExperience = () => {
           <View style={styles.formColumn}>
             <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
               <View style={styles.logoRow}>
-                <View testID="settings-logo-preview" style={[styles.logoPreview, { borderColor: primaryColor }]}> 
-                  {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={primaryColor} size={30} />}
+                <View testID="settings-logo-preview" style={styles.logoPreview}>
+                  {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={colors.textSecondary} size={30} />}
                 </View>
                 <View style={styles.logoCopy}>
                   <Text style={styles.logoTitle}>Logo da barbearia</Text>
@@ -286,6 +286,7 @@ export const SettingsExperience = () => {
                     label="Alterar Logo"
                     testID="settings-upload-logo-button"
                     onPress={() => pickImage((url) => setLogoUrl(url), [1, 1])}
+                    variant="secondary"
                     style={styles.compactUploadButton}
                   />
                 </View>
@@ -322,6 +323,7 @@ export const SettingsExperience = () => {
                   label="Selecionar Imagem do Banner"
                   testID="settings-upload-banner-button"
                   onPress={() => pickImage((url) => setBannerUrl(url), [16, 9])}
+                  variant="secondary"
                   style={styles.uploadButton}
                 />
               </View>
@@ -334,9 +336,10 @@ export const SettingsExperience = () => {
                 ) : (
                   <View style={styles.galleryPreviewGrid}>
                     {galleryUrls.map((url, index) => (
-                      <View key={`${url}-${index}`} style={styles.galleryItemContainer}>
-                        <Image source={{ uri: url }} style={styles.galleryItemImage} />
+                    <View key={`${url}-${index}`} testID={`settings-gallery-item-${index}`} style={styles.galleryItemContainer}>
+                        <Image testID={`settings-gallery-image-${index}`} source={{ uri: url }} style={styles.galleryItemImage} />
                         <Pressable 
+                          testID={`settings-gallery-remove-${index}`}
                           onPress={() => {
                             setGalleryUrls(prev => prev.filter((_, idx) => idx !== index));
                           }}
@@ -362,20 +365,22 @@ export const SettingsExperience = () => {
               <View style={styles.scheduleGrid}>
                 {schedule.map((dayItem, idx) => (
                   <View key={dayItem.day} style={styles.scheduleRow}>
-                    <Text style={styles.scheduleDayName}>{dayItem.name}</Text>
+                    <Text testID={`settings-schedule-day-${dayItem.day}`} style={styles.scheduleDayName}>{dayItem.name}</Text>
                     <Switch
+                      testID={`settings-schedule-switch-${dayItem.day}`}
                       value={dayItem.isOpen}
                       onValueChange={(val) => {
                         const copy = [...schedule];
                         copy[idx].isOpen = val;
                         setSchedule(copy);
                       }}
-                      trackColor={{ false: '#2C2C2E', true: `${primaryColor}44` }}
-                      thumbColor={dayItem.isOpen ? primaryColor : '#8E8E93'}
+                      trackColor={{ false: colors.borderStrong, true: colors.accent }}
+                      thumbColor={colors.white}
                     />
                     {dayItem.isOpen ? (
                       <View style={styles.scheduleTimes}>
                         <TextInput
+                          testID={`settings-schedule-open-${dayItem.day}`}
                           style={styles.timeInput}
                           value={dayItem.open}
                           onChangeText={(val) => {
@@ -388,6 +393,7 @@ export const SettingsExperience = () => {
                         />
                         <Text style={{ color: colors.textMuted, fontSize: 10 }}>às</Text>
                         <TextInput
+                          testID={`settings-schedule-close-${dayItem.day}`}
                           style={styles.timeInput}
                           value={dayItem.close}
                           onChangeText={(val) => {
@@ -410,22 +416,23 @@ export const SettingsExperience = () => {
 
           <View style={styles.previewColumn}>
             <AppCard testID="settings-public-profile-preview" style={styles.previewCard} elevated>
-              <Text style={styles.previewEyebrow}>PERFIL PÚBLICO</Text>
+              <View testID="settings-preview-accent" style={[styles.previewAccent, { backgroundColor: primaryColor }]} />
+              <Text testID="settings-preview-eyebrow" style={[styles.previewEyebrow, { color: primaryColor }]}>PERFIL PÚBLICO</Text>
               <View style={[styles.previewLogo, { backgroundColor: `${primaryColor}22`, borderColor: `${primaryColor}55` }]}>
                 {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
               </View>
               <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
-              {!!slogan && <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 4, textAlign: 'center' }}>“{slogan}”</Text>}
+              {!!slogan && <Text testID="settings-preview-slogan" style={{ color: primaryColor, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 4, textAlign: 'center' }}>“{slogan}”</Text>}
               <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>
               <Text testID="settings-preview-phone" style={styles.previewMeta}>{phone || 'Adicione seu telefone'}</Text>
-              <View style={styles.linkBox}>
-                <Link2 color={colors.brand} size={15} />
-                <Text testID="settings-public-link" numberOfLines={1} style={styles.linkText}>cutsync.com/{slug || 'sua-barbearia'}</Text>
-                <Pressable testID="settings-copy-public-link-button" onPress={copyPublicLink} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.ink} size={14} /></Pressable>
+              <View style={[styles.linkBox, { backgroundColor: `${primaryColor}14` }]}>
+                <Link2 color={primaryColor} size={15} />
+                <Text testID="settings-public-link" numberOfLines={1} style={[styles.linkText, { color: primaryColor }]}>cutsync.com/salon/{slug || 'sua-barbearia'}</Text>
+                <Pressable testID="settings-copy-public-link-button" onPress={copyPublicLink} style={({ pressed }) => [styles.copyButton, { backgroundColor: primaryColor }, pressed && styles.pressed]}><Copy color={colors.white} size={14} /></Pressable>
               </View>
               <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
             </AppCard>
-            <AppButton label="Salvar configurações" testID="settings-save-button" onPress={saveSettings} loading={saving} fullWidth icon={<Save color={colors.ink} size={17} />} />
+            <AppButton label="Salvar configurações" testID="settings-save-button" onPress={saveSettings} loading={saving} fullWidth variant="admin" icon={<Save color={colors.white} size={17} />} />
           </View>
         </View>
       </ScrollView>
@@ -440,7 +447,7 @@ const styles = StyleSheet.create({
   formColumn: { flex: 1.35, gap: 14 },
   previewColumn: { flex: 0.75, minWidth: 300, gap: 12 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  logoPreview: { width: 78, height: 78, borderRadius: radii.lg, borderWidth: 2, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  logoPreview: { width: 78, height: 78, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImage: { width: '100%', height: '100%' },
   logoCopy: { flex: 1 },
   logoTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
@@ -451,19 +458,20 @@ const styles = StyleSheet.create({
   colorField: { width: 190 },
   colorFieldContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   colorSwatch: { width: 40, height: 40, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, marginBottom: 5 },
-  previewCard: { alignItems: 'center', padding: 24 },
+  previewCard: { position: 'relative', alignItems: 'center', padding: 24, overflow: 'hidden' },
+  previewAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   previewEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.8, alignSelf: 'flex-start' },
   previewLogo: { width: 74, height: 74, borderRadius: radii.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 28, overflow: 'hidden' },
   previewLogoImage: { width: '100%', height: '100%' },
   previewName: { color: colors.text, fontFamily: typography.display, fontSize: 21, letterSpacing: -0.7, marginTop: 15, textAlign: 'center' },
   previewMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, marginTop: 5, textAlign: 'center' },
-  linkBox: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.brandSoft, borderRadius: radii.md, padding: 9, marginTop: 22, marginBottom: 16 },
-  linkText: { flex: 1, color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10 },
-  copyButton: { width: 30, height: 30, borderRadius: radii.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  linkBox: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radii.md, padding: 9, marginTop: 22, marginBottom: 16 },
+  linkText: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 10 },
+  copyButton: { width: 30, height: 30, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
-  scheduleGrid: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, padding: 16, gap: 10 },
-  scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
-  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
+  scheduleGrid: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, paddingHorizontal: 18, paddingVertical: 8 },
+  scheduleRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 12 },
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
   timeInput: { width: 56, height: 34, textAlign: 'center', color: colors.text, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
   closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' },

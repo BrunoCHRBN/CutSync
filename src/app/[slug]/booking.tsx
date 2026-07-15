@@ -223,7 +223,7 @@ export default function BookingSlugScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace(`/${slug}`);
+      router.replace(`/salon/${slug}` as never);
     }
   };
 
@@ -268,7 +268,7 @@ export default function BookingSlugScreen() {
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       sync();
-      router.replace(`/${slug}`);
+      router.replace(`/salon/${slug}` as never);
     } catch (error) {
       displayAlert('Erro', 'Não foi possível salvar o agendamento.');
     } finally {

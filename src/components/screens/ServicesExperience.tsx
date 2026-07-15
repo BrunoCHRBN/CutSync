@@ -100,7 +100,7 @@ export const ServicesExperience = () => {
             <AppInput containerStyle={styles.halfField} label="Preço" testID="services-price-input" icon={<WalletCards color={colors.textMuted} size={17} />} placeholder="45,00" value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
             <AppInput containerStyle={styles.halfField} label="Duração (min)" testID="services-duration-input" icon={<Clock3 color={colors.textMuted} size={17} />} placeholder="30" value={duration} onChangeText={setDuration} keyboardType="number-pad" />
           </View>
-          <AppButton label="Adicionar serviço" testID="services-add-button" onPress={addService} loading={submitting} fullWidth icon={<Plus color={colors.ink} size={17} />} />
+          <AppButton label="Adicionar serviço" testID="services-add-button" onPress={addService} loading={submitting} fullWidth variant="admin" icon={<Plus color={colors.white} size={17} />} />
         </FormSection>
 
         <View style={styles.listColumn}>
@@ -113,14 +113,14 @@ export const ServicesExperience = () => {
           </View>
 
           {loading ? (
-            <ActivityIndicator testID="services-loading" color={colors.brand} style={styles.loader} />
+            <ActivityIndicator testID="services-loading" color={colors.accent} style={styles.loader} />
           ) : services.length === 0 ? (
-            <EmptyState testID="services-empty-state" title="Monte seu catálogo" description="Adicione o primeiro serviço para liberar o fluxo de agendamento." icon={<Scissors color={colors.brand} size={22} />} />
+            <EmptyState testID="services-empty-state" title="Monte seu catálogo" description="Adicione o primeiro serviço para liberar o fluxo de agendamento." icon={<Scissors color={colors.textSecondary} size={22} />} />
           ) : (
             <View style={styles.serviceList}>
               {services.map((service) => (
                 <AppCard key={service.id} testID={`service-card-${service.id}`} style={[styles.serviceCard, !service.isActive && styles.serviceCardInactive]}>
-                  <View style={[styles.serviceIcon, !service.isActive && styles.serviceIconInactive]}><Scissors color={service.isActive ? colors.brand : colors.textMuted} size={18} /></View>
+                  <View style={[styles.serviceIcon, !service.isActive && styles.serviceIconInactive]}><Scissors color={service.isActive ? colors.text : colors.textMuted} size={18} /></View>
                   <View style={styles.serviceCopy}>
                     <Text testID={`service-card-${service.id}-name`} style={styles.serviceName}>{service.name}</Text>
                     <View style={styles.serviceMeta}>
@@ -163,12 +163,12 @@ const styles = StyleSheet.create({
   serviceList: { gap: 9 },
   serviceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15 },
   serviceCardInactive: { opacity: 0.64 },
-  serviceIcon: { width: 42, height: 42, borderRadius: radii.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  serviceIcon: { width: 42, height: 42, borderRadius: radii.md, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   serviceIconInactive: { backgroundColor: colors.surfacePressed },
   serviceCopy: { flex: 1, minWidth: 0 },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   serviceMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
-  servicePrice: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10 },
+  servicePrice: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
   metaDivider: { color: colors.textMuted },
   serviceDuration: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9 },
   toggleButton: { width: 38, height: 38, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },

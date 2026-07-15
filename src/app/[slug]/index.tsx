@@ -200,7 +200,7 @@ export default function BarbershopSlugScreen() {
 
   const accent = barbershop.primaryColor || colors.accent;
   const accentFg = readableForeground(accent);
-  const goBooking = () => { tapLight(); router.push(`/${slug}/booking`); };
+  const goBooking = () => { tapLight(); router.push(`/salon/${slug}/booking` as never); };
 
   return (
     <ScreenBackground testID="barbershop-profile-screen">

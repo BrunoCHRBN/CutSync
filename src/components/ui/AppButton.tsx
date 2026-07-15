@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'admin' | 'secondary' | 'ghost' | 'danger';
 
 export interface AppButtonProps {
   label: string;
@@ -56,7 +56,7 @@ export const AppButton = ({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.ink : colors.text} />
+        <ActivityIndicator color={variant === 'primary' || variant === 'admin' ? colors.ink : colors.text} />
       ) : (
         <View style={styles.content}>
           {icon}
@@ -82,6 +82,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
     borderColor: colors.brand,
   },
+  admin: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
   secondary: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -95,6 +99,7 @@ const styles = StyleSheet.create({
     borderColor: '#DC262644',
   },
   primaryLabel: { color: colors.ink },
+  adminLabel: { color: colors.ink },
   secondaryLabel: { color: colors.text },
   ghostLabel: { color: colors.textSecondary },
   dangerLabel: { color: colors.danger },

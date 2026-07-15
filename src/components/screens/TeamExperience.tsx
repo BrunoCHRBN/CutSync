@@ -174,15 +174,15 @@ export const TeamExperience = () => {
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={[styles.workspace, isWide && styles.workspaceWide]}>
           <AppCard testID="team-invite-card" style={styles.inviteCard} elevated>
-            <View style={styles.inviteIcon}><UserPlus color={colors.brand} size={22} /></View>
+            <View style={styles.inviteIcon}><UserPlus color={colors.text} size={22} /></View>
             <Text style={styles.inviteEyebrow}>CONVITE DE EQUIPE</Text>
             <Text testID="team-invite-title" style={styles.inviteTitle}>Traga seu time para o CutSync.</Text>
             <Text style={styles.inviteDescription}>Envie o código abaixo. O profissional escolhe “Sou profissional” no cadastro e entra automaticamente na sua equipe.</Text>
             <View testID="team-invite-code" style={styles.codeBox}>
-              <Link2 color={colors.brand} size={17} />
+              <Link2 color={colors.textSecondary} size={17} />
               <Text selectable style={styles.code}>{barbershop?.slug || '—'}</Text>
               <Pressable testID="team-copy-invite-code-button" onPress={copyCode} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}>
-                <Copy color={colors.ink} size={16} />
+                <Copy color={colors.white} size={16} />
               </Pressable>
             </View>
             <Text style={styles.inviteHint}>O código também forma o endereço público cutsync.com/{barbershop?.slug || 'sua-barbearia'}.</Text>
@@ -198,9 +198,9 @@ export const TeamExperience = () => {
             </View>
 
             {loading ? (
-              <ActivityIndicator testID="team-loading" color={colors.brand} style={styles.loader} />
+              <ActivityIndicator testID="team-loading" color={colors.accent} style={styles.loader} />
             ) : barbers.length === 0 ? (
-              <EmptyState testID="team-empty-state" title="Sua equipe começa aqui" description="Compartilhe o código de convite para vincular o primeiro profissional." icon={<UsersRound color={colors.brand} size={22} />} />
+              <EmptyState testID="team-empty-state" title="Sua equipe começa aqui" description="Compartilhe o código de convite para vincular o primeiro profissional." icon={<UsersRound color={colors.textSecondary} size={22} />} />
             ) : (
               <View style={styles.teamList}>
                 {barbers.map((barber) => (
@@ -209,14 +209,14 @@ export const TeamExperience = () => {
                       <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                       <View style={styles.memberCopy}>
                         <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
-                        <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 2 }}>
+                        <Text testID={`team-member-${barber.id}-title`} style={{ color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 2 }}>
                           {barber.tituloProfissional || 'Especialista'}{barber.specialties ? ` • ${barber.specialties}` : ''}
                         </Text>
                         <Text style={styles.memberContact}>{barber.email}</Text>
                         <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
                       </View>
                       <View style={styles.commissionBadge}>
-                        <BadgePercent color={colors.brand} size={14} />
+                        <BadgePercent color={colors.textSecondary} size={14} />
                         <Text testID={`team-member-${barber.id}-commission`} style={styles.commissionText}>{Math.round((barber.commissionRate ?? 0.5) * 100)}%</Text>
                       </View>
                     </View>
@@ -240,7 +240,7 @@ export const TeamExperience = () => {
                         <AppInput label="Título Profissional (Ex: Nail Designer, Barbeiro, Manicure)" testID={`team-member-${barber.id}-title-input`} value={tituloProfissional} onChangeText={setTituloProfissional} placeholder="Ex: Nail Designer" />
                         <AppInput label="Especialidades / Portfólio" testID={`team-member-${barber.id}-specialties-input`} value={specialties} onChangeText={setSpecialties} placeholder="ex: Especialista em Degradê e Barboterapia" />
                         <View style={styles.formActions}>
-                          <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveBarberInfo(barber.id)} loading={actionLoading} style={styles.smallButton} />
+                          <AppButton label="Salvar" testID={`team-member-${barber.id}-commission-save-button`} onPress={() => saveBarberInfo(barber.id)} loading={actionLoading} variant="admin" style={styles.smallButton} />
                           <AppButton label="Cancelar" testID={`team-member-${barber.id}-commission-cancel-button`} onPress={() => setEditingId(null)} variant="secondary" style={styles.smallButton} />
                         </View>
                       </View>
@@ -252,18 +252,20 @@ export const TeamExperience = () => {
                             <View key={dayItem.day} style={styles.scheduleRow}>
                               <Text style={styles.scheduleDayName}>{dayItem.name}</Text>
                               <Switch
+                                testID={`team-member-${barber.id}-schedule-switch-${dayItem.day}`}
                                 value={dayItem.isOpen}
                                 onValueChange={(val) => {
                                   const copy = [...workHoursSchedule];
                                   copy[idx].isOpen = val;
                                   setWorkHoursSchedule(copy);
                                 }}
-                                trackColor={{ false: '#2C2C2E', true: `${colors.brand}44` }}
-                                thumbColor={dayItem.isOpen ? colors.brand : '#8E8E93'}
+                                trackColor={{ false: colors.borderStrong, true: colors.accent }}
+                                thumbColor={colors.white}
                               />
                               {dayItem.isOpen ? (
                                 <View style={styles.scheduleTimes}>
                                   <TextInput
+                                    testID={`team-member-${barber.id}-schedule-open-${dayItem.day}`}
                                     style={styles.timeInput}
                                     value={dayItem.open}
                                     onChangeText={(val) => {
@@ -276,6 +278,7 @@ export const TeamExperience = () => {
                                   />
                                   <Text style={{ color: colors.textMuted, fontSize: 10 }}>às</Text>
                                   <TextInput
+                                    testID={`team-member-${barber.id}-schedule-close-${dayItem.day}`}
                                     style={styles.timeInput}
                                     value={dayItem.close}
                                     onChangeText={(val) => {
@@ -294,7 +297,7 @@ export const TeamExperience = () => {
                           ))}
                         </View>
                         <View style={styles.workHoursActions}>
-                          <AppButton label="Salvar Escala" testID={`team-member-${barber.id}-hours-save-button`} onPress={() => saveWorkHours(barber.id)} loading={actionLoading} style={styles.smallButton} />
+                          <AppButton label="Salvar Escala" testID={`team-member-${barber.id}-hours-save-button`} onPress={() => saveWorkHours(barber.id)} loading={actionLoading} variant="admin" style={styles.smallButton} />
                           <AppButton label="Cancelar" testID={`team-member-${barber.id}-hours-cancel-button`} onPress={() => setEditingWorkHoursId(null)} variant="secondary" style={styles.smallButton} />
                         </View>
                       </View>
@@ -328,13 +331,13 @@ const styles = StyleSheet.create({
   workspace: { gap: 18, marginTop: 28 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
   inviteCard: { flex: 0.75, minWidth: 300 },
-  inviteIcon: { width: 46, height: 46, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  inviteEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.6, marginTop: 22 },
+  inviteIcon: { width: 46, height: 46, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
+  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.6, marginTop: 22 },
   inviteTitle: { color: colors.text, fontFamily: typography.display, fontSize: 23, lineHeight: 28, letterSpacing: -0.8, marginTop: 7 },
   inviteDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: 10 },
-  codeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.brandBorder, borderRadius: radii.md, padding: 10, marginTop: 22 },
-  code: { flex: 1, color: colors.brand, fontFamily: typography.display, fontSize: 15, letterSpacing: 0.5 },
-  copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  codeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 10, marginTop: 22 },
+  code: { flex: 1, color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: 0.5 },
+  copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, lineHeight: 14, marginTop: 10 },
   teamColumn: { flex: 1.4 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
@@ -344,13 +347,13 @@ const styles = StyleSheet.create({
   teamList: { gap: 10 },
   memberCard: { gap: 14 },
   memberMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  avatarText: { color: colors.brand, fontFamily: typography.display, fontSize: 17 },
+  avatar: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
+  avatarText: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
   memberCopy: { flex: 1, minWidth: 0 },
   memberName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
   memberContact: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 3 },
-  commissionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.brandSoft, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
-  commissionText: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
+  commissionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surfacePressed, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
+  commissionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
   memberActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   expandedForm: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, backgroundColor: colors.surface, borderRadius: radii.md },
   fieldsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
@@ -362,7 +365,7 @@ const styles = StyleSheet.create({
   workHoursTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   scheduleGrid: { backgroundColor: colors.canvas, borderRadius: radii.md, padding: 12, gap: 8, borderWidth: 1, borderColor: colors.border },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
-  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
+  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 11 },
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
   timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 10, paddingHorizontal: 4 },
   closedText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
