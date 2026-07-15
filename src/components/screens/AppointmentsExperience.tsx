@@ -103,26 +103,51 @@ export const AppointmentsExperience = () => {
     return tab === 'upcoming' ? isUpcoming : !isUpcoming;
   }), [appointments, tab]);
 
-  const cancelAppointment = async (reason: string) => {
-    if (!cancelId) return;
-    setActionLoading(true);
-    try {
-      await database.write(async () => {
-        const appointment = await database.collections.get<Appointment>('appointments').find(cancelId);
-        await appointment.update((record) => { 
-          record.status = 'cancelled'; 
-          record.cancellationReason = reason;
-          record.cancelledByRole = 'client';
+  const cancelAppointment = async (reason: string, item: AppointmentDetail) => {
+    const formattedDate = item.dateTime.toLocaleDateString('pt-BR');
+    const formattedTime = item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const message = `Você tem certeza que deseja cancelar o seu agendamento para o dia ${formattedDate} às ${formattedTime}?`;
+
+    const proceedCancel = async () => {
+      setActionLoading(true);
+      try {
+        await database.write(async () => {
+          const appointment = await database.collections.get<Appointment>('appointments').find(item.id);
+          await appointment.update((record) => { 
+            record.status = 'cancelled'; 
+            record.cancellationReason = reason;
+            record.cancelledByRole = 'client';
+          });
         });
-      });
-      setCancelId(null);
-      setSelectedReason('');
-      setNotice({ tone: 'success', message: 'Agendamento cancelado.' });
-      sync();
-    } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível cancelar este horário.' });
-    } finally {
-      setActionLoading(false);
+        setCancelId(null);
+        setSelectedReason('');
+        setNotice({ tone: 'success', message: 'Agendamento cancelado.' });
+        sync();
+      } catch {
+        setNotice({ tone: 'danger', message: 'Não foi possível cancelar este horário.' });
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm(`Confirmar Cancelamento?\n\n${message}`);
+      if (confirm) {
+        await proceedCancel();
+      }
+    } else {
+      Alert.alert(
+        'Confirmar Cancelamento?',
+        message,
+        [
+          { text: 'Não, manter', style: 'cancel' },
+          { 
+            text: 'Sim, cancelar', 
+            style: 'destructive',
+            onPress: () => proceedCancel()
+          }
+        ]
+      );
     }
   };
 
@@ -242,7 +267,7 @@ export const AppointmentsExperience = () => {
                           <AppButton 
                             label="Confirmar Cancelamento" 
                             testID={`client-appointment-${item.id}-cancel-confirm-button`} 
-                            onPress={() => cancelAppointment(selectedReason || 'Não informado')} 
+                            onPress={() => cancelAppointment(selectedReason || 'Não informado', item)} 
                             loading={actionLoading} 
                             variant="danger" 
                             style={styles.actionBtn}

@@ -342,8 +342,13 @@ export default function BarbershopSlugScreen() {
                 testID="barbershop-profile-route-button"
                 label="Como Chegar (Rota)" 
                 onPress={() => {
-                  const query = encodeURIComponent(barbershop.address || '');
-                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+                  const address = barbershop.address || '';
+                  const url = Platform.select({
+                    ios: `maps:0,0?q=${encodeURIComponent(address)}`,
+                    android: `geo:0,0?q=${encodeURIComponent(address)}`,
+                    default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+                  });
+                  Linking.openURL(url);
                 }}
                 style={[styles.routeBtn, { backgroundColor: accent, borderColor: accent }]}
                 icon={<MapPin color={colors.ink} size={13} />}

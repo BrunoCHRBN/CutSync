@@ -41,7 +41,12 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
   cancelled: { label: 'Cancelado', tone: 'danger' },
 };
 
-const quickTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+const quickTimes = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+  '20:00'
+];
 
 export const BarberDashboardExperience = () => {
   const { width } = useWindowDimensions();
@@ -212,6 +217,23 @@ export const BarberDashboardExperience = () => {
       })
       .catch(() => setOccupiedTimes([]));
   }, [rescheduleItem, newRescheduleDate]);
+
+  useEffect(() => {
+    if (quickOpen) {
+      const today = new Date();
+      setQuickDate(today);
+      
+      const currentHour = today.getHours();
+      const currentMin = today.getMinutes();
+      const todaySlots = quickTimes.filter(slot => {
+        const [h, m] = slot.split(':').map(Number);
+        return h > currentHour || (h === currentHour && m >= currentMin);
+      });
+      
+      const nearest = todaySlots.length > 0 ? todaySlots[0] : null;
+      setQuickTime(nearest);
+    }
+  }, [quickOpen]);
 
   useEffect(() => {
     if (!quickOpen || !profile?.id || !quickDate) {
@@ -482,11 +504,15 @@ export const BarberDashboardExperience = () => {
     }
   };
 
+  const saudacaoProfissional = profile?.titulo_profissional
+    ? profile.titulo_profissional.toLowerCase()
+    : 'especialista';
+
   return (
     <ProfessionalShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} isOffline={isOffline} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
-          <SectionHeading testID="barber-dashboard-heading" eyebrow="Minha operação" title={`Olá, ${profile?.name?.split(' ')[0] || 'profissional'}.`} description="Seu dia organizado para você manter o ritmo entre um cliente e outro." />
+          <SectionHeading testID="barber-dashboard-heading" eyebrow="Minha operação" title={`Olá, ${saudacaoProfissional}.`} description="Seu dia organizado para você manter o ritmo entre um cliente e outro." />
           <View style={styles.headerActions}>
             <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao sincronizar' : isSyncing ? 'Sincronizando' : 'Sincronizado'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
             <AppButton 
@@ -494,8 +520,7 @@ export const BarberDashboardExperience = () => {
               testID="barber-quick-booking-button" 
               onPress={() => {
                 setQuickOpen(true);
-                setQuickDate(new Date());
-                setQuickTime(null);
+                setQuickName('');
                 setQuickService(null);
               }} 
               icon={<Plus color={colors.ink} size={17} />} 
@@ -917,8 +942,8 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choiceCard: { width: '47%', minWidth: 150, flexGrow: 1 },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  timeSlot: { minWidth: 72, flexGrow: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' },
+  timeSlot: { width: '23%', height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   timeSlotText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
   cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },

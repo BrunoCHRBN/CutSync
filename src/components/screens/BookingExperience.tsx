@@ -8,6 +8,9 @@ import {
   Text,
   useWindowDimensions,
   View,
+  Animated,
+  Vibration,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Q } from '@nozbe/watermelondb';
@@ -44,6 +47,48 @@ export const BookingExperience = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
+
+  const triggerHaptic = () => {
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate(10);
+    }
+  };
+
+  const barberOpacity = React.useRef(new Animated.Value(selectedService ? 1 : 0.48)).current;
+  const barberTranslateY = React.useRef(new Animated.Value(selectedService ? 0 : 15)).current;
+
+  const dateTimeOpacity = React.useRef(new Animated.Value(selectedBarber ? 1 : 0.48)).current;
+  const dateTimeTranslateY = React.useRef(new Animated.Value(selectedBarber ? 0 : 15)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(barberOpacity, {
+        toValue: selectedService ? 1 : 0.48,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(barberTranslateY, {
+        toValue: selectedService ? 0 : 15,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [selectedService]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(dateTimeOpacity, {
+        toValue: selectedBarber ? 1 : 0.48,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dateTimeTranslateY, {
+        toValue: selectedBarber ? 0 : 15,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [selectedBarber]);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [error, setError] = useState('');
@@ -125,12 +170,14 @@ export const BookingExperience = () => {
   };
 
   const chooseService = (id: string) => {
+    triggerHaptic();
     setSelectedService(id);
     setSelectedTime(null);
     setError('');
   };
 
   const chooseBarber = (id: string) => {
+    triggerHaptic();
     setSelectedBarber(id);
     setSelectedTime(null);
     setError('');
@@ -244,72 +291,76 @@ export const BookingExperience = () => {
               )}
             </AppCard>
 
-            <AppCard testID="booking-barber-step" style={[styles.stepCard, !selectedService && styles.stepDisabled]}>
-              <StepHeader number="02" title="Escolha o profissional" active={activeStep === 2} complete={!!selectedBarber} />
-              <View style={styles.choiceGrid}>
-                {barbers.map((barber) => (
-                  <ChoiceCard
-                    key={barber.id}
-                    testID={`booking-barber-${barber.id}`}
-                    title={barber.name}
-                    subtitle={barber.role === 'admin' ? 'Proprietário' : 'Profissional'}
-                    selected={selectedBarber === barber.id}
-                    onPress={() => selectedService && chooseBarber(barber.id)}
-                    icon={<UserRound color={colors.textSecondary} size={16} />}
-                    style={styles.choiceCard}
-                  />
-                ))}
-              </View>
-            </AppCard>
+            <Animated.View style={{ opacity: barberOpacity, transform: [{ translateY: barberTranslateY }] }}>
+              <AppCard testID="booking-barber-step" style={[styles.stepCard, !selectedService && styles.stepDisabled]}>
+                <StepHeader number="02" title="Escolha o profissional" active={activeStep === 2} complete={!!selectedBarber} />
+                <View style={styles.choiceGrid}>
+                  {barbers.map((barber) => (
+                    <ChoiceCard
+                      key={barber.id}
+                      testID={`booking-barber-${barber.id}`}
+                      title={barber.name}
+                      subtitle={barber.role === 'admin' ? 'Proprietário' : 'Profissional'}
+                      selected={selectedBarber === barber.id}
+                      onPress={() => selectedService && chooseBarber(barber.id)}
+                      icon={<UserRound color={colors.textSecondary} size={16} />}
+                      style={styles.choiceCard}
+                    />
+                  ))}
+                </View>
+              </AppCard>
+            </Animated.View>
 
-            <AppCard testID="booking-datetime-step" style={[styles.stepCard, !selectedBarber && styles.stepDisabled]}>
-              <StepHeader number="03" title="Data e horário" active={activeStep === 3} complete={!!selectedTime} />
-              <Text style={styles.subsectionLabel}>Próximos 14 dias</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-                {dateOptions.map((date) => {
-                  const id = date.toISOString().split('T')[0];
-                  const selected = selectedDate?.toDateString() === date.toDateString();
-                  return (
-                    <Pressable
-                      key={id}
-                      testID={`booking-date-${id}`}
-                      disabled={!selectedBarber}
-                      onPress={() => chooseDate(date)}
-                      style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, pressed && styles.pressed]}
-                    >
-                      <Text style={[styles.dateWeek, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text>
-                      <Text style={[styles.dateDay, selected && styles.selectedInk]}>{date.getDate()}</Text>
-                      <Text style={[styles.dateMonth, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+            <Animated.View style={{ opacity: dateTimeOpacity, transform: [{ translateY: dateTimeTranslateY }] }}>
+              <AppCard testID="booking-datetime-step" style={[styles.stepCard, !selectedBarber && styles.stepDisabled]}>
+                <StepHeader number="03" title="Data e horário" active={activeStep === 3} complete={!!selectedTime} />
+                <Text style={styles.subsectionLabel}>Próximos 14 dias</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
+                  {dateOptions.map((date) => {
+                    const id = date.toISOString().split('T')[0];
+                    const selected = selectedDate?.toDateString() === date.toDateString();
+                    return (
+                      <Pressable
+                        key={id}
+                        testID={`booking-date-${id}`}
+                        disabled={!selectedBarber}
+                        onPress={() => chooseDate(date)}
+                        style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, pressed && styles.pressed]}
+                      >
+                        <Text style={[styles.dateWeek, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text>
+                        <Text style={[styles.dateDay, selected && styles.selectedInk]}>{date.getDate()}</Text>
+                        <Text style={[styles.dateMonth, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
 
-              <Text style={[styles.subsectionLabel, styles.timeLabel]}>Horários disponíveis</Text>
-              <View style={styles.timeGrid}>
-                {availableTimes.map((time) => {
-                  const unavailable = !selectedBarber || isTimeUnavailable(time);
-                  const selected = selectedTime === time;
-                  return (
-                    <Pressable
-                      key={time}
-                      testID={`booking-time-${time.replace(':', '-')}`}
-                      disabled={unavailable}
-                      onPress={() => { setSelectedTime(time); setError(''); }}
-                      style={({ pressed }) => [
-                        styles.timeCard,
-                        selected && styles.timeCardSelected,
-                        unavailable && styles.timeCardDisabled,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Clock3 color={selected ? colors.ink : colors.textMuted} size={14} />
-                      <Text style={[styles.timeText, selected && styles.selectedInk]}>{time}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </AppCard>
+                <Text style={[styles.subsectionLabel, styles.timeLabel]}>Horários disponíveis</Text>
+                <View style={styles.timeGrid}>
+                  {availableTimes.map((time) => {
+                    const unavailable = !selectedBarber || isTimeUnavailable(time);
+                    const selected = selectedTime === time;
+                    return (
+                      <Pressable
+                        key={time}
+                        testID={`booking-time-${time.replace(':', '-')}`}
+                        disabled={unavailable}
+                        onPress={() => { setSelectedTime(time); setError(''); }}
+                        style={({ pressed }) => [
+                          styles.timeCard,
+                          selected && styles.timeCardSelected,
+                          unavailable && styles.timeCardDisabled,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Clock3 color={selected ? colors.ink : colors.textMuted} size={14} />
+                        <Text style={[styles.timeText, selected && styles.selectedInk]}>{time}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </AppCard>
+            </Animated.View>
           </View>
 
           <View style={styles.summaryColumn}>

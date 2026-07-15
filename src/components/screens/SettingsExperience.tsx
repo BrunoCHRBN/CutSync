@@ -292,7 +292,18 @@ export const SettingsExperience = () => {
               </View>
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Nome comercial" testID="settings-name-input" icon={<Store color={colors.textMuted} size={17} />} value={name} onChangeText={setName} placeholder="Nome da barbearia" />
-                <AppInput containerStyle={styles.colorField} label="Cor da marca" testID="settings-color-input" icon={<Palette color={colors.textMuted} size={17} />} value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" />
+                <View style={styles.colorFieldContainer}>
+                  <AppInput containerStyle={styles.colorField} label="Cor da marca" testID="settings-color-input" icon={<Palette color={colors.textMuted} size={17} />} value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" />
+                  <View 
+                    testID="settings-color-preview-swatch"
+                    style={[
+                      styles.colorSwatch, 
+                      { 
+                        backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : 'transparent' 
+                      }
+                    ]} 
+                  />
+                </View>
               </View>
             </FormSection>
 
@@ -438,6 +449,8 @@ const styles = StyleSheet.create({
   fieldsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   flexField: { flex: 1, minWidth: 210 },
   colorField: { width: 190 },
+  colorFieldContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  colorSwatch: { width: 40, height: 40, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, marginBottom: 5 },
   previewCard: { alignItems: 'center', padding: 24 },
   previewEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.8, alignSelf: 'flex-start' },
   previewLogo: { width: 74, height: 74, borderRadius: radii.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 28, overflow: 'hidden' },

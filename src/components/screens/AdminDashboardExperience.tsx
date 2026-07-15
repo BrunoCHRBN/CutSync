@@ -18,6 +18,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
@@ -571,6 +572,16 @@ export const AdminDashboardExperience = () => {
         <Pressable testID="admin-open-team-button" onPress={() => router.push('/(admin)/barbers')} style={styles.quickAction}>
           <Users color={colors.info} size={18} />
           <Text style={styles.quickActionText}>Ver equipe</Text>
+          <ArrowUpRight color={colors.textMuted} size={15} />
+        </Pressable>
+        <Pressable 
+          testID="admin-open-vitrine-button" 
+          onPress={() => barbershop?.slug && router.push(`/${barbershop.slug}`)} 
+          style={[styles.quickAction, !barbershop?.slug && { opacity: 0.5 }]}
+          disabled={!barbershop?.slug}
+        >
+          <Eye color={colors.success} size={18} />
+          <Text style={styles.quickActionText}>Ver vitrine</Text>
           <ArrowUpRight color={colors.textMuted} size={15} />
         </Pressable>
       </View>

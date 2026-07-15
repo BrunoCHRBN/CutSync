@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
-import { BadgePercent, Clock, Copy, Link2, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
+import { AlertTriangle, BadgePercent, Clock, Copy, Link2, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
 import { database } from '../../database';
 import { Barbershop, Profile } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
@@ -221,6 +221,15 @@ export const TeamExperience = () => {
                       </View>
                     </View>
 
+                    {(!barber.workHours || !barber.tituloProfissional || !barber.tituloProfissional.trim()) && (
+                      <View testID={`team-member-${barber.id}-warning`} style={styles.warningContainer}>
+                        <AlertTriangle color={colors.warning} size={14} />
+                        <Text style={styles.warningText}>
+                          Profissional não aparecerá na vitrine até que tenha uma jornada de trabalho salva ou título profissional cadastrado.
+                        </Text>
+                      </View>
+                    )}
+
                     {editingId === barber.id ? (
                       <View testID={`team-member-${barber.id}-commission-form`} style={styles.expandedForm}>
                         <Text style={styles.workHoursTitle}>Configurações do Profissional (LGPD Safe)</Text>
@@ -357,5 +366,23 @@ const styles = StyleSheet.create({
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
   timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 10, paddingHorizontal: 4 },
   closedText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
-  workHoursActions: { flexDirection: 'row', gap: 8, marginTop: 10 }
+  workHoursActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.warningSoft,
+    borderWidth: 1,
+    borderColor: `${colors.warning}33`,
+    borderRadius: radii.md,
+    padding: 10,
+    marginTop: 8,
+  },
+  warningText: {
+    flex: 1,
+    color: colors.warning,
+    fontFamily: typography.body,
+    fontSize: 10,
+    lineHeight: 14,
+  },
 });
