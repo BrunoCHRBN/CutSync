@@ -245,6 +245,25 @@ export const BarberDashboardExperience = () => {
   const commission = revenue * (profile?.commission_rate ?? 0.5);
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const formatNextAppointmentValue = (date: Date) => {
+    const today = new Date();
+    const target = new Date(date);
+    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const targetZero = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    const diffTime = targetZero.getTime() - todayZero.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const timeStr = target.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (diffDays === 0) {
+      return `Hoje, ${timeStr}`;
+    } else if (diffDays === 1) {
+      return `Amanhã, ${timeStr}`;
+    } else {
+      const day = String(target.getDate()).padStart(2, '0');
+      const month = String(target.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month}, ${timeStr}`;
+    }
+  };
+
 
   // expediente padrão
   const defaultSchedule = [
@@ -487,7 +506,7 @@ export const BarberDashboardExperience = () => {
         {!!notice && <InlineNotice testID="barber-action-notice" tone={notice.tone} message={notice.message} />}
 
         <View style={[styles.metrics, !isWide && styles.metricsStack]}>
-          <Metric testID="barber-next-metric" icon={<Clock3 color={colors.brand} size={18} />} label="Próximo atendimento" value={nextAppointment ? time(nextAppointment.dateTime) : 'Agenda livre'} note={nextAppointment?.clientName || 'Nenhum cliente aguardando'} />
+          <Metric testID="barber-next-metric" icon={<Clock3 color={colors.brand} size={18} />} label="Próximo atendimento" value={nextAppointment ? formatNextAppointmentValue(nextAppointment.dateTime) : 'Agenda livre'} note={nextAppointment?.clientName || 'Nenhum cliente aguardando'} />
           <Metric testID="barber-completed-metric" icon={<Check color={colors.success} size={18} />} label="Concluídos" value={String(completed.length)} note={`${visibleAppointments.length} horários na agenda`} />
           <Metric testID="barber-commission-metric" icon={<WalletCards color={colors.info} size={18} />} label="Meu ganho no dia" value={currency(commission)} note={`${Math.round((profile?.commission_rate ?? 0.5) * 100)}% de comissão`} />
         </View>
