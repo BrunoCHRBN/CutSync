@@ -1,115 +1,70 @@
 {
-  "theme_strategy": "dark-first, premium masculine aesthetic",
+  "project_name": "CutSync Professional Module Refactor",
+  "app_type": "mobile_app React Native Expo",
+  "theme_preference": "light",
   "typography": {
+    "strategy": "High-performance, minimal, and premium (Superhuman & Linear references).",
     "headings": {
-      "font": "Clash Display",
-      "weights": ["Medium", "Semibold"],
-      "classes": "font-sans tracking-tight leading-none text-zinc-50"
+      "main": "Robust weight (font-bold or 800), tight letter spacing (tracking-tight). Example: 'Olá, especialista.'",
+      "subtitles": "Graphite gray (text-neutral-500), regular weight."
     },
-    "body": {
-      "font": "Manrope",
-      "weights": ["Regular", "Medium"],
-      "classes": "font-sans text-zinc-400 leading-relaxed"
+    "metrics_cards": {
+      "labels": "Small (text-xs), subtle uppercase, expanded letter spacing (tracking-widest).",
+      "values": "Large, compact, geometric sans, dark."
     },
-    "rules": [
-      "No generic sans like Inter for headings. Use Clash Display or similar geometric display for a sharp, modern, editorial feel.",
-      "Headings must use tracking-tight to create tension.",
-      "Keep text contrast high: use zinc-50 for primary text, zinc-400 for secondary text.",
-      "Overlines or labels must be uppercase, text-xs, tracking-[0.2em], text-zinc-400."
+    "anti_patterns": [
+      "Default system fonts without weight/tracking adjustments",
+      "Generic 'AI slop' typography hierarchies"
     ]
   },
   "colors": {
     "backgrounds": {
-      "app": "bg-zinc-950",
-      "surface_1": "bg-zinc-900",
-      "surface_2": "bg-zinc-800",
-      "overlay": "bg-black/60 backdrop-blur-xl"
+      "main": "Ice background (#F7F9FC or #F9FAFB)",
+      "cards": "Pure White (#FFFFFF)",
+      "modal_overlay": "Black with 40-50% opacity (not completely transparent)"
     },
     "text": {
-      "primary": "text-zinc-50",
-      "secondary": "text-zinc-400",
-      "muted": "text-zinc-500",
-      "inverse": "text-zinc-950"
+      "primary": "Obsidian/Deep Dark (#0A0A0A or #111827)",
+      "secondary": "Graphite Gray (#737373 or #6B7280)"
     },
-    "brand": {
-      "primary": "bg-amber-500 text-zinc-950",
-      "primary_hover": "hover:bg-amber-400",
-      "accent": "text-amber-500"
-    },
-    "status": {
-      "success": "text-emerald-400 bg-emerald-400/10",
-      "danger": "text-rose-400 bg-rose-400/10",
-      "warning": "text-amber-400 bg-amber-400/10"
-    },
-    "borders": "border-zinc-800"
-  },
-  "visual_enhancers": {
-    "surfaces": "Use Neumorphism + Glassmorphism hybrid. Sharp 1px borders (border-zinc-800) with subtle ambient shadows. Never use pure transparent background for navigation or overlays. Always use backdrop-blur-xl + bg-zinc-950/80.",
-    "shapes": "Subtle roundness. max rounded-xl for large cards, rounded-lg for buttons. Avoid fully pill-shaped except for status badges.",
-    "textures": "Use subtle noise/grain texture overlaid on the background for a tactile, physical barbershop feel."
-  },
-  "components": {
-    "navigation": {
-      "mobile": "Bottom navigation bar fixed to bottom, rounded-t-2xl, border-t border-zinc-800, backdrop-blur-xl bg-zinc-950/80. Active icon in amber-500.",
-      "desktop": "Collapsible left sidebar for admin dashboard. 1px border-r border-zinc-800."
-    },
-    "cards": {
-      "style": "Flat solid surfaces (bg-zinc-900) with a hard 1px border (border-zinc-800) and no soft drop shadow. Hover state: -translate-y-1, border-zinc-700 transition-all.",
-      "padding": "p-6 for standard, p-8 for hero cards."
-    },
-    "buttons": {
-      "primary": "bg-amber-500 text-zinc-950 font-semibold rounded-lg px-6 py-3 hover:bg-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]",
-      "secondary": "bg-transparent border border-zinc-700 text-zinc-50 rounded-lg px-6 py-3 hover:bg-zinc-800 transition-colors"
-    },
-    "inputs": {
-      "style": "bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-50 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+    "brand_dynamic": "PRESERVE current dynamic salon color for active states and primary actions.",
+    "status_badges": {
+      "strategy": "Stripe style: background in low opacity, pure text, no borders.",
+      "success": "bg-green-500/10 text-green-700",
+      "warning": "bg-yellow-500/10 text-yellow-700",
+      "error": "bg-red-500/10 text-red-700"
     }
   },
-  "grids_layouts": {
-    "dashboard": "Bento grid style. grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6. Important KPIs span 3 columns, charts span 8 columns, side info spans 4 columns.",
-    "mobile_scheduling": "Vertical flow. Generous spacing (gap-6). Time slots in a horizontally scrollable container or a dense flex-wrap grid.",
-    "spacing_scale": "Use generous padding. Section padding: py-12 to py-24."
+  "surfaces_and_elevation": {
+    "metric_cards": "Remove solid gray borders. Apply almost invisible inner border (border border-black/5 or border-neutral-100) combined with a diffuse and wide shadow (shadow-sm to shadow-md) to float softly on the ice background.",
+    "segmented_control": "iOS style: subtle background for container, active state is white with a micro-shadow.",
+    "service_cards": "Premium physical buttons. Selection gets a surgical dynamic border (1.5px solid dynamic color).",
+    "inputs": "Premium input: ultra-thin border (border-neutral-200), dark focus (focus:border-neutral-800), and a subtle external ring."
   },
-  "motion": {
-    "transitions": "Use specific properties: transition-colors duration-200, transition-transform duration-300 ease-out.",
-    "interactions": "Hover states on all cards and buttons. Active states scale-95 for buttons.",
-    "page_transitions": "Framer motion fade and slide-up (y: 20 -> 0, opacity: 0 -> 1)."
-  },
-  "accessibility": {
-    "contrast": "Ensure all text against zinc-950/900 is at least WCAG AA. Amber-500 against zinc-950 is high contrast. Buttons with dark text (zinc-950) on amber background.",
-    "focus": "focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
-    "test_ids": "All interactive elements MUST include data-testid attributes (e.g. data-testid='booking-submit-button')."
-  },
-  "media_images": {
-    "hero_barbershop": {
-      "url": "https://images.unsplash.com/photo-1759134198561-e2041049419c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBiYXJiZXJzaG9wJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Modern barbershop interior for landing page hero or location thumbnail. Use with bg-black/50 overlay."
+  "layout_and_spacing": {
+    "timeline": {
+      "structure": "Time on left, ultra-thin dotted/dashed horizontal line.",
+      "free_slots": "No repetitive text. Just time, dashed line, and a discreet '+' button.",
+      "history_list": "Clean list, no gray backgrounds or delimited cards. Separated by imperceptible dividing lines (border-neutral-100)."
     },
-    "tools_accent": {
-      "url": "https://images.unsplash.com/photo-1596362601603-b74f6ef166e4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxoYWlyY3V0JTIwdG9vbHMlMjBzY2lzc29ycyUyMGNsaXBwZXJ8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Stainless steel scissors and comb. Good for service category thumbnails or abstract background elements."
+    "time_grid": {
+      "structure": "Fixed 4-column visually symmetric grid.",
+      "unavailable_slots": "Low opacity (opacity-40), neutral line-through text.",
+      "responsiveness": "Responsive via Dimensions API or ~23% width."
     }
   },
-  "instructions_to_main_agent": {
-    "libraries_to_install": ["lucide-react", "framer-motion", "clsx", "tailwind-merge", "sonner"],
-    "icons_strategy": "Use lucide-react for sharp, clean iconography suitable for tools.",
-    "file_structure": "Build reusable UI components in /app/frontend/src/components/ui/ using Tailwind.",
-    "js_usage": "CRITICAL: You are working in a JavaScript environment, NOT TypeScript. Use .jsx/.js extensions and remove all TS interfaces/types."
+  "mobile_specifics": {
+    "haptics": "MANDATORY expo-haptics: Light impact on selecting day, service, and time. Success notification on creating an appointment.",
+    "touch_targets": "Apply hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} to all interactive elements smaller than 44px.",
+    "active_states": "Scale 0.97 on press (via Pressable and React Native Animated/Reanimated). AVOID basic activeOpacity.",
+    "keyboard_handling": "Modal forms protected from keyboard (KeyboardAvoidingView). ScrollView must use keyboardShouldPersistTaps='handled'."
   },
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends.",
-    "Don't make generic centered layouts. Use optical alignment, tension, and asymmetry.",
-    "Create depth through layered design elements with z-index hierarchy and 1px sharp borders.",
-    "Use glass-morphism effects with backdrop filters (backdrop-blur-xl bg-zinc-950/80) on sticky headers and bottom navs.",
-    "You MUST NOT apply universal transition. Eg: transition: all. Always add transitions for specific interactive elements.",
-    "You MUST NOT center align the app container. No .App { text-align: center; }.",
-    "Every interaction needs micro-animations - hover states, transitions, scale down on click.",
-    "Use 2-3x more spacing than feels comfortable. Use py-12, gap-8.",
-    "Never use generic AI assistant Emoji characters like bots or brains for icons. Use proper SVG libraries.",
-    "Always use the provided actual image URLs. NEVER use placeholder services like via.placeholder.com.",
-    "For the SaaS Dashboard: follow 'The Performance Pro' / 'High-Contrast' dark theme aesthetic.",
-    "Ensure the booking flow is heavily mobile-first: large tappable areas, sticky bottom CTA 'Confirm Booking', horizontal scrolling date pickers.",
-    "Do NOT use transparent backgrounds for dropdowns or modals. Always use solid zinc-900 or glassmorphism with high opacity.",
-    "All interactive elements MUST have data-testid attributes."
+  "universal_guidelines_for_main_agent": [
+    "FILES ARE .js NOT .tsx. Use standard JavaScript for React Native.",
+    "All interactive and key informational elements MUST include a data-testid attribute.",
+    "DO NOT use completely transparent backgrounds under overlays or headers.",
+    "DO NOT center align text globally. Respect optical alignment.",
+    "Address small functional issues found along the way as per user choice.",
+    "Preserve the dynamic color current variable in states and main actions."
   ]
 }
