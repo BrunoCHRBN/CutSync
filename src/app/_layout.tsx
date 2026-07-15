@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../services/supabase';
+import { colors, radii, typography } from '../theme/tokens';
 import '../i18n';
 
 // Evitar que a Splash Screen feche antes de carregarmos fontes
@@ -84,6 +86,21 @@ export default function RootLayout() {
     return null;
   }
 
+  if (!isSupabaseConfigured) {
+    return (
+      <View testID="supabase-configuration-screen" style={styles.configurationScreen}>
+        <View testID="supabase-configuration-card" style={styles.configurationCard}>
+          <View style={styles.configurationMark} />
+          <Text testID="supabase-configuration-eyebrow" style={styles.configurationEyebrow}>CONFIGURAÇÃO NECESSÁRIA</Text>
+          <Text testID="supabase-configuration-title" style={styles.configurationTitle}>Conecte o ambiente do CutSync.</Text>
+          <Text testID="supabase-configuration-description" style={styles.configurationDescription}>
+            Defina EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY para iniciar autenticação, sincronização e armazenamento.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <AuthProvider>
       <RootLayoutNavigation />
@@ -97,5 +114,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  configurationScreen: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  configurationCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: 32,
+  },
+  configurationMark: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+    marginBottom: 26,
+  },
+  configurationEyebrow: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyStrong,
+    fontSize: 10,
+    letterSpacing: 1.6,
+  },
+  configurationTitle: {
+    color: colors.text,
+    fontFamily: typography.display,
+    fontSize: 28,
+    letterSpacing: -1,
+    marginTop: 10,
+  },
+  configurationDescription: {
+    color: colors.textSecondary,
+    fontFamily: typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 12,
   },
 });

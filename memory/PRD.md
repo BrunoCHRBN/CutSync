@@ -1,8 +1,8 @@
-# PRD — CutSync · Módulo do Profissional
+# PRD — CutSync · Painel Administrativo Premium
 
 ## Problema original
 
-Refatorar completamente o visual e a disposição do módulo profissional do CutSync, nesta etapa cobrindo agenda, histórico e modal de encaixe rápido. Preservar as regras e integrações existentes, usar a cor dinâmica de cada salão e aplicar uma experiência mobile premium inspirada em Stripe, Superhuman, Fresha e Linear.
+Refatorar visualmente todo o módulo do dono/administrador do CutSync, cobrindo dashboard, sidebar, serviços, configurações, equipe e rotas. Preservar WatermelonDB, sincronização e estados reativos; tornar o painel neutro como Shopify/Stripe/Linear e restringir a cor dinâmica do estabelecimento ao preview público.
 
 ## Arquitetura observada
 
@@ -22,6 +22,19 @@ Refatorar completamente o visual e a disposição do módulo profissional do Cut
 - Manter TypeScript; não seguir a recomendação incompatível de migração para JavaScript presente no guia gerado.
 
 ## Implementado nesta etapa
+
+- Painel administrativo harmonizado em neutros, com comandos principais em chumbo premium (`#171717`) e sem conflito com a cor do estabelecimento.
+- Sidebar branca no padrão Linear, com itens inativos em cinza e item ativo em carvão, fundo sutil e indicador vertical de 2px.
+- Cards de métricas simplificados: atalhos inferiores removidos e substituídos por ações discretas no canto superior direito.
+- Badge de sincronização mantido com tratamento Stripe de baixa opacidade; desempenho da equipe usa controle segmentado neutro.
+- Avatares da equipe convertidos para iniciais geométricas em superfícies neutras.
+- Cadastro de serviços, salvamento de configurações e salvamento de escalas agora usam o botão administrativo neutro.
+- Grade de funcionamento e jornadas ganharam mais espaçamento, tipografia mais leve e switches neutros.
+- Cor dinâmica restrita à amostra de cor e ao card de Perfil Público em Configurações.
+- Rota “Ver equipe” corrigida para `/(admin)/team`; atalho legado `/admin/barbers` também redireciona para a rota correta.
+- Vitrine pública padronizada em `/salon/[slug]`, com agendamento em `/salon/[slug]/booking`, ambos liberados pela proteção de rotas.
+- Bootstrap do Supabase protegido: ausência de credenciais não causa mais crash e exibe estado de configuração explícito, sem simular a integração.
+- TypeScript, verificação de diff e exportação web aprovados; estado sem configuração validado em desktop e mobile.
 
 - Auditoria completa das telas, fluxos, estrutura e padrões atuais.
 - Direção visual documentada em `/app/design_guidelines.json`.
@@ -64,8 +77,9 @@ Refatorar completamente o visual e a disposição do módulo profissional do Cut
 
 ### P0
 
+- Disponibilizar `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` no ambiente para validar o painel autenticado com dados reais.
 - Criar conta e seed oficial de QA para validar os fluxos autenticados ponta a ponta.
-- Remover as implementações legadas mantidas abaixo dos novos exports nas três rotas migradas.
+- Remover as implementações legadas mantidas abaixo dos novos exports nas rotas administrativas migradas.
 
 ### P1
 
@@ -84,7 +98,7 @@ Refatorar completamente o visual e a disposição do módulo profissional do Cut
 
 ## Próximas tarefas
 
-1. Remover definitivamente o código legado das rotas já migradas.
-2. Criar seed/credenciais de QA e validar o módulo profissional autenticado com dados reais.
-3. Criar perfil público por slug, compartilhável sem login.
+1. Configurar as variáveis Supabase e executar a validação visual autenticada do painel administrativo.
+2. Remover definitivamente o código legado das rotas já migradas.
+3. Criar seed/credenciais de QA e validar dashboard, serviços, equipe, configurações e vitrine com dados reais.
 4. Adicionar analytics de conversão entre perfil público, escolha de serviço e confirmação.
