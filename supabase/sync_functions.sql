@@ -75,7 +75,7 @@ BEGIN
     -- ----------------------------------------------------
     IF user_role IN ('admin', 'professional') AND user_establishment_id IS NOT NULL THEN
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO establishments_created FROM (
-            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas, gallery_urls,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.establishments 
@@ -85,7 +85,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO establishments_updated FROM (
-            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas, gallery_urls,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.establishments 
@@ -95,7 +95,7 @@ BEGIN
         ) x;
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO establishments_created FROM (
-            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas, gallery_urls,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.establishments 
@@ -103,7 +103,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO establishments_updated FROM (
-            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas,
+            SELECT id, name, slug, logo_url, banner_url, slogan, instagram, primary_color, timezone, currency, description, address, phone, opening_hours, share_agendas, gallery_urls,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.establishments 
@@ -116,7 +116,7 @@ BEGIN
     -- ----------------------------------------------------
     IF user_role IN ('admin', 'professional') AND user_establishment_id IS NOT NULL THEN
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (
-            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
+            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram, titulo_profissional,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
              FROM public.profiles 
@@ -124,7 +124,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
-            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
+            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram, titulo_profissional,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
              FROM public.profiles 
@@ -137,7 +137,7 @@ BEGIN
         ) x;
     ELSE
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_created FROM (
-            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
+            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram, titulo_profissional,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -145,7 +145,7 @@ BEGIN
         ) x;
 
         SELECT coalesce(jsonb_agg(x), '[]'::jsonb) INTO profiles_updated FROM (
-            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram,
+            SELECT id, establishment_id, name, role, email, phone, avatar_url, commission_rate, push_token, work_hours, specialties, instagram, titulo_profissional,
                    extract(epoch from created_at)*1000 as created_at, 
                    extract(epoch from updated_at)*1000 as updated_at
             FROM public.profiles 
@@ -352,7 +352,7 @@ BEGIN
 
     -- PROCESSAR TABELA: establishments
     IF changes->'establishments' IS NOT NULL THEN
-        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'establishments'->'updated') AS x(id uuid, name text, logo_url text, banner_url text, slogan text, instagram text, primary_color text, timezone text, currency text, description text, address text, phone text, opening_hours text, share_agendas boolean, updated_at bigint) LOOP
+        FOR item IN SELECT * FROM jsonb_to_recordset(changes->'establishments'->'updated') AS x(id uuid, name text, slug text, logo_url text, banner_url text, slogan text, instagram text, primary_color text, timezone text, currency text, description text, address text, phone text, opening_hours text, share_agendas boolean, gallery_urls text, updated_at bigint) LOOP
             IF NOT EXISTS (
                 SELECT 1 FROM public.profile_establishments
                 WHERE profile_id = user_id AND establishment_id = item.id AND role = 'admin'
@@ -362,6 +362,7 @@ BEGIN
 
             UPDATE public.establishments 
             SET name = COALESCE(item.name, name),
+                slug = COALESCE(item.slug, slug),
                 logo_url = COALESCE(item.logo_url, logo_url),
                 banner_url = COALESCE(item.banner_url, banner_url),
                 slogan = COALESCE(item.slogan, slogan),
@@ -374,6 +375,7 @@ BEGIN
                 phone = COALESCE(item.phone, phone),
                 opening_hours = COALESCE(item.opening_hours, opening_hours),
                 share_agendas = COALESCE(item.share_agendas, share_agendas),
+                gallery_urls = COALESCE(item.gallery_urls, gallery_urls),
                 updated_at = to_timestamp(item.updated_at/1000.0)
             WHERE id = item.id;
         END LOOP;

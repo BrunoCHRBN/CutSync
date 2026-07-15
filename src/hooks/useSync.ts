@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { syncDatabase } from '../database/sync';
 
-let isSyncActive = false;
+let syncQueue: Promise<void> = Promise.resolve();
 
 export function useSync() {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -10,17 +10,18 @@ export function useSync() {
   const [isOffline, setIsOffline] = useState(false);
 
   const performSync = async () => {
-    if (isSyncActive) return;
-    isSyncActive = true;
     setIsSyncing(true);
     setSyncError(null);
+    const queuedSync = syncQueue.catch(() => undefined).then(syncDatabase);
+    syncQueue = queuedSync;
     try {
-      await syncDatabase();
+      await queuedSync;
+      return true;
     } catch (err) {
       setSyncError(err as Error);
+      return false;
     } finally {
       setIsSyncing(false);
-      isSyncActive = false;
     }
   };
 

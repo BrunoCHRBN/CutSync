@@ -108,9 +108,11 @@ export const TeamExperience = () => {
           record.tituloProfissional = tituloProfissional.trim() || null;
         });
       });
+      const synced = await sync();
       setEditingId(null);
-      setNotice({ tone: 'success', message: 'Dados do profissional atualizados e prontos para sincronizar.' });
-      sync();
+      setNotice(synced
+        ? { tone: 'success', message: 'Dados do profissional salvos e sincronizados.' }
+        : { tone: 'danger', message: 'Os dados foram salvos neste dispositivo, mas a sincronização falhou. Tente novamente.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar os dados do profissional.' });
     } finally {
@@ -127,9 +129,11 @@ export const TeamExperience = () => {
           record.workHours = JSON.stringify(workHoursSchedule);
         });
       });
+      const synced = await sync();
       setEditingWorkHoursId(null);
-      setNotice({ tone: 'success', message: 'Jornada e escala do profissional salvas com sucesso.' });
-      sync();
+      setNotice(synced
+        ? { tone: 'success', message: 'Jornada e escala salvas e sincronizadas.' }
+        : { tone: 'danger', message: 'A escala foi salva neste dispositivo, mas a sincronização falhou. Tente novamente.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar a escala do profissional.' });
     } finally {
@@ -144,9 +148,11 @@ export const TeamExperience = () => {
         const barber = await database.collections.get<Profile>('profiles').find(barberId);
         await barber.update((record) => { record.establishmentId = null; });
       });
+      const synced = await sync();
       setRemovingId(null);
-      setNotice({ tone: 'success', message: 'Profissional removido da equipe.' });
-      sync();
+      setNotice(synced
+        ? { tone: 'success', message: 'Profissional removido da equipe.' }
+        : { tone: 'danger', message: 'A remoção foi salva neste dispositivo, mas a sincronização falhou.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível remover este profissional.' });
     } finally {

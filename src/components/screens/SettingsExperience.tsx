@@ -107,7 +107,7 @@ export const SettingsExperience = () => {
     return true;
   };
 
-  const handleImageUpload = async (uri: string, onUploadSuccess: (url: string) => void) => {
+  const handleImageUpload = async (uri: string): Promise<string | null> => {
     try {
       setSaving(true);
       setNotice(null);
@@ -135,22 +135,22 @@ export const SettingsExperience = () => {
         .from(bucketName)
         .getPublicUrl(fileName);
 
-      onUploadSuccess(publicUrl);
-      setNotice({ tone: 'success', message: 'Imagem enviada com sucesso!' });
+      return publicUrl;
     } catch (error: any) {
       console.error('Image upload failed:', error);
       setNotice({
         tone: 'danger',
         message: `Não foi possível carregar a imagem. Verifique se o bucket 'banners' está configurado no seu Supabase. Detalhe: ${error.message || error}`,
       });
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
-  const pickImage = async (onSelected: (url: string) => void, aspect: [number, number]) => {
+  const pickImage = async (aspect: [number, number]): Promise<string | null> => {
     const hasPermission = await requestPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) return null;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -161,14 +161,29 @@ export const SettingsExperience = () => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
-      await handleImageUpload(asset.uri, onSelected);
+      return handleImageUpload(asset.uri);
     }
+    return null;
   };
 
-  const handleAddGalleryPhoto = () => {
-    pickImage((url) => {
-      setGalleryUrls(prev => [...prev, url]);
-    }, [4, 5]);
+  const handleAddGalleryPhoto = async () => {
+    const url = await pickImage([4, 5]);
+    if (!url || !barbershop) return;
+    const nextGallery = [...galleryUrls, url];
+    setGalleryUrls(nextGallery);
+    try {
+      await database.write(async () => {
+        await barbershop.update((record) => {
+          record.galleryUrls = JSON.stringify(nextGallery);
+        });
+      });
+      const synced = await sync();
+      setNotice(synced
+        ? { tone: 'success', message: 'Foto adicionada e sincronizada com a vitrine.' }
+        : { tone: 'danger', message: 'A foto foi salva neste dispositivo, mas a sincronização falhou. Tente novamente.' });
+    } catch {
+      setNotice({ tone: 'danger', message: 'A imagem foi enviada, mas não foi possível salvar a galeria.' });
+    }
   };
 
   useEffect(() => {
@@ -242,9 +257,11 @@ export const SettingsExperience = () => {
           record.galleryUrls = JSON.stringify(galleryUrls);
         });
       });
+      const synced = await sync();
       setSlug(cleanSlug);
-      setNotice({ tone: 'success', message: 'Configurações atualizadas com sucesso.' });
-      sync();
+      setNotice(synced
+        ? { tone: 'success', message: 'Configurações salvas e sincronizadas com a vitrine.' }
+        : { tone: 'danger', message: 'As configurações foram salvas neste dispositivo, mas a sincronização falhou.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível salvar todas as alterações.' });
     } finally {
@@ -285,7 +302,13 @@ export const SettingsExperience = () => {
                   <AppButton
                     label="Alterar Logo"
                     testID="settings-upload-logo-button"
-                    onPress={() => pickImage((url) => setLogoUrl(url), [1, 1])}
+                    onPress={async () => {
+                      const url = await pickImage([1, 1]);
+                      if (url) {
+                        setLogoUrl(url);
+                        setNotice({ tone: 'success', message: 'Logo enviada. Salve as configurações para publicar.' });
+                      }
+                    }}
                     variant="secondary"
                     style={styles.compactUploadButton}
                   />
@@ -322,7 +345,13 @@ export const SettingsExperience = () => {
                 <AppButton
                   label="Selecionar Imagem do Banner"
                   testID="settings-upload-banner-button"
-                  onPress={() => pickImage((url) => setBannerUrl(url), [16, 9])}
+                  onPress={async () => {
+                    const url = await pickImage([16, 9]);
+                    if (url) {
+                      setBannerUrl(url);
+                      setNotice({ tone: 'success', message: 'Banner enviado. Salve as configurações para publicar.' });
+                    }
+                  }}
                   variant="secondary"
                   style={styles.uploadButton}
                 />

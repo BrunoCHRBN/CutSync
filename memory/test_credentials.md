@@ -1,6 +1,10 @@
 # Credenciais de teste
 
-Nenhuma conta de teste foi criada automaticamente. O ambiente Supabase pode exigir confirmação de e-mail e não há credenciais existentes fornecidas no repositório.
+## Administrador informado pelo usuário
+
+- E-mail: `brusantos777@gmail.com`
+- Senha: `bruno1324`
+- Uso: validar persistência do perfil profissional, jornada e galeria do estabelecimento.
 
 ## Validação disponível sem credenciais
 
@@ -10,7 +14,7 @@ Nenhuma conta de teste foi criada automaticamente. O ambiente Supabase pode exig
 
 ## Validação pendente
 
-- Dashboard Admin autenticado com dados reais.
+- Dashboard Admin autenticado com dados reais quando as variáveis Supabase estiverem disponíveis no ambiente.
 - Agendamento completo com cliente, serviços, profissionais e conflitos reais.
 - Módulo profissional: agenda, histórico, reagendamento e encaixe rápido.
 
