@@ -12,3 +12,6 @@ Nenhuma conta de teste foi criada automaticamente. O ambiente Supabase pode exig
 
 - Dashboard Admin autenticado com dados reais.
 - Agendamento completo com cliente, serviços, profissionais e conflitos reais.
+- Módulo profissional: agenda, histórico, reagendamento e encaixe rápido.
+
+Também são necessárias as variáveis `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` para iniciar a prévia autenticada.

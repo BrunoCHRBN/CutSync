@@ -778,7 +778,7 @@ export const BarberDashboardExperience = () => {
                         pressed && styles.pressed
                       ]}
                     >
-                      <Text style={[
+                      <Text testID={`barber-quick-time-${slot.replace(':', '-')}-label`} style={[
                         styles.timeSlotText, 
                         quickTime === slot && { color: primaryForeground },
                         isOccupied && styles.timeSlotTextOccupied
@@ -796,23 +796,23 @@ export const BarberDashboardExperience = () => {
       </Modal>
 
       <Modal visible={!!rescheduleItem} transparent animationType="fade" onRequestClose={() => setRescheduleItem(null)}>
-        <View style={styles.modalOverlay}>
+        <View testID="barber-reschedule-modal" style={styles.modalOverlay}>
           <AppCard testID="barber-reschedule-card" style={styles.modalCard} elevated>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalEyebrow}>REAGENDAMENTO</Text>
-                <Text style={styles.modalTitle}>Reagendar Atendimento</Text>
+                <Text testID="barber-reschedule-eyebrow" style={styles.modalEyebrow}>REAGENDAMENTO</Text>
+                <Text testID="barber-reschedule-title" style={styles.modalTitle}>Reagendar atendimento</Text>
               </View>
-              <Pressable onPress={() => setRescheduleItem(null)} style={styles.closeButton}>
+              <Pressable testID="barber-reschedule-close-button" hitSlop={hitSlop} onPress={() => setRescheduleItem(null)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
                 <X color={colors.textSecondary} size={18} />
               </Pressable>
             </View>
             <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <Text style={{ color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 }}>
+              <Text testID="barber-reschedule-summary" style={{ color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 }}>
                 Reagendando o cliente <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.clientName}</Text> para o serviço <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.serviceName}</Text>.
               </Text>
               
-              <Text style={styles.fieldLabel}>Selecione o novo dia</Text>
+              <Text testID="barber-reschedule-date-label" style={styles.fieldLabel}>Selecione o novo dia</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
                 {dateOptions.map((date) => {
                   const id = date.toISOString().split('T')[0];
@@ -820,13 +820,14 @@ export const BarberDashboardExperience = () => {
                   return (
                     <Pressable 
                       key={id} 
-                      onPress={() => { setNewRescheduleDate(date); setNewRescheduleTime(null); }} 
-                      style={[styles.dateCard, selected && styles.dateCardSelected]}
+                      testID={`barber-reschedule-date-${id}`}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewRescheduleDate(date); setNewRescheduleTime(null); }}
+                      style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}
                     >
-                      <Text style={[styles.dateWeek, selected && styles.selectedInk]}>
+                      <Text testID={`barber-reschedule-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
                         {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                       </Text>
-                      <Text style={[styles.dateDay, selected && styles.selectedInk]}>
+                      <Text testID={`barber-reschedule-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
                         {date.getDate()}
                       </Text>
                     </Pressable>
@@ -834,24 +835,27 @@ export const BarberDashboardExperience = () => {
                 })}
               </ScrollView>
 
-              <Text style={styles.fieldLabel}>Selecione o novo horário</Text>
+              <Text testID="barber-reschedule-time-label" style={styles.fieldLabel}>Selecione o novo horário</Text>
               <View style={styles.timeGrid}>
                 {filteredRescheduleTimes.map((slot) => {
                   const isOccupied = occupiedTimes.includes(slot);
                   return (
                     <Pressable 
                       key={slot} 
+                      testID={`barber-reschedule-time-${slot.replace(':', '-')}`}
                       disabled={isOccupied}
-                      onPress={() => setNewRescheduleTime(slot)} 
-                      style={[
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewRescheduleTime(slot); }}
+                      style={({ pressed }) => [
                         styles.timeSlot, 
                         newRescheduleTime === slot && styles.timeSlotSelected,
-                        isOccupied && styles.timeSlotOccupied
+                        newRescheduleTime === slot && { backgroundColor: primaryColor, borderColor: primaryColor },
+                        isOccupied && styles.timeSlotOccupied,
+                        pressed && styles.pressed,
                       ]}
                     >
-                      <Text style={[
+                      <Text testID={`barber-reschedule-time-${slot.replace(':', '-')}-label`} style={[
                         styles.timeSlotText, 
-                        newRescheduleTime === slot && styles.selectedInk,
+                        newRescheduleTime === slot && { color: primaryForeground },
                         isOccupied && styles.timeSlotTextOccupied
                       ]}>
                         {slot}
