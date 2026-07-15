@@ -12,6 +12,8 @@ interface ChoiceCardProps {
   testID: string;
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
+  activeColor?: string;
+  activeForegroundColor?: string;
 }
 
 export const ChoiceCard = ({
@@ -23,6 +25,8 @@ export const ChoiceCard = ({
   testID,
   icon,
   style,
+  activeColor = colors.brand,
+  activeForegroundColor = colors.ink,
 }: ChoiceCardProps) => (
   <Pressable
     testID={testID}
@@ -31,39 +35,39 @@ export const ChoiceCard = ({
     onPress={onPress}
     style={({ pressed }) => [
       styles.card,
-      selected && styles.selected,
+      selected && [styles.selected, { borderColor: activeColor }],
       pressed && styles.pressed,
       style,
     ]}
   >
-    <View style={[styles.icon, selected && styles.iconSelected]}>
-      {selected ? <Check color={colors.ink} size={17} strokeWidth={3} /> : icon}
+    <View style={[styles.icon, selected && styles.iconSelected, selected && { backgroundColor: activeColor }]}>
+      {selected ? <Check color={activeForegroundColor} size={17} strokeWidth={3} /> : icon}
     </View>
     <View style={styles.copy}>
       <Text numberOfLines={2} style={styles.title}>{title}</Text>
       {!!subtitle && <Text numberOfLines={2} style={styles.subtitle}>{subtitle}</Text>}
     </View>
-    {!!meta && <Text style={[styles.meta, selected && styles.metaSelected]}>{meta}</Text>}
+    {!!meta && <Text style={[styles.meta, selected && styles.metaSelected, selected && { color: activeColor }]}>{meta}</Text>}
   </Pressable>
 );
 
 const styles = StyleSheet.create({
   card: {
     minHeight: 110,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E5E7EB',
     borderRadius: radii.md,
     padding: 14,
     justifyContent: 'space-between',
     gap: 10,
   },
   selected: {
-    backgroundColor: colors.brandSoft,
-    borderColor: colors.brand,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
   },
   hovered: { borderColor: colors.borderStrong, transform: [{ translateY: -2 }] },
-  pressed: { transform: [{ scale: 0.98 }] },
+  pressed: { transform: [{ scale: 0.97 }] },
   icon: {
     width: 30,
     height: 30,

@@ -25,7 +25,7 @@ export const ProfessionalShell = ({ children, name, shopName, isOffline, onSignO
         {isOffline ? <WifiOff color={colors.warning} size={14} /> : <Wifi color={colors.success} size={14} />}
         <Text style={[styles.connectionText, isOffline && styles.connectionTextOffline]}>{isOffline ? 'Offline' : 'Online'}</Text>
       </View>
-      <Pressable testID="professional-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
+      <Pressable testID="professional-sign-out-button" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={onSignOut} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
         <LogOut color={colors.danger} size={17} />
       </Pressable>
     </View>
@@ -44,5 +44,5 @@ const styles = StyleSheet.create({
   connectionText: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 9 },
   connectionTextOffline: { color: colors.warning },
   signOut: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surface },
-  pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
+  pressed: { transform: [{ scale: 0.97 }] },
 });

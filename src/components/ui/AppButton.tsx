@@ -22,6 +22,7 @@ export interface AppButtonProps {
   icon?: ReactNode;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
+  foregroundColor?: string;
 }
 
 export const AppButton = ({
@@ -34,6 +35,7 @@ export const AppButton = ({
   icon,
   fullWidth = false,
   style,
+  foregroundColor,
 }: AppButtonProps) => {
   const isDisabled = disabled || loading;
 
@@ -58,7 +60,7 @@ export const AppButton = ({
       ) : (
         <View style={styles.content}>
           {icon}
-          <Text style={[styles.label, styles[`${variant}Label`]]}>{label}</Text>
+          <Text style={[styles.label, styles[`${variant}Label`], foregroundColor ? { color: foregroundColor } : null]}>{label}</Text>
         </View>
       )}
     </Pressable>
@@ -116,8 +118,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   pressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
   },
   disabled: { opacity: 0.5 },
 });

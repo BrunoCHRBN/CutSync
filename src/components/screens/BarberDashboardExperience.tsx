@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Platform, Alert } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
-import { CalendarDays, Check, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
 import { database } from '../../database';
 import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,7 +13,6 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { ChoiceCard } from '../ui/ChoiceCard';
-import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -42,6 +42,23 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
 };
 
 const quickTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+const hitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
+const defaultSchedule = [
+  { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 2, name: 'Terça-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 3, name: 'Quarta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 4, name: 'Quinta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 5, name: 'Sexta-feira', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 6, name: 'Sábado', isOpen: true, open: '09:00', close: '20:00' },
+  { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
+];
+
+const readableForeground = (hex: string) => {
+  const normalized = hex.replace('#', '');
+  if (!/^[0-9A-Fa-f]{6}$/.test(normalized)) return '#FFFFFF';
+  const [r, g, b] = [0, 2, 4].map((index) => parseInt(normalized.slice(index, index + 2), 16));
+  return ((r * 299 + g * 587 + b * 114) / 1000) > 160 ? '#171717' : '#FFFFFF';
+};
 
 export const BarberDashboardExperience = () => {
   const { width } = useWindowDimensions();
@@ -63,6 +80,7 @@ export const BarberDashboardExperience = () => {
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickDate, setQuickDate] = useState<Date>(new Date());
   const [quickOccupiedTimes, setQuickOccupiedTimes] = useState<string[]>([]);
+  const [quickReferenceTime, setQuickReferenceTime] = useState(0);
 
   // Estados locais para Reagendamento
   const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
@@ -244,6 +262,8 @@ export const BarberDashboardExperience = () => {
   const revenue = completed.reduce((sum, item) => sum + item.price, 0);
   const commission = revenue * (profile?.commission_rate ?? 0.5);
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
+  const primaryColor = barbershop?.primaryColor || colors.brand;
+  const primaryForeground = readableForeground(primaryColor);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const formatNextAppointmentValue = (date: Date) => {
     const today = new Date();
@@ -264,17 +284,6 @@ export const BarberDashboardExperience = () => {
     }
   };
 
-
-  // expediente padrão
-  const defaultSchedule = [
-    { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
-    { day: 2, name: 'Terça-feira', isOpen: true, open: '09:00', close: '20:00' },
-    { day: 3, name: 'Quarta-feira', isOpen: true, open: '09:00', close: '20:00' },
-    { day: 4, name: 'Quinta-feira', isOpen: true, open: '09:00', close: '20:00' },
-    { day: 5, name: 'Sexta-feira', isOpen: true, open: '09:00', close: '20:00' },
-    { day: 6, name: 'Sábado', isOpen: true, open: '09:00', close: '20:00' },
-    { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
-  ];
 
   const timeSlots = useMemo(() => {
     const dayOfWeek = selectedDate.getDay();
@@ -338,18 +347,6 @@ export const BarberDashboardExperience = () => {
       return (ha * 60 + ma) - (hb * 60 + mb);
     });
   }, [timeSlots, activeAppointments]);
-
-  const filteredQuickTimes = useMemo(() => {
-    const isToday = quickDate.toDateString() === new Date().toDateString();
-    if (!isToday) return quickTimes;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMin = now.getMinutes();
-    return quickTimes.filter(slot => {
-      const [h, m] = slot.split(':').map(Number);
-      return h > currentHour || (h === currentHour && m >= currentMin);
-    });
-  }, [quickDate]);
 
   const filteredRescheduleTimes = useMemo(() => {
     const isToday = newRescheduleDate.toDateString() === new Date().toDateString();
@@ -474,6 +471,7 @@ export const BarberDashboardExperience = () => {
       });
       setQuickOpen(false); setQuickName(''); setQuickService(null); setQuickTime(null);
       setNotice({ tone: 'success', message: 'Encaixe criado e reservado na sua agenda.' });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       sync();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível criar o encaixe.' });
@@ -497,8 +495,11 @@ export const BarberDashboardExperience = () => {
                 setQuickDate(new Date());
                 setQuickTime(null);
                 setQuickService(null);
+                setQuickReferenceTime(Date.now());
               }} 
-              icon={<Plus color={colors.ink} size={17} />} 
+              icon={<Plus color={primaryForeground} size={17} />}
+              style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+              foregroundColor={primaryForeground}
             />
           </View>
         </View>
@@ -506,7 +507,7 @@ export const BarberDashboardExperience = () => {
         {!!notice && <InlineNotice testID="barber-action-notice" tone={notice.tone} message={notice.message} />}
 
         <View style={[styles.metrics, !isWide && styles.metricsStack]}>
-          <Metric testID="barber-next-metric" icon={<Clock3 color={colors.brand} size={18} />} label="Próximo atendimento" value={nextAppointment ? formatNextAppointmentValue(nextAppointment.dateTime) : 'Agenda livre'} note={nextAppointment?.clientName || 'Nenhum cliente aguardando'} />
+          <Metric testID="barber-next-metric" icon={<Clock3 color={primaryColor} size={18} />} label="Próximo atendimento" value={nextAppointment ? formatNextAppointmentValue(nextAppointment.dateTime) : 'Agenda livre'} note={nextAppointment?.clientName || 'Nenhum cliente aguardando'} />
           <Metric testID="barber-completed-metric" icon={<Check color={colors.success} size={18} />} label="Concluídos" value={String(completed.length)} note={`${visibleAppointments.length} horários na agenda`} />
           <Metric testID="barber-commission-metric" icon={<WalletCards color={colors.info} size={18} />} label="Meu ganho no dia" value={currency(commission)} note={`${Math.round((profile?.commission_rate ?? 0.5) * 100)}% de comissão`} />
         </View>
@@ -516,11 +517,12 @@ export const BarberDashboardExperience = () => {
           <AppButton label="Sincronizar" testID="barber-sync-button" variant="secondary" onPress={sync} loading={isSyncing} icon={<RefreshCw color={colors.text} size={15} />} style={styles.syncButton} />
         </View>
 
-        <SegmentedControl<Tab> testID="barber-agenda-tabs" value={tab} onChange={setTab} options={[{ value: 'mine', label: 'Minha agenda' }, { value: 'team', label: 'Agenda da equipe' }]} />
+        <SegmentedControl<Tab> testID="barber-agenda-tabs" value={tab} activeColor={primaryColor} onChange={setTab} options={[{ value: 'mine', label: 'Minha agenda' }, { value: 'team', label: 'Agenda da equipe' }]} />
 
         <View style={styles.calendarNavContainer}>
           <Pressable 
             testID="barber-calendar-prev"
+            hitSlop={hitSlop}
             onPress={() => {
               const d = new Date(selectedDate);
               d.setDate(d.getDate() - 7);
@@ -540,18 +542,18 @@ export const BarberDashboardExperience = () => {
                   <Pressable
                     key={id}
                     testID={`barber-date-${id}`}
-                    onPress={() => setSelectedDate(date)}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedDate(date); }}
                     style={({ pressed }) => [
                       styles.dateCard,
                       styles.dateCardWide,
-                      selected && styles.dateCardSelected,
+                      selected && [styles.dateCardSelected, { backgroundColor: primaryColor }],
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.dateWeek, selected && styles.selectedInk]}>
+                    <Text testID={`barber-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
                       {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                     </Text>
-                    <Text style={[styles.dateDay, selected && styles.selectedInk]}>
+                    <Text testID={`barber-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
                       {date.getDate()}
                     </Text>
                   </Pressable>
@@ -567,17 +569,17 @@ export const BarberDashboardExperience = () => {
                   <Pressable
                     key={id}
                     testID={`barber-date-${id}`}
-                    onPress={() => setSelectedDate(date)}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedDate(date); }}
                     style={({ pressed }) => [
                       styles.dateCard,
-                      selected && styles.dateCardSelected,
+                      selected && [styles.dateCardSelected, { backgroundColor: primaryColor }],
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.dateWeek, selected && styles.selectedInk]}>
+                    <Text testID={`barber-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
                       {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                     </Text>
-                    <Text style={[styles.dateDay, selected && styles.selectedInk]}>
+                    <Text testID={`barber-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
                       {date.getDate()}
                     </Text>
                   </Pressable>
@@ -588,6 +590,7 @@ export const BarberDashboardExperience = () => {
 
           <Pressable 
             testID="barber-calendar-next"
+            hitSlop={hitSlop}
             onPress={() => {
               const d = new Date(selectedDate);
               d.setDate(d.getDate() + 7);
@@ -601,6 +604,7 @@ export const BarberDashboardExperience = () => {
           {weekOffset !== 0 && (
             <Pressable 
               testID="barber-calendar-today"
+              hitSlop={hitSlop}
               onPress={() => setSelectedDate(new Date())} 
               style={styles.todayBtn}
             >
@@ -620,8 +624,8 @@ export const BarberDashboardExperience = () => {
                   return slotApps.map((item) => {
                     const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
                     return (
-                      <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={styles.appointmentCard}>
-                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={styles.appointmentTime}>{time(item.dateTime)}</Text></View>
+                    <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={styles.appointmentCard}>
+                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={[styles.appointmentTime, { color: primaryColor }]}>{time(item.dateTime)}</Text></View>
                         <View style={styles.appointmentCopy}>
                           <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
                           <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
@@ -670,26 +674,25 @@ export const BarberDashboardExperience = () => {
                 
                 // Mostrar slot livre
                 return (
-                  <Pressable
+                <Pressable
                     key={`free-${slot}`}
+                    testID={`barber-free-slot-${slot.replace(':', '-')}`}
                     onPress={() => {
                       setQuickTime(slot);
                       const newDate = new Date(selectedDate);
                       const [h, m] = slot.split(':').map(Number);
                       newDate.setHours(h, m, 0, 0);
                       setQuickDate(newDate);
+                      setQuickReferenceTime(Date.now());
                       setQuickOpen(true);
                     }}
                     style={({ pressed }) => [styles.freeSlotCard, pressed && styles.pressed]}
                   >
                     <View style={styles.timeBox}>
-                      <Text style={styles.freeSlotTime}>{slot}</Text>
+                      <Text testID={`barber-free-slot-${slot.replace(':', '-')}-time`} style={styles.freeSlotTime}>{slot}</Text>
                     </View>
-                    <View style={styles.freeSlotCopy}>
-                      <Text style={styles.freeSlotLabel}>Horário Livre</Text>
-                      <Text style={styles.freeSlotSubLabel}>Horário Livre - Adicionar Encaixe</Text>
-                    </View>
-                    <Plus size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                    <View style={styles.freeSlotLine} />
+                    <View testID={`barber-free-slot-${slot.replace(':', '-')}-add`} style={styles.freeSlotAdd}><Plus size={14} color={colors.textMuted} /></View>
                   </Pressable>
                 );
               })}
@@ -703,8 +706,8 @@ export const BarberDashboardExperience = () => {
                   {inactiveAppointments.map((item) => {
                     const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
                     return (
-                      <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={[styles.appointmentCard, { opacity: 0.65 }]}>
-                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={styles.appointmentTime}>{time(item.dateTime)}</Text></View>
+                      <View key={item.id} testID={`barber-history-${item.id}`} style={styles.historyRow}>
+                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={[styles.appointmentTime, { color: primaryColor }]}>{time(item.dateTime)}</Text></View>
                         <View style={styles.appointmentCopy}>
                           <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
                           <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
@@ -713,7 +716,7 @@ export const BarberDashboardExperience = () => {
                           ) : null}
                           {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
                         </View>
-                      </AppCard>
+                      </View>
                     );
                   })}
                 </View>
@@ -724,12 +727,12 @@ export const BarberDashboardExperience = () => {
       </ScrollView>
 
       <Modal visible={quickOpen} transparent animationType="fade" onRequestClose={() => setQuickOpen(false)}>
-        <View testID="barber-quick-booking-modal" style={styles.modalOverlay}>
+        <KeyboardAvoidingView testID="barber-quick-booking-modal" style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <AppCard testID="barber-quick-booking-card" style={styles.modalCard} elevated>
-            <View style={styles.modalHeader}><View><Text style={styles.modalEyebrow}>ENCAIXE RÁPIDO</Text><Text testID="barber-quick-booking-title" style={styles.modalTitle}>Reservar um horário</Text></View><Pressable testID="barber-quick-booking-close-button" onPress={() => setQuickOpen(false)} style={styles.closeButton}><X color={colors.textSecondary} size={18} /></Pressable></View>
-            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.modalHeader}><View><Text testID="barber-quick-booking-eyebrow" style={[styles.modalEyebrow, { color: primaryColor }]}>ENCAIXE RÁPIDO</Text><Text testID="barber-quick-booking-title" style={styles.modalTitle}>Reservar um horário</Text></View><Pressable hitSlop={hitSlop} testID="barber-quick-booking-close-button" onPress={() => setQuickOpen(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}><X color={colors.textSecondary} size={18} /></Pressable></View>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
               <AppInput label="Nome do cliente" testID="barber-quick-client-input" icon={<UserRound color={colors.textMuted} size={17} />} value={quickName} onChangeText={setQuickName} placeholder="Cliente de balcão" />
-              <Text style={styles.fieldLabel}>Selecione o Dia</Text>
+              <Text testID="barber-quick-date-label" style={styles.fieldLabel}>Selecione o dia</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
                 {dateOptions.map((date) => {
                   const id = date.toISOString().split('T')[0];
@@ -737,13 +740,14 @@ export const BarberDashboardExperience = () => {
                   return (
                     <Pressable 
                       key={id} 
-                      onPress={() => { setQuickDate(date); setQuickTime(null); }} 
-                      style={[styles.dateCard, selected && styles.dateCardSelected]}
+                      testID={`barber-quick-date-${id}`}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickDate(date); setQuickTime(null); }}
+                      style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}
                     >
-                      <Text style={[styles.dateWeek, selected && styles.selectedInk]}>
+                      <Text testID={`barber-quick-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
                         {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                       </Text>
-                      <Text style={[styles.dateDay, selected && styles.selectedInk]}>
+                      <Text testID={`barber-quick-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
                         {date.getDate()}
                       </Text>
                     </Pressable>
@@ -751,28 +755,32 @@ export const BarberDashboardExperience = () => {
                 })}
               </ScrollView>
 
-              <Text style={styles.fieldLabel}>Serviço</Text>
-              <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.durationMinutes} min`} meta={currency(service.price)} selected={quickService === service.id} onPress={() => { setQuickService(service.id); setQuickTime(null); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
-              <Text style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
+              <Text testID="barber-quick-service-label" style={styles.fieldLabel}>Serviço</Text>
+              <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.durationMinutes} min`} meta={currency(service.price)} selected={quickService === service.id} activeColor={primaryColor} activeForegroundColor={primaryForeground} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickService(service.id); setQuickTime(null); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
+              <Text testID="barber-quick-time-label" style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
               <View style={styles.timeGrid}>
-                {filteredQuickTimes.map((slot) => {
-                  const isOccupied = quickOccupiedTimes.includes(slot);
+                {quickTimes.map((slot) => {
+                  const slotDate = new Date(quickDate);
+                  const [slotHour, slotMinute] = slot.split(':').map(Number);
+                  slotDate.setHours(slotHour, slotMinute, 0, 0);
+                  const isOccupied = quickOccupiedTimes.includes(slot) || slotDate.getTime() < quickReferenceTime;
                   return (
                     <Pressable 
                       key={slot} 
                       testID={`barber-quick-time-${slot.replace(':', '-')}`} 
                       disabled={isOccupied}
-                      onPress={() => setQuickTime(slot)} 
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickTime(slot); }}
                       style={({ pressed }) => [
                         styles.timeSlot, 
-                        quickTime === slot && styles.timeSlotSelected, 
+                        quickTime === slot && styles.timeSlotSelected,
+                        quickTime === slot && { backgroundColor: primaryColor, borderColor: primaryColor },
                         isOccupied && styles.timeSlotOccupied,
                         pressed && styles.pressed
                       ]}
                     >
                       <Text style={[
                         styles.timeSlotText, 
-                        quickTime === slot && styles.selectedInk,
+                        quickTime === slot && { color: primaryForeground },
                         isOccupied && styles.timeSlotTextOccupied
                       ]}>
                         {slot}
@@ -781,10 +789,10 @@ export const BarberDashboardExperience = () => {
                   );
                 })}
               </View>
-              <AppButton label="Criar encaixe" testID="barber-quick-submit-button" onPress={createQuickBooking} loading={quickLoading} fullWidth icon={<Plus color={colors.ink} size={16} />} />
+              <AppButton label="Criar encaixe" testID="barber-quick-submit-button" onPress={createQuickBooking} loading={quickLoading} fullWidth icon={<Plus color={primaryForeground} size={16} />} foregroundColor={primaryForeground} style={{ backgroundColor: primaryColor, borderColor: primaryColor }} />
             </ScrollView>
           </AppCard>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={!!rescheduleItem} transparent animationType="fade" onRequestClose={() => setRescheduleItem(null)}>
@@ -870,7 +878,7 @@ export const BarberDashboardExperience = () => {
   );
 };
 
-const Metric = ({ icon, label, value, note, testID }: { icon: React.ReactNode; label: string; value: string; note: string; testID: string }) => <AppCard testID={testID} style={styles.metric}><View style={styles.metricTop}>{icon}<Text style={styles.metricLabel}>{label}</Text></View><Text testID={`${testID}-value`} style={styles.metricValue}>{value}</Text><Text style={styles.metricNote}>{note}</Text></AppCard>;
+const Metric = ({ icon, label, value, note, testID }: { icon: React.ReactNode; label: string; value: string; note: string; testID: string }) => <AppCard testID={testID} style={styles.metric}><View style={styles.metricTop}>{icon}<Text testID={`${testID}-label`} style={styles.metricLabel}>{label}</Text></View><Text testID={`${testID}-value`} style={styles.metricValue}>{value}</Text><Text testID={`${testID}-note`} style={styles.metricNote}>{note}</Text></AppCard>;
 
 const styles = StyleSheet.create({
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 30, paddingBottom: 70 },
@@ -878,24 +886,24 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 9 },
   metrics: { flexDirection: 'row', gap: 12, marginTop: 28 },
   metricsStack: { flexDirection: 'column' },
-  metric: { flex: 1, minWidth: 190 },
+  metric: { flex: 1, minWidth: 190, borderWidth: 0.5, borderColor: '#E5E7EB66', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.025, shadowRadius: 22, elevation: 1 },
   metricTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  metricLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
-  metricValue: { color: colors.text, fontFamily: typography.display, fontSize: 24, letterSpacing: -0.8, marginTop: 17 },
+  metricLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.25, textTransform: 'uppercase' },
+  metricValue: { color: '#171717', fontFamily: typography.display, fontSize: 24, letterSpacing: -1, marginTop: 17 },
   metricNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
   agendaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 14, marginTop: 42, marginBottom: 17 },
   syncButton: { minHeight: 40, paddingVertical: 8 },
   dateList: { gap: 8, paddingVertical: 14 },
   dateListWide: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 14, gap: 8 },
-  dateCard: { width: 62, alignItems: 'center', paddingVertical: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  dateCard: { width: 62, alignItems: 'center', paddingVertical: 10, backgroundColor: 'transparent', borderWidth: 0, borderRadius: radii.md },
   dateCardWide: { flex: 1, maxWidth: 120 },
   dateCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },
   selectedInk: { color: colors.ink },
   loader: { margin: 50 },
-  appointmentList: { gap: 9 },
-  appointmentCard: { flexDirection: 'row', gap: 14, padding: 16 },
+  appointmentList: { gap: 0 },
+  appointmentCard: { flexDirection: 'row', gap: 14, padding: 16, marginBottom: 9 },
   timeBox: { width: 58, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 2 },
   appointmentTime: { color: colors.brand, fontFamily: typography.display, fontSize: 15 },
   appointmentCopy: { flex: 1, minWidth: 0 },
@@ -906,7 +914,7 @@ const styles = StyleSheet.create({
   appointmentActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
   confirmActions: { gap: 6 },
   smallButton: { minHeight: 36, paddingVertical: 7, paddingHorizontal: 11 },
-  pressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
+  pressed: { transform: [{ scale: 0.97 }] },
   modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000000C9', padding: 18 },
   modalCard: { width: '100%', maxWidth: 640, maxHeight: '90%', padding: 0, overflow: 'hidden' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -917,18 +925,18 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choiceCard: { width: '47%', minWidth: 150, flexGrow: 1 },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  timeSlot: { minWidth: 72, flexGrow: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8 },
+  timeSlot: { width: '23%', alignItems: 'center', justifyContent: 'center', minHeight: 42, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: radii.md },
   timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   timeSlotText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
   cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
   timeSlotOccupied: {
-    backgroundColor: '#ff444408',
-    borderColor: '#ff444422',
-    opacity: 0.5,
+    backgroundColor: colors.surfaceRaised,
+    borderColor: 'transparent',
+    opacity: 0.3,
   },
   timeSlotTextOccupied: {
-    color: '#ff444470',
+    color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
   calendarNavContainer: {
@@ -966,35 +974,18 @@ const styles = StyleSheet.create({
   freeSlotCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: colors.canvas,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    marginBottom: 9,
-    minHeight: 68,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
+    backgroundColor: 'transparent',
+    minHeight: 52,
   },
   freeSlotTime: {
     color: colors.textSecondary,
     fontFamily: typography.display,
     fontSize: 15,
   },
-  freeSlotCopy: {
-    flex: 1,
-    paddingLeft: 14,
-  },
-  freeSlotLabel: {
-    color: colors.textSecondary,
-    fontFamily: typography.bodyStrong,
-    fontSize: 13,
-  },
-  freeSlotSubLabel: {
-    color: colors.textMuted,
-    fontFamily: typography.body,
-    fontSize: 10,
-    marginTop: 2,
-  },
+  freeSlotLine: { flex: 1, marginHorizontal: 12, borderTopWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' },
+  freeSlotAdd: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F4F5' },
   inactiveSection: {
     marginTop: 24,
     borderTopWidth: 1,
@@ -1008,4 +999,5 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     letterSpacing: -0.4,
   },
+  historyRow: { flexDirection: 'row', gap: 14, paddingVertical: 17, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#F1F1F2' },
 });

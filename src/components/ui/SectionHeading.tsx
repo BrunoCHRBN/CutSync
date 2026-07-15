@@ -40,9 +40,9 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontFamily: typography.display,
-    fontSize: 24,
-    letterSpacing: -0.8,
-    lineHeight: 29,
+    fontSize: 30,
+    letterSpacing: -1.25,
+    lineHeight: 35,
   },
   description: {
     color: colors.textSecondary,
