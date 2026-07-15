@@ -1,5 +1,5 @@
 import React, { ReactNode, useState } from 'react';
-import { StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { Platform, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
 export interface AppInputProps extends TextInputProps {
@@ -70,8 +70,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   fieldFocused: {
-    borderColor: colors.brand,
-    borderWidth: 2,
+    borderColor: '#262626',
+    ...Platform.select({
+      web: { boxShadow: '0 0 0 4px rgba(10,10,10,0.05)' } as any,
+      default: { shadowColor: '#0A0A0A', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 1 },
+    }),
   },
   fieldError: { borderColor: colors.danger },
   input: {

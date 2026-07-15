@@ -1,8 +1,8 @@
-# PRD — CutSync Front-end
+# PRD — CutSync · Módulo do Profissional
 
 ## Problema original
 
-Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesign completo do front-end existente, priorizando os pontos de maior impacto e permitindo uma direção visual nova e marcante.
+Refatorar completamente o visual e a disposição do módulo profissional do CutSync, nesta etapa cobrindo agenda, histórico e modal de encaixe rápido. Preservar as regras e integrações existentes, usar a cor dinâmica de cada salão e aplicar uma experiência mobile premium inspirada em Stripe, Superhuman, Fresha e Linear.
 
 ## Arquitetura observada
 
@@ -15,7 +15,7 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 ## Decisões de produto e design
 
 - Preservar os fluxos existentes, reconstruindo a camada visual sobre componentes compartilhados.
-- Adotar direção premium dark-first em obsidiana/zinc, com âmbar como identidade CutSync.
+- Adotar no módulo profissional uma direção clara premium sobre fundo gelo, com superfícies brancas, tipografia compacta e elevação extremamente sutil.
 - Usar navegação persistente responsiva por perfil: sidebar no desktop e bottom navigation no mobile.
 - Separar páginas sobrecarregadas, especialmente Dashboard, Agenda e Financeiro.
 - Priorizar agendamento, dashboard administrativo e rotina do barbeiro.
@@ -40,6 +40,15 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 - Gestão de Serviços migrada: cadastro validado, catálogo responsivo e ativação/pausa contextual.
 - Configurações migradas: identidade, contato, slug público e preview em tempo real.
 - Painel do Barbeiro migrado: KPIs, agenda própria/equipe, status e encaixe rápido com prevenção de conflito.
+- Cabeçalho e KPIs do profissional refinados com hierarquia tipográfica robusta, labels em caixa alta, bordas quase invisíveis e sombras difusas.
+- Agenda redesenhada com segmented control estilo iOS, datas minimalistas e estados ativos usando a cor dinâmica do salão com contraste calculado.
+- Timeline simplificada: slots livres exibem somente hora, linha tracejada e ação de adição discreta.
+- Histórico transformado em lista limpa com divisores suaves e badges de status de baixa opacidade no padrão Stripe.
+- Modal de encaixe rápido protegido contra teclado, com input premium, cards físicos de serviço e grade responsiva de quatro colunas.
+- Horários indisponíveis permanecem visíveis em baixa opacidade e com rasura neutra, mantendo foco nos horários livres.
+- Feedback tátil com Expo Haptics em dias, serviços, horários e confirmação de encaixe; áreas de toque ampliadas e estados pressionados em escala 0.97.
+- Cor dinâmica do estabelecimento aplicada em CTAs e seleções, com cálculo automático de contraste do texto.
+- Dependência `expo-haptics` adicionada e cobertura `testID` ampliada nos fluxos de encaixe e reagendamento.
 - Deep-links amigáveis e protegidos: `/admin/barbers`, `/admin/services`, `/admin/settings` e `/barber`.
 - Diálogos bloqueantes removidos das experiências migradas; feedback agora usa avisos inline.
 - Guia de autenticação de QA adicionado em `/app/auth_testing.md`.
@@ -61,7 +70,7 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 ### P1
 
 - Separar Agenda e Financeiro do dashboard administrativo.
-- Redesenhar Meu Dia e Encaixe Rápido do barbeiro.
+- Validar visualmente Meu Dia e Encaixe Rápido com uma conta profissional real após disponibilizar as variáveis Supabase no ambiente de QA.
 - Criar onboarding específico para cliente, dono e profissional.
 - Padronizar toasts, modais, erros inline e estados vazios.
 - Revisar traduções e remover strings inconsistentes.
@@ -76,6 +85,6 @@ Analisar o repositório do SaaS CutSync, sugerir melhorias e preparar um redesig
 ## Próximas tarefas
 
 1. Remover definitivamente o código legado das rotas já migradas.
-2. Criar seed/credenciais de QA e validar áreas autenticadas com dados reais.
+2. Criar seed/credenciais de QA e validar o módulo profissional autenticado com dados reais.
 3. Criar perfil público por slug, compartilhável sem login.
 4. Adicionar analytics de conversão entre perfil público, escolha de serviço e confirmação.
