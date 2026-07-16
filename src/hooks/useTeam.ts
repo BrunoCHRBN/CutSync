@@ -10,9 +10,10 @@ export function useTeam(establishmentId?: string | null, includeAdmin = true) {
   const refresh = useCallback(async () => {
     if (!establishmentId) { setTeam([]); setLoading(false); return []; }
     setLoading(true);
-    const roles = includeAdmin ? ['professional', 'admin'] : ['professional'];
-    const { data, error: queryError } = await supabase.from('profiles').select('*')
-      .eq('establishment_id', establishmentId).in('role', roles).is('deleted_at', null).order('name');
+    const { data, error: queryError } = await supabase.rpc('get_establishment_team', {
+      target_establishment_id: establishmentId,
+      include_administrators: includeAdmin,
+    });
     setError(queryError?.message || null);
     const mapped = (data || []).map(mapProfile);
     setTeam(mapped);

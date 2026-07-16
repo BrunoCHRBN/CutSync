@@ -48,7 +48,7 @@ export const AdminShell = ({
     if (!profile?.id) return;
     
     const load = async () => {
-      const { data: links } = await supabase.from('profile_establishments').select('establishment_id').eq('profile_id', profile.id);
+      const { data: links } = await supabase.from('memberships').select('establishment_id').eq('profile_id', profile.id).eq('status', 'active');
       const ids = (links || []).map((item) => item.establishment_id);
       if (profile.establishment_id && !ids.includes(profile.establishment_id)) ids.push(profile.establishment_id);
       if (!ids.length) { setAvailableShops([]); return; }
@@ -63,9 +63,7 @@ export const AdminShell = ({
     setSwitching(true);
     try {
       // 1. Atualizar active barbershop no Supabase
-      const { error } = await supabase.from('profiles')
-        .update({ establishment_id: targetShopId })
-        .eq('id', profile?.id);
+      const { error } = await supabase.rpc('switch_active_establishment', { target_establishment_id: targetShopId });
         
       if (error) throw error;
       

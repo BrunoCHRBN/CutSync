@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { AlertTriangle, BadgePercent, Clock, Copy, Link2, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
+import { AlertTriangle, BadgePercent, Clock, Copy, Mail, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useTeam } from '../../hooks/useTeam';
@@ -21,6 +21,15 @@ interface DaySchedule {
   isOpen: boolean;
   open: string;
   close: string;
+}
+
+interface InvitationRecord {
+  id: string;
+  invited_email: string;
+  role: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
 }
 
 const defaultSchedule: DaySchedule[] = [
@@ -54,6 +63,18 @@ export const TeamExperience = () => {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
+  const [invitations, setInvitations] = useState<InvitationRecord[]>([]);
+
+  const loadInvitations = async () => {
+    if (!profile?.establishment_id) return;
+    const { data } = await supabase.rpc('list_establishment_invitations', { target_establishment_id: profile.establishment_id });
+    setInvitations((data || []) as InvitationRecord[]);
+  };
+
+  React.useEffect(() => { void loadInvitations(); }, [profile?.establishment_id]);
 
   const startEditing = (barber: ProfileRecord) => {
     setEditingId(barber.id);
@@ -84,12 +105,16 @@ export const TeamExperience = () => {
     }
     setActionLoading(true);
     try {
-      const { error } = await supabase.from('profiles').update({
-        commission_rate: value / 100,
-        specialties: specialties.trim() || null,
-        instagram: barberInstagram.trim() || null,
-        titulo_profissional: tituloProfissional.trim() || null,
-      }).eq('id', barberId);
+      const { error } = await supabase.rpc('admin_update_professional', {
+        target_profile_id: barberId,
+        target_establishment_id: profile?.establishment_id,
+        updates: {
+          commission_rate: value / 100,
+          specialties: specialties.trim() || null,
+          instagram: barberInstagram.trim() || null,
+          titulo_profissional: tituloProfissional.trim() || null,
+        },
+      });
       if (error) throw error;
       setEditingId(null);
       setNotice({ tone: 'success', message: 'Dados do profissional salvos.' });
@@ -103,7 +128,11 @@ export const TeamExperience = () => {
   const saveWorkHours = async (barberId: string) => {
     setActionLoading(true);
     try {
-      const { error } = await supabase.from('profiles').update({ work_hours: JSON.stringify(workHoursSchedule) }).eq('id', barberId);
+      const { error } = await supabase.rpc('admin_update_professional', {
+        target_profile_id: barberId,
+        target_establishment_id: profile?.establishment_id,
+        updates: { work_hours: JSON.stringify(workHoursSchedule) },
+      });
       if (error) throw error;
       setEditingWorkHoursId(null);
       setNotice({ tone: 'success', message: 'Jornada e escala salvas.' });
@@ -117,7 +146,10 @@ export const TeamExperience = () => {
   const removeBarber = async (barberId: string) => {
     setActionLoading(true);
     try {
-      const { error } = await supabase.from('profiles').update({ establishment_id: null }).eq('id', barberId);
+      const { error } = await supabase.rpc('remove_professional', {
+        target_profile_id: barberId,
+        target_establishment_id: profile?.establishment_id,
+      });
       if (error) throw error;
       setRemovingId(null);
       setNotice({ tone: 'success', message: 'Profissional removido da equipe.' });
@@ -128,12 +160,35 @@ export const TeamExperience = () => {
     }
   };
 
-  const copyCode = async () => {
-    const code = barbershop?.slug;
-    if (!code) return;
+  const createInvite = async () => {
+    if (!profile?.establishment_id || !inviteEmail.trim()) {
+      setNotice({ tone: 'danger', message: 'Informe o e-mail do profissional.' });
+      return;
+    }
+    setInviteLoading(true);
+    setNotice(null);
+    const { data, error } = await supabase.rpc('create_invitation', {
+      target_establishment_id: profile.establishment_id,
+      target_email: inviteEmail.trim().toLowerCase(),
+      target_role: 'professional',
+    });
+    if (error || !data?.[0]) {
+      setNotice({ tone: 'danger', message: 'Não foi possível gerar o convite.' });
+    } else {
+      const link = typeof window !== 'undefined' ? `${window.location.origin}/invite/${data[0].raw_token}` : `cutsync://invite/${data[0].raw_token}`;
+      setInviteLink(link);
+      setNotice({ tone: 'success', message: 'Convite criado. Envie o link ao profissional em até 24 horas.' });
+      setInviteEmail('');
+      await loadInvitations();
+    }
+    setInviteLoading(false);
+  };
+
+  const copyInvite = async () => {
+    if (!inviteLink) return;
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) await navigator.clipboard.writeText(code);
-      setNotice({ tone: 'success', message: 'Código de convite copiado.' });
+      if (typeof navigator !== 'undefined' && navigator.clipboard) await navigator.clipboard.writeText(inviteLink);
+      setNotice({ tone: 'success', message: 'Link de convite copiado.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Selecione e copie o código manualmente.' });
     }
@@ -151,15 +206,19 @@ export const TeamExperience = () => {
             <View style={styles.inviteIcon}><UserPlus color={colors.text} size={22} /></View>
             <Text style={styles.inviteEyebrow}>CONVITE DE EQUIPE</Text>
             <Text testID="team-invite-title" style={styles.inviteTitle}>Traga seu time para o CutSync.</Text>
-            <Text style={styles.inviteDescription}>Envie o código abaixo. O profissional escolhe “Sou profissional” no cadastro e entra automaticamente na sua equipe.</Text>
-            <View testID="team-invite-code" style={styles.codeBox}>
-              <Link2 color={colors.textSecondary} size={17} />
-              <Text selectable style={styles.code}>{barbershop?.slug || '—'}</Text>
-              <Pressable testID="team-copy-invite-code-button" onPress={copyCode} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}>
-                <Copy color={colors.white} size={16} />
-              </Pressable>
-            </View>
-            <Text style={styles.inviteHint}>O código também forma o endereço público cutsync.com/{barbershop?.slug || 'sua-barbearia'}.</Text>
+            <Text style={styles.inviteDescription}>O link é pessoal, exige o mesmo e-mail, funciona uma vez e expira em 24 horas.</Text>
+            <AppInput label="E-mail do profissional" testID="team-invite-email-input" icon={<Mail color={colors.textMuted} size={17} />} value={inviteEmail} onChangeText={setInviteEmail} keyboardType="email-address" autoCapitalize="none" placeholder="profissional@exemplo.com" />
+            <AppButton label="Gerar convite seguro" testID="team-create-invite-button" onPress={createInvite} loading={inviteLoading} icon={<ShieldCheck color={colors.ink} size={16} />} fullWidth />
+            {!!inviteLink && <View testID="team-generated-invite-link" style={styles.codeBox}>
+              <Text selectable numberOfLines={2} style={styles.code}>{inviteLink}</Text>
+              <Pressable testID="team-copy-invite-link-button" accessibilityRole="button" accessibilityLabel="Copiar link de convite" onPress={copyInvite} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.white} size={16} /></Pressable>
+            </View>}
+            <Text style={styles.inviteHint}>Nunca compartilhe o endereço público como credencial de equipe.</Text>
+            {invitations.length > 0 && <View testID="team-invitations-list" style={styles.invitationList}>{invitations.slice(0, 5).map((invitation) => (
+              <View key={invitation.id} testID={`team-invitation-${invitation.id}`} style={styles.invitationRow}>
+                <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>{invitation.status === 'pending' ? 'Pendente' : invitation.status === 'accepted' ? 'Aceito' : invitation.status === 'expired' ? 'Expirado' : 'Revogado'} · {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
+              </View>
+            ))}</View>}
           </AppCard>
 
           <View style={styles.teamColumn}>
@@ -313,6 +372,11 @@ const styles = StyleSheet.create({
   code: { flex: 1, color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: 0.5 },
   copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, lineHeight: 14, marginTop: 10 },
+  invitationList: { gap: 8, marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
+  invitationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: colors.canvasSoft, borderRadius: radii.sm },
+  invitationCopy: { flex: 1 },
+  invitationEmail: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  invitationMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   teamColumn: { flex: 1.4 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },

@@ -13,7 +13,7 @@ import '../i18n';
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNavigation() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isSuperadmin } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -23,10 +23,11 @@ function RootLayoutNavigation() {
     const inAuthGroup = segments[0] === '(auth)';
     const isDynamicSlug = segments[0] === '[slug]';
     const isPublicSalon = segments[0] === 'salon';
+    const isInvite = segments[0] === 'invite';
 
     if (!user) {
       // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
-      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon) {
+      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite) {
         router.replace('/(auth)/login');
       }
     } else if (profile) {
@@ -40,6 +41,17 @@ function RootLayoutNavigation() {
         isDynamicSlug ||
         isPublicSalon;
       const inProfessionalGroup = firstSegment === '(professional)' || firstSegment === 'professional';
+      const inSuperadminGroup = firstSegment === 'superadmin';
+
+      if (isInvite) return;
+      if (isSuperadmin && inAuthGroup) {
+        router.replace('/superadmin');
+        return;
+      }
+      if (inSuperadminGroup) {
+        if (!isSuperadmin) router.replace('/(client)');
+        return;
+      }
 
       if (profile.role === 'admin') {
         if (!inAdminGroup && !isDynamicSlug && !isPublicSalon) {
@@ -55,7 +67,7 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [user, profile, loading, segments]);
+  }, [user, profile, loading, isSuperadmin, segments, router]);
 
   if (loading) {
     return (

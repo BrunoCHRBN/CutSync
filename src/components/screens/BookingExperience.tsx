@@ -17,7 +17,7 @@ import { ArrowLeft, CalendarDays, Check, ChevronRight, Clock3, Scissors, UserRou
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
-import { useTeam } from '../../hooks/useTeam';
+import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { supabase } from '../../services/supabase';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { AppButton } from '../ui/AppButton';
@@ -40,7 +40,7 @@ export const BookingExperience = () => {
   const { user, profile } = useAuth();
   const { establishment: barbershop, loading: shopLoading } = useEstablishment(barbershopId);
   const { services, loading: servicesLoading } = useServices(barbershopId, true);
-  const { team: barbers, loading: teamLoading } = useTeam(barbershopId, true);
+  const { team: barbers, loading: teamLoading } = usePublicTeam(barbershopId);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);

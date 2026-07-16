@@ -1,13 +1,13 @@
 import React, { ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CalendarDays, Compass, LogOut, RefreshCw } from 'lucide-react-native';
+import { Building2, CalendarDays, Compass, LogOut, RefreshCw } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
 
-type ClientRoute = 'explore' | 'appointments';
+type ClientRoute = 'explore' | 'appointments' | 'request';
 
 interface ClientShellProps {
   children: ReactNode;
@@ -23,6 +23,7 @@ interface ClientShellProps {
 const navItems = [
   { key: 'explore', label: 'Explorar', path: '/(client)', Icon: Compass },
   { key: 'appointments', label: 'Agendamentos', path: '/(client)/appointments', Icon: CalendarDays },
+  { key: 'request', label: 'Meu negócio', path: '/(client)/request-establishment', Icon: Building2 },
 ] as const;
 
 export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncError, onSync, onSignOut, testID }: ClientShellProps) => {

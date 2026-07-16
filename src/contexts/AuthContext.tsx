@@ -23,6 +23,7 @@ interface AuthContextData {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  isSuperadmin: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -34,13 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
+        .rpc('get_my_profile')
         .single();
 
       if (error) {
@@ -53,6 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         setProfile(data);
+        const { data: superadminMarker } = await supabase
+          .from('superadmins')
+          .select('profile_id')
+          .eq('profile_id', userId)
+          .maybeSingle();
+        setIsSuperadmin(Boolean(superadminMarker));
 
         // Registrar Push Token assincronamente e atualizar se mudou
         registerForPushNotificationsAsync().then(async (token) => {
@@ -85,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setProfile(null);
     setSession(null);
+    setIsSuperadmin(false);
     setLoading(false);
   };
 
@@ -110,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       } else {
         setProfile(null);
+        setIsSuperadmin(false);
         setLoading(false);
       }
     });
@@ -120,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, refreshProfile, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isSuperadmin, refreshProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   );
