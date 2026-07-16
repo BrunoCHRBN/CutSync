@@ -1,70 +1,111 @@
 {
-  "project_name": "CutSync Professional Module Refactor",
-  "app_type": "mobile_app React Native Expo",
-  "theme_preference": "light",
   "typography": {
-    "strategy": "High-performance, minimal, and premium (Superhuman & Linear references).",
     "headings": {
-      "main": "Robust weight (font-bold or 800), tight letter spacing (tracking-tight). Example: 'Olá, especialista.'",
-      "subtitles": "Graphite gray (text-neutral-500), regular weight."
+      "font": "Montserrat_700Bold",
+      "style": "tracking-tight leading-none text-accent",
+      "sizes": {
+        "h1": "text-4xl sm:text-5xl lg:text-6xl max-w-3xl",
+        "h2": "text-2xl sm:text-3xl lg:text-4xl",
+        "h3": "text-xl sm:text-2xl"
+      },
+      "rule": "Never use generic sans for headings. Maintain Montserrat for impact and brand consistency. Never exceed the text size hierarchy limits."
     },
-    "metrics_cards": {
-      "labels": "Small (text-xs), subtle uppercase, expanded letter spacing (tracking-widest).",
-      "values": "Large, compact, geometric sans, dark."
+    "body": {
+      "font": "Inter_400Regular",
+      "style": "leading-relaxed text-textSecondary text-base"
     },
-    "anti_patterns": [
-      "Default system fonts without weight/tracking adjustments",
-      "Generic 'AI slop' typography hierarchies"
-    ]
+    "labels": {
+      "font": "Inter_600SemiBold",
+      "style": "uppercase tracking-[0.2em] text-xs text-textMuted"
+    }
   },
   "colors": {
-    "backgrounds": {
-      "main": "Ice background (#F7F9FC or #F9FAFB)",
-      "cards": "Pure White (#FFFFFF)",
-      "modal_overlay": "Black with 40-50% opacity (not completely transparent)"
+    "archetype": "SWISS & HIGH-CONTRAST (Adapted to existing CutSync tokens)",
+    "primary": "#F5A524",
+    "background": "#F4F4F5",
+    "surface": "#FFFFFF",
+    "text": "#171717",
+    "accent": "#18181B",
+    "status": {
+      "success": "#16A34A",
+      "warning": "#D97706",
+      "danger": "#DC2626",
+      "pending": "#88888F"
     },
-    "text": {
-      "primary": "Obsidian/Deep Dark (#0A0A0A or #111827)",
-      "secondary": "Graphite Gray (#737373 or #6B7280)"
+    "rules": [
+      "No full-screen gradients. Use solid colors with texture.",
+      "Use #F5A524 strictly for primary actions (Accept Invite, Approve).",
+      "Color is function: Keep 95% of the UI monochrome (canvas, surface, text), using color exclusively to guide action and indicate status."
+    ]
+  },
+  "visual enhancers": {
+    "surfaces": [
+      "Use 'glassSurface' (from tokens) for sticky headers and modal overlays: rgba(255,255,255,0.72) with 20px blur. Never use transparent backgrounds.",
+      "Use 'atmosphericShadow' for floating action cards like the Invite Acceptance Card."
+    ],
+    "borders": "1px solid #E4E4E7 on default cards, applying nested radii (child <= parent) for crisp edges."
+  },
+  "component name": {
+    "invite_acceptance_card": {
+      "layout": "single-column, centered, max-w-[480px]",
+      "elements": "Inviter Identity (Top), Workspace Context (Middle), Primary CTA (Center), Security Cue (Bottom).",
+      "style": "Flat surface background with 1px border and atmosphericShadow. No transparent backgrounds."
     },
-    "brand_dynamic": "PRESERVE current dynamic salon color for active states and primary actions.",
-    "status_badges": {
-      "strategy": "Stripe style: background in low opacity, pure text, no borders.",
-      "success": "bg-green-500/10 text-green-700",
-      "warning": "bg-yellow-500/10 text-yellow-700",
-      "error": "bg-red-500/10 text-red-700"
+    "role_management_matrix": {
+      "layout": "Grid-based data table, strict hierarchy",
+      "elements": "Role labels, Status indicators (Active/Pending/Expired), Action menu (Revoke/Resend).",
+      "style": "Dense mode, tight gaps, sharp edges or max 8px border-radius."
+    },
+    "signup_form": {
+      "modifications": "Remove any role or establishment selection. Default to pure client registration.",
+      "elements": "Name, Email, Password, CTA."
     }
   },
-  "surfaces_and_elevation": {
-    "metric_cards": "Remove solid gray borders. Apply almost invisible inner border (border border-black/5 or border-neutral-100) combined with a diffuse and wide shadow (shadow-sm to shadow-md) to float softly on the ice background.",
-    "segmented_control": "iOS style: subtle background for container, active state is white with a micro-shadow.",
-    "service_cards": "Premium physical buttons. Selection gets a surgical dynamic border (1.5px solid dynamic color).",
-    "inputs": "Premium input: ultra-thin border (border-neutral-200), dark focus (focus:border-neutral-800), and a subtle external ring."
+  "grids": {
+    "dashboard_mode": "High Density Grid (MODE B) for admin panel - grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-4 or gap-6. Every pixel utilized.",
+    "marketing_mode": "Bento Grid (MODE A) for Request Establishment landing section - wide gap-8 to gap-12, asymmetrical tension."
   },
-  "layout_and_spacing": {
-    "timeline": {
-      "structure": "Time on left, ultra-thin dotted/dashed horizontal line.",
-      "free_slots": "No repetitive text. Just time, dashed line, and a discreet '+' button.",
-      "history_list": "Clean list, no gray backgrounds or delimited cards. Separated by imperceptible dividing lines (border-neutral-100)."
-    },
-    "time_grid": {
-      "structure": "Fixed 4-column visually symmetric grid.",
-      "unavailable_slots": "Low opacity (opacity-40), neutral line-through text.",
-      "responsiveness": "Responsive via Dimensions API or ~23% width."
-    }
+  "layouts": {
+    "superadmin_dashboard": "Collapsible left sidebar. Top-left metric 'Pending Approvals'. Clean status cards leading to detailed list views. Responsive mobile-first.",
+    "invite_flow": "Immersive single focus layout. Center content horizontally and vertically. No distracting nav links.",
+    "general": "Never center-align paragraphs. Left-align dense content and forms. Generous spacing (p-6, p-8) inside containers."
   },
-  "mobile_specifics": {
-    "haptics": "MANDATORY expo-haptics: Light impact on selecting day, service, and time. Success notification on creating an appointment.",
-    "touch_targets": "Apply hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} to all interactive elements smaller than 44px.",
-    "active_states": "Scale 0.97 on press (via Pressable and React Native Animated/Reanimated). AVOID basic activeOpacity.",
-    "keyboard_handling": "Modal forms protected from keyboard (KeyboardAvoidingView). ScrollView must use keyboardShouldPersistTaps='handled'."
+  "motion": {
+    "interactions": "Hover states (-translate-y-1, subtle shadow), Focus states (ring-2 ring-brand), Entrance animations (staggered list items for pending requests).",
+    "transitions": "Use specific properties (transition: transform 0.2s ease, opacity 0.2s ease). NEVER use 'transition: all'.",
+    "accessibility": "Respect prefers-reduced-motion."
   },
-  "universal_guidelines_for_main_agent": [
-    "FILES ARE .js NOT .tsx. Use standard JavaScript for React Native.",
-    "All interactive and key informational elements MUST include a data-testid attribute.",
-    "DO NOT use completely transparent backgrounds under overlays or headers.",
-    "DO NOT center align text globally. Respect optical alignment.",
-    "Address small functional issues found along the way as per user choice.",
-    "Preserve the dynamic color current variable in states and main actions."
+  "accessibility": {
+    "contrast": "Text below 18px needs 4.5:1 ratio. Large text needs 3:1. Focus states must have higher contrast.",
+    "testing": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., `data-testid=\"accept-invite-button\"`, `data-testid=\"approve-establishment-button\"`).",
+    "forms": "Use semantic labels, aria-hidden for decorative icons."
+  },
+  "media": {
+    "icons": "lucide-react for system icons. Use 2-4 keyword searches for assets if needed.",
+    "images": "Not primarily needed for admin panel, but if 'Request Establishment' needs an illustration, use geometric, high-contrast monochrome shapes with a splash of #F5A524."
+  },
+  "3d libraries": {
+    "usage": "Not recommended for this specific security/dashboard update. Maintain flat, data-dense 2D layouts for clarity and security transparency."
+  },
+  "instructions_to_main_agent": {
+    "file_extension_rule": "CRITICAL: The workspace strictly uses `.js` files instead of `.tsx`. You must create or modify files using the `.js` extension for all new UI components. Do not output `.tsx` files.",
+    "signup_fix": "Modify the registration flow to completely drop 'role' and 'establishment_id' fields from client input. Force pure 'client' account creation on the server side.",
+    "membership_and_rls": "Migrate authorization logic to a strict `memberships` table. Write negative RLS tests to prove that normal clients cannot escalate privileges or take over establishments.",
+    "establishment_request": "Build a secure form for clients to request a new establishment. Insert record with status 'pending_approval'.",
+    "superadmin_panel": "Design a Superadmin dashboard using High Density Grid (MODE B) to list, approve, or reject establishment requests securely. Include real-time audit components.",
+    "invite_flow": "Implement single-use invite generation valid for 24 hours. The Superadmin invites Admins; Admins invite Professionals. Create a frictionless single-column Accept Invite page.",
+    "data_testid": "Add `data-testid` attributes to every new form input, submit button, and action row."
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic outputs. Break the mold: use asymmetrical layouts, layered depth, and glass-morphism effects (backdrop filters 12-24px blur).",
+    "Do not use dark colors as gradients. Use solid colors with texture.",
+    "NEVER use 'transition: all'. Explicitly define transition properties.",
+    "DO NOT center align the app container. Preserve human reading flow.",
+    "Use modern pill-shaped or sharp buttons with interactive animations.",
+    "Never use placeholder URLs or AI emoji characters for icons.",
+    "Every interaction needs micro-animations.",
+    "Use 'sonner' for toast notifications.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute (kebab-case, role-based).",
+    "CRITICAL: DO NOT use complete `transparent` background in headers, overlays, or any surface that has content under it."
   ]
 }
