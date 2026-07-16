@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import type { Profile } from '../types/database';
+import { mapProfile, ProfileRecord } from '../types/database';
 
 /**
  * Hook para buscar e observar a equipe de um estabelecimento em tempo real via Supabase.
@@ -8,24 +8,26 @@ import type { Profile } from '../types/database';
  * @param establishmentId - O id do estabelecimento.
  * @param roles - Array de roles a filtrar (ex: ['professional', 'admin']). Se omitido, busca todos.
  */
-export function useTeam(establishmentId: string | null | undefined, roles?: Profile['role'][]) {
-  const [team, setTeam] = useState<Profile[]>([]);
+export function useTeam(establishmentId?: string | null, rolesOrIncludeAdmin: ProfileRecord['role'][] | boolean = true) {
+  const [team, setTeam] = useState<ProfileRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     if (!establishmentId) { setTeam([]); setLoading(false); return; }
     try {
-      let query = supabase
-        .from('profiles')
-        .select('*')
-        .eq('establishment_id', establishmentId);
-      if (roles && roles.length > 0) query = query.in('role', roles);
-      query = query.order('name', { ascending: true });
-
-      const { data, error: err } = await query;
+      const includeAdministrators = Array.isArray(rolesOrIncludeAdmin)
+        ? rolesOrIncludeAdmin.includes('admin')
+        : rolesOrIncludeAdmin;
+      const { data, error: err } = await supabase.rpc('get_establishment_team', {
+        target_establishment_id: establishmentId,
+        include_administrators: includeAdministrators,
+      });
       if (err) throw err;
-      setTeam(data ?? []);
+      const requestedRoles = Array.isArray(rolesOrIncludeAdmin) ? rolesOrIncludeAdmin : null;
+      const mapped: ProfileRecord[] = (data ?? []).map(mapProfile)
+        .filter((member: ProfileRecord) => !requestedRoles || requestedRoles.includes(member.role));
+      setTeam(mapped);
       setError(null);
     } catch (e: any) {
       console.error('[useTeam] Erro:', e);
@@ -33,7 +35,7 @@ export function useTeam(establishmentId: string | null | undefined, roles?: Prof
     } finally {
       setLoading(false);
     }
-  }, [establishmentId, JSON.stringify(roles)]);
+  }, [establishmentId, JSON.stringify(rolesOrIncludeAdmin)]);
 
   useEffect(() => {
     setLoading(true);

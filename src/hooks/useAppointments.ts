@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import type { RichAppointment } from '../types/database';
+import { AppointmentRecord, mapAppointment } from '../types/database';
 
 interface UseAppointmentsOptions {
   /** Filtrar por establishment_id */
@@ -10,7 +10,7 @@ interface UseAppointmentsOptions {
   /** Filtrar por client_id */
   clientId?: string | null;
   /** Filtrar por status (array) */
-  statuses?: RichAppointment['status'][];
+  statuses?: AppointmentRecord['status'][];
   /** Filtrar por data mínima (ISO string) */
   dateFrom?: string;
   /** Filtrar por data máxima (ISO string) */
@@ -39,7 +39,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
     enabled = true,
   } = options;
 
-  const [appointments, setAppointments] = useState<RichAppointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,9 +48,10 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
     try {
       let query = supabase.from('appointments').select(`
         *,
-        client:profiles!client_id(*),
-        professional:profiles!professional_id(*),
-        service:services(*)
+        client:profiles!client_id(id,name,phone,avatar_url),
+        professional:profiles!professional_id(id,name,phone,avatar_url),
+        service:services(id,name,price,duration_minutes),
+        establishment:establishments(id,name,slug,address,phone,timezone,currency)
       `);
       if (establishmentId) query = query.eq('establishment_id', establishmentId);
       if (professionalId) query = query.eq('professional_id', professionalId);
@@ -62,7 +63,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
 
       const { data, error: err } = await query;
       if (err) throw err;
-      setAppointments((data as any) ?? []);
+      setAppointments((data ?? []).map(mapAppointment));
       setError(null);
     } catch (e: any) {
       console.error('[useAppointments] Erro:', e);

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CircleAlert, CircleCheck, Info } from 'lucide-react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
-type NoticeTone = 'info' | 'success' | 'danger';
+type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
 
 interface InlineNoticeProps {
   title?: string;
@@ -16,6 +16,7 @@ interface InlineNoticeProps {
 const config = {
   info: { color: colors.info, background: colors.infoSoft, Icon: Info },
   success: { color: colors.success, background: colors.successSoft, Icon: CircleCheck },
+  warning: { color: colors.warning, background: colors.warningSoft, Icon: CircleAlert },
   danger: { color: colors.danger, background: colors.dangerSoft, Icon: CircleAlert },
 };
 

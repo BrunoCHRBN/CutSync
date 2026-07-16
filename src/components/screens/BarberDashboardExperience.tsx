@@ -143,16 +143,16 @@ export const BarberDashboardExperience = () => {
   const appointments: RichAppointment[] = useMemo(() => {
     return rawAppointments.map((app: any) => ({
       id: app.id,
-      professionalId: app.professional_id,
+      professionalId: app.professionalId,
       barberName: app.professional?.name || 'Profissional',
-      clientName: app.client?.name || app.client_name || 'Cliente sem cadastro',
+      clientName: app.client?.name || app.clientName || 'Cliente sem cadastro',
       clientPhone: app.client?.phone || '',
       serviceName: app.service?.name || 'Serviço indisponível',
       price: app.service?.price || 0,
-      dateTime: new Date(app.date_time),
+      dateTime: app.dateTime,
       status: app.status,
-      cancellationReason: app.cancellation_reason || '',
-      rescheduleCount: app.reschedule_count || 0
+      cancellationReason: app.cancellationReason || '',
+      rescheduleCount: app.rescheduleCount || 0
     })).sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
   }, [rawAppointments]);
 
@@ -181,9 +181,9 @@ export const BarberDashboardExperience = () => {
           .from('appointments')
           .select(`
             *,
-            client:profiles!client_id(*),
-            professional:profiles!professional_id(*),
-            service:services(*)
+            client:profiles!client_id(id,name,phone,avatar_url),
+            professional:profiles!professional_id(id,name,phone,avatar_url),
+            service:services(id,name,price,duration_minutes)
           `)
           .eq('professional_id', profile.id)
           .in('status', ['pending', 'confirmed'])
@@ -329,7 +329,7 @@ export const BarberDashboardExperience = () => {
   const revenue = completed.reduce((sum, item) => sum + item.price, 0);
   const commission = revenue * (profile?.commission_rate ?? 0.5);
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
-  const primaryColor = barbershop?.primary_color || colors.brand;
+  const primaryColor = barbershop?.primaryColor || colors.brand;
   const primaryForeground = readableForeground(primaryColor);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const formatNextAppointmentValue = (date: Date) => {
@@ -518,10 +518,10 @@ export const BarberDashboardExperience = () => {
     const [hours, minutes] = quickTime.split(':').map(Number);
     dateTime.setHours(hours, minutes, 0, 0);
     const service = services.find((item) => item.id === quickService);
-    const end = dateTime.getTime() + (service?.duration_minutes || 30) * 60 * 1000;
+    const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
     const conflict = appointments.some((item) => {
       if (item.professionalId !== profile.id || item.status === 'cancelled') return false;
-      const itemEnd = item.dateTime.getTime() + (service?.duration_minutes || 30) * 60 * 1000;
+      const itemEnd = item.dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
       return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
     });
     if (conflict) {
@@ -835,7 +835,7 @@ export const BarberDashboardExperience = () => {
               </ScrollView>
 
               <Text testID="barber-quick-service-label" style={styles.fieldLabel}>Serviço</Text>
-              <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.duration_minutes} min`} meta={currency(service.price)} selected={quickService === service.id} activeColor={primaryColor} activeForegroundColor={primaryForeground} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickService(service.id); setQuickTime(null); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
+              <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.durationMinutes} min`} meta={currency(service.price)} selected={quickService === service.id} activeColor={primaryColor} activeForegroundColor={primaryForeground} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickService(service.id); setQuickTime(null); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
               <Text testID="barber-quick-time-label" style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
               <View style={styles.timeGrid}>
                 {quickTimes.map((slot) => {

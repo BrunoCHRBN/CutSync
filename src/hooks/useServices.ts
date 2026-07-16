@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import type { Service } from '../types/database';
+import { mapService, ServiceRecord } from '../types/database';
 
 /**
  * Hook para buscar e observar serviços de um estabelecimento em tempo real via Supabase.
@@ -9,7 +9,7 @@ import type { Service } from '../types/database';
  * @param activeOnly - Se true, retorna apenas serviços ativos (is_active = true). Default: false.
  */
 export function useServices(establishmentId: string | null | undefined, activeOnly = false) {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +25,7 @@ export function useServices(establishmentId: string | null | undefined, activeOn
 
       const { data, error: err } = await query;
       if (err) throw err;
-      setServices(data ?? []);
+      setServices((data ?? []).map(mapService));
       setError(null);
     } catch (e: any) {
       console.error('[useServices] Erro:', e);

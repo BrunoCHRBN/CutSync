@@ -155,7 +155,7 @@ export const AdminDashboardExperience = () => {
     return { start: start.toISOString(), end: end.toISOString() };
   }, [selectedDate, period]);
 
-  const { appointments: rawAppointments, loading: appointmentsLoading, refresh: refreshAppointments } = useAppointments({
+  const { appointments: rawAppointments, loading: appointmentsLoading, error: appointmentsError, refresh: refreshAppointments } = useAppointments({
     establishmentId: profile?.establishment_id,
     dateFrom: dateRange.start,
     dateTo: dateRange.end,
@@ -165,15 +165,15 @@ export const AdminDashboardExperience = () => {
   const appointments: RichAppointment[] = useMemo(() => {
     return rawAppointments.map((app: any) => ({
       id: app.id,
-      dateTime: new Date(app.date_time),
+      dateTime: app.dateTime,
       status: app.status,
-      clientName: app.client?.name || app.client_name || 'Cliente sem cadastro',
+      clientName: app.client?.name || app.clientName || 'Cliente sem cadastro',
       clientPhone: app.client?.phone || '',
       serviceName: app.service?.name || 'Serviço indisponível',
       price: app.service?.price || 0,
-      professionalId: app.professional_id,
-      cancellationReason: app.cancellation_reason || '',
-      rescheduleCount: app.reschedule_count || 0
+      professionalId: app.professionalId,
+      cancellationReason: app.cancellationReason || '',
+      rescheduleCount: app.rescheduleCount || 0
     })).sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
   }, [rawAppointments]);
 
@@ -187,6 +187,10 @@ export const AdminDashboardExperience = () => {
     ]);
     setLoading(false);
   };
+
+  const isSyncing = loading || appointmentsLoading;
+  const syncError = appointmentsError;
+  const sync = handleRefresh;
 
   useEffect(() => {
     if (!appointmentsLoading) {
@@ -377,11 +381,11 @@ export const AdminDashboardExperience = () => {
     const [hours, minutes] = quickTime.split(':').map(Number);
     dateTime.setHours(hours, minutes, 0, 0);
     const service = services.find((item) => item.id === quickService);
-    const end = dateTime.getTime() + (service?.duration_minutes || 30) * 60 * 1000;
+    const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
     
     const conflict = appointments.some((item) => {
       if (item.professionalId !== quickBarber || item.status === 'cancelled') return false;
-      const itemEnd = item.dateTime.getTime() + (service?.duration_minutes || 30) * 60 * 1000;
+      const itemEnd = item.dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
       return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
     });
     
@@ -451,7 +455,6 @@ export const AdminDashboardExperience = () => {
     { key: 'revenue', label: period === 'today' ? 'Faturamento do dia' : period === 'week' ? 'Faturamento da semana' : 'Faturamento do mês', value: currency(revenue), note: `${periodCompleted.length} atendimentos concluídos`, Icon: Banknote, actionLabel: 'Gerenciar serviços', action: () => router.push('/(admin)/services') },
     { key: 'occupancy', label: 'Ocupação estimada', value: `${occupancy}%`, note: `${periodActive.length} horários no período`, Icon: TrendingUp, actionLabel: 'Ver vitrine', action: barbershop?.slug ? () => router.push(`/${barbershop.slug}` as never) : undefined },
     { key: 'team', label: 'Equipe em agenda', value: String(barbers.length), note: 'profissionais disponíveis', Icon: Users, actionLabel: 'Ver equipe', action: () => router.push('/(admin)/team') },
-  ];> router.push('/(admin)/team') },
   ];
 
   const renderAppointmentRow = (item: RichAppointment, isFinished = false) => {

@@ -99,13 +99,40 @@ SET role = EXCLUDED.role,
     revoked_at = NULL,
     updated_at = now();
 
-INSERT INTO public.superadmins (profile_id, granted_by)
-SELECT p.id, p.id
-FROM public.profiles p
-WHERE p.role = 'admin' AND p.deleted_at IS NULL
-ORDER BY p.created_at
-LIMIT 1
-ON CONFLICT (profile_id) DO NOTHING;
+-- Superadmins existentes são preservados. Novos bootstraps vêm somente da
+-- configuração privada do banco, nunca da ordem de criação de um admin comum.
+CREATE OR REPLACE FUNCTION public.bootstrap_superadmins_from_config()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  configured_emails text := current_setting('app.settings.cutsync_superadmin_emails', true);
+  inserted_count integer := 0;
+BEGIN
+  IF trim(COALESCE(configured_emails, '')) = '' THEN
+    RETURN 0;
+  END IF;
+
+  WITH allowed_email AS (
+    SELECT lower(trim(value)) AS email
+    FROM unnest(string_to_array(configured_emails, ',')) AS value
+    WHERE trim(value) <> ''
+  )
+  INSERT INTO public.superadmins(profile_id, granted_by)
+  SELECT p.id, NULL
+  FROM public.profiles p
+  JOIN allowed_email allowed ON allowed.email = lower(p.email)
+  WHERE p.deleted_at IS NULL
+  ON CONFLICT (profile_id) DO NOTHING;
+
+  GET DIAGNOSTICS inserted_count = ROW_COUNT;
+  RETURN inserted_count;
+END;
+$$;
+
+SELECT public.bootstrap_superadmins_from_config();
 
 CREATE OR REPLACE FUNCTION public.is_superadmin()
 RETURNS boolean
@@ -184,10 +211,19 @@ STABLE
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
-  SELECT p.id, p.establishment_id, p.name, p.role, p.email, p.phone, p.avatar_url,
-    p.commission_rate, p.push_token, p.work_hours, p.specialties, p.instagram,
-    p.titulo_profissional, p.deleted_at
-  FROM public.profiles p WHERE p.id = (SELECT auth.uid());
+  SELECT p.id, active_membership.establishment_id, p.name,
+    COALESCE(active_membership.role, 'client'), p.email, p.phone, p.avatar_url,
+    COALESCE(active_membership.commission_rate, p.commission_rate), p.push_token,
+    p.work_hours, p.specialties, p.instagram, p.titulo_profissional, p.deleted_at
+  FROM public.profiles p
+  LEFT JOIN LATERAL (
+    SELECT m.establishment_id, m.role, m.commission_rate
+    FROM public.memberships m
+    WHERE m.profile_id = p.id AND m.status = 'active'
+    ORDER BY (m.establishment_id = p.establishment_id) DESC, m.created_at
+    LIMIT 1
+  ) active_membership ON true
+  WHERE p.id = (SELECT auth.uid());
 $$;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -210,6 +246,31 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION public.protect_profile_authorization_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  IF (SELECT auth.uid()) = OLD.id
+    AND current_setting('app.cutsync_authorization_write', true) IS DISTINCT FROM 'trusted'
+    AND (
+    NEW.role IS DISTINCT FROM OLD.role
+    OR NEW.establishment_id IS DISTINCT FROM OLD.establishment_id
+    OR NEW.commission_rate IS DISTINCT FROM OLD.commission_rate
+  ) THEN
+    RAISE EXCEPTION 'protected_profile_fields';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS protect_profile_authorization_fields ON public.profiles;
+CREATE TRIGGER protect_profile_authorization_fields
+  BEFORE UPDATE OF role, establishment_id, commission_rate ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.protect_profile_authorization_fields();
 
 CREATE OR REPLACE FUNCTION public.request_establishment(
   requested_name text,
@@ -376,6 +437,7 @@ AS $$
 DECLARE current_email text;
 BEGIN
   IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'authentication_required'; END IF;
+  IF invitation_token !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'invalid_invitation_token'; END IF;
   SELECT lower(email) INTO current_email FROM auth.users WHERE id = (SELECT auth.uid());
   RETURN QUERY
   SELECT e.name, i.invited_email, i.role,
@@ -400,6 +462,7 @@ DECLARE
   effective_role text;
 BEGIN
   IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'authentication_required'; END IF;
+  IF invitation_token !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'invalid_invitation_token'; END IF;
   SELECT lower(email) INTO current_email FROM auth.users
   WHERE id = (SELECT auth.uid()) AND email_confirmed_at IS NOT NULL;
   IF current_email IS NULL THEN RAISE EXCEPTION 'verified_email_required'; END IF;
@@ -422,6 +485,7 @@ BEGIN
   SELECT role INTO effective_role FROM public.memberships
   WHERE profile_id = (SELECT auth.uid()) AND establishment_id = pending_invitation.establishment_id;
 
+  PERFORM set_config('app.cutsync_authorization_write', 'trusted', true);
   UPDATE public.profiles
   SET establishment_id = pending_invitation.establishment_id,
       role = effective_role,
@@ -429,6 +493,7 @@ BEGIN
         WHERE profile_id = (SELECT auth.uid()) AND establishment_id = pending_invitation.establishment_id),
       updated_at = now()
   WHERE id = (SELECT auth.uid());
+  PERFORM set_config('app.cutsync_authorization_write', '', true);
 
   INSERT INTO public.profile_establishments(profile_id, establishment_id, role)
   VALUES ((SELECT auth.uid()), pending_invitation.establishment_id, effective_role)
@@ -457,12 +522,14 @@ BEGIN
   SELECT role INTO membership_role FROM public.memberships
   WHERE profile_id = (SELECT auth.uid()) AND establishment_id = target_establishment_id AND status = 'active';
   IF membership_role IS NULL THEN RAISE EXCEPTION 'membership_required'; END IF;
+  PERFORM set_config('app.cutsync_authorization_write', 'trusted', true);
   UPDATE public.profiles
   SET establishment_id = target_establishment_id, role = membership_role,
       commission_rate = (SELECT commission_rate FROM public.memberships
         WHERE profile_id = (SELECT auth.uid()) AND establishment_id = target_establishment_id),
       updated_at = now()
   WHERE id = (SELECT auth.uid());
+  PERFORM set_config('app.cutsync_authorization_write', '', true);
   RETURN membership_role;
 END;
 $$;
@@ -667,6 +734,7 @@ GRANT SELECT (id, name, phone, avatar_url) ON public.profiles TO authenticated;
 GRANT SELECT ON public.memberships, public.superadmins, public.establishment_requests, public.authorization_audit_log TO authenticated;
 
 REVOKE ALL ON FUNCTION public.is_superadmin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.bootstrap_superadmins_from_config() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.has_active_membership(uuid, text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.can_view_profile(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC;
@@ -682,6 +750,7 @@ REVOKE ALL ON FUNCTION public.remove_professional(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_establishment_team(uuid, boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_public_team(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.list_establishment_invitations(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.protect_profile_authorization_fields() FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION public.is_superadmin() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.has_active_membership(uuid, text[]) TO authenticated;

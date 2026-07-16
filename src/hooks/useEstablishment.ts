@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import type { Establishment } from '../types/database';
+import { Establishment, mapEstablishment } from '../types/database';
 
 /**
  * Hook para buscar e observar um estabelecimento em tempo real via Supabase.
@@ -22,7 +22,7 @@ export function useEstablishment(identifier: string | null | undefined, by: 'id'
         .eq(by, identifier)
         .single();
       if (err) throw err;
-      setEstablishment(data);
+      setEstablishment(mapEstablishment(data));
       setError(null);
     } catch (e: any) {
       console.error('[useEstablishment] Erro:', e);
