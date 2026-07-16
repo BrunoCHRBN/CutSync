@@ -1,5 +1,60 @@
 # PRD — CutSync
 
+## Estado atual — auditoria mínima e P0 #2 LGPD
+
+### Problema original
+
+> Aplicar auditoria mínima imutável para convites, promoções, comissões e revogações; depois corrigir o vazamento crítico entre tenants causado pela leitura global de `profiles`. Catálogo deve usar somente campos públicos mínimos. E-mail, telefone, push token, comissão e vínculos ficam restritos ao titular ou gestores autorizados.
+
+### Decisões confirmadas
+
+- Auditoria apenas no banco nesta etapa, sem painel visual.
+- Superadmin lê toda a auditoria; admin lê somente eventos do próprio estabelecimento.
+- Profissionais não veem telefone nem e-mail de clientes, inclusive nos próprios agendamentos.
+- Remoção de profissional e revogação de convite exigem justificativa entre 5 e 500 caracteres.
+- Perfil profissional público é opcional, portátil e controlado pelo titular; nunca publica e-mail, telefone, horários, role ou tenant.
+
+### Arquitetura implementada
+
+- Migration `20260716052000_privacy_audit_and_professional_profiles.sql` remove todas as políticas SELECT antigas de `profiles`, revoga grants sensíveis e aplica RLS owner/admin/superadmin.
+- RPC `get_establishment_client_contacts` entrega contatos somente a admin/superadmin do tenant; `get_appointment_participant_names` entrega apenas nomes aos participantes autorizados.
+- Catálogo usa `get_public_team`, cuja projeção contém somente `id`, nome, avatar, título, especialidades e slug opcional.
+- `professional_profiles` mantém slug, bio, links HTTPS, galeria com URL+alt e publicação opcional; edição ocorre somente por RPC do titular.
+- Perfil portátil é associado explicitamente a cada membership; novos vínculos profissionais/admin são ligados automaticamente ao perfil existente.
+- Auditoria é imutável para `anon`/`authenticated`, registra membership, role, comissão e revogações e permanece compatível com retenção/exclusão administrativa LGPD.
+- Rotas adicionadas: `/profile/[slug]` pública e `/professional-profile` privada para edição.
+- Agenda profissional não consulta nem exibe telefone/e-mail do cliente; admin carrega telefone somente pela RPC restrita.
+
+### Verificações concluídas
+
+- TypeScript sem erros e exportação web aprovada.
+- 15 testes estáticos de segurança aprovados.
+- Sintaxe PostgreSQL das migrations e matrizes validada.
+- Perfil público verificado em desktop e 390px, sem overflow e sem e-mail, telefone ou horários.
+- Varredura final não encontrou signup com role/tenant nem joins de perfil solicitando telefone.
+
+### Backlog priorizado
+
+#### P0
+
+1. Aplicar migrations no Supabase de validação quando a conexão administrativa estiver disponível.
+2. Executar `authorization_p0.sql` e `privacy_audit_p0.sql` no PostgreSQL real.
+3. Validar com contas reais cliente/profissional/admin/superadmin em dois tenants.
+4. Corrigir em seguida o P0 de agenda/serviços e a reserva transacional anti-sobreposição.
+
+#### P1
+
+1. Implementar upload próprio para galeria profissional em bucket isolado, substituindo entrada manual de URL.
+2. Adicionar consulta visual da auditoria somente após os P0 restantes.
+3. Gerar tipos Supabase diretamente do schema remoto.
+
+#### P2
+
+1. Automatizar a matriz RLS em CI com banco efêmero.
+2. Adicionar SEO e compartilhamento social aos perfis públicos.
+
+---
+
 ## Estado atual — P0 de escalada de privilégio e tomada de estabelecimento
 
 ### Problema original

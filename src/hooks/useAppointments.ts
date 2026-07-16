@@ -82,7 +82,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         ...row,
         client: {
           id: row.client_id,
-          name: (namesByAppointment.get(row.id) as any)?.client_name || row.client_name || 'Cliente',
+          name: (namesByAppointment.get(row.id) as any)?.client_name || 'Cliente',
           phone: clientPhones.get(row.client_id) || null,
         },
         professional: {

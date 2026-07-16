@@ -81,10 +81,10 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 BEGIN
-  IF NEW.role = 'professional' AND NEW.status = 'active' AND NEW.professional_profile_id IS NULL THEN
+  IF NEW.role IN ('professional', 'admin') AND NEW.status = 'active' AND NEW.professional_profile_id IS NULL THEN
     SELECT profile.id INTO NEW.professional_profile_id
     FROM public.professional_profiles profile WHERE profile.user_id = NEW.profile_id;
-  ELSIF NEW.role <> 'professional' THEN
+  ELSIF NEW.role NOT IN ('professional', 'admin') THEN
     NEW.professional_profile_id := NULL;
   END IF;
   RETURN NEW;
@@ -102,7 +102,11 @@ LANGUAGE plpgsql
 SET search_path = pg_catalog, public
 AS $$
 BEGIN
-  RAISE EXCEPTION 'authorization_audit_log_is_immutable';
+  IF current_user IN ('anon', 'authenticated') THEN
+    RAISE EXCEPTION 'authorization_audit_log_is_immutable';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -204,6 +208,9 @@ CREATE POLICY "Private profiles visible only to owner and managers" ON public.pr
   FOR SELECT TO authenticated USING (public.can_view_private_profile(id));
 
 REVOKE SELECT ON public.profiles FROM anon, authenticated;
+REVOKE SELECT (email, phone, push_token, commission_rate, establishment_id, role,
+  work_hours, specialties, instagram, titulo_profissional, deleted_at)
+  ON public.profiles FROM anon, authenticated;
 GRANT SELECT (id, name, avatar_url) ON public.profiles TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.get_establishment_client_contacts(target_establishment_id uuid)
@@ -268,7 +275,7 @@ AS $$
     ON public_profile.id = membership.professional_profile_id
   WHERE membership.establishment_id = target_establishment_id
     AND membership.status = 'active'
-    AND membership.role = 'professional'
+    AND membership.role IN ('professional', 'admin')
     AND profile.deleted_at IS NULL
   ORDER BY profile.name;
 $$;
@@ -330,9 +337,12 @@ DECLARE
 BEGIN
   IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'authentication_required'; END IF;
   IF NOT EXISTS (
+    SELECT 1 FROM public.professional_profiles profile
+    WHERE profile.user_id = (SELECT auth.uid())
+  ) AND NOT EXISTS (
     SELECT 1 FROM public.memberships membership
     WHERE membership.profile_id = (SELECT auth.uid())
-      AND membership.role = 'professional' AND membership.status = 'active'
+      AND membership.role IN ('professional', 'admin') AND membership.status = 'active'
   ) THEN RAISE EXCEPTION 'professional_membership_required'; END IF;
   IF normalized_slug !~ '^[a-z0-9][a-z0-9-]{2,62}$' THEN RAISE EXCEPTION 'invalid_slug'; END IF;
   IF char_length(COALESCE(requested_bio, '')) > 1000 THEN RAISE EXCEPTION 'bio_too_long'; END IF;
@@ -356,7 +366,7 @@ BEGIN
   RETURNING id INTO generated_id;
 
   UPDATE public.memberships SET professional_profile_id = generated_id, updated_at = now()
-  WHERE profile_id = (SELECT auth.uid()) AND role = 'professional' AND status = 'active';
+  WHERE profile_id = (SELECT auth.uid()) AND role IN ('professional', 'admin') AND status = 'active';
 
   INSERT INTO public.authorization_audit_log(actor_id, action, target_profile_id, metadata)
   VALUES ((SELECT auth.uid()), 'professional_profile.updated', (SELECT auth.uid()),
@@ -375,8 +385,6 @@ CREATE POLICY "Professionals read own public profile" ON public.professional_pro
   FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()));
 
 REVOKE ALL ON public.professional_profiles FROM anon, authenticated;
-GRANT SELECT (slug, bio, portfolio_url, instagram_url, gallery_urls, is_public, created_at, updated_at)
-  ON public.professional_profiles TO anon, authenticated;
 
 DROP FUNCTION IF EXISTS public.remove_professional(uuid, uuid);
 CREATE FUNCTION public.remove_professional(

@@ -139,6 +139,7 @@ def test_privacy_migration_removes_global_profile_visibility():
     sql = _read(PRIVACY_MIGRATION)
     assert "Private profiles visible only to owner and managers" in sql
     assert "REVOKE SELECT ON public.profiles FROM anon, authenticated;" in sql
+    assert "REVOKE SELECT (email, phone, push_token, commission_rate, establishment_id, role," in sql
     assert "GRANT SELECT (id, name, avatar_url) ON public.profiles TO authenticated;" in sql
     assert "get_establishment_client_contacts" in sql
 
@@ -146,6 +147,7 @@ def test_privacy_migration_removes_global_profile_visibility():
 def test_audit_log_is_immutable_and_restricted_to_managers():
     sql = _read(PRIVACY_MIGRATION)
     assert "authorization_audit_log_is_immutable" in sql
+    assert "current_user IN ('anon', 'authenticated')" in sql
     assert "Admins read tenant audit trail" in sql
     assert "REVOKE ALL ON public.authorization_audit_log FROM anon, authenticated;" in sql
     assert "membership.role_changed" in sql

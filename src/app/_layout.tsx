@@ -25,6 +25,7 @@ function RootLayoutNavigation() {
     const isPublicSalon = segments[0] === 'salon';
     const isInvite = segments[0] === 'invite';
     const isPublicProfessionalProfile = segments[0] === 'profile';
+    const isProfessionalProfileEditor = segments[0] === 'professional-profile';
 
     if (!user) {
       // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
@@ -40,8 +41,7 @@ function RootLayoutNavigation() {
         firstSegment === 'explore' || 
         firstSegment === 'appointments' ||
         isDynamicSlug ||
-        isPublicSalon ||
-        isPublicProfessionalProfile;
+        isPublicSalon || isPublicProfessionalProfile || isProfessionalProfileEditor;
       const inProfessionalGroup = firstSegment === '(professional)' || firstSegment === 'professional';
       const inSuperadminGroup = firstSegment === 'superadmin';
 
@@ -56,11 +56,11 @@ function RootLayoutNavigation() {
       }
 
       if (profile.role === 'admin') {
-        if (!inAdminGroup && !isDynamicSlug && !isPublicSalon && !isPublicProfessionalProfile) {
+        if (!inAdminGroup && !isDynamicSlug && !isPublicSalon && !isPublicProfessionalProfile && !isProfessionalProfileEditor) {
           router.replace('/(admin)');
         }
       } else if (profile.role === 'professional') {
-        if (!inProfessionalGroup && !isPublicProfessionalProfile) {
+        if (!inProfessionalGroup && !isPublicProfessionalProfile && !isProfessionalProfileEditor) {
           router.replace('/(professional)');
         }
       } else {
