@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 import { User, Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 import { supabase } from '../services/supabase';
-import { database } from '../database';
 
 interface Profile {
   id: string;
@@ -24,6 +23,7 @@ interface AuthContextData {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  isSuperadmin: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -35,25 +35,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
+        .rpc('get_my_profile')
         .single();
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
         if (error.message?.includes('JWT expired') || error.code === 'PGRST303') {
-          try {
-            await database.write(async () => {
-              await database.unsafeResetDatabase();
-            });
-          } catch (dbErr) {
-            console.warn('Erro ao resetar banco local:', dbErr);
-          }
           await supabase.auth.signOut();
           setUser(null);
           setProfile(null);
@@ -61,6 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         setProfile(data);
+        const { data: superadminMarker } = await supabase
+          .from('superadmins')
+          .select('profile_id')
+          .eq('profile_id', userId)
+          .maybeSingle();
+        setIsSuperadmin(Boolean(superadminMarker));
 
         // Registrar Push Token assincronamente e atualizar se mudou
         registerForPushNotificationsAsync().then(async (token) => {
@@ -89,18 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setLoading(true);
-    try {
-      // Limpar banco local no logout para evitar vazamento de fila de push de outras sessões
-      await database.write(async () => {
-        await database.unsafeResetDatabase();
-      });
-    } catch (e) {
-      console.warn('Erro ao resetar banco local no logout:', e);
-    }
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setSession(null);
+    setIsSuperadmin(false);
     setLoading(false);
   };
 
@@ -126,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       } else {
         setProfile(null);
+        setIsSuperadmin(false);
         setLoading(false);
       }
     });
@@ -136,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, refreshProfile, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isSuperadmin, refreshProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Q } from '@nozbe/watermelondb';
 import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
-import { database } from '../../database';
-import { Barbershop, Profile, Service } from '../../database/models';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { usePublicTeam } from '../../hooks/usePublicTeam';
+import { ProfileRecord } from '../../types/database';
 import { AppButton } from '../../components/ui/AppButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
@@ -57,11 +58,10 @@ export default function BarbershopSlugScreen() {
   const isWide = width >= 900;
   const router = useRouter();
 
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [barbers, setBarbers] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedTeamMember, setSelectedTeamMember] = useState<Profile | null>(null);
+  const { establishment: barbershop, loading } = useEstablishment(slug, 'slug');
+  const { services } = useServices(barbershop?.id, true);
+  const { team: barbers } = usePublicTeam(barbershop?.id);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<ProfileRecord | null>(null);
 
   // Parse da galeria personalizada cadastrada pelo dono
   const galleryPhotos = useMemo(() => {
@@ -73,44 +73,6 @@ export default function BarbershopSlugScreen() {
       return String(barbershop.galleryUrls).split(',').map(s => s.trim()).filter(Boolean);
     }
   }, [barbershop?.galleryUrls]);
-
-  useEffect(() => {
-    if (!slug) { 
-      setLoading(false); 
-      return; 
-    }
-
-    const loadBySlug = async () => {
-      try {
-        const shops = await database.collections.get<Barbershop>('establishments')
-          .query(Q.where('slug', slug))
-          .fetch();
-
-        if (shops.length > 0) {
-          const shop = shops[0];
-          setBarbershop(shop);
-
-          const [serviceList, barberList] = await Promise.all([
-            database.collections.get<Service>('services')
-              .query(Q.where('establishment_id', shop.id), Q.where('is_active', true))
-              .fetch(),
-            database.collections.get<Profile>('profiles')
-              .query(Q.where('establishment_id', shop.id), Q.where('role', Q.oneOf(['professional', 'barber', 'admin'])))
-              .fetch(),
-          ]);
-
-          setServices(serviceList);
-          setBarbers(barberList);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar barbearia por slug:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadBySlug();
-  }, [slug]);
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/(client)');
   

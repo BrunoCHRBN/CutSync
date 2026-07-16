@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Q } from '@nozbe/watermelondb';
 import { CalendarDays, MapPin, Scissors, UserRound, X, RefreshCw } from 'lucide-react-native';
-import { database } from '../../database';
-import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useAppointments } from '../../hooks/useAppointments';
+import { supabase } from '../../services/supabase';
 import { ClientShell } from '../layout/ClientShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -43,11 +41,10 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
 
 export const AppointmentsExperience = () => {
   const { profile, signOut } = useAuth();
-  const { isSyncing, syncError, sync } = useSync();
+  const { appointments: records, loading, error: syncError, refresh } = useAppointments({ clientId: profile?.id });
   const router = useRouter();
   const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
   const [tab, setTab] = useState<AppointmentTab>('upcoming');
-  const [loading, setLoading] = useState(true);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -57,43 +54,20 @@ export const AppointmentsExperience = () => {
   const [targetTime, setTargetTime] = useState<string>('');
 
   useEffect(() => {
-    if (!profile?.id) { setLoading(false); return; }
-    const sub = database.collections.get<Appointment>('appointments').query(Q.where('client_id', profile.id)).observe().subscribe(async (items) => {
-      const rich = await Promise.all(items.map(async (item) => {
-        let shopName = 'Barbearia'; let shopAddress: string | undefined; let serviceName = 'Serviço'; let barberName = 'Profissional';
-        let contactPhone = ''; let shopSlug = '';
-        try { 
-          const shop = await database.collections.get<Barbershop>('establishments').find(item.establishmentId); 
-          shopName = shop.name; 
-          shopAddress = shop.address; 
-          contactPhone = shop.phone || '';
-          shopSlug = shop.slug;
-        } catch {}
-        try { serviceName = (await database.collections.get<Service>('services').find(item.serviceId)).name; } catch {}
-        try { 
-          const barber = await database.collections.get<Profile>('profiles').find(item.professionalId); 
-          barberName = barber.name; 
-          if (!contactPhone) contactPhone = barber.phone || '';
-        } catch {}
-        return { 
-          id: item.id, 
-          dateTime: item.dateTime, 
-          status: item.status, 
-          shopName, 
-          shopAddress, 
-          serviceName, 
-          barberName,
-          contactPhone,
-          shopSlug,
-          rescheduleCount: item.rescheduleCount || 0,
-          cancellationReason: item.cancellationReason || '',
-        };
-      }));
-      setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
-      setLoading(false);
-    });
-    return () => sub.unsubscribe();
-  }, [profile]);
+    setAppointments(records.map((item) => ({
+      id: item.id,
+      dateTime: item.dateTime,
+      status: item.status,
+      shopName: item.establishment?.name || 'Barbearia',
+      shopAddress: item.establishment?.address || undefined,
+      serviceName: item.service?.name || 'Serviço',
+      barberName: item.professional?.name || 'Profissional',
+      contactPhone: item.establishment?.phone || item.professional?.phone || '',
+      shopSlug: item.establishment?.slug || '',
+      rescheduleCount: item.rescheduleCount,
+      cancellationReason: item.cancellationReason || '',
+    })));
+  }, [records]);
 
   const visible = useMemo(() => appointments.filter((item) => {
     const startOfToday = new Date();
@@ -110,18 +84,14 @@ export const AppointmentsExperience = () => {
     const proceedCancel = async () => {
       setActionLoading(true);
       try {
-        await database.write(async () => {
-          const appointment = await database.collections.get<Appointment>('appointments').find(item.id);
-          await appointment.update((record) => { 
-            record.status = 'cancelled'; 
-            record.cancellationReason = reason;
-            record.cancelledByRole = 'client';
-          });
-        });
+        const { error } = await supabase.from('appointments').update({
+          status: 'cancelled', cancellation_reason: reason, cancelled_by_role: 'client',
+        }).eq('id', item.id);
+        if (error) throw error;
         setCancelId(null);
         setSelectedReason('');
         setNotice({ tone: 'success', message: 'Agendamento cancelado.' });
-        sync();
+        await refresh();
       } catch {
         setNotice({ tone: 'danger', message: 'Não foi possível cancelar este horário.' });
       } finally {
@@ -197,7 +167,7 @@ export const AppointmentsExperience = () => {
   };
 
   return (
-    <ClientShell testID="client-appointments-screen" activeRoute="appointments" userName={profile?.name} isSyncing={isSyncing} syncError={syncError} onSync={sync} onSignOut={signOut}>
+    <ClientShell testID="client-appointments-screen" activeRoute="appointments" userName={profile?.name} isSyncing={loading} syncError={syncError ? new Error(syncError) : null} onSync={() => { void refresh(); }} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SectionHeading testID="client-appointments-heading" eyebrow="Sua agenda" title="Meus agendamentos" description="Acompanhe confirmações, próximos horários e seu histórico em um só lugar." />
         {!!notice && <InlineNotice testID="client-appointments-notice" tone={notice.tone} message={notice.message} />}

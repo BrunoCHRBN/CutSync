@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from 'lucide-react-native';
 import { supabase } from '../../services/supabase';
 import { AppButton } from '../ui/AppButton';
@@ -24,6 +24,7 @@ const heroImage = 'https://images.unsplash.com/photo-1759134198561-e2041049419c?
 
 export const LoginExperience = () => {
   const router = useRouter();
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { width } = useWindowDimensions();
   const isWide = width >= 920;
   const [email, setEmail] = useState('');
@@ -59,11 +60,12 @@ export const LoginExperience = () => {
         if (magicError) throw magicError;
         setMagicLinkSent(true);
       } else {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
           password,
         });
         if (loginError) setError('Não foi possível entrar. Confira seus dados e tente novamente.');
+        else if (data.session && redirect?.startsWith('/')) router.replace(redirect as never);
       }
     } catch (err: any) {
       setError(err.message || 'A conexão falhou. Tente novamente em instantes.');
@@ -181,7 +183,7 @@ export const LoginExperience = () => {
                       <Pressable
                         testID="login-register-link"
                         accessibilityRole="link"
-                        onPress={() => router.push('/(auth)/register')}
+                        onPress={() => router.push({ pathname: '/(auth)/register', params: redirect ? { redirect } : undefined } as never)}
                         style={({ pressed }) => [styles.registerLink, pressed && styles.linkPressed]}
                       >
                         <Text style={styles.registerText}>Ainda não usa o CutSync? </Text>
@@ -194,7 +196,7 @@ export const LoginExperience = () => {
 
               <View testID="login-security-note" style={styles.securityNote}>
                 <ShieldCheck color={colors.success} size={16} />
-                <Text style={styles.securityText}>Acesso protegido e dados disponíveis mesmo offline.</Text>
+                <Text style={styles.securityText}>Acesso protegido e dados sempre atualizados.</Text>
               </View>
             </View>
 
@@ -214,7 +216,7 @@ export const LoginExperience = () => {
                 <View style={styles.heroCopy}>
                   <Text testID="login-hero-stat" style={styles.heroStat}>Menos ruído.{`\n`}Mais cadeira ocupada.</Text>
                   <Text testID="login-hero-description" style={styles.heroDescription}>
-                    Agenda, equipe e caixa sincronizados para você focar na experiência do cliente.
+                    Agenda, equipe e caixa em tempo real para você focar na experiência do cliente.
                   </Text>
                 </View>
               </ImageBackground>

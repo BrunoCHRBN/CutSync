@@ -1,5 +1,6 @@
 -- Setup do Banco de Dados para o CutSync (Gestão de Barbearia SaaS)
--- Execute este script no SQL Editor do seu projeto Supabase.
+-- Execute este script apenas para criar o schema base e, em seguida, aplique todas as migrations.
+-- A migration 20260716050000_secure_memberships_and_invites.sql é obrigatória antes de liberar acesso.
 
 -- Habilitar extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -132,34 +133,21 @@ CREATE TRIGGER update_professional_services_updated_at BEFORE UPDATE ON public.p
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
-DECLARE
-    role_val TEXT;
-    establishment_id_val UUID;
 BEGIN
-    -- Determinar a role do metadata (passada no signUp) ou assume 'client'
-    role_val := COALESCE(new.raw_user_meta_data->>'role', 'client');
-    establishment_id_val := (new.raw_user_meta_data->>'establishment_id')::UUID;
-
     INSERT INTO public.profiles (id, name, email, role, establishment_id, avatar_url, phone)
     VALUES (
         new.id,
         COALESCE(new.raw_user_meta_data->>'name', 'Usuário'),
         new.email,
-        role_val,
-        establishment_id_val,
+        'client',
+        NULL,
         new.raw_user_meta_data->>'avatar_url',
         new.raw_user_meta_data->>'phone'
     );
 
-    IF establishment_id_val IS NOT NULL THEN
-        INSERT INTO public.profile_establishments (profile_id, establishment_id, role)
-        VALUES (new.id, establishment_id_val, role_val)
-        ON CONFLICT DO NOTHING;
-    END IF;
-
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
@@ -182,10 +170,6 @@ ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Leitura pública de barbearias" ON public.establishments
     FOR SELECT USING (true);
 
--- Qualquer pessoa pode inserir uma barbearia (necessário para o fluxo de cadastro)
-CREATE POLICY "Inserção pública de barbearias" ON public.establishments
-    FOR INSERT WITH CHECK (true);
-
 -- Apenas admins da respectiva barbearia podem atualizá-la
 CREATE POLICY "Admins podem atualizar barbearia" ON public.establishments
     FOR UPDATE TO authenticated
@@ -199,15 +183,19 @@ CREATE POLICY "Admins podem atualizar barbearia" ON public.establishments
     );
 
 -- POLÍTICAS PARA: profiles
--- Clientes e barbeiros podem ler perfis (para saber quem é quem)
-CREATE POLICY "Qualquer autenticado lê perfis" ON public.profiles
-    FOR SELECT TO authenticated USING (true);
+-- Negação segura antes da migration de memberships: cada usuário lê apenas o próprio perfil.
+CREATE POLICY "Usuário lê próprio perfil" ON public.profiles
+    FOR SELECT TO authenticated USING (id = auth.uid());
 
 -- Usuários podem atualizar o próprio perfil
 CREATE POLICY "Usuário atualiza próprio perfil" ON public.profiles
     FOR UPDATE TO authenticated
     USING (id = auth.uid())
     WITH CHECK (id = auth.uid());
+
+REVOKE INSERT ON public.establishments FROM anon, authenticated;
+REVOKE UPDATE ON public.profiles FROM authenticated;
+GRANT UPDATE (name, phone, avatar_url, push_token) ON public.profiles TO authenticated;
 
 -- POLÍTICAS PARA: profile_establishments
 -- Usuários podem ler seus próprios vínculos

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform, Modal, TextInput, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Q } from '@nozbe/watermelondb';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Scissors, UserRound } from 'lucide-react-native';
-import { database } from '../../database';
-import { Service, Profile, Barbershop, Appointment, BarberService } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { supabase } from '../../services/supabase';
+import { ProfileRecord, ServiceRecord } from '../../types/database';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
@@ -16,23 +16,23 @@ import { tapLight, tapSuccess } from '../../utils/haptics';
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
   const { user } = useAuth();
-  const { sync } = useSync();
   const router = useRouter();
-
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [barbers, setBarbers] = useState<Profile[]>([]);
-  const [barberServices, setBarberServices] = useState<BarberService[]>([]);
+  const { establishment: barbershop, loading: shopLoading } = useEstablishment(slug, 'slug');
+  const { services, loading: servicesLoading } = useServices(barbershop?.id, true);
+  const { team: barbers, loading: teamLoading } = usePublicTeam(barbershop?.id);
+  const [barberServices, setBarberServices] = useState<Array<{ professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }>>([]);
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
 
   useEffect(() => {
     if (reschedule_id) {
-      database.collections.get<Appointment>('appointments').find(reschedule_id).then((apt) => {
-        setSelectedService(apt.serviceId);
-        setSelectedBarber(apt.professionalId);
-      }).catch(err => {
+      void (async () => {
+        const { data, error } = await supabase.from('appointments').select('service_id,professional_id').eq('id', reschedule_id).single();
+        if (error) throw error;
+        setSelectedService(data.service_id);
+        setSelectedBarber(data.professional_id);
+      })().catch((err: unknown) => {
         console.warn('Erro ao carregar dados de reagendamento:', err);
       });
     }
@@ -43,7 +43,7 @@ export default function BookingSlugScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   
-  const [loading, setLoading] = useState(true);
+  const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
 
@@ -97,19 +97,14 @@ export default function BookingSlugScreen() {
         const endOfDay = new Date(selectedDate);
         endOfDay.setHours(23, 59, 59, 999);
 
-        const list = await database.collections
-          .get<Appointment>('appointments')
-          .query(
-            Q.where('professional_id', selectedBarber),
-            Q.where('status', Q.notEq('cancelled')),
-            Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
-          )
-          .fetch();
-
+        const { data: list, error } = await supabase.from('appointments').select('date_time,service_id,professional_id')
+          .eq('professional_id', selectedBarber).neq('status', 'cancelled')
+          .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+        if (error) throw error;
         const segments = [];
-        for (const apt of list) {
-          const { duration } = getServicePriceAndDuration(apt.serviceId, apt.professionalId);
-          const startTime = new Date(apt.dateTime).getTime();
+        for (const apt of list || []) {
+          const { duration } = getServicePriceAndDuration(apt.service_id, apt.professional_id);
+          const startTime = new Date(apt.date_time).getTime();
           const endTime = startTime + duration * 60 * 1000;
           segments.push({ start: startTime, end: endTime });
         }
@@ -168,56 +163,20 @@ export default function BookingSlugScreen() {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
-  // 2. Carregar informações iniciais da barbearia por Slug
+  // 2. Carregar personalizações de serviço por profissional
   useEffect(() => {
-    if (!slug) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchInfo = async () => {
-      try {
-        const shops = await database.collections.get<Barbershop>('establishments')
-          .query(Q.where('slug', slug))
-          .fetch();
-
-        if (shops.length > 0) {
-          const shop = shops[0];
-          setBarbershop(shop);
-
-          const sList = await database.collections
-            .get<Service>('services')
-            .query(Q.where('establishment_id', shop.id), Q.where('is_active', true))
-            .fetch();
-          setServices(sList);
-
-          const bList = await database.collections
-            .get<Profile>('profiles')
-            .query(
-              Q.where('establishment_id', shop.id),
-              Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))
-            )
-            .fetch();
-          setBarbers(bList);
-
-          const bsList = await database.collections
-            .get<BarberService>('professional_services')
-            .query(Q.where('establishment_id', shop.id))
-            .fetch();
-          setBarberServices(bsList);
-
-          const today = new Date();
-          setSelectedDate(today);
-        }
-      } catch (err) {
-        console.error('Erro ao buscar dados locais para agendamento:', err);
-      } finally {
-        setLoading(false);
-      }
+    if (!barbershop?.id) return;
+    const fetchProfessionalServices = async () => {
+      const { data, error } = await supabase.from('professional_services').select('*').eq('establishment_id', barbershop.id);
+      if (error) { console.error('Erro ao buscar serviços por profissional:', error); return; }
+      setBarberServices((data || []).map((item) => ({
+        professionalId: item.professional_id, serviceId: item.service_id,
+        price: Number(item.price), durationMinutes: Number(item.duration_minutes), isActive: Boolean(item.is_active),
+      })));
+      setSelectedDate((current) => current || new Date());
     };
-
-    fetchInfo();
-  }, [slug]);
+    void fetchProfessionalServices();
+  }, [barbershop?.id]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -235,31 +194,27 @@ export default function BookingSlugScreen() {
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       let targetAppointmentId = '';
-      await database.write(async () => {
-        if (reschedule_id) {
-          const appointment = await database.collections.get<Appointment>('appointments').find(reschedule_id);
-          await appointment.update((record) => {
-            record.originalDateTime = record.originalDateTime || record.dateTime;
-            record.dateTime = appointmentDate;
-            record.status = 'pending';
-            record.rescheduleCount = (record.rescheduleCount || 0) + 1;
-            record.professionalId = selectedBarber!;
-            record.serviceId = selectedService!;
-          });
-          targetAppointmentId = appointment.id;
-        } else {
-          const created = await database.collections.get<Appointment>('appointments').create((record) => {
-            record.establishmentId = barbershop!.id;
-            record.clientId = clientId;
-            record.professionalId = selectedBarber!;
-            record.serviceId = selectedService!;
-            record.dateTime = appointmentDate;
-            record.status = 'pending';
-            record.rescheduleCount = 0;
-          });
-          targetAppointmentId = created.id;
-        }
-      });
+      if (reschedule_id) {
+        const { data: current, error: readError } = await supabase.from('appointments')
+          .select('date_time,original_date_time,reschedule_count').eq('id', reschedule_id).single();
+        if (readError) throw readError;
+        const { error } = await supabase.from('appointments').update({
+          original_date_time: current.original_date_time || current.date_time,
+          date_time: appointmentDate.toISOString(), status: 'pending',
+          reschedule_count: Number(current.reschedule_count || 0) + 1,
+          professional_id: selectedBarber, service_id: selectedService,
+        }).eq('id', reschedule_id);
+        if (error) throw error;
+        targetAppointmentId = reschedule_id;
+      } else {
+        const { data, error } = await supabase.from('appointments').insert({
+          establishment_id: barbershop!.id, client_id: clientId,
+          professional_id: selectedBarber, service_id: selectedService,
+          date_time: appointmentDate.toISOString(), status: 'pending', reschedule_count: 0,
+        }).select('id').single();
+        if (error) throw error;
+        targetAppointmentId = data.id;
+      }
 
       if (barbershop?.name) {
         await scheduleAppointmentNotification(targetAppointmentId, barbershop.name, appointmentDate);
@@ -267,7 +222,6 @@ export default function BookingSlugScreen() {
 
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
-      sync();
       router.replace(`/salon/${slug}` as never);
     } catch (error) {
       displayAlert('Erro', 'Não foi possível salvar o agendamento.');
@@ -653,10 +607,10 @@ export default function BookingSlugScreen() {
 
       {/* Modal: Autenticação Rápida de Atrito Zero (Magic Link e Cadastro Rápido) */}
       <Modal visible={isAuthModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Identifique-se</Text>
-            <Text style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
+        <View testID="public-booking-auth-overlay" style={styles.modalOverlay}>
+          <View testID="public-booking-auth-modal" style={styles.modalCard}>
+            <Text testID="public-booking-auth-title" style={styles.modalTitle}>Identifique-se</Text>
+            <Text testID="public-booking-auth-description" style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
 
             {magicLinkSent ? (
               <View style={styles.magicLinkState}>
@@ -664,7 +618,7 @@ export default function BookingSlugScreen() {
                 <Text style={styles.magicSuccessDesc}>
                   Enviamos um link de login rápido para {authEmail}. Abra o link e retorne aqui para finalizar o agendamento!
                 </Text>
-                <Pressable 
+                <Pressable testID="public-booking-magic-link-dismiss-button"
                   style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor, marginTop: 16 }, pressed && styles.pressedScale]}
                   onPress={() => {
                     setMagicLinkSent(false);
@@ -678,13 +632,13 @@ export default function BookingSlugScreen() {
               <View style={{ gap: 12 }}>
                 {/* Abas */}
                 <View style={styles.authTabs}>
-                  <TouchableOpacity 
+                  <TouchableOpacity testID="public-booking-magic-link-tab"
                     style={[styles.authTab, !isRegisterMode && styles.authTabActive]}
                     onPress={() => setIsRegisterMode(false)}
                   >
                     <Text style={[styles.authTabText, !isRegisterMode && styles.authTabTextActive]}>Sem senha</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity testID="public-booking-register-tab"
                     style={[styles.authTab, isRegisterMode && styles.authTabActive]}
                     onPress={() => setIsRegisterMode(true)}
                   >
@@ -696,6 +650,7 @@ export default function BookingSlugScreen() {
                 {isRegisterMode ? (
                   <>
                     <TextInput
+                      testID="public-booking-register-name-input"
                       style={styles.modalInput}
                       placeholder="Seu nome completo"
                       placeholderTextColor={colors.textMuted}
@@ -703,6 +658,7 @@ export default function BookingSlugScreen() {
                       onChangeText={setAuthName}
                     />
                     <TextInput
+                      testID="public-booking-register-email-input"
                       style={styles.modalInput}
                       placeholder="E-mail"
                       placeholderTextColor={colors.textMuted}
@@ -711,6 +667,7 @@ export default function BookingSlugScreen() {
                       onChangeText={setAuthEmail}
                     />
                     <TextInput
+                      testID="public-booking-register-password-input"
                       style={styles.modalInput}
                       placeholder="Senha (mínimo 6 dígitos)"
                       placeholderTextColor={colors.textMuted}
@@ -718,7 +675,7 @@ export default function BookingSlugScreen() {
                       value={authPassword}
                       onChangeText={setAuthPassword}
                     />
-                    <Pressable 
+                    <Pressable testID="public-booking-register-submit-button"
                       style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
                       onPress={handleAuthSubmit}
                       disabled={authLoading}
@@ -732,6 +689,7 @@ export default function BookingSlugScreen() {
                       Digite seu e-mail abaixo. Você receberá um link de login imediato, sem senhas.
                     </Text>
                     <TextInput
+                      testID="public-booking-magic-link-email-input"
                       style={styles.modalInput}
                       placeholder="Seu melhor e-mail"
                       placeholderTextColor={colors.textMuted}
@@ -739,7 +697,7 @@ export default function BookingSlugScreen() {
                       value={authEmail}
                       onChangeText={setAuthEmail}
                     />
-                    <Pressable 
+                    <Pressable testID="public-booking-magic-link-submit-button"
                       style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
                       onPress={handleSendMagicLink}
                       disabled={authLoading}
@@ -749,7 +707,7 @@ export default function BookingSlugScreen() {
                   </>
                 )}
 
-                <TouchableOpacity 
+                <TouchableOpacity testID="public-booking-auth-cancel-button"
                   style={styles.modalCancelBtn}
                   onPress={() => setIsAuthModalVisible(false)}
                 >

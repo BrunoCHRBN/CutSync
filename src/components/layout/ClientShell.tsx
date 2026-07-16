@@ -1,13 +1,13 @@
 import React, { ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CalendarDays, Compass, LogOut, RefreshCw } from 'lucide-react-native';
+import { Building2, CalendarDays, Compass, LogOut, RefreshCw } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
 
-type ClientRoute = 'explore' | 'appointments';
+type ClientRoute = 'explore' | 'appointments' | 'request';
 
 interface ClientShellProps {
   children: ReactNode;
@@ -23,6 +23,7 @@ interface ClientShellProps {
 const navItems = [
   { key: 'explore', label: 'Explorar', path: '/(client)', Icon: Compass },
   { key: 'appointments', label: 'Agendamentos', path: '/(client)/appointments', Icon: CalendarDays },
+  { key: 'request', label: 'Meu negócio', path: '/(client)/request-establishment', Icon: Building2 },
 ] as const;
 
 export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncError, onSync, onSignOut, testID }: ClientShellProps) => {
@@ -51,7 +52,7 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
           <Text style={styles.identityLabel}>Conta do cliente</Text>
           <Text testID="client-shell-user-name" numberOfLines={1} style={styles.identityName}>{userName || 'Cliente'}</Text>
         </View>
-        <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha' : isSyncing ? 'Sincronizando' : 'Sincronizado'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
+        <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha' : isSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
         <Pressable testID="client-sync-button" disabled={isSyncing} onPress={() => { tapLight(); onSync(); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
         <Pressable testID="client-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><LogOut color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
       </View>

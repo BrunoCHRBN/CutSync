@@ -1,6 +1,27 @@
-# Credenciais de teste
+# Credenciais de teste — Migração Supabase
 
-Nenhuma conta de teste foi criada automaticamente. O ambiente Supabase pode exigir confirmação de e-mail e não há credenciais existentes fornecidas no repositório.
+## Cliente
+- E-mail: `bakdmskaj8183@gmail.com`
+- Senha: `bruno1324`
+
+## Profissional
+- E-mail: `brusantos7178@outlook.com`
+- Senha: `bruno1324`
+
+## Dono/Admin
+- E-mail: `brusantos777@gmail.com`
+- Senha: `bruno1324`
+
+## Ambiente
+- As variáveis Supabase não estão presentes no workspace atual.
+- A auditoria recuperou temporariamente a configuração pública do histórico Git apenas para validação de leitura e não a restaurou no projeto.
+- A senha do banco informada pelo usuário não é registrada neste arquivo e deve ser rotacionada.
+
+## Administrador informado pelo usuário
+
+- E-mail: `brusantos777@gmail.com`
+- Senha: `bruno1324`
+- Uso: validar persistência do perfil profissional, jornada e galeria do estabelecimento.
 
 ## Validação disponível sem credenciais
 
@@ -8,10 +29,12 @@ Nenhuma conta de teste foi criada automaticamente. O ambiente Supabase pode exig
 - Build TypeScript e pacote web.
 - Análise estática do Dashboard Admin e Agendamento.
 
-## Validação pendente
+## Validação realizada em 16/07/2026
 
-- Dashboard Admin autenticado com dados reais.
-- Agendamento completo com cliente, serviços, profissionais e conflitos reais.
-- Módulo profissional: agenda, histórico, reagendamento e encaixe rápido.
+- Login e navegação real dos perfis cliente, profissional e dono/admin.
+- Leitura de catálogo, perfis e agendamentos para auditoria de RLS, sem escrita no banco.
+- Foi confirmado vazamento de perfis entre estabelecimentos; detalhes em `/app/CUTSYNC_AUDIT.md`.
 
-Também são necessárias as variáveis `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` para iniciar a prévia autenticada.
+## Ação de segurança
+
+- Rotacionar as três senhas de teste, pois são iguais e foram compartilhadas durante a auditoria.

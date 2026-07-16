@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Q } from '@nozbe/watermelondb';
 import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
-import { database } from '../../database';
-import { Barbershop, Profile, Service } from '../../database/models';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { ScreenBackground } from '../ui/ScreenBackground';
@@ -56,10 +56,9 @@ export const BarbershopProfileExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const router = useRouter();
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [barbers, setBarbers] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { establishment: barbershop, loading } = useEstablishment(barbershopId);
+  const { services } = useServices(barbershopId, true);
+  const { team: barbers } = usePublicTeam(barbershopId);
 
   const galleryPhotos = useMemo(() => {
     if (!barbershop?.galleryUrls) return [];
@@ -70,36 +69,6 @@ export const BarbershopProfileExperience = () => {
       return String(barbershop.galleryUrls).split(',').map(s => s.trim()).filter(Boolean);
     }
   }, [barbershop?.galleryUrls]);
-
-  useEffect(() => {
-    if (!barbershopId) { setLoading(false); return; }
-    const load = async () => {
-      try {
-        const shops = await database.collections.get<Barbershop>('establishments')
-          .query(Q.where('id', barbershopId))
-          .fetch();
-        const shop = shops[0] || null;
-        setBarbershop(shop);
-
-        if (shop) {
-          const [serviceList, barberList] = await Promise.all([
-            database.collections.get<Service>('services').query(Q.where('establishment_id', barbershopId), Q.where('is_active', true)).fetch(),
-            database.collections.get<Profile>('profiles').query(Q.where('establishment_id', barbershopId), Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))).fetch(),
-          ]);
-          setServices(serviceList);
-          setBarbers(barberList);
-        } else {
-          setServices([]);
-          setBarbers([]);
-        }
-      } catch (err) {
-        console.warn('Erro ao carregar detalhes da barbearia:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [barbershopId]);
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/(client)');
   

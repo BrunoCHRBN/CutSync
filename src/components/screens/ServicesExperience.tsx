@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { Q } from '@nozbe/watermelondb';
 import { Clock3, Plus, Power, Scissors, WalletCards } from 'lucide-react-native';
-import { database } from '../../database';
-import { Barbershop, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { supabase } from '../../services/supabase';
+import { ServiceRecord } from '../../types/database';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -21,24 +21,14 @@ export const ServicesExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { sync } = useSync();
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
+  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
+  const { services, loading } = useServices(profile?.establishment_id);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
-
-  useEffect(() => {
-    if (!profile?.establishment_id) { setLoading(false); return; }
-    const shopSub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id).subscribe(setBarbershop);
-    const serviceSub = database.collections.get<Service>('services').query(Q.where('establishment_id', profile.establishment_id)).observe()
-      .subscribe((items) => { setServices(items); setLoading(false); });
-    return () => { shopSub.unsubscribe(); serviceSub.unsubscribe(); };
-  }, [profile]);
 
   const addService = async () => {
     const numericPrice = Number(price.replace(',', '.'));
@@ -51,18 +41,13 @@ export const ServicesExperience = () => {
     if (!profile?.establishment_id) return;
     setSubmitting(true);
     try {
-      await database.write(async () => {
-        await database.collections.get('services').create((record: any) => {
-          record.establishmentId = profile.establishment_id;
-          record.name = name.trim();
-          record.price = numericPrice;
-          record.durationMinutes = numericDuration;
-          record.isActive = true;
-        });
+      const { error } = await supabase.from('services').insert({
+        establishment_id: profile.establishment_id, name: name.trim(), price: numericPrice,
+        duration_minutes: numericDuration, is_active: true,
       });
+      if (error) throw error;
       setName(''); setPrice(''); setDuration('');
       setNotice({ tone: 'success', message: 'Serviço adicionado ao catálogo.' });
-      sync();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível salvar o serviço.' });
     } finally {
@@ -70,14 +55,13 @@ export const ServicesExperience = () => {
     }
   };
 
-  const toggleService = async (service: Service) => {
+  const toggleService = async (service: ServiceRecord) => {
     setActionLoadingId(service.id);
     try {
-      await database.write(async () => {
-        await service.update((record) => { record.isActive = !service.isActive; });
-      });
-      setNotice({ tone: 'success', message: `${service.name} foi ${service.isActive ? 'ativado' : 'pausado'}.` });
-      sync();
+      const nextStatus = !service.isActive;
+      const { error } = await supabase.from('services').update({ is_active: nextStatus }).eq('id', service.id);
+      if (error) throw error;
+      setNotice({ tone: 'success', message: `${service.name} foi ${nextStatus ? 'ativado' : 'pausado'}.` });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível alterar o status do serviço.' });
     } finally {

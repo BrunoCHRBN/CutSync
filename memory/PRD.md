@@ -1,4 +1,105 @@
-# PRD — CutSync · Painel Administrativo Premium
+# PRD — CutSync
+
+## Estado atual — auditoria prioritária de 16/07/2026
+
+### Problema original
+
+> “Faça uma auditoria completa do código do sistema CutSync. Antes de seguirmos com qualquer modificação de código e implementações, preciso saber o que precisamos melhorar primeiro, tanto em usabilidade e segurança dentro da aplicação, já que será usado via web responsivo, Android e iOS.”
+
+### Arquitetura confirmada
+
+- Expo 57, React Native 0.86, React 19, Expo Router e TypeScript.
+- Supabase para autenticação, PostgREST, Realtime e armazenamento remoto.
+- Aplicação única com experiências cliente, profissional, admin e catálogo/reserva pública.
+- Export web SPA e scaffold Tauri adicional; builds móveis preparados via EAS.
+
+### Auditoria realizada
+
+- Revisão estática de autenticação, RLS, schema, rotas, queries, agenda, notificações, Expo e Tauri.
+- Testes reais somente leitura com cliente, profissional e admin.
+- TypeScript e export web aprovados; lint com 40 erros e 21 avisos; zero testes automatizados.
+- Vazamento multi-tenant confirmado: cliente autenticado lê perfis, e-mails e telefones de outros estabelecimentos.
+- Autoatribuição de roles/vínculos, ausência de reserva atômica, magic link incompleto e falhas responsivas identificados.
+- Relatório integral salvo em `/app/CUTSYNC_AUDIT.md`.
+
+### Backlog priorizado
+
+#### P0
+
+1. Rotacionar a senha do banco e credenciais de teste expostas; revogar sessões.
+2. Bloquear cadastro público de admin/profissional e alteração de role/vínculo pelo próprio perfil.
+3. Reescrever RLS para isolamento por tenant e campos públicos mínimos.
+4. Restringir operações de agendamento/serviço por role e transição válida.
+5. Implementar reserva/reagendamento transacional com trava contra sobreposição.
+
+#### P1
+
+1. Corrigir magic link, PKCE/deep links e persistência de sessão web/Android/iOS.
+2. Centralizar disponibilidade, horário de funcionamento, jornada e fuso no backend.
+3. Corrigir os 40 erros de lint, modularizar telas grandes e remover SQL legado divergente.
+4. Tornar instalação reproduzível e alinhar pacotes Expo/React/Supabase.
+5. Corrigir cortes mobile, contraste, fontes pequenas e acessibilidade.
+6. Versionar políticas do bucket de banners e definir CSP/headers web.
+
+#### P2
+
+1. Testes automatizados de RLS, domínio e E2E para os três perfis.
+2. CI, observabilidade, trilha de auditoria e alertas.
+3. Fluxos LGPD de consentimento, retenção, exportação e exclusão.
+4. Rate limit/CAPTCHA e otimização do bundle web.
+
+### Próximas tarefas
+
+1. Aplicar pacote P0 de segurança multi-tenant com migração reversível.
+2. Executar matriz de testes RLS com casos permitidos e negados.
+3. Aplicar reserva atômica e testar concorrência.
+4. Só então iniciar correções de sessão e experiência multiplataforma.
+
+---
+
+# Histórico — Migração Supabase
+
+## Estado atual — 16/07/2026
+
+### Problema original desta etapa
+
+> “Estou fazendo a mudança do banco de dados do repositório de WatermelonDB para o Supabase. Finalizar a consolidação das rotas profissionais, cliente e públicas; confirmar que não existem imports ativos de WatermelonDB; configurar/validar a publicação Realtime; remover `src/database`, `useSync` e dependências WatermelonDB; executar `npx tsc --noEmit` sem erros; validar a compilação web; testar login, listagens, criação, edição, cancelamento e Realtime; atualizar o checklist e a documentação final da migração. A cada tarefa finalizada, sinalize o andamento.”
+
+### Decisões de arquitetura
+
+- Supabase é a única fonte de dados e autenticação.
+- Hooks de domínio consultam PostgREST e assinam `postgres_changes` com cleanup.
+- Tipos e mapeadores em `src/types/database.ts` isolam o contrato `snake_case` remoto.
+- A vitrine usa RPC pública segura para não expor dados privados de profissionais.
+- O produto passa a operar conectado, sem cache WatermelonDB ou fila offline.
+
+### Implementado
+
+- Rotas administrativas, profissionais e cliente consolidadas.
+- Todas as telas ativas migradas para Supabase.
+- Publicação Realtime e RPC de catálogo aplicadas no projeto remoto.
+- WatermelonDB, LokiJS, `src/database`, `useSync`, NetInfo e Babel legado removidos.
+- TypeScript e build web aprovados.
+- Três perfis autenticados e CRUD de agendamentos com Realtime validados.
+- Checklist detalhado em `/app/MIGRATION_SUPABASE.md`.
+
+### Backlog priorizado
+
+- **P0:** nenhum bloqueio aberto da migração.
+- **P1:** modularizar os dashboards grandes e padronizar tratamento de erros/toasts.
+- **P1:** gerar tipos Supabase automaticamente a partir do schema remoto.
+- **P2:** adicionar testes automatizados permanentes para RLS e Realtime.
+- **P2:** revisar avisos web não bloqueantes de estilos depreciados.
+
+### Próximas tarefas
+
+1. Extrair repositórios Supabase compartilhados para reduzir lógica dentro das telas.
+2. Automatizar teste de reserva pública e cancelamento em CI.
+3. Adicionar métricas do funil perfil público → seleção → agendamento.
+
+---
+
+## Histórico anterior de produto e design
 
 ## Problema original
 

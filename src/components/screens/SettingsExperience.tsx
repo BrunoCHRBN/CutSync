@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { database } from '../../database';
-import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useEstablishment } from '../../hooks/useEstablishment';
 import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -38,9 +36,7 @@ export const SettingsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { sync } = useSync();
-  
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
+  const { establishment: barbershop, loading } = useEstablishment(profile?.establishment_id);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
@@ -56,7 +52,6 @@ export const SettingsExperience = () => {
   const [bannerUrl, setBannerUrl] = useState('');
   const [instagram, setInstagram] = useState('');
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
 
@@ -107,7 +102,7 @@ export const SettingsExperience = () => {
     return true;
   };
 
-  const handleImageUpload = async (uri: string, onUploadSuccess: (url: string) => void) => {
+  const handleImageUpload = async (uri: string): Promise<string | null> => {
     try {
       setSaving(true);
       setNotice(null);
@@ -135,22 +130,22 @@ export const SettingsExperience = () => {
         .from(bucketName)
         .getPublicUrl(fileName);
 
-      onUploadSuccess(publicUrl);
-      setNotice({ tone: 'success', message: 'Imagem enviada com sucesso!' });
+      return publicUrl;
     } catch (error: any) {
       console.error('Image upload failed:', error);
       setNotice({
         tone: 'danger',
         message: `Não foi possível carregar a imagem. Verifique se o bucket 'banners' está configurado no seu Supabase. Detalhe: ${error.message || error}`,
       });
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
-  const pickImage = async (onSelected: (url: string) => void, aspect: [number, number]) => {
+  const pickImage = async (aspect: [number, number]): Promise<string | null> => {
     const hasPermission = await requestPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) return null;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -161,21 +156,28 @@ export const SettingsExperience = () => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
-      await handleImageUpload(asset.uri, onSelected);
+      return handleImageUpload(asset.uri);
+    }
+    return null;
+  };
+
+  const handleAddGalleryPhoto = async () => {
+    const url = await pickImage([4, 5]);
+    if (!url || !barbershop) return;
+    const nextGallery = [...galleryUrls, url];
+    setGalleryUrls(nextGallery);
+    try {
+      const { error } = await supabase.from('establishments').update({ gallery_urls: JSON.stringify(nextGallery) }).eq('id', barbershop.id);
+      if (error) throw error;
+      setNotice({ tone: 'success', message: 'Foto adicionada à vitrine.' });
+    } catch {
+      setNotice({ tone: 'danger', message: 'A imagem foi enviada, mas não foi possível salvar a galeria.' });
     }
   };
 
-  const handleAddGalleryPhoto = () => {
-    pickImage((url) => {
-      setGalleryUrls(prev => [...prev, url]);
-    }, [4, 5]);
-  };
-
   useEffect(() => {
-    if (!profile?.establishment_id) { setLoading(false); return; }
-    const sub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id).subscribe({
-      next: (shop) => {
-        setBarbershop(shop);
+    if (barbershop) {
+      const shop = barbershop;
         setName(shop.name || '');
         setSlug(shop.slug || '');
         setAddress(shop.address || '');
@@ -205,12 +207,8 @@ export const SettingsExperience = () => {
           }
         }
         setSchedule(parsedHours);
-        setLoading(false);
-      },
-      error: () => setLoading(false),
-    });
-    return () => sub.unsubscribe();
-  }, [profile]);
+    }
+  }, [barbershop]);
 
   const saveSettings = async () => {
     setNotice(null);
@@ -227,24 +225,16 @@ export const SettingsExperience = () => {
 
     setSaving(true);
     try {
-      await database.write(async () => {
-        await barbershop.update((record) => {
-          record.name = name.trim();
-          record.slug = cleanSlug;
-          record.address = address.trim();
-          record.phone = phone.trim();
-          record.slogan = slogan.trim() || null;
-          record.bannerUrl = bannerUrl.trim() || null;
-          record.instagram = instagram.trim() || null;
-          record.openingHours = JSON.stringify(schedule);
-          record.primaryColor = primaryColor.toUpperCase();
-          record.logoUrl = logoUrl || undefined;
-          record.galleryUrls = JSON.stringify(galleryUrls);
-        });
-      });
+      const { error } = await supabase.from('establishments').update({
+        name: name.trim(), slug: cleanSlug, address: address.trim(), phone: phone.trim(),
+        slogan: slogan.trim() || null, banner_url: bannerUrl.trim() || null,
+        instagram: instagram.trim() || null, opening_hours: JSON.stringify(schedule),
+        primary_color: primaryColor.toUpperCase(), logo_url: logoUrl,
+        gallery_urls: JSON.stringify(galleryUrls),
+      }).eq('id', barbershop.id);
+      if (error) throw error;
       setSlug(cleanSlug);
-      setNotice({ tone: 'success', message: 'Configurações atualizadas com sucesso.' });
-      sync();
+      setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível salvar todas as alterações.' });
     } finally {
@@ -285,7 +275,13 @@ export const SettingsExperience = () => {
                   <AppButton
                     label="Alterar Logo"
                     testID="settings-upload-logo-button"
-                    onPress={() => pickImage((url) => setLogoUrl(url), [1, 1])}
+                    onPress={async () => {
+                      const url = await pickImage([1, 1]);
+                      if (url) {
+                        setLogoUrl(url);
+                        setNotice({ tone: 'success', message: 'Logo enviada. Salve as configurações para publicar.' });
+                      }
+                    }}
                     variant="secondary"
                     style={styles.compactUploadButton}
                   />
@@ -322,7 +318,13 @@ export const SettingsExperience = () => {
                 <AppButton
                   label="Selecionar Imagem do Banner"
                   testID="settings-upload-banner-button"
-                  onPress={() => pickImage((url) => setBannerUrl(url), [16, 9])}
+                  onPress={async () => {
+                    const url = await pickImage([16, 9]);
+                    if (url) {
+                      setBannerUrl(url);
+                      setNotice({ tone: 'success', message: 'Banner enviado. Salve as configurações para publicar.' });
+                    }
+                  }}
                   variant="secondary"
                   style={styles.uploadButton}
                 />

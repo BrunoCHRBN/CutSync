@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LogOut, Wifi, WifiOff } from 'lucide-react-native';
+import { LogOut, Wifi } from 'lucide-react-native';
 import { BrandMark } from '../ui/BrandMark';
 import { colors, radii, typography } from '../../theme/tokens';
 
@@ -8,12 +8,11 @@ interface ProfessionalShellProps {
   children: ReactNode;
   name?: string;
   shopName?: string;
-  isOffline: boolean;
   onSignOut: () => void;
   testID: string;
 }
 
-export const ProfessionalShell = ({ children, name, shopName, isOffline, onSignOut, testID }: ProfessionalShellProps) => (
+export const ProfessionalShell = ({ children, name, shopName, onSignOut, testID }: ProfessionalShellProps) => (
   <View testID={testID} style={styles.root}>
     <View testID="professional-shell-header" style={styles.header}>
       <BrandMark compact testID="professional-shell-brand" />
@@ -21,9 +20,9 @@ export const ProfessionalShell = ({ children, name, shopName, isOffline, onSignO
         <Text testID="professional-shell-shop-name" numberOfLines={1} style={styles.shop}>{shopName || 'Estabelecimento'}</Text>
         <Text testID="professional-shell-user-name" numberOfLines={1} style={styles.name}>{name || 'Profissional'}</Text>
       </View>
-      <View style={[styles.connection, isOffline && styles.connectionOffline]}>
-        {isOffline ? <WifiOff color={colors.warning} size={14} /> : <Wifi color={colors.success} size={14} />}
-        <Text style={[styles.connectionText, isOffline && styles.connectionTextOffline]}>{isOffline ? 'Offline' : 'Online'}</Text>
+      <View style={styles.connection}>
+        <Wifi color={colors.success} size={14} />
+        <Text style={styles.connectionText}>Tempo real</Text>
       </View>
       <Pressable testID="professional-sign-out-button" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={onSignOut} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
         <LogOut color={colors.danger} size={17} />
@@ -40,9 +39,7 @@ const styles = StyleSheet.create({
   shop: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
   name: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 2 },
   connection: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.successSoft, borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 6 },
-  connectionOffline: { backgroundColor: colors.warningSoft },
   connectionText: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 9 },
-  connectionTextOffline: { color: colors.warning },
   signOut: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surface },
   pressed: { transform: [{ scale: 0.97 }] },
 });
