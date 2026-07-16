@@ -1,111 +1,111 @@
 {
+  "theme": "Light/Dark mode responsive. Admin dashboard defaults to Light. Public profile supports both based on system preference.",
+  "archetype": "Organic & Earthy mixed with Luxury to establish trust (LGPD) and a premium salon/barber experience.",
   "typography": {
-    "headings": {
-      "font": "Montserrat_700Bold",
-      "style": "tracking-tight leading-none text-accent",
-      "sizes": {
-        "h1": "text-4xl sm:text-5xl lg:text-6xl max-w-3xl",
-        "h2": "text-2xl sm:text-3xl lg:text-4xl",
-        "h3": "text-xl sm:text-2xl"
-      },
-      "rule": "Never use generic sans for headings. Maintain Montserrat for impact and brand consistency. Never exceed the text size hierarchy limits."
+    "headings": "Cabinet Grotesk or Playfair Display for premium, distinctive headers (no Inter or standard sans for headings).",
+    "body": "Satoshi or IBM Plex Sans for legibility in dense data.",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight leading-none",
+      "h2": "text-2xl sm:text-3xl tracking-tight",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base leading-relaxed text-foreground",
+      "labels": "text-xs uppercase tracking-[0.2em] font-medium"
     },
-    "body": {
-      "font": "Inter_400Regular",
-      "style": "leading-relaxed text-textSecondary text-base"
-    },
-    "labels": {
-      "font": "Inter_600SemiBold",
-      "style": "uppercase tracking-[0.2em] text-xs text-textMuted"
-    }
+    "guidelines": "Never use generic fonts like Inter, Roboto, or Open Sans for headings. Maintain a max jump of 2 tailwind steps between heading and subheading."
   },
   "colors": {
-    "archetype": "SWISS & HIGH-CONTRAST (Adapted to existing CutSync tokens)",
-    "primary": "#F5A524",
-    "background": "#F4F4F5",
+    "primary": "#0A0A0A",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#F3F4F6",
+    "secondary_foreground": "#111827",
+    "accent": "#C9A265",
+    "background_light": "#FAFAFA",
+    "background_dark": "#121212",
     "surface": "#FFFFFF",
-    "text": "#171717",
-    "accent": "#18181B",
-    "status": {
-      "success": "#16A34A",
-      "warning": "#D97706",
-      "danger": "#DC2626",
-      "pending": "#88888F"
-    },
-    "rules": [
-      "No full-screen gradients. Use solid colors with texture.",
-      "Use #F5A524 strictly for primary actions (Accept Invite, Approve).",
-      "Color is function: Keep 95% of the UI monochrome (canvas, surface, text), using color exclusively to guide action and indicate status."
-    ]
-  },
-  "visual enhancers": {
-    "surfaces": [
-      "Use 'glassSurface' (from tokens) for sticky headers and modal overlays: rgba(255,255,255,0.72) with 20px blur. Never use transparent backgrounds.",
-      "Use 'atmosphericShadow' for floating action cards like the Invite Acceptance Card."
-    ],
-    "borders": "1px solid #E4E4E7 on default cards, applying nested radii (child <= parent) for crisp edges."
-  },
-  "component name": {
-    "invite_acceptance_card": {
-      "layout": "single-column, centered, max-w-[480px]",
-      "elements": "Inviter Identity (Top), Workspace Context (Middle), Primary CTA (Center), Security Cue (Bottom).",
-      "style": "Flat surface background with 1px border and atmosphericShadow. No transparent backgrounds."
-    },
-    "role_management_matrix": {
-      "layout": "Grid-based data table, strict hierarchy",
-      "elements": "Role labels, Status indicators (Active/Pending/Expired), Action menu (Revoke/Resend).",
-      "style": "Dense mode, tight gaps, sharp edges or max 8px border-radius."
-    },
-    "signup_form": {
-      "modifications": "Remove any role or establishment selection. Default to pure client registration.",
-      "elements": "Name, Email, Password, CTA."
-    }
+    "surface_dark": "#1C1C1C",
+    "border": "rgba(0, 0, 0, 0.08)",
+    "border_dark": "rgba(255, 255, 255, 0.1)",
+    "danger": "#EF4444",
+    "guidelines": "Do not use pure black or gray; tint neutral grays warmly. Avoid teal green/blue. Do not use transparent backgrounds under readable content."
   },
   "grids": {
-    "dashboard_mode": "High Density Grid (MODE B) for admin panel - grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-4 or gap-6. Every pixel utilized.",
-    "marketing_mode": "Bento Grid (MODE A) for Request Establishment landing section - wide gap-8 to gap-12, asymmetrical tension."
+    "dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-4. High density, every pixel utilized.",
+    "profile_gallery": "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 with wide gap-6 for artful display.",
+    "guidelines": "Always mobile-first (grid-cols-1). Use bento-style layouts. Ensure items stretch correctly."
   },
   "layouts": {
-    "superadmin_dashboard": "Collapsible left sidebar. Top-left metric 'Pending Approvals'. Clean status cards leading to detailed list views. Responsive mobile-first.",
-    "invite_flow": "Immersive single focus layout. Center content horizontally and vertically. No distracting nav links.",
-    "general": "Never center-align paragraphs. Left-align dense content and forms. Generous spacing (p-6, p-8) inside containers."
+    "spacing": "Generous. p-6 or p-8 for containers. Extra padding on bordered elements to avoid text collision.",
+    "dashboard": "Flat, structured, 1px borders, subtle or no shadows until interaction.",
+    "profile_page": "Vertical mobile-first stack. Avoid deep menu nesting. Ensure thumb-friendly action buttons (bottom 60%)."
+  },
+  "visual_enhancers": {
+    "surfaces": "Glassmorphism for floating headers (backdrop-blur-xl, white/70). Solid flat colors for dashboard to avoid data refraction.",
+    "borders": "Concentric nested radii. Crisp inner strokes on glass elements."
   },
   "motion": {
-    "interactions": "Hover states (-translate-y-1, subtle shadow), Focus states (ring-2 ring-brand), Entrance animations (staggered list items for pending requests).",
-    "transitions": "Use specific properties (transition: transform 0.2s ease, opacity 0.2s ease). NEVER use 'transition: all'.",
-    "accessibility": "Respect prefers-reduced-motion."
+    "hover_states": "Hover must change text color (e.g., hover:bg-slate-900 hover:text-white).",
+    "transitions": "Explicit transition properties (transition-transform transition-opacity), NEVER transition-all.",
+    "guidelines": "Micro-interactions for delight. Honor prefers-reduced-motion."
   },
   "accessibility": {
-    "contrast": "Text below 18px needs 4.5:1 ratio. Large text needs 3:1. Focus states must have higher contrast.",
-    "testing": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., `data-testid=\"accept-invite-button\"`, `data-testid=\"approve-establishment-button\"`).",
-    "forms": "Use semantic labels, aria-hidden for decorative icons."
+    "contrast": "APCA preferred or WCAG AA minimum. Ensure text over images has sufficient contrast (use bg-black/50 overlay max).",
+    "focus_states": "Higher contrast focus rings.",
+    "images": "All gallery images MUST have descriptive alt-text.",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='view-profile-btn')."
   },
   "media": {
-    "icons": "lucide-react for system icons. Use 2-4 keyword searches for assets if needed.",
-    "images": "Not primarily needed for admin panel, but if 'Request Establishment' needs an illustration, use geometric, high-contrast monochrome shapes with a splash of #F5A524."
+    "images": {
+      "avatars": {
+        "description": "Professional portraits for the barber/stylist profiles",
+        "urls": [
+          "https://images.unsplash.com/photo-1553521041-d168abd31de3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwzfHxiYXJiZXIlMjBzdHlsaXN0JTIwcG9ydHJhaXR8ZW58MHx8fHwxNzg0MjIyMzk1fDA&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1598524374912-6b0b0bab43dd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxiYXJiZXIlMjBzdHlsaXN0JTIwcG9ydHJhaXR8ZW58MHx8fHwxNzg0MjIyMzk1fDA&ixlib=rb-4.1.0&q=85"
+        ]
+      },
+      "gallery": {
+        "description": "Haircut and salon work examples for the professional gallery section",
+        "urls": [
+          "https://images.pexels.com/photos/32329615/pexels-photo-32329615.jpeg",
+          "https://images.unsplash.com/photo-1605497788044-5a32c7078486",
+          "https://images.pexels.com/photos/15659494/pexels-photo-15659494.jpeg"
+        ]
+      }
+    }
   },
-  "3d libraries": {
-    "usage": "Not recommended for this specific security/dashboard update. Maintain flat, data-dense 2D layouts for clarity and security transparency."
+  "3d_libraries": {
+    "usage": "Not recommended for this data-centric and security-focused P0 fix. Use simple 2D Framer Motion (if applicable) for standard transitions."
   },
-  "instructions_to_main_agent": {
-    "file_extension_rule": "CRITICAL: The workspace strictly uses `.js` files instead of `.tsx`. You must create or modify files using the `.js` extension for all new UI components. Do not output `.tsx` files.",
-    "signup_fix": "Modify the registration flow to completely drop 'role' and 'establishment_id' fields from client input. Force pure 'client' account creation on the server side.",
-    "membership_and_rls": "Migrate authorization logic to a strict `memberships` table. Write negative RLS tests to prove that normal clients cannot escalate privileges or take over establishments.",
-    "establishment_request": "Build a secure form for clients to request a new establishment. Insert record with status 'pending_approval'.",
-    "superadmin_panel": "Design a Superadmin dashboard using High Density Grid (MODE B) to list, approve, or reject establishment requests securely. Include real-time audit components.",
-    "invite_flow": "Implement single-use invite generation valid for 24 hours. The Superadmin invites Admins; Admins invite Professionals. Create a frictionless single-column Accept Invite page.",
-    "data_testid": "Add `data-testid` attributes to every new form input, submit button, and action row."
+  "component_name": {
+    "ProfessionalProfileView": "Public read-only profile showing bio, gallery, and contact links (no phone/email).",
+    "CatalogProfileLink": "Conditional button linking from main catalog to the professional profile."
   },
+  "instructions_to_main_agent": [
+    "Address P0 Data Leak immediately: Remove 'USING (true)' from profiles table RLS.",
+    "Implement granular DB policies: Superadmin (read all), Admin (read own tenant), Owner (read self). Expose public fields via an RPC/View.",
+    "Professionals must not see client email/phone even in their own bookings.",
+    "Add immutable DB audit logs for invites, promotions, commissions, and revocations. Require mandatory reasons.",
+    "Create 'professional_profiles' table: id, user_id, slug, bio, portfolio_url, gallery_urls, created_at. Link optionally in memberships.",
+    "Create public profile route at '/profile/cutsync-security-p0' using the new table data. Must be mobile-optimized.",
+    "In the public catalog, display name, avatar, title, specialties, and a conditional 'View Profile' link.",
+    "Implement negative tests for RLS and LGPD validations.",
+    "Use standard React Native Expo patterns in `.js` files, applying NativeWind/Tailwind appropriately.",
+    "Do NOT use HTML `<select>` or standard inputs if cross-platform Shadcn/Expo alternatives exist."
+  ],
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "You tend to converge toward generic outputs. Break the mold: use asymmetrical layouts, layered depth, and glass-morphism effects (backdrop filters 12-24px blur).",
-    "Do not use dark colors as gradients. Use solid colors with texture.",
-    "NEVER use 'transition: all'. Explicitly define transition properties.",
-    "DO NOT center align the app container. Preserve human reading flow.",
-    "Use modern pill-shaped or sharp buttons with interactive animations.",
-    "Never use placeholder URLs or AI emoji characters for icons.",
-    "Every interaction needs micro-animations.",
-    "Use 'sonner' for toast notifications.",
-    "All interactive and key informational elements MUST include a `data-testid` attribute (kebab-case, role-based).",
-    "CRITICAL: DO NOT use complete `transparent` background in headers, overlays, or any surface that has content under it."
+    "You tend to converge toward generic outputs. Break the mold with layered elements, depth, and z-index hierarchy.",
+    "NEVER center align the app container; it disrupts reading flow.",
+    "Use 2-3x more spacing than typical for a premium feel.",
+    "Use modern pill-shaped or sharp buttons with specific hover/focus interaction states.",
+    "DO NOT apply 'transition: all'. Target specific properties.",
+    "DO NOT use AI assistant emojis for icons. Use lucide-react or @phosphor-icons/react.",
+    "NEVER use placeholder URLs; only use the exact images provided in the media section.",
+    "Ensure ALL interactive elements have kebab-case data-testid attributes for testing."
+  ],
+  "GENERAL UI UX DESIGN GUIDELINES": [
+    "Start mobile-first, prioritizing thumb zones for primary CTAs (bottom 60% of screen).",
+    "Use progressive disclosure: hide advanced settings behind secondary menus to reduce clutter.",
+    "Ensure touch targets are a minimum of 44x44 pixels.",
+    "Integrate 'Glassmorphism' properly: saturated blur with a 1px delicate inner stroke, avoiding muddy gray overlays.",
+    "Maintain strict APCA/WCAG contrast ratios, particularly for typography overlaid on images."
   ]
 }
