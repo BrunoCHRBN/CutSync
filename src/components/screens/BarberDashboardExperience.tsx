@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useServices } from '../../hooks/useServices';
-import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -27,7 +26,6 @@ interface RichAppointment {
   professionalId: string;
   barberName: string;
   clientName: string;
-  clientPhone: string;
   serviceName: string;
   price: number;
   dateTime: Date;
@@ -146,7 +144,6 @@ export const BarberDashboardExperience = () => {
       professionalId: app.professionalId,
       barberName: app.professional?.name || 'Profissional',
       clientName: app.client?.name || app.clientName || 'Cliente sem cadastro',
-      clientPhone: app.client?.phone || '',
       serviceName: app.service?.name || 'Serviço indisponível',
       price: app.service?.price || 0,
       dateTime: app.dateTime,
@@ -181,8 +178,6 @@ export const BarberDashboardExperience = () => {
           .from('appointments')
           .select(`
             *,
-            client:profiles!client_id(id,name,phone,avatar_url),
-            professional:profiles!professional_id(id,name,phone,avatar_url),
             service:services(id,name,price,duration_minutes)
           `)
           .eq('professional_id', profile.id)
@@ -202,7 +197,6 @@ export const BarberDashboardExperience = () => {
             professionalId: app.professional_id,
             barberName: app.professional?.name || 'Profissional',
             clientName: app.client?.name || app.client_name || 'Cliente sem cadastro',
-            clientPhone: app.client?.phone || '',
             serviceName: app.service?.name || 'Serviço indisponível',
             price: app.service?.price || 0,
             dateTime: new Date(app.date_time),
@@ -716,19 +710,6 @@ export const BarberDashboardExperience = () => {
                             <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
                           ) : (item.status === 'pending' || item.status === 'confirmed') && item.professionalId === profile?.id ? (
                             <View style={styles.appointmentActions}>
-                              {!!item.clientPhone && (
-                                <AppButton 
-                                  label="WhatsApp" 
-                                  testID={`barber-appointment-${item.id}-whatsapp-button`} 
-                                  onPress={() => {
-                                    const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${item.barberName}.`;
-                                    sendWhatsAppMessage(item.clientPhone, text);
-                                  }}
-                                  variant="secondary"
-                                  icon={<MessageSquare color={colors.brand} size={14} />}
-                                  style={styles.smallButton}
-                                />
-                              )}
                               <AppButton 
                                 label="Reagendar" 
                                 testID={`barber-appointment-${item.id}-reschedule-button`} 

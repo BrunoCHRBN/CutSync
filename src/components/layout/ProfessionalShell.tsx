@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LogOut, Wifi } from 'lucide-react-native';
+import { CalendarDays, LogOut, UserRound, Wifi } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
 import { colors, radii, typography } from '../../theme/tokens';
 
@@ -11,10 +12,12 @@ interface ProfessionalShellProps {
   onSignOut: () => void;
   testID: string;
   isOffline?: boolean;
+  activeRoute?: 'agenda' | 'profile';
 }
 
-export const ProfessionalShell = ({ children, name, shopName, onSignOut, testID, isOffline = false }: ProfessionalShellProps) => (
-  <View testID={testID} style={styles.root}>
+export const ProfessionalShell = ({ children, name, shopName, onSignOut, testID, isOffline = false, activeRoute = 'agenda' }: ProfessionalShellProps) => {
+  const router = useRouter();
+  return <View testID={testID} style={styles.root}>
     <View testID="professional-shell-header" style={styles.header}>
       <BrandMark compact testID="professional-shell-brand" />
       <View style={styles.identity}>
@@ -29,9 +32,13 @@ export const ProfessionalShell = ({ children, name, shopName, onSignOut, testID,
         <LogOut color={colors.danger} size={17} />
       </Pressable>
     </View>
+    <View testID="professional-shell-navigation" style={styles.navigation}>
+      <Pressable testID="professional-nav-agenda" onPress={() => router.push('/(professional)' as never)} style={[styles.navButton, activeRoute === 'agenda' && styles.navButtonActive]}><CalendarDays color={activeRoute === 'agenda' ? colors.text : colors.textMuted} size={15} /><Text style={[styles.navText, activeRoute === 'agenda' && styles.navTextActive]}>Agenda</Text></Pressable>
+      <Pressable testID="professional-nav-profile" onPress={() => router.push('/(professional)/profile' as never)} style={[styles.navButton, activeRoute === 'profile' && styles.navButtonActive]}><UserRound color={activeRoute === 'profile' ? colors.text : colors.textMuted} size={15} /><Text style={[styles.navText, activeRoute === 'profile' && styles.navTextActive]}>Meu perfil</Text></Pressable>
+    </View>
     {children}
-  </View>
-);
+  </View>;
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.canvas },
@@ -42,6 +49,11 @@ const styles = StyleSheet.create({
   connection: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.successSoft, borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 6 },
   connectionText: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 9 },
   connectionTextOffline: { color: colors.danger },
+  navigation: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  navButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, borderRadius: radii.md },
+  navButtonActive: { backgroundColor: colors.surfacePressed },
+  navText: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 10 },
+  navTextActive: { color: colors.text },
   signOut: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surface },
   pressed: { transform: [{ scale: 0.97 }] },
 });

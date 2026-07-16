@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Clock3, Coins, ExternalLink, Instagram, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -361,7 +361,7 @@ export default function BarbershopSlugScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
               renderItem={({ item }) => (
-                <Pressable onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
+                <Pressable testID={`barbershop-professional-${item.id}-open-button`} onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
                   <View testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
                     <View style={styles.avatarCircleSmall}>
                       {item.avatarUrl ? (
@@ -373,10 +373,10 @@ export default function BarbershopSlugScreen() {
                     <Text style={styles.professionalName}>{item.name}</Text>
                     <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                     {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                    {!!item.instagram && (
+                    {!!item.professionalProfileSlug && (
                       <View style={styles.barberInstaBtn}>
-                        <Instagram color={colors.textMuted} size={11} strokeWidth={1.6} />
-                        <Text style={styles.barberInstaText}>@{item.instagram}</Text>
+                        <ExternalLink color={colors.textMuted} size={11} strokeWidth={1.6} />
+                        <Text style={styles.barberInstaText}>Ver perfil</Text>
                       </View>
                     )}
                   </View>
@@ -393,7 +393,7 @@ export default function BarbershopSlugScreen() {
           visible={!!selectedTeamMember}
           onRequestClose={() => setSelectedTeamMember(null)}
         >
-          <Pressable style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
+          <Pressable testID="barbershop-professional-modal-overlay" style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
             <View style={styles.bottomSheetContainer}>
               {selectedTeamMember && (
                 <View style={styles.bottomSheetContent}>
@@ -401,7 +401,7 @@ export default function BarbershopSlugScreen() {
 
                   <View style={styles.bottomSheetHeader}>
                     <Text style={styles.bottomSheetTitle}>Perfil profissional</Text>
-                    <Pressable style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
+                    <Pressable testID="barbershop-professional-modal-close-button" style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
                       <X color={colors.textSecondary} size={18} strokeWidth={1.8} />
                     </Pressable>
                   </View>
@@ -417,7 +417,7 @@ export default function BarbershopSlugScreen() {
 
                     <Text style={styles.bottomSheetName}>{selectedTeamMember.name}</Text>
                     <Text style={styles.bottomSheetRole}>
-                      {selectedTeamMember.role === 'admin' ? 'Proprietário' : 'Profissional'}
+                      {selectedTeamMember.tituloProfissional || 'Profissional'}
                     </Text>
 
                     {!!selectedTeamMember.specialties && (
@@ -427,23 +427,15 @@ export default function BarbershopSlugScreen() {
                       </View>
                     )}
 
-                    {!!selectedTeamMember.instagram && (
+                    {!!selectedTeamMember.professionalProfileSlug && (
                       <TouchableOpacity 
-                        onPress={() => Linking.openURL(`https://instagram.com/${selectedTeamMember.instagram}`)}
+                        testID="barbershop-professional-public-profile-button"
+                        onPress={() => { setSelectedTeamMember(null); router.push(`/profile/${selectedTeamMember.professionalProfileSlug}` as never); }}
                         style={styles.bottomSheetInstagramBtn}
                       >
-                        <Instagram color={colors.text} size={15} strokeWidth={1.8} />
-                        <Text style={styles.bottomSheetInstagramText}>Ver Instagram @{selectedTeamMember.instagram}</Text>
+                        <ExternalLink color={colors.text} size={15} strokeWidth={1.8} />
+                        <Text style={styles.bottomSheetInstagramText}>Ver perfil completo</Text>
                       </TouchableOpacity>
-                    )}
-
-                    {!!selectedTeamMember.workHours && (
-                      <View style={styles.bottomSheetSection}>
-                        <Text style={styles.bottomSheetSectionLabel}>Horários de trabalho</Text>
-                        <Text style={styles.bottomSheetSectionValue}>
-                          {selectedTeamMember.workHours}
-                        </Text>
-                      </View>
                     )}
                   </View>
                 </View>

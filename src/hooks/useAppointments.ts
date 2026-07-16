@@ -21,6 +21,8 @@ interface UseAppointmentsOptions {
   ascending?: boolean;
   /** Desabilitar o hook (sem busca) */
   enabled?: boolean;
+  /** Carrega telefone de clientes por RPC exclusiva de admin/superadmin. */
+  includeClientContacts?: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
     orderBy = 'date_time',
     ascending = true,
     enabled = true,
+    includeClientContacts = false,
   } = options;
 
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -48,8 +51,6 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
     try {
       let query = supabase.from('appointments').select(`
         *,
-        client:profiles!client_id(id,name,phone,avatar_url),
-        professional:profiles!professional_id(id,name,phone,avatar_url),
         service:services(id,name,price,duration_minutes),
         establishment:establishments(id,name,slug,address,phone,timezone,currency)
       `);
@@ -63,7 +64,32 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
 
       const { data, error: err } = await query;
       if (err) throw err;
-      setAppointments((data ?? []).map(mapAppointment));
+      const appointmentIds = (data ?? []).map((row: any) => row.id);
+      const { data: participantNames, error: participantError } = appointmentIds.length
+        ? await supabase.rpc('get_appointment_participant_names', { target_appointment_ids: appointmentIds })
+        : { data: [], error: null };
+      if (participantError) throw participantError;
+      const namesByAppointment = new Map((participantNames ?? []).map((item: any) => [item.appointment_id, item]));
+      let clientPhones = new Map<string, string>();
+      if (includeClientContacts && establishmentId) {
+        const { data: contacts, error: contactsError } = await supabase.rpc('get_establishment_client_contacts', {
+          target_establishment_id: establishmentId,
+        });
+        if (contactsError) throw contactsError;
+        clientPhones = new Map((contacts ?? []).map((contact: any) => [contact.id, contact.phone || '']));
+      }
+      setAppointments((data ?? []).map((row: any) => mapAppointment({
+        ...row,
+        client: {
+          id: row.client_id,
+          name: (namesByAppointment.get(row.id) as any)?.client_name || row.client_name || 'Cliente',
+          phone: clientPhones.get(row.client_id) || null,
+        },
+        professional: {
+          id: row.professional_id,
+          name: (namesByAppointment.get(row.id) as any)?.professional_name || 'Profissional',
+        },
+      })));
       setError(null);
     } catch (e: any) {
       console.error('[useAppointments] Erro:', e);
@@ -71,7 +97,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [establishmentId, professionalId, clientId, JSON.stringify(statuses), dateFrom, dateTo, orderBy, ascending, enabled]);
+  }, [establishmentId, professionalId, clientId, JSON.stringify(statuses), dateFrom, dateTo, orderBy, ascending, enabled, includeClientContacts]);
 
   useEffect(() => {
     setLoading(true);

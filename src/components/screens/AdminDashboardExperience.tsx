@@ -160,6 +160,7 @@ export const AdminDashboardExperience = () => {
     dateFrom: dateRange.start,
     dateTo: dateRange.end,
     enabled: !!profile?.establishment_id,
+    includeClientContacts: true,
   });
 
   const appointments: RichAppointment[] = useMemo(() => {

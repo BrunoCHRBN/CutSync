@@ -95,6 +95,13 @@ FROM public.memberships m WHERE m.profile_id = p.id;
 
 INSERT INTO public.superadmins(profile_id) VALUES ('10000000-0000-0000-0000-000000000006');
 
+INSERT INTO public.professional_profiles(id, user_id, slug, bio, gallery_urls, is_public)
+VALUES ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002',
+  'p0-professional-a', 'Perfil público de teste', '[]'::jsonb, true);
+UPDATE public.memberships SET professional_profile_id = '30000000-0000-0000-0000-000000000001'
+WHERE profile_id = '10000000-0000-0000-0000-000000000002'
+  AND establishment_id = '20000000-0000-0000-0000-000000000001';
+
 INSERT INTO public.invitations(establishment_id, invited_email, role, token_hash, expires_at, created_by)
 VALUES
   ('20000000-0000-0000-0000-000000000001', 'p0-client-a@example.test', 'professional',
@@ -125,6 +132,14 @@ SELECT pg_temp.assert_zero(
   'client can see tenant memberships'
 );
 SELECT pg_temp.expect_error(
+  $$SELECT email, phone, push_token, commission_rate FROM public.profiles WHERE id = '10000000-0000-0000-0000-000000000001'$$,
+  'permission denied'
+);
+SELECT pg_temp.assert_zero(
+  $$SELECT count(*) FROM public.authorization_audit_log$$,
+  'client can read authorization audit log'
+);
+SELECT pg_temp.expect_error(
   $$UPDATE public.profiles SET role = 'admin', establishment_id = '20000000-0000-0000-0000-000000000001', commission_rate = 1 WHERE id = '10000000-0000-0000-0000-000000000001'$$,
   'permission denied'
 );
@@ -142,6 +157,14 @@ SELECT pg_temp.assert_zero(
 SELECT pg_temp.assert_zero(
   $$SELECT count(*) FROM public.profiles WHERE id = '10000000-0000-0000-0000-000000000004'$$,
   'professional can see another tenant profile'
+);
+SELECT pg_temp.assert_zero(
+  $$SELECT count(*) FROM public.profiles WHERE id = '10000000-0000-0000-0000-000000000001'$$,
+  'professional can see client private profile'
+);
+SELECT pg_temp.expect_error(
+  $$SELECT count(*) FROM public.get_establishment_client_contacts('20000000-0000-0000-0000-000000000001')$$,
+  'forbidden'
 );
 SELECT pg_temp.expect_error(
   $$SELECT public.create_invitation('20000000-0000-0000-0000-000000000001', 'new-prof@example.test', 'professional')$$,
@@ -181,6 +204,14 @@ SELECT pg_temp.expect_error(
 SELECT count(*) FROM public.create_invitation(
   '20000000-0000-0000-0000-000000000001', 'allowed-prof@example.test', 'professional'
 );
+SELECT pg_temp.expect_error(
+  $$SELECT public.remove_professional('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', '')$$,
+  'revocation_reason_required'
+);
+SELECT pg_temp.assert_zero(
+  $$SELECT count(*) FROM public.authorization_audit_log WHERE establishment_id = '20000000-0000-0000-0000-000000000002'$$,
+  'admin can read another tenant audit trail'
+);
 
 -- Superadmin: pode convidar admin, mas não ganha membership implícita.
 SELECT pg_temp.set_actor('10000000-0000-0000-0000-000000000006');
@@ -190,6 +221,10 @@ SELECT count(*) FROM public.create_invitation(
 SELECT pg_temp.assert_zero(
   $$SELECT count(*) FROM public.memberships WHERE profile_id = '10000000-0000-0000-0000-000000000006'$$,
   'superadmin received an implicit tenant membership'
+);
+SELECT pg_temp.assert_one(
+  $$SELECT count(*) FROM public.get_public_professional_profile('p0-professional-a')$$,
+  'published professional profile is not readable'
 );
 
 -- Tokens inválidos, usuário/e-mail incorreto e reutilização são negados.
@@ -210,6 +245,17 @@ SELECT pg_temp.expect_error(
   'expired_invitation'
 );
 
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+SELECT pg_temp.assert_one(
+  $$SELECT count(*) FROM public.get_public_professional_profile('p0-professional-a')$$,
+  'anonymous visitor cannot read published professional profile'
+);
+SELECT pg_temp.assert_one(
+  $$SELECT count(*) FROM public.get_public_team('20000000-0000-0000-0000-000000000001') WHERE id = '10000000-0000-0000-0000-000000000002'$$,
+  'anonymous catalog cannot read professional public fields'
+);
 RESET ROLE;
 
 ROLLBACK;

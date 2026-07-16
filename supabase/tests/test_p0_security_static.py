@@ -11,6 +11,8 @@ REGISTER_SCREEN = ROOT / "src/components/screens/RegisterExperience.tsx"
 REGISTER_ROUTE = ROOT / "src/app/(auth)/register.tsx"
 TEAM_HOOK = ROOT / "src/hooks/useTeam.ts"
 APPOINTMENTS_HOOK = ROOT / "src/hooks/useAppointments.ts"
+PRIVACY_MIGRATION = ROOT / "supabase/migrations/20260716052000_privacy_audit_and_professional_profiles.sql"
+PRIVACY_MATRIX = ROOT / "supabase/tests/privacy_audit_p0.sql"
 
 
 def _read(path: Path) -> str:
@@ -115,10 +117,12 @@ def test_register_route_exports_secure_experience_component():
 # module: appointments query projection review
 def test_appointments_hook_mapping_contract_present():
     hook = _read(APPOINTMENTS_HOOK)
-    assert "client:profiles!client_id(id,name,phone,avatar_url)" in hook
-    assert "professional:profiles!professional_id(id,name,phone,avatar_url)" in hook
+    assert "client:profiles" not in hook
+    assert "professional:profiles" not in hook
+    assert "get_appointment_participant_names" in hook
+    assert "get_establishment_client_contacts" in hook
     assert "service:services(id,name,price,duration_minutes)" in hook
-    assert "setAppointments((data ?? []).map(mapAppointment))" in hook
+    assert "mapAppointment" in hook
 
 
 def test_finalize_migration_is_present_and_reasserts_profile_protection():
@@ -129,3 +133,44 @@ def test_finalize_migration_is_present_and_reasserts_profile_protection():
     assert "GRANT UPDATE (name, phone, avatar_url, push_token) ON public.profiles TO authenticated;" in sql
     assert "CREATE OR REPLACE FUNCTION public.accept_invitation(invitation_token text)" in sql
     assert "IF invitation_token !~ '^[0-9a-f]{64}$'" in sql
+
+
+def test_privacy_migration_removes_global_profile_visibility():
+    sql = _read(PRIVACY_MIGRATION)
+    assert "Private profiles visible only to owner and managers" in sql
+    assert "REVOKE SELECT ON public.profiles FROM anon, authenticated;" in sql
+    assert "GRANT SELECT (id, name, avatar_url) ON public.profiles TO authenticated;" in sql
+    assert "get_establishment_client_contacts" in sql
+
+
+def test_audit_log_is_immutable_and_restricted_to_managers():
+    sql = _read(PRIVACY_MIGRATION)
+    assert "authorization_audit_log_is_immutable" in sql
+    assert "Admins read tenant audit trail" in sql
+    assert "REVOKE ALL ON public.authorization_audit_log FROM anon, authenticated;" in sql
+    assert "membership.role_changed" in sql
+    assert "commission.changed" in sql
+    assert "membership.revoked" in sql
+    assert "invitation.revoked" in sql
+
+
+def test_public_professional_profiles_are_minimal_and_owner_controlled():
+    sql = _read(PRIVACY_MIGRATION)
+    assert "CREATE TABLE IF NOT EXISTS public.professional_profiles" in sql
+    assert "professional_profile_slug text" in sql
+    assert "CREATE OR REPLACE FUNCTION public.get_public_professional_profile" in sql
+    assert "CREATE OR REPLACE FUNCTION public.upsert_my_professional_profile" in sql
+    public_team = sql.split("CREATE FUNCTION public.get_public_team", 1)[1].split("CREATE OR REPLACE FUNCTION public.get_public_professional_profile", 1)[0]
+    for sensitive in ("email", "phone", "push_token", "commission_rate", "work_hours"):
+        assert sensitive not in public_team
+    return_columns = public_team.split("RETURNS TABLE (", 1)[1].split(")", 1)[0]
+    assert "establishment_id" not in return_columns
+    assert "role" not in return_columns
+
+
+def test_revocations_require_reasons():
+    sql = _read(PRIVACY_MIGRATION)
+    assert "CREATE FUNCTION public.remove_professional" in sql
+    assert "CREATE OR REPLACE FUNCTION public.revoke_invitation" in sql
+    assert sql.count("revocation_reason_required") >= 2
+    assert _read(PRIVACY_MATRIX)

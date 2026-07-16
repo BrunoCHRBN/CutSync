@@ -293,8 +293,6 @@ export default function BookingSlugScreen() {
           options: {
             data: {
               name: authName,
-              role: 'client',
-              establishment_id: barbershop?.id || null,
             }
           }
         });

@@ -24,10 +24,11 @@ function RootLayoutNavigation() {
     const isDynamicSlug = segments[0] === '[slug]';
     const isPublicSalon = segments[0] === 'salon';
     const isInvite = segments[0] === 'invite';
+    const isPublicProfessionalProfile = segments[0] === 'profile';
 
     if (!user) {
       // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
-      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite) {
+      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile) {
         router.replace('/(auth)/login');
       }
     } else if (profile) {
@@ -39,7 +40,8 @@ function RootLayoutNavigation() {
         firstSegment === 'explore' || 
         firstSegment === 'appointments' ||
         isDynamicSlug ||
-        isPublicSalon;
+        isPublicSalon ||
+        isPublicProfessionalProfile;
       const inProfessionalGroup = firstSegment === '(professional)' || firstSegment === 'professional';
       const inSuperadminGroup = firstSegment === 'superadmin';
 
@@ -54,11 +56,11 @@ function RootLayoutNavigation() {
       }
 
       if (profile.role === 'admin') {
-        if (!inAdminGroup && !isDynamicSlug && !isPublicSalon) {
+        if (!inAdminGroup && !isDynamicSlug && !isPublicSalon && !isPublicProfessionalProfile) {
           router.replace('/(admin)');
         }
       } else if (profile.role === 'professional') {
-        if (!inProfessionalGroup) {
+        if (!inProfessionalGroup && !isPublicProfessionalProfile) {
           router.replace('/(professional)');
         }
       } else {

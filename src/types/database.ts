@@ -24,7 +24,7 @@ export interface ProfileRecord {
   establishmentId?: string | null;
   name: string;
   role: 'client' | 'professional' | 'admin';
-  email: string;
+  email?: string;
   phone?: string | null;
   avatarUrl?: string | null;
   commissionRate?: number | null;
@@ -32,6 +32,7 @@ export interface ProfileRecord {
   specialties?: string | null;
   instagram?: string | null;
   tituloProfissional?: string | null;
+  professionalProfileSlug?: string | null;
 }
 
 export interface ServiceRecord {
@@ -57,7 +58,7 @@ export interface AppointmentRecord {
   rescheduleCount: number;
   originalDateTime?: Date | null;
   client?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
-  professional?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
+  professional?: Pick<ProfileRecord, 'id' | 'name'> | null;
   service?: Pick<ServiceRecord, 'id' | 'name' | 'price' | 'durationMinutes'> | null;
   establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency'> | null;
 }
@@ -85,7 +86,7 @@ export const mapProfile = (row: any): ProfileRecord => ({
   id: row.id,
   establishmentId: row.establishment_id,
   name: row.name,
-  role: row.role,
+  role: row.role || 'professional',
   email: row.email,
   phone: row.phone,
   avatarUrl: row.avatar_url,
@@ -94,6 +95,7 @@ export const mapProfile = (row: any): ProfileRecord => ({
   specialties: row.specialties,
   instagram: row.instagram,
   tituloProfissional: row.titulo_profissional,
+  professionalProfileSlug: row.professional_profile_slug,
 });
 
 export const mapService = (row: any): ServiceRecord => ({
@@ -123,6 +125,25 @@ export const mapAppointment = (row: any): AppointmentRecord => ({
   service: row.service ? mapService(row.service) : null,
   establishment: row.establishment ? mapEstablishment(row.establishment) : null,
 });
+
+export interface ProfessionalGalleryItem {
+  url: string;
+  alt: string;
+}
+
+export interface ProfessionalPublicProfile {
+  id: string;
+  slug: string;
+  name: string;
+  avatarUrl?: string | null;
+  tituloProfissional?: string | null;
+  specialties?: string | null;
+  bio?: string | null;
+  portfolioUrl?: string | null;
+  instagramUrl?: string | null;
+  gallery: ProfessionalGalleryItem[];
+  isPublic?: boolean;
+}
 
 export type Profile = ProfileRecord;
 export type Service = ServiceRecord;

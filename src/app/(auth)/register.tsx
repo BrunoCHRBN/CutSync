@@ -94,8 +94,6 @@ function LegacyRegisterScreen() {
           data: {
             name,
             phone,
-            role,
-            establishment_id: barbershopId,
           },
         },
       });

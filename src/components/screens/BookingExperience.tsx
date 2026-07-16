@@ -265,7 +265,7 @@ export const BookingExperience = () => {
                       key={barber.id}
                       testID={`booking-barber-${barber.id}`}
                       title={barber.name}
-                      subtitle={barber.role === 'admin' ? 'Proprietário' : 'Profissional'}
+                      subtitle={barber.tituloProfissional || 'Profissional'}
                       selected={selectedBarber === barber.id}
                       onPress={() => selectedService && chooseBarber(barber.id)}
                       icon={<UserRound color={colors.textSecondary} size={16} />}

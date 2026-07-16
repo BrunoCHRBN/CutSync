@@ -62,7 +62,7 @@ export const AppointmentsExperience = () => {
       shopAddress: item.establishment?.address || undefined,
       serviceName: item.service?.name || 'Serviço',
       barberName: item.professional?.name || 'Profissional',
-      contactPhone: item.establishment?.phone || item.professional?.phone || '',
+      contactPhone: item.establishment?.phone || '',
       shopSlug: item.establishment?.slug || '',
       rescheduleCount: item.rescheduleCount,
       cancellationReason: item.cancellationReason || '',
