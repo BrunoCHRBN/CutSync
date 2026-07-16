@@ -23,7 +23,7 @@ export const ProfessionalShell = ({ children, name, shopName, isOffline, onSignO
       </View>
       <View style={[styles.connection, isOffline && styles.connectionOffline]}>
         {isOffline ? <WifiOff color={colors.warning} size={14} /> : <Wifi color={colors.success} size={14} />}
-        <Text style={[styles.connectionText, isOffline && styles.connectionTextOffline]}>{isOffline ? 'Offline' : 'Online'}</Text>
+        <Text style={[styles.connectionText, isOffline && styles.connectionTextOffline]}>{isOffline ? 'Offline' : 'Tempo real'}</Text>
       </View>
       <Pressable testID="professional-sign-out-button" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={onSignOut} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
         <LogOut color={colors.danger} size={17} />

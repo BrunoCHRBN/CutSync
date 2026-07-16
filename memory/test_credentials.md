@@ -1,4 +1,19 @@
-# Credenciais de teste
+# Credenciais de teste — Migração Supabase
+
+## Cliente
+- E-mail: `bakdmskaj8183@gmail.com`
+- Senha: `bruno1324`
+
+## Profissional
+- E-mail: `brusantos7178@outlook.com`
+- Senha: `bruno1324`
+
+## Dono/Admin
+- E-mail: `brusantos777@gmail.com`
+- Senha: `bruno1324`
+
+## Ambiente
+- Supabase configurado em `/app/.env` com URL e chave pública.
 
 ## Administrador informado pelo usuário
 

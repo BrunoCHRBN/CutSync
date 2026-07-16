@@ -1,0 +1,86 @@
+{
+  "summary": "Frontend regression executed for Supabase migration flows. Login and route rendering work for client/professional/admin, but appointments integrations fail with Supabase REST 400, breaking agenda/status/realtime-dependent validations.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ClientShell sync badge",
+        "issue": "Status badge shows 'Falha' after login because appointments fetch returns 400.",
+        "selector": "[data-testid=\"client-shell-sync-status\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Client appointments list",
+        "issue": "GET appointments query fails with HTTP 400, list remains empty and cancellation/realtime checks cannot be validated.",
+        "affected_selectors": [
+          "[data-testid=\"client-appointments-screen\"]",
+          "[data-testid=\"client-appointments-empty\"]"
+        ]
+      },
+      {
+        "flow": "Professional dashboard agenda",
+        "issue": "Appointments queries fail with HTTP 400, no actionable appointment rows available for status transitions.",
+        "affected_selectors": [
+          "[data-testid=\"barber-dashboard-screen\"]",
+          "[data-testid=\"barber-agenda-heading\"]"
+        ]
+      },
+      {
+        "flow": "Admin dashboard agenda",
+        "issue": "Appointments queries fail with HTTP 400, advance/cancel actions unavailable due to missing loaded records.",
+        "affected_selectors": [
+          "[data-testid=\"admin-dashboard-screen\"]",
+          "[data-testid=\"admin-appointments-panel\"]"
+        ]
+      },
+      {
+        "flow": "Realtime verification",
+        "issue": "Could not validate realtime propagation because base appointments fetch is failing with 400 before subscription usefulness can be observed.",
+        "affected_selectors": [
+          "[data-testid=\"client-shell-sync-status\"]",
+          "[data-testid=\"barber-sync-status\"]",
+          "[data-testid=\"admin-sync-status\"]"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Global web",
+        "issues": [
+          "Console warns about deprecated shadow* style props and pointerEvents prop usage (non-blocking)."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/root/.emergent/automation_output/20260716_023727/console_20260716_023727.log"
+  ],
+  "action_items": [
+    "Fix Supabase appointments REST 400 responses for relation-heavy selects in useAppointments and professional next-appointment query.",
+    "Verify table schema/RLS/foreign keys match aliases used in selects (client/professional/service/establishment joins).",
+    "After fixing query errors, retest create/cancel/edit status and realtime propagation end-to-end across client/professional/admin.",
+    "Add stable data-testid to auth modal fields in /app/src/app/[slug]/booking.tsx if public booking auth fallback must be automated later."
+  ],
+  "critical_code_review_comments": [
+    "useAppointments and dashboard-specific direct queries rely on complex FK alias projections; current Supabase response 400 indicates contract mismatch (schema/policy/select path), which blocks key product flows.",
+    "Public and route consolidation checks passed (/(admin), /(professional), /(client), public /salon/[slug] and booking path render correctly).",
+    "No active WatermelonDB references detected in /app/src search for watermelon/@nozbe/useSync/database imports."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_6.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only scope)",
+    "frontend": "62%"
+  },
+  "seed_data_creation": "Attempted booking creation through UI; no explicit seed marker record confirmed due downstream appointments fetch failures.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All three credentialed logins succeed. Public profile and booking UI render. Blocking issue is Supabase REST 400 on appointments endpoints with relation selects, causing sync failure and empty agendas. Re-run same multi-role scenario after query/policy fix.",
+  "rca of the issue": "Reproduction: login as client/pro/admin and open appointment-driven screens; network returns 400 for /rest/v1/appointments queries with nested FK alias selects and date filters. Impact: agendas empty, status updates/cancel/realtime validation blocked. Likely root cause: select contract mismatch with current DB schema or RLS/policy constraints on joined relations post-migration. Mitigation: simplify query to baseline columns, validate incrementally each relation join and policy access, then restore full projection."
+}

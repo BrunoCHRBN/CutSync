@@ -13,12 +13,12 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Q } from '@nozbe/watermelondb';
 import { ArrowLeft, CalendarDays, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
-import { database } from '../../database';
-import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { useTeam } from '../../hooks/useTeam';
+import { supabase } from '../../services/supabase';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -38,10 +38,9 @@ export const BookingExperience = () => {
   const isWide = width >= 940;
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { sync } = useSync();
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [barbers, setBarbers] = useState<Profile[]>([]);
+  const { establishment: barbershop, loading: shopLoading } = useEstablishment(barbershopId);
+  const { services, loading: servicesLoading } = useServices(barbershopId, true);
+  const { team: barbers, loading: teamLoading } = useTeam(barbershopId, true);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -89,7 +88,7 @@ export const BookingExperience = () => {
       }),
     ]).start();
   }, [selectedBarber]);
-  const [loading, setLoading] = useState(true);
+  const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -99,32 +98,7 @@ export const BookingExperience = () => {
     return date;
   }), []);
 
-  useEffect(() => {
-    if (!barbershopId) {
-      setLoading(false);
-      return;
-    }
-    const load = async () => {
-      try {
-        const [shop, serviceList, barberList] = await Promise.all([
-          database.collections.get<Barbershop>('establishments').find(barbershopId),
-          database.collections.get<Service>('services')
-            .query(Q.where('establishment_id', barbershopId), Q.where('is_active', true)).fetch(),
-          database.collections.get<Profile>('profiles')
-            .query(Q.where('establishment_id', barbershopId), Q.where('role', Q.oneOf(['professional', 'barber', 'admin']))).fetch(),
-        ]);
-        setBarbershop(shop);
-        setServices(serviceList);
-        setBarbers(barberList);
-        setSelectedDate(new Date());
-      } catch {
-        setError('Não foi possível carregar a agenda desta barbearia.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [barbershopId]);
+  useEffect(() => { if (barbershopId) setSelectedDate(new Date()); }, [barbershopId]);
 
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
@@ -136,18 +110,16 @@ export const BookingExperience = () => {
       start.setHours(0, 0, 0, 0);
       const end = new Date(selectedDate);
       end.setHours(23, 59, 59, 999);
-      const appointments = await database.collections.get<Appointment>('appointments')
-        .query(
-          Q.where('professional_id', selectedBarber),
-          Q.where('status', Q.notEq('cancelled')),
-          Q.where('date_time', Q.between(start.getTime(), end.getTime())),
-        ).fetch();
-      const segments = await Promise.all(appointments.map(async (appointment) => {
-        let duration = 30;
-        try { duration = (await database.collections.get<Service>('services').find(appointment.serviceId)).durationMinutes; } catch {}
-        const segmentStart = appointment.dateTime.getTime();
+      const { data, error: queryError } = await supabase.from('appointments')
+        .select('date_time, service:services!appointments_service_id_fkey(duration_minutes)')
+        .eq('professional_id', selectedBarber).neq('status', 'cancelled')
+        .gte('date_time', start.toISOString()).lte('date_time', end.toISOString());
+      if (queryError) throw queryError;
+      const segments = (data || []).map((appointment: any) => {
+        const duration = Number(appointment.service?.duration_minutes || 30);
+        const segmentStart = new Date(appointment.date_time).getTime();
         return { start: segmentStart, end: segmentStart + duration * 60 * 1000 };
-      }));
+      });
       setBookedSegments(segments);
     };
     loadAvailability();
@@ -210,21 +182,14 @@ export const BookingExperience = () => {
       const appointmentDate = new Date(selectedDate);
       const [hours, minutes] = selectedTime.split(':').map(Number);
       appointmentDate.setHours(hours, minutes, 0, 0);
-      let appointmentId = '';
-      await database.write(async () => {
-        const created = await database.collections.get('appointments').create((record: any) => {
-          record.establishmentId = barbershopId;
-          record.clientId = user.id;
-          record.clientName = profile?.name || 'Cliente';
-          record.professionalId = selectedBarber;
-          record.serviceId = selectedService;
-          record.dateTime = appointmentDate;
-          record.status = 'pending';
-        });
-        appointmentId = created.id;
-      });
+      const { data, error: insertError } = await supabase.from('appointments').insert({
+        establishment_id: barbershopId, client_id: user.id, client_name: profile?.name || 'Cliente',
+        professional_id: selectedBarber, service_id: selectedService,
+        date_time: appointmentDate.toISOString(), status: 'pending',
+      }).select('id').single();
+      if (insertError) throw insertError;
+      const appointmentId = data.id;
       if (barbershop?.name) await scheduleAppointmentNotification(appointmentId, barbershop.name, appointmentDate);
-      sync();
       router.replace('/(client)');
     } catch {
       setError('Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');

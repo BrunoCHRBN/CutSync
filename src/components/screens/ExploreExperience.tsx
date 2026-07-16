@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
-import { database } from '../../database';
-import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { supabase } from '../../services/supabase';
+import { Establishment, mapEstablishment } from '../../types/database';
 import { ClientShell } from '../layout/ClientShell';
 import { EmptyState } from '../ui/EmptyState';
 import { SectionHeading } from '../ui/SectionHeading';
@@ -18,18 +17,22 @@ export const ExploreExperience = () => {
   const isWide = width >= layout.desktopBreakpoint;
   const router = useRouter();
   const { profile, signOut } = useAuth();
-  const { isSyncing, syncError, sync } = useSync();
-  const [barbershops, setBarbershops] = useState<Barbershop[]>([]);
+  const [barbershops, setBarbershops] = useState<Establishment[]>([]);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const sub = database.collections.get<Barbershop>('establishments').query().observe().subscribe({
-      next: (items) => { setBarbershops(items); setLoading(false); },
-      error: () => setLoading(false),
-    });
-    return () => sub.unsubscribe();
+    const refresh = async () => {
+      const { data } = await supabase.from('establishments').select('*').order('name');
+      setBarbershops((data || []).map(mapEstablishment));
+      setLoading(false);
+    };
+    void refresh();
+    const channel = supabase.channel('explore-establishments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'establishments' }, refresh)
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
   }, []);
 
   const filtered = useMemo(() => {
@@ -44,7 +47,7 @@ export const ExploreExperience = () => {
   };
 
   return (
-    <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} isSyncing={isSyncing} syncError={syncError} onSync={sync} onSignOut={signOut}>
+    <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} isSyncing={loading} syncError={null} onSync={() => {}} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={[styles.hero, isWide && styles.heroWide]}>
           <View style={styles.heroCopy}>

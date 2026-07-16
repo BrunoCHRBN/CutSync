@@ -5,11 +5,8 @@ import { CalendarDays, LayoutDashboard, Scissors, Settings, Users, LogOut, Wifi 
 import { BrandMark } from '../ui/BrandMark';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
-import { database } from '../../database';
 import { supabase } from '../../services/supabase';
-import { syncDatabase } from '../../database/sync';
-import { Barbershop } from '../../database/models';
+import { Establishment, mapEstablishment } from '../../types/database';
 
 type AdminRoute = 'overview' | 'services' | 'team' | 'settings';
 
@@ -43,22 +40,22 @@ export const AdminShell = ({
 
   const navigate = (path: string) => router.push(path as never);
 
-  const [availableShops, setAvailableShops] = React.useState<Barbershop[]>([]);
+  const [availableShops, setAvailableShops] = React.useState<Establishment[]>([]);
   const [switching, setSwitching] = React.useState(false);
   const { profile, refreshProfile } = useAuth();
-  const { sync } = useSync();
 
   React.useEffect(() => {
     if (!profile?.id) return;
     
-    const query = database.collections.get<Barbershop>('establishments').query();
-    const subscription = query.observe().subscribe({
-      next: (list) => {
-        setAvailableShops(list);
-      }
-    });
-    
-    return () => subscription.unsubscribe();
+    const load = async () => {
+      const { data: links } = await supabase.from('profile_establishments').select('establishment_id').eq('profile_id', profile.id);
+      const ids = (links || []).map((item) => item.establishment_id);
+      if (profile.establishment_id && !ids.includes(profile.establishment_id)) ids.push(profile.establishment_id);
+      if (!ids.length) { setAvailableShops([]); return; }
+      const { data } = await supabase.from('establishments').select('*').in('id', ids).order('name');
+      setAvailableShops((data || []).map(mapEstablishment));
+    };
+    void load();
   }, [profile?.id]);
 
   const handleSwitchShop = async (targetShopId: string) => {
@@ -72,18 +69,10 @@ export const AdminShell = ({
         
       if (error) throw error;
       
-      // 2. Resetar banco local do WatermelonDB
-      await database.write(async () => {
-        await database.unsafeResetDatabase();
-      });
-      
-      // 3. Atualizar o profile local no contexto de Auth
+      // 2. Atualizar o profile no contexto de autenticação
       await refreshProfile();
-      
-      // 4. Executar uma sincronização limpa
-      await syncDatabase();
-      
-      // 5. Redirecionar para recarregar
+
+      // 3. Redirecionar; os hooks Realtime carregam a nova unidade
       router.replace('/(admin)');
     } catch (err) {
       console.warn('Erro ao alternar de barbearia:', err);
@@ -173,7 +162,7 @@ export const AdminShell = ({
           <View style={styles.sidebarFooter}>
             <View style={styles.connectionRow}>
               <Wifi color={colors.success} size={15} />
-              <Text style={styles.connectionText}>Dados protegidos offline</Text>
+              <Text style={styles.connectionText}>Atualizações em tempo real</Text>
             </View>
             <Text testID="admin-sidebar-user-name" style={styles.userName}>{userName || 'Administrador'}</Text>
             <Pressable testID="admin-sign-out-button" onPress={onSignOut} style={styles.signOut}>
@@ -230,7 +219,7 @@ export const AdminShell = ({
       {switching && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.loadingText}>Sincronizando estabelecimento...</Text>
+          <Text style={styles.loadingText}>Alternando estabelecimento...</Text>
         </View>
       )}
     </View>

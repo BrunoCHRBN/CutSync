@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Q } from '@nozbe/watermelondb';
 import { AlertTriangle, BadgePercent, Clock, Copy, Link2, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
-import { database } from '../../database';
-import { Barbershop, Profile } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useTeam } from '../../hooks/useTeam';
+import { supabase } from '../../services/supabase';
+import { ProfileRecord } from '../../types/database';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -37,10 +37,8 @@ export const TeamExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { sync } = useSync();
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
-  const [barbers, setBarbers] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
+  const { team: barbers, loading } = useTeam(profile?.establishment_id, false);
   
   // Edição do profissional
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -57,20 +55,7 @@ export const TeamExperience = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
 
-  useEffect(() => {
-    if (!profile?.establishment_id) {
-      setLoading(false);
-      return;
-    }
-    const shopSub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id)
-      .subscribe({ next: setBarbershop, error: () => setLoading(false) });
-    const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', Q.oneOf(['professional', 'barber'])))
-      .observe().subscribe({ next: (items) => { setBarbers(items); setLoading(false); }, error: () => setLoading(false) });
-    return () => { shopSub.unsubscribe(); teamSub.unsubscribe(); };
-  }, [profile]);
-
-  const startEditing = (barber: Profile) => {
+  const startEditing = (barber: ProfileRecord) => {
     setEditingId(barber.id);
     setCommission(String(Math.round((barber.commissionRate ?? 0.5) * 100)));
     setSpecialties(barber.specialties || '');
@@ -79,7 +64,7 @@ export const TeamExperience = () => {
     setNotice(null);
   };
 
-  const startEditingWorkHours = (barber: Profile) => {
+  const startEditingWorkHours = (barber: ProfileRecord) => {
     setEditingWorkHoursId(barber.id);
     let parsedHours = defaultSchedule;
     if (barber.workHours) {
@@ -99,20 +84,15 @@ export const TeamExperience = () => {
     }
     setActionLoading(true);
     try {
-      await database.write(async () => {
-        const barber = await database.collections.get<Profile>('profiles').find(barberId);
-        await barber.update((record) => { 
-          record.commissionRate = value / 100; 
-          record.specialties = specialties.trim() || null;
-          record.instagram = barberInstagram.trim() || null;
-          record.tituloProfissional = tituloProfissional.trim() || null;
-        });
-      });
-      const synced = await sync();
+      const { error } = await supabase.from('profiles').update({
+        commission_rate: value / 100,
+        specialties: specialties.trim() || null,
+        instagram: barberInstagram.trim() || null,
+        titulo_profissional: tituloProfissional.trim() || null,
+      }).eq('id', barberId);
+      if (error) throw error;
       setEditingId(null);
-      setNotice(synced
-        ? { tone: 'success', message: 'Dados do profissional salvos e sincronizados.' }
-        : { tone: 'danger', message: 'Os dados foram salvos neste dispositivo, mas a sincronização falhou. Tente novamente.' });
+      setNotice({ tone: 'success', message: 'Dados do profissional salvos.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar os dados do profissional.' });
     } finally {
@@ -123,17 +103,10 @@ export const TeamExperience = () => {
   const saveWorkHours = async (barberId: string) => {
     setActionLoading(true);
     try {
-      await database.write(async () => {
-        const barber = await database.collections.get<Profile>('profiles').find(barberId);
-        await barber.update((record) => {
-          record.workHours = JSON.stringify(workHoursSchedule);
-        });
-      });
-      const synced = await sync();
+      const { error } = await supabase.from('profiles').update({ work_hours: JSON.stringify(workHoursSchedule) }).eq('id', barberId);
+      if (error) throw error;
       setEditingWorkHoursId(null);
-      setNotice(synced
-        ? { tone: 'success', message: 'Jornada e escala salvas e sincronizadas.' }
-        : { tone: 'danger', message: 'A escala foi salva neste dispositivo, mas a sincronização falhou. Tente novamente.' });
+      setNotice({ tone: 'success', message: 'Jornada e escala salvas.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar a escala do profissional.' });
     } finally {
@@ -144,15 +117,10 @@ export const TeamExperience = () => {
   const removeBarber = async (barberId: string) => {
     setActionLoading(true);
     try {
-      await database.write(async () => {
-        const barber = await database.collections.get<Profile>('profiles').find(barberId);
-        await barber.update((record) => { record.establishmentId = null; });
-      });
-      const synced = await sync();
+      const { error } = await supabase.from('profiles').update({ establishment_id: null }).eq('id', barberId);
+      if (error) throw error;
       setRemovingId(null);
-      setNotice(synced
-        ? { tone: 'success', message: 'Profissional removido da equipe.' }
-        : { tone: 'danger', message: 'A remoção foi salva neste dispositivo, mas a sincronização falhou.' });
+      setNotice({ tone: 'success', message: 'Profissional removido da equipe.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível remover este profissional.' });
     } finally {

@@ -51,7 +51,7 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
           <Text style={styles.identityLabel}>Conta do cliente</Text>
           <Text testID="client-shell-user-name" numberOfLines={1} style={styles.identityName}>{userName || 'Cliente'}</Text>
         </View>
-        <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha' : isSyncing ? 'Sincronizando' : 'Sincronizado'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
+        <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha' : isSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
         <Pressable testID="client-sync-button" disabled={isSyncing} onPress={() => { tapLight(); onSync(); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
         <Pressable testID="client-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><LogOut color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
       </View>

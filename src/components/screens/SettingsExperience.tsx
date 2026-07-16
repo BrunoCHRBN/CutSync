@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { database } from '../../database';
-import { Barbershop } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useEstablishment } from '../../hooks/useEstablishment';
 import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -38,9 +36,7 @@ export const SettingsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { sync } = useSync();
-  
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
+  const { establishment: barbershop, loading } = useEstablishment(profile?.establishment_id);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
@@ -56,7 +52,6 @@ export const SettingsExperience = () => {
   const [bannerUrl, setBannerUrl] = useState('');
   const [instagram, setInstagram] = useState('');
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
 
@@ -172,25 +167,17 @@ export const SettingsExperience = () => {
     const nextGallery = [...galleryUrls, url];
     setGalleryUrls(nextGallery);
     try {
-      await database.write(async () => {
-        await barbershop.update((record) => {
-          record.galleryUrls = JSON.stringify(nextGallery);
-        });
-      });
-      const synced = await sync();
-      setNotice(synced
-        ? { tone: 'success', message: 'Foto adicionada e sincronizada com a vitrine.' }
-        : { tone: 'danger', message: 'A foto foi salva neste dispositivo, mas a sincronização falhou. Tente novamente.' });
+      const { error } = await supabase.from('establishments').update({ gallery_urls: JSON.stringify(nextGallery) }).eq('id', barbershop.id);
+      if (error) throw error;
+      setNotice({ tone: 'success', message: 'Foto adicionada à vitrine.' });
     } catch {
       setNotice({ tone: 'danger', message: 'A imagem foi enviada, mas não foi possível salvar a galeria.' });
     }
   };
 
   useEffect(() => {
-    if (!profile?.establishment_id) { setLoading(false); return; }
-    const sub = database.collections.get<Barbershop>('establishments').findAndObserve(profile.establishment_id).subscribe({
-      next: (shop) => {
-        setBarbershop(shop);
+    if (barbershop) {
+      const shop = barbershop;
         setName(shop.name || '');
         setSlug(shop.slug || '');
         setAddress(shop.address || '');
@@ -220,12 +207,8 @@ export const SettingsExperience = () => {
           }
         }
         setSchedule(parsedHours);
-        setLoading(false);
-      },
-      error: () => setLoading(false),
-    });
-    return () => sub.unsubscribe();
-  }, [profile]);
+    }
+  }, [barbershop]);
 
   const saveSettings = async () => {
     setNotice(null);
@@ -242,26 +225,16 @@ export const SettingsExperience = () => {
 
     setSaving(true);
     try {
-      await database.write(async () => {
-        await barbershop.update((record) => {
-          record.name = name.trim();
-          record.slug = cleanSlug;
-          record.address = address.trim();
-          record.phone = phone.trim();
-          record.slogan = slogan.trim() || null;
-          record.bannerUrl = bannerUrl.trim() || null;
-          record.instagram = instagram.trim() || null;
-          record.openingHours = JSON.stringify(schedule);
-          record.primaryColor = primaryColor.toUpperCase();
-          record.logoUrl = logoUrl || undefined;
-          record.galleryUrls = JSON.stringify(galleryUrls);
-        });
-      });
-      const synced = await sync();
+      const { error } = await supabase.from('establishments').update({
+        name: name.trim(), slug: cleanSlug, address: address.trim(), phone: phone.trim(),
+        slogan: slogan.trim() || null, banner_url: bannerUrl.trim() || null,
+        instagram: instagram.trim() || null, opening_hours: JSON.stringify(schedule),
+        primary_color: primaryColor.toUpperCase(), logo_url: logoUrl,
+        gallery_urls: JSON.stringify(galleryUrls),
+      }).eq('id', barbershop.id);
+      if (error) throw error;
       setSlug(cleanSlug);
-      setNotice(synced
-        ? { tone: 'success', message: 'Configurações salvas e sincronizadas com a vitrine.' }
-        : { tone: 'danger', message: 'As configurações foram salvas neste dispositivo, mas a sincronização falhou.' });
+      setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível salvar todas as alterações.' });
     } finally {

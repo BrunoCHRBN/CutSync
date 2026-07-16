@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Q } from '@nozbe/watermelondb';
 import {
   ArrowUpRight,
   Banknote,
@@ -19,10 +18,13 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react-native';
-import { database } from '../../database';
-import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useAppointments } from '../../hooks/useAppointments';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { useTeam } from '../../hooks/useTeam';
+import { supabase } from '../../services/supabase';
+import { ProfileRecord } from '../../types/database';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -67,12 +69,10 @@ export const AdminDashboardExperience = () => {
   const isWide = width >= layout.desktopBreakpoint;
   const isTablet = width >= layout.mobileBreakpoint;
   const { profile, signOut } = useAuth();
-  const { isSyncing, syncError, sync } = useSync();
-  
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
+  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
-  const [barbers, setBarbers] = useState<Profile[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const { team: barbers } = useTeam(profile?.establishment_id, true);
+  const { services } = useServices(profile?.establishment_id, true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -87,6 +87,26 @@ export const AdminDashboardExperience = () => {
 
   // Filtro de Caixa do Painel de Desempenho e Faturamento
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+
+  const periodRange = useMemo(() => {
+    const start = new Date(selectedDate);
+    const end = new Date(selectedDate);
+    if (period === 'today') {
+      start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999);
+    } else if (period === 'week') {
+      const day = start.getDay();
+      start.setDate(start.getDate() - day); start.setHours(0, 0, 0, 0);
+      end.setDate(end.getDate() + (6 - day)); end.setHours(23, 59, 59, 999);
+    } else {
+      start.setDate(1); start.setHours(0, 0, 0, 0);
+      end.setMonth(end.getMonth() + 1); end.setDate(0); end.setHours(23, 59, 59, 999);
+    }
+    return { start, end };
+  }, [period, selectedDate]);
+  const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh } = useAppointments({
+    establishmentId: profile?.establishment_id, start: periodRange.start, end: periodRange.end,
+  });
+  const syncError = appointmentError ? new Error(appointmentError) : null;
 
   // Estados locais para Reagendamento
   const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
@@ -122,88 +142,15 @@ export const AdminDashboardExperience = () => {
   }), [weekOffset]);
 
   useEffect(() => {
-    if (!profile?.establishment_id) {
-      setLoading(false);
-      return;
-    }
-
-    const shopSub = database.collections.get<Barbershop>('establishments')
-      .findAndObserve(profile.establishment_id)
-      .subscribe({ next: setBarbershop, error: () => setLoading(false) });
-
-    const teamSub = database.collections.get<Profile>('profiles')
-      .query(Q.where('establishment_id', profile.establishment_id), Q.where('role', Q.oneOf(['professional', 'admin'])))
-      .observe()
-      .subscribe(setBarbers);
-
-    const servicesSub = database.collections.get<Service>('services')
-      .query(Q.where('establishment_id', profile.establishment_id), Q.where('is_active', true))
-      .observe()
-      .subscribe(setServices);
-
-    return () => {
-      shopSub.unsubscribe();
-      teamSub.unsubscribe();
-      servicesSub.unsubscribe();
-    };
-  }, [profile]);
-
-  useEffect(() => {
-    if (!profile?.establishment_id) return;
-
-    // Calcular a janela de data baseado no período selecionado
-    const start = new Date(selectedDate);
-    const end = new Date(selectedDate);
-
-    if (period === 'today') {
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (period === 'week') {
-      const day = start.getDay();
-      start.setDate(start.getDate() - day);
-      start.setHours(0, 0, 0, 0);
-      end.setDate(end.getDate() + (6 - day));
-      end.setHours(23, 59, 59, 999);
-    } else if (period === 'month') {
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      end.setMonth(end.getMonth() + 1);
-      end.setDate(0);
-      end.setHours(23, 59, 59, 999);
-    }
-
-    const sub = database.collections.get<Appointment>('appointments')
-      .query(
-        Q.where('establishment_id', profile.establishment_id),
-        Q.where('date_time', Q.between(start.getTime(), end.getTime())),
-      )
-      .observe()
-      .subscribe(async (items) => {
-        const rich = await Promise.all(items.map(async (item) => {
-          let clientName = item.clientName || 'Cliente sem cadastro';
-          let clientPhone = '';
-          let serviceName = 'Serviço indisponível';
-          let price = 0;
-          if (item.clientId) {
-            try {
-              const cl = await database.collections.get<Profile>('profiles').find(item.clientId);
-              clientName = cl.name;
-              clientPhone = cl.phone || '';
-            } catch {}
-          }
-          try {
-            const service = await database.collections.get<Service>('services').find(item.serviceId);
-            serviceName = service.name;
-            price = service.price;
-          } catch {}
-          return { id: item.id, dateTime: item.dateTime, status: item.status, clientName, clientPhone, serviceName, price, professionalId: item.professionalId, cancellationReason: item.cancellationReason || '' };
-        }));
-        setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
-        setLoading(false);
-      });
-
-    return () => sub.unsubscribe();
-  }, [profile, selectedDate, period]);
+    setAppointments(appointmentRecords.map((item) => ({
+      id: item.id, dateTime: item.dateTime, status: item.status,
+      clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
+      clientPhone: item.client?.phone || '', serviceName: item.service?.name || 'Serviço indisponível',
+      price: item.service?.price || 0, professionalId: item.professionalId,
+      cancellationReason: item.cancellationReason || '',
+    })));
+    setLoading(isSyncing);
+  }, [appointmentRecords, isSyncing]);
 
   useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
@@ -215,21 +162,12 @@ export const AdminDashboardExperience = () => {
     const endOfDay = new Date(newRescheduleDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    database.collections.get<Appointment>('appointments')
-      .query(
-        Q.where('professional_id', rescheduleItem.professionalId),
-        Q.where('status', Q.notEq('cancelled')),
-        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime())),
-        Q.where('id', Q.notEq(rescheduleItem.id))
-      )
-      .fetch()
-      .then((items) => {
-        const times = items.map(item => {
-          return item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        });
-        setOccupiedTimes(times);
-      })
-      .catch(() => setOccupiedTimes([]));
+    void (async () => {
+      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', rescheduleItem.professionalId)
+        .neq('status', 'cancelled').neq('id', rescheduleItem.id)
+        .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+      setOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
+    })();
   }, [rescheduleItem, newRescheduleDate]);
 
   useEffect(() => {
@@ -242,20 +180,11 @@ export const AdminDashboardExperience = () => {
     const endOfDay = new Date(quickDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    database.collections.get<Appointment>('appointments')
-      .query(
-        Q.where('professional_id', quickBarber),
-        Q.where('status', Q.notEq('cancelled')),
-        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
-      )
-      .fetch()
-      .then((items) => {
-        const times = items.map(item => {
-          return item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        });
-        setQuickOccupiedTimes(times);
-      })
-      .catch(() => setQuickOccupiedTimes([]));
+    void (async () => {
+      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', quickBarber)
+        .neq('status', 'cancelled').gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+      setQuickOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
+    })();
   }, [quickOpen, quickBarber, quickDate]);
 
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed', reason?: string) => {
@@ -283,9 +212,8 @@ export const AdminDashboardExperience = () => {
     }
     setActionLoadingId(id);
     try {
-      const appointment = await database.collections.get<Appointment>('appointments').find(id);
-      
-      if (status === 'completed' && appointment.dateTime.getTime() > Date.now()) {
+      const appointment = appointmentRecords.find((item) => item.id === id);
+      if (status === 'completed' && appointment && appointment.dateTime.getTime() > Date.now()) {
         const msg = 'Não é possível concluir um agendamento no futuro.';
         if (Platform.OS === 'web') {
           window.alert(msg);
@@ -296,16 +224,11 @@ export const AdminDashboardExperience = () => {
         return;
       }
 
-      await database.write(async () => {
-        await appointment.update((record) => { 
-          record.status = status; 
-          if (status === 'cancelled') {
-            record.cancellationReason = reason;
-            record.cancelledByRole = 'admin';
-          }
-        });
-      });
-      sync();
+      const payload: Record<string, unknown> = { status };
+      if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'admin'; }
+      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+      if (error) throw error;
+      await refresh();
     } catch {
       const msg = 'Não foi possível atualizar este atendimento.';
       if (Platform.OS === 'web') {
@@ -326,19 +249,16 @@ export const AdminDashboardExperience = () => {
       const [hours, minutes] = newRescheduleTime.split(':');
       newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-      await database.write(async () => {
-        const appointment = await database.collections.get<Appointment>('appointments').find(rescheduleItem.id);
-        await appointment.update((record) => {
-          record.originalDateTime = record.originalDateTime || record.dateTime;
-          record.dateTime = newDate;
-          record.rescheduleCount = (record.rescheduleCount || 0) + 1;
-          record.status = 'confirmed'; // Auto confirma ao reagendar pelo admin
-        });
-      });
+      const current = appointmentRecords.find((item) => item.id === rescheduleItem.id);
+      const { error } = await supabase.from('appointments').update({
+        original_date_time: current?.originalDateTime?.toISOString() || current?.dateTime.toISOString(),
+        date_time: newDate.toISOString(), reschedule_count: (current?.rescheduleCount || 0) + 1, status: 'confirmed',
+      }).eq('id', rescheduleItem.id);
+      if (error) throw error;
       setRescheduleItem(null);
       if (Platform.OS === 'web') window.alert('Atendimento reagendado com sucesso!');
       else Alert.alert('Sucesso', 'Atendimento reagendado com sucesso!');
-      sync();
+      await refresh();
     } catch {
       const msg = 'Não foi possível reagendar este atendimento.';
       if (Platform.OS === 'web') window.alert(msg);
@@ -383,22 +303,18 @@ export const AdminDashboardExperience = () => {
 
     setQuickLoading(true);
     try {
-      await database.write(async () => {
-        await database.collections.get('appointments').create((record: any) => {
-          record.establishmentId = barbershop.id;
-          record.professionalId = quickBarber;
-          record.clientName = quickName.trim();
-          record.serviceId = quickService;
-          record.dateTime = dateTime;
-          record.status = 'confirmed';
-        });
+      const { error } = await supabase.from('appointments').insert({
+        establishment_id: barbershop.id, professional_id: quickBarber,
+        client_name: quickName.trim(), service_id: quickService,
+        date_time: dateTime.toISOString(), status: 'confirmed',
       });
+      if (error) throw error;
       setQuickOpen(false); 
       setQuickName(''); 
       setQuickService(null); 
       setQuickBarber(null); 
       setQuickTime(null);
-      sync();
+      await refresh();
     } catch {
       const msg = 'Não foi possível criar o encaixe.';
       if (Platform.OS === 'web') {
@@ -534,11 +450,11 @@ export const AdminDashboardExperience = () => {
             tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'}
           />
           <AppButton
-            label={isSyncing ? 'Sincronizando' : 'Sincronizar'}
+            label={isSyncing ? 'Atualizando' : 'Atualizar'}
             testID="admin-sync-button"
             variant="secondary"
             loading={isSyncing}
-            onPress={sync}
+            onPress={() => { void refresh(); }}
             icon={!isSyncing ? <RefreshCw color={colors.text} size={16} /> : undefined}
           />
           <AppButton

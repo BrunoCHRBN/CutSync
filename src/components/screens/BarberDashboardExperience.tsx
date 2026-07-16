@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Q } from '@nozbe/watermelondb';
 import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
-import { database } from '../../database';
-import { Appointment, Barbershop, Profile, Service } from '../../database/models';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSync } from '../../hooks/useSync';
+import { useAppointments } from '../../hooks/useAppointments';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+import { supabase } from '../../services/supabase';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
@@ -69,10 +69,9 @@ export const BarberDashboardExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { isSyncing, syncError, isOffline, sync } = useSync();
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
+  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const { services } = useServices(profile?.establishment_id, true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tab, setTab] = useState<Tab>('mine');
   const [loading, setLoading] = useState(true);
@@ -96,6 +95,17 @@ export const BarberDashboardExperience = () => {
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
   const [nextAppointment, setNextAppointment] = useState<RichAppointment | null>(null);
 
+  const selectedRange = useMemo(() => {
+    const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
+    const end = new Date(selectedDate); end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }, [selectedDate]);
+  const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh } = useAppointments({
+    establishmentId: profile?.establishment_id, start: selectedRange.start, end: selectedRange.end,
+  });
+  const syncError = appointmentError ? new Error(appointmentError) : null;
+  const isOffline = false;
+
   const weekOffset = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -114,100 +124,41 @@ export const BarberDashboardExperience = () => {
   }), [weekOffset]);
 
   useEffect(() => {
-    if (!profile?.establishment_id) { setLoading(false); return; }
-    const shopSub = database.collections
-      .get<Barbershop>('establishments')
-      .findAndObserve(profile.establishment_id)
-      .subscribe({
-        next: (data) => setBarbershop(data),
-        error: () => console.log('Barbershop not found locally yet in barber dashboard'),
-      });
-    const serviceSub = database.collections.get<Service>('services').query(Q.where('establishment_id', profile.establishment_id), Q.where('is_active', true)).observe().subscribe(setServices);
-    return () => { shopSub.unsubscribe(); serviceSub.unsubscribe(); };
-  }, [profile]);
-
-  useEffect(() => {
-    if (!profile?.establishment_id) return;
-    const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
-    const end = new Date(selectedDate); end.setHours(23, 59, 59, 999);
-    const sub = database.collections.get<Appointment>('appointments').query(
-      Q.where('establishment_id', profile.establishment_id),
-      Q.where('date_time', Q.between(start.getTime(), end.getTime())),
-    ).observe().subscribe(async (items) => {
-      const rich = await Promise.all(items.map(async (appointment) => {
-        let clientName = appointment.clientName || 'Cliente sem cadastro';
-        let clientPhone = '';
-        let serviceName = 'Serviço indisponível';
-        let price = 0;
-        let barberName = 'Profissional';
-        if (appointment.clientId) {
-          try {
-            const cl = await database.collections.get<Profile>('profiles').find(appointment.clientId);
-            clientName = cl.name;
-            clientPhone = cl.phone || '';
-          } catch {}
-        }
-        try { const service = await database.collections.get<Service>('services').find(appointment.serviceId); serviceName = service.name; price = service.price; } catch {}
-        try { barberName = (await database.collections.get<Profile>('profiles').find(appointment.professionalId)).name; } catch {}
-        return { id: appointment.id, professionalId: appointment.professionalId, barberName, clientName, clientPhone, serviceName, price, dateTime: appointment.dateTime, status: appointment.status, cancellationReason: appointment.cancellationReason || '' };
-      }));
-      setAppointments(rich.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
-      setLoading(false);
-    });
-    return () => sub.unsubscribe();
-  }, [profile, selectedDate]);
+    setAppointments(appointmentRecords.map((appointment) => ({
+      id: appointment.id, professionalId: appointment.professionalId,
+      barberName: appointment.professional?.name || 'Profissional',
+      clientName: appointment.client?.name || appointment.clientName || 'Cliente sem cadastro',
+      clientPhone: appointment.client?.phone || '',
+      serviceName: appointment.service?.name || 'Serviço indisponível',
+      price: appointment.service?.price || 0, dateTime: appointment.dateTime,
+      status: appointment.status, cancellationReason: appointment.cancellationReason || '',
+    })));
+    setLoading(isSyncing);
+  }, [appointmentRecords, isSyncing]);
 
   useEffect(() => {
     if (!profile?.id) return;
-    const now = Date.now();
-    const query = database.collections.get<Appointment>('appointments').query(
-      Q.where('professional_id', profile.id),
-      Q.where('status', Q.oneOf(['pending', 'confirmed'])),
-      Q.where('date_time', Q.gte(now)),
-      Q.sortBy('date_time', Q.asc),
-      Q.take(1)
-    );
-    const sub = query.observe().subscribe(async (items) => {
-      if (items.length === 0) {
+    const loadNext = async () => {
+      const { data } = await supabase.from('appointments')
+        .select('*, client:profiles!appointments_client_id_fkey(name,phone), professional:profiles!appointments_professional_id_fkey(name), service:services!appointments_service_id_fkey(name,price)')
+        .eq('professional_id', profile.id).in('status', ['pending', 'confirmed'])
+        .gte('date_time', new Date().toISOString()).order('date_time').limit(1).maybeSingle();
+      if (!data) {
         setNextAppointment(null);
         return;
       }
-      const appointment = items[0];
-      let clientName = appointment.clientName || 'Cliente sem cadastro';
-      let clientPhone = '';
-      let serviceName = 'Serviço indisponível';
-      let price = 0;
-      let barberName = 'Profissional';
-      if (appointment.clientId) {
-        try {
-          const cl = await database.collections.get<Profile>('profiles').find(appointment.clientId);
-          clientName = cl.name;
-          clientPhone = cl.phone || '';
-        } catch {}
-      }
-      try {
-        const service = await database.collections.get<Service>('services').find(appointment.serviceId);
-        serviceName = service.name;
-        price = service.price;
-      } catch {}
-      try {
-        barberName = (await database.collections.get<Profile>('profiles').find(appointment.professionalId)).name;
-      } catch {}
       setNextAppointment({
-        id: appointment.id,
-        professionalId: appointment.professionalId,
-        barberName,
-        clientName,
-        clientPhone,
-        serviceName,
-        price,
-        dateTime: appointment.dateTime,
-        status: appointment.status,
-        cancellationReason: appointment.cancellationReason || ''
+        id: data.id, professionalId: data.professional_id,
+        barberName: (data.professional as any)?.name || 'Profissional',
+        clientName: (data.client as any)?.name || data.client_name || 'Cliente sem cadastro',
+        clientPhone: (data.client as any)?.phone || '',
+        serviceName: (data.service as any)?.name || 'Serviço indisponível',
+        price: Number((data.service as any)?.price || 0), dateTime: new Date(data.date_time),
+        status: data.status, cancellationReason: data.cancellation_reason || '',
       });
-    });
-    return () => sub.unsubscribe();
-  }, [profile, appointments]);
+    };
+    void loadNext();
+  }, [profile, appointmentRecords]);
 
   useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
@@ -219,21 +170,12 @@ export const BarberDashboardExperience = () => {
     const endOfDay = new Date(newRescheduleDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    database.collections.get<Appointment>('appointments')
-      .query(
-        Q.where('professional_id', rescheduleItem.professionalId),
-        Q.where('status', Q.notEq('cancelled')),
-        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime())),
-        Q.where('id', Q.notEq(rescheduleItem.id))
-      )
-      .fetch()
-      .then((items) => {
-        const times = items.map(item => {
-          return item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        });
-        setOccupiedTimes(times);
-      })
-      .catch(() => setOccupiedTimes([]));
+    void (async () => {
+      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', rescheduleItem.professionalId)
+        .neq('status', 'cancelled').neq('id', rescheduleItem.id)
+        .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+      setOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
+    })();
   }, [rescheduleItem, newRescheduleDate]);
 
   useEffect(() => {
@@ -263,20 +205,11 @@ export const BarberDashboardExperience = () => {
     const endOfDay = new Date(quickDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    database.collections.get<Appointment>('appointments')
-      .query(
-        Q.where('professional_id', profile.id),
-        Q.where('status', Q.notEq('cancelled')),
-        Q.where('date_time', Q.between(startOfDay.getTime(), endOfDay.getTime()))
-      )
-      .fetch()
-      .then((items) => {
-        const times = items.map(item => {
-          return item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        });
-        setQuickOccupiedTimes(times);
-      })
-      .catch(() => setQuickOccupiedTimes([]));
+    void (async () => {
+      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', profile.id)
+        .neq('status', 'cancelled').gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+      setQuickOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
+    })();
   }, [quickOpen, profile, quickDate]);
 
   const visibleAppointments = tab === 'mine' ? appointments.filter((item) => item.professionalId === profile?.id) : appointments;
@@ -404,26 +337,20 @@ export const BarberDashboardExperience = () => {
     }
     setActionLoadingId(id);
     try {
-      const appointment = await database.collections.get<Appointment>('appointments').find(id);
-      
-      if (status === 'completed' && appointment.dateTime.getTime() > Date.now()) {
+      const appointment = appointmentRecords.find((item) => item.id === id);
+      if (status === 'completed' && appointment && appointment.dateTime.getTime() > Date.now()) {
         setNotice({ tone: 'danger', message: 'Não é possível concluir um agendamento no futuro.' });
         setActionLoadingId(null);
         return;
       }
 
-      await database.write(async () => {
-        await appointment.update((record) => { 
-          record.status = status; 
-          if (status === 'cancelled') {
-            record.cancellationReason = reason;
-            record.cancelledByRole = 'professional';
-          }
-        });
-      });
+      const payload: Record<string, unknown> = { status };
+      if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'professional'; }
+      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+      if (error) throw error;
       setCancelCandidateId(null);
       setNotice({ tone: 'success', message: 'Status do atendimento atualizado.' });
-      sync();
+      await refresh();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar este atendimento.' });
     } finally {
@@ -439,18 +366,15 @@ export const BarberDashboardExperience = () => {
       const [hours, minutes] = newRescheduleTime.split(':');
       newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-      await database.write(async () => {
-        const appointment = await database.collections.get<Appointment>('appointments').find(rescheduleItem.id);
-        await appointment.update((record) => {
-          record.originalDateTime = record.originalDateTime || record.dateTime;
-          record.dateTime = newDate;
-          record.rescheduleCount = (record.rescheduleCount || 0) + 1;
-          record.status = 'confirmed'; // Auto confirma ao reagendar pelo barbeiro
-        });
-      });
+      const current = appointmentRecords.find((item) => item.id === rescheduleItem.id);
+      const { error } = await supabase.from('appointments').update({
+        original_date_time: current?.originalDateTime?.toISOString() || current?.dateTime.toISOString(),
+        date_time: newDate.toISOString(), reschedule_count: (current?.rescheduleCount || 0) + 1, status: 'confirmed',
+      }).eq('id', rescheduleItem.id);
+      if (error) throw error;
       setRescheduleItem(null);
       setNotice({ tone: 'success', message: 'Atendimento reagendado com sucesso!' });
-      sync();
+      await refresh();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível reagendar este atendimento.' });
     } finally {
@@ -481,20 +405,16 @@ export const BarberDashboardExperience = () => {
 
     setQuickLoading(true);
     try {
-      await database.write(async () => {
-        await database.collections.get('appointments').create((record: any) => {
-          record.establishmentId = profile.establishment_id;
-          record.professionalId = profile.id;
-          record.clientName = quickName.trim();
-          record.serviceId = quickService;
-          record.dateTime = dateTime;
-          record.status = 'confirmed';
-        });
+      const { error } = await supabase.from('appointments').insert({
+        establishment_id: profile.establishment_id, professional_id: profile.id,
+        client_name: quickName.trim(), service_id: quickService,
+        date_time: dateTime.toISOString(), status: 'confirmed',
       });
+      if (error) throw error;
       setQuickOpen(false); setQuickName(''); setQuickService(null); setQuickTime(null);
       setNotice({ tone: 'success', message: 'Encaixe criado e reservado na sua agenda.' });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      sync();
+      await refresh();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível criar o encaixe.' });
     } finally {
@@ -539,7 +459,7 @@ export const BarberDashboardExperience = () => {
 
         <View style={styles.agendaHeader}>
           <SectionHeading testID="barber-agenda-heading" eyebrow="Agenda" title="Ritmo do dia" description="Alterne entre seus horários e a visão de toda a equipe." />
-          <AppButton label="Sincronizar" testID="barber-sync-button" variant="secondary" onPress={sync} loading={isSyncing} icon={<RefreshCw color={colors.text} size={15} />} style={styles.syncButton} />
+          <AppButton label="Atualizar" testID="barber-sync-button" variant="secondary" onPress={() => { void refresh(); }} loading={isSyncing} icon={<RefreshCw color={colors.text} size={15} />} style={styles.syncButton} />
         </View>
 
         <SegmentedControl<Tab> testID="barber-agenda-tabs" value={tab} activeColor={primaryColor} onChange={setTab} options={[{ value: 'mine', label: 'Minha agenda' }, { value: 'team', label: 'Agenda da equipe' }]} />
