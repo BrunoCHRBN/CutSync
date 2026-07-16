@@ -446,7 +446,7 @@ export const AdminDashboardExperience = () => {
         <View style={styles.headerActions}>
           <StatusBadge
             testID="admin-sync-status"
-            label={syncError ? 'Falha na sincronização' : isSyncing ? 'Sincronizando' : 'Dados sincronizados'}
+            label={syncError ? 'Falha ao atualizar' : isSyncing ? 'Atualizando' : 'Tempo real'}
             tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'}
           />
           <AppButton

@@ -94,7 +94,7 @@ export default function RootLayout() {
           <Text testID="supabase-configuration-eyebrow" style={styles.configurationEyebrow}>CONFIGURAÇÃO NECESSÁRIA</Text>
           <Text testID="supabase-configuration-title" style={styles.configurationTitle}>Conecte o ambiente do CutSync.</Text>
           <Text testID="supabase-configuration-description" style={styles.configurationDescription}>
-            Defina EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY para iniciar autenticação, sincronização e armazenamento.
+            Defina EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY para iniciar autenticação, dados em tempo real e armazenamento.
           </Text>
         </View>
       </View>

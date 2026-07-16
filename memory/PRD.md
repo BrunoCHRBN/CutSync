@@ -1,4 +1,46 @@
-# PRD — CutSync · Painel Administrativo Premium
+# PRD — CutSync · Migração Supabase
+
+## Estado atual — 16/07/2026
+
+### Problema original desta etapa
+
+> “Estou fazendo a mudança do banco de dados do repositório de WatermelonDB para o Supabase. Finalizar a consolidação das rotas profissionais, cliente e públicas; confirmar que não existem imports ativos de WatermelonDB; configurar/validar a publicação Realtime; remover `src/database`, `useSync` e dependências WatermelonDB; executar `npx tsc --noEmit` sem erros; validar a compilação web; testar login, listagens, criação, edição, cancelamento e Realtime; atualizar o checklist e a documentação final da migração. A cada tarefa finalizada, sinalize o andamento.”
+
+### Decisões de arquitetura
+
+- Supabase é a única fonte de dados e autenticação.
+- Hooks de domínio consultam PostgREST e assinam `postgres_changes` com cleanup.
+- Tipos e mapeadores em `src/types/database.ts` isolam o contrato `snake_case` remoto.
+- A vitrine usa RPC pública segura para não expor dados privados de profissionais.
+- O produto passa a operar conectado, sem cache WatermelonDB ou fila offline.
+
+### Implementado
+
+- Rotas administrativas, profissionais e cliente consolidadas.
+- Todas as telas ativas migradas para Supabase.
+- Publicação Realtime e RPC de catálogo aplicadas no projeto remoto.
+- WatermelonDB, LokiJS, `src/database`, `useSync`, NetInfo e Babel legado removidos.
+- TypeScript e build web aprovados.
+- Três perfis autenticados e CRUD de agendamentos com Realtime validados.
+- Checklist detalhado em `/app/MIGRATION_SUPABASE.md`.
+
+### Backlog priorizado
+
+- **P0:** nenhum bloqueio aberto da migração.
+- **P1:** modularizar os dashboards grandes e padronizar tratamento de erros/toasts.
+- **P1:** gerar tipos Supabase automaticamente a partir do schema remoto.
+- **P2:** adicionar testes automatizados permanentes para RLS e Realtime.
+- **P2:** revisar avisos web não bloqueantes de estilos depreciados.
+
+### Próximas tarefas
+
+1. Extrair repositórios Supabase compartilhados para reduzir lógica dentro das telas.
+2. Automatizar teste de reserva pública e cancelamento em CI.
+3. Adicionar métricas do funil perfil público → seleção → agendamento.
+
+---
+
+## Histórico anterior de produto e design
 
 ## Problema original
 

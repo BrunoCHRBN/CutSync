@@ -11,7 +11,7 @@ interface AppointmentFilters {
   excludeCancelled?: boolean;
 }
 
-const relations = `*, client:profiles!appointments_client_id_fkey(id,name,phone), professional:profiles!appointments_professional_id_fkey(id,name,phone), service:services!appointments_service_id_fkey(id,establishment_id,name,price,duration_minutes,is_active), establishment:establishments!appointments_establishment_id_fkey(id,name,slug,address,phone,timezone,currency)`;
+const relations = `*, client:profiles!appointments_client_id_fkey(id,name,phone), professional:profiles!appointments_barber_id_fkey(id,name,phone), service:services!appointments_service_id_fkey(id,establishment_id,name,price,duration_minutes,is_active), establishment:establishments!appointments_barbershop_id_fkey(id,name,slug,address,phone,timezone,currency)`;
 
 export function useAppointments(filters: AppointmentFilters) {
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);

@@ -2,12 +2,12 @@
 
 ## Resumo executivo
 
-O CutSync já possui um produto funcional e ambicioso: três perfis de acesso, agenda offline-first, agendamento, gestão de equipe, serviços, comissões e configurações. O maior problema atual não é falta de funcionalidades; é a ausência de uma fundação visual e de navegação compartilhada. Cada tela foi construída como uma unidade isolada, o que gera repetição, inconsistência e baixa escalabilidade no mobile e, principalmente, no desktop.
+O CutSync possui três perfis de acesso, agenda em tempo real, agendamento, gestão de equipe, serviços, comissões e configurações. A camada de dados foi consolidada no Supabase; esta auditoria visual permanece como histórico das decisões de interface.
 
 ## Pontos fortes encontrados
 
 - Fluxos separados para cliente, barbeiro e administrador.
-- Agenda e dados locais com WatermelonDB, sincronizados com Supabase.
+- Agenda e dados centralizados no Supabase, com atualizações Realtime.
 - Fluxo de agendamento completo: serviço, profissional, data e horário.
 - Recursos operacionais relevantes: encaixe rápido, agenda coletiva, comissões e status de atendimento.
 - Personalização inicial por barbearia via cor primária.
@@ -104,7 +104,7 @@ No desktop: sidebar recolhível. No mobile: navegação inferior com os quatro d
 ## Achados técnicos que devem preceder ou acompanhar o redesign
 
 - O projeto está sem dependências instaladas no ambiente atual; por isso a checagem TypeScript não consegue resolver React/Expo.
-- `useSync` não retorna `isOffline`, mas o painel do barbeiro tenta consumi-lo.
+- A camada `useSync` foi removida; os painéis usam hooks Supabase Realtime.
 - `use-theme.ts` referencia `@/constants/theme`, porém essa estrutura não existe no repositório.
 - O `package.json` ainda identifica o projeto como `ctrlshot`, apesar do produto se chamar CutSync.
 - A configuração do Supabase aceita variáveis ausentes e cria o cliente com strings vazias; a falha deveria ser explícita.

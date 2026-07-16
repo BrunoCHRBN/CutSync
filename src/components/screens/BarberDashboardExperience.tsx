@@ -104,7 +104,6 @@ export const BarberDashboardExperience = () => {
     establishmentId: profile?.establishment_id, start: selectedRange.start, end: selectedRange.end,
   });
   const syncError = appointmentError ? new Error(appointmentError) : null;
-  const isOffline = false;
 
   const weekOffset = useMemo(() => {
     const today = new Date();
@@ -140,7 +139,7 @@ export const BarberDashboardExperience = () => {
     if (!profile?.id) return;
     const loadNext = async () => {
       const { data } = await supabase.from('appointments')
-        .select('*, client:profiles!appointments_client_id_fkey(name,phone), professional:profiles!appointments_professional_id_fkey(name), service:services!appointments_service_id_fkey(name,price)')
+        .select('*, client:profiles!appointments_client_id_fkey(name,phone), professional:profiles!appointments_barber_id_fkey(name), service:services!appointments_service_id_fkey(name,price)')
         .eq('professional_id', profile.id).in('status', ['pending', 'confirmed'])
         .gte('date_time', new Date().toISOString()).order('date_time').limit(1).maybeSingle();
       if (!data) {
@@ -427,12 +426,12 @@ export const BarberDashboardExperience = () => {
     : 'especialista';
 
   return (
-    <ProfessionalShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} isOffline={isOffline} onSignOut={signOut}>
+    <ProfessionalShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
           <SectionHeading testID="barber-dashboard-heading" eyebrow="Minha operação" title={`Olá, ${saudacaoProfissional}.`} description="Seu dia organizado para você manter o ritmo entre um cliente e outro." />
           <View style={styles.headerActions}>
-            <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao sincronizar' : isSyncing ? 'Sincronizando' : 'Sincronizado'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
+            <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao atualizar' : isSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
             <AppButton 
               label="Encaixe rápido" 
               testID="barber-quick-booking-button" 

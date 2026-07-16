@@ -194,7 +194,7 @@ export const LoginExperience = () => {
 
               <View testID="login-security-note" style={styles.securityNote}>
                 <ShieldCheck color={colors.success} size={16} />
-                <Text style={styles.securityText}>Acesso protegido e dados disponíveis mesmo offline.</Text>
+                <Text style={styles.securityText}>Acesso protegido e dados sempre atualizados.</Text>
               </View>
             </View>
 
@@ -214,7 +214,7 @@ export const LoginExperience = () => {
                 <View style={styles.heroCopy}>
                   <Text testID="login-hero-stat" style={styles.heroStat}>Menos ruído.{`\n`}Mais cadeira ocupada.</Text>
                   <Text testID="login-hero-description" style={styles.heroDescription}>
-                    Agenda, equipe e caixa sincronizados para você focar na experiência do cliente.
+                    Agenda, equipe e caixa em tempo real para você focar na experiência do cliente.
                   </Text>
                 </View>
               </ImageBackground>

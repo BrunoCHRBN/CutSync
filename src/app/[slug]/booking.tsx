@@ -607,10 +607,10 @@ export default function BookingSlugScreen() {
 
       {/* Modal: Autenticação Rápida de Atrito Zero (Magic Link e Cadastro Rápido) */}
       <Modal visible={isAuthModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Identifique-se</Text>
-            <Text style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
+        <View testID="public-booking-auth-overlay" style={styles.modalOverlay}>
+          <View testID="public-booking-auth-modal" style={styles.modalCard}>
+            <Text testID="public-booking-auth-title" style={styles.modalTitle}>Identifique-se</Text>
+            <Text testID="public-booking-auth-description" style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
 
             {magicLinkSent ? (
               <View style={styles.magicLinkState}>
@@ -618,7 +618,7 @@ export default function BookingSlugScreen() {
                 <Text style={styles.magicSuccessDesc}>
                   Enviamos um link de login rápido para {authEmail}. Abra o link e retorne aqui para finalizar o agendamento!
                 </Text>
-                <Pressable 
+                <Pressable testID="public-booking-magic-link-dismiss-button"
                   style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor, marginTop: 16 }, pressed && styles.pressedScale]}
                   onPress={() => {
                     setMagicLinkSent(false);
@@ -632,13 +632,13 @@ export default function BookingSlugScreen() {
               <View style={{ gap: 12 }}>
                 {/* Abas */}
                 <View style={styles.authTabs}>
-                  <TouchableOpacity 
+                  <TouchableOpacity testID="public-booking-magic-link-tab"
                     style={[styles.authTab, !isRegisterMode && styles.authTabActive]}
                     onPress={() => setIsRegisterMode(false)}
                   >
                     <Text style={[styles.authTabText, !isRegisterMode && styles.authTabTextActive]}>Sem senha</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity testID="public-booking-register-tab"
                     style={[styles.authTab, isRegisterMode && styles.authTabActive]}
                     onPress={() => setIsRegisterMode(true)}
                   >
@@ -650,6 +650,7 @@ export default function BookingSlugScreen() {
                 {isRegisterMode ? (
                   <>
                     <TextInput
+                      testID="public-booking-register-name-input"
                       style={styles.modalInput}
                       placeholder="Seu nome completo"
                       placeholderTextColor={colors.textMuted}
@@ -657,6 +658,7 @@ export default function BookingSlugScreen() {
                       onChangeText={setAuthName}
                     />
                     <TextInput
+                      testID="public-booking-register-email-input"
                       style={styles.modalInput}
                       placeholder="E-mail"
                       placeholderTextColor={colors.textMuted}
@@ -665,6 +667,7 @@ export default function BookingSlugScreen() {
                       onChangeText={setAuthEmail}
                     />
                     <TextInput
+                      testID="public-booking-register-password-input"
                       style={styles.modalInput}
                       placeholder="Senha (mínimo 6 dígitos)"
                       placeholderTextColor={colors.textMuted}
@@ -672,7 +675,7 @@ export default function BookingSlugScreen() {
                       value={authPassword}
                       onChangeText={setAuthPassword}
                     />
-                    <Pressable 
+                    <Pressable testID="public-booking-register-submit-button"
                       style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
                       onPress={handleAuthSubmit}
                       disabled={authLoading}
@@ -686,6 +689,7 @@ export default function BookingSlugScreen() {
                       Digite seu e-mail abaixo. Você receberá um link de login imediato, sem senhas.
                     </Text>
                     <TextInput
+                      testID="public-booking-magic-link-email-input"
                       style={styles.modalInput}
                       placeholder="Seu melhor e-mail"
                       placeholderTextColor={colors.textMuted}
@@ -693,7 +697,7 @@ export default function BookingSlugScreen() {
                       value={authEmail}
                       onChangeText={setAuthEmail}
                     />
-                    <Pressable 
+                    <Pressable testID="public-booking-magic-link-submit-button"
                       style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
                       onPress={handleSendMagicLink}
                       disabled={authLoading}
@@ -703,7 +707,7 @@ export default function BookingSlugScreen() {
                   </>
                 )}
 
-                <TouchableOpacity 
+                <TouchableOpacity testID="public-booking-auth-cancel-button"
                   style={styles.modalCancelBtn}
                   onPress={() => setIsAuthModalVisible(false)}
                 >
