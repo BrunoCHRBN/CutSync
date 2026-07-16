@@ -1,4 +1,63 @@
-# PRD — CutSync · Migração Supabase
+# PRD — CutSync
+
+## Estado atual — auditoria prioritária de 16/07/2026
+
+### Problema original
+
+> “Faça uma auditoria completa do código do sistema CutSync. Antes de seguirmos com qualquer modificação de código e implementações, preciso saber o que precisamos melhorar primeiro, tanto em usabilidade e segurança dentro da aplicação, já que será usado via web responsivo, Android e iOS.”
+
+### Arquitetura confirmada
+
+- Expo 57, React Native 0.86, React 19, Expo Router e TypeScript.
+- Supabase para autenticação, PostgREST, Realtime e armazenamento remoto.
+- Aplicação única com experiências cliente, profissional, admin e catálogo/reserva pública.
+- Export web SPA e scaffold Tauri adicional; builds móveis preparados via EAS.
+
+### Auditoria realizada
+
+- Revisão estática de autenticação, RLS, schema, rotas, queries, agenda, notificações, Expo e Tauri.
+- Testes reais somente leitura com cliente, profissional e admin.
+- TypeScript e export web aprovados; lint com 40 erros e 21 avisos; zero testes automatizados.
+- Vazamento multi-tenant confirmado: cliente autenticado lê perfis, e-mails e telefones de outros estabelecimentos.
+- Autoatribuição de roles/vínculos, ausência de reserva atômica, magic link incompleto e falhas responsivas identificados.
+- Relatório integral salvo em `/app/CUTSYNC_AUDIT.md`.
+
+### Backlog priorizado
+
+#### P0
+
+1. Rotacionar a senha do banco e credenciais de teste expostas; revogar sessões.
+2. Bloquear cadastro público de admin/profissional e alteração de role/vínculo pelo próprio perfil.
+3. Reescrever RLS para isolamento por tenant e campos públicos mínimos.
+4. Restringir operações de agendamento/serviço por role e transição válida.
+5. Implementar reserva/reagendamento transacional com trava contra sobreposição.
+
+#### P1
+
+1. Corrigir magic link, PKCE/deep links e persistência de sessão web/Android/iOS.
+2. Centralizar disponibilidade, horário de funcionamento, jornada e fuso no backend.
+3. Corrigir os 40 erros de lint, modularizar telas grandes e remover SQL legado divergente.
+4. Tornar instalação reproduzível e alinhar pacotes Expo/React/Supabase.
+5. Corrigir cortes mobile, contraste, fontes pequenas e acessibilidade.
+6. Versionar políticas do bucket de banners e definir CSP/headers web.
+
+#### P2
+
+1. Testes automatizados de RLS, domínio e E2E para os três perfis.
+2. CI, observabilidade, trilha de auditoria e alertas.
+3. Fluxos LGPD de consentimento, retenção, exportação e exclusão.
+4. Rate limit/CAPTCHA e otimização do bundle web.
+
+### Próximas tarefas
+
+1. Aplicar pacote P0 de segurança multi-tenant com migração reversível.
+2. Executar matriz de testes RLS com casos permitidos e negados.
+3. Aplicar reserva atômica e testar concorrência.
+4. Só então iniciar correções de sessão e experiência multiplataforma.
+
+---
+
+# Histórico — Migração Supabase
 
 ## Estado atual — 16/07/2026
 

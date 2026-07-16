@@ -13,7 +13,9 @@
 - Senha: `bruno1324`
 
 ## Ambiente
-- Supabase configurado em `/app/.env` com URL e chave pública.
+- As variáveis Supabase não estão presentes no workspace atual.
+- A auditoria recuperou temporariamente a configuração pública do histórico Git apenas para validação de leitura e não a restaurou no projeto.
+- A senha do banco informada pelo usuário não é registrada neste arquivo e deve ser rotacionada.
 
 ## Administrador informado pelo usuário
 
@@ -27,10 +29,12 @@
 - Build TypeScript e pacote web.
 - Análise estática do Dashboard Admin e Agendamento.
 
-## Validação pendente
+## Validação realizada em 16/07/2026
 
-- Dashboard Admin autenticado com dados reais quando as variáveis Supabase estiverem disponíveis no ambiente.
-- Agendamento completo com cliente, serviços, profissionais e conflitos reais.
-- Módulo profissional: agenda, histórico, reagendamento e encaixe rápido.
+- Login e navegação real dos perfis cliente, profissional e dono/admin.
+- Leitura de catálogo, perfis e agendamentos para auditoria de RLS, sem escrita no banco.
+- Foi confirmado vazamento de perfis entre estabelecimentos; detalhes em `/app/CUTSYNC_AUDIT.md`.
 
-Também são necessárias as variáveis `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` para iniciar a prévia autenticada.
+## Ação de segurança
+
+- Rotacionar as três senhas de teste, pois são iguais e foram compartilhadas durante a auditoria.
