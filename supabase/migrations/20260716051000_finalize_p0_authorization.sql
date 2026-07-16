@@ -62,13 +62,10 @@ $$;
 CREATE OR REPLACE FUNCTION public.protect_profile_authorization_fields()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 BEGIN
-  IF (SELECT auth.uid()) = OLD.id
-    AND current_setting('app.cutsync_authorization_write', true) IS DISTINCT FROM 'trusted'
-    AND (
+  IF current_user = 'authenticated' AND (SELECT auth.uid()) = OLD.id AND (
       NEW.role IS DISTINCT FROM OLD.role
       OR NEW.establishment_id IS DISTINCT FROM OLD.establishment_id
       OR NEW.commission_rate IS DISTINCT FROM OLD.commission_rate
@@ -83,9 +80,93 @@ CREATE TRIGGER protect_profile_authorization_fields
   BEFORE UPDATE OF role, establishment_id, commission_rate ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.protect_profile_authorization_fields();
 
+CREATE OR REPLACE FUNCTION public.inspect_invitation(invitation_token text)
+RETURNS TABLE (establishment_name text, invited_email text, invited_role text, invitation_status text, expiration timestamptz)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, extensions
+AS $$
+DECLARE current_email text;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'authentication_required'; END IF;
+  IF invitation_token !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'invalid_invitation_token'; END IF;
+  SELECT lower(email) INTO current_email FROM auth.users WHERE id = (SELECT auth.uid());
+  RETURN QUERY
+  SELECT e.name, i.invited_email, i.role,
+    CASE WHEN i.status = 'pending' AND i.expires_at <= now() THEN 'expired' ELSE i.status END,
+    i.expires_at
+  FROM public.invitations i
+  JOIN public.establishments e ON e.id = i.establishment_id
+  WHERE i.token_hash = encode(extensions.digest(invitation_token, 'sha256'), 'hex')
+    AND lower(i.invited_email) = current_email;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.accept_invitation(invitation_token text)
+RETURNS TABLE (accepted_role text, accepted_establishment_id uuid)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, extensions
+AS $$
+DECLARE
+  pending_invitation public.invitations%ROWTYPE;
+  current_email text;
+  effective_role text;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL THEN RAISE EXCEPTION 'authentication_required'; END IF;
+  IF invitation_token !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'invalid_invitation_token'; END IF;
+  SELECT lower(email) INTO current_email FROM auth.users
+  WHERE id = (SELECT auth.uid()) AND email_confirmed_at IS NOT NULL;
+  IF current_email IS NULL THEN RAISE EXCEPTION 'verified_email_required'; END IF;
+
+  SELECT * INTO pending_invitation FROM public.invitations
+  WHERE token_hash = encode(extensions.digest(invitation_token, 'sha256'), 'hex') FOR UPDATE;
+  IF NOT FOUND OR pending_invitation.status <> 'pending' THEN RAISE EXCEPTION 'invalid_or_used_invitation'; END IF;
+  IF pending_invitation.expires_at <= now() THEN
+    UPDATE public.invitations SET status = 'expired' WHERE id = pending_invitation.id;
+    RAISE EXCEPTION 'expired_invitation';
+  END IF;
+  IF lower(pending_invitation.invited_email) <> current_email THEN RAISE EXCEPTION 'invitation_email_mismatch'; END IF;
+
+  INSERT INTO public.memberships(profile_id, establishment_id, role, status, commission_rate, created_by)
+  VALUES ((SELECT auth.uid()), pending_invitation.establishment_id, pending_invitation.role, 'active', 0.50, pending_invitation.created_by)
+  ON CONFLICT (profile_id, establishment_id) DO UPDATE
+  SET role = CASE WHEN public.memberships.role = 'admin' THEN 'admin' ELSE EXCLUDED.role END,
+      status = 'active', revoked_at = NULL, updated_at = now();
+
+  SELECT role INTO effective_role FROM public.memberships
+  WHERE profile_id = (SELECT auth.uid()) AND establishment_id = pending_invitation.establishment_id;
+
+  UPDATE public.profiles
+  SET establishment_id = pending_invitation.establishment_id, role = effective_role,
+      commission_rate = (SELECT commission_rate FROM public.memberships
+        WHERE profile_id = (SELECT auth.uid()) AND establishment_id = pending_invitation.establishment_id),
+      updated_at = now()
+  WHERE id = (SELECT auth.uid());
+
+  INSERT INTO public.profile_establishments(profile_id, establishment_id, role)
+  VALUES ((SELECT auth.uid()), pending_invitation.establishment_id, effective_role)
+  ON CONFLICT (profile_id, establishment_id) DO UPDATE SET role = EXCLUDED.role, updated_at = now();
+
+  UPDATE public.invitations
+  SET status = 'accepted', accepted_by = (SELECT auth.uid()), accepted_at = now()
+  WHERE id = pending_invitation.id;
+
+  INSERT INTO public.authorization_audit_log(actor_id, action, establishment_id, target_profile_id, metadata)
+  VALUES ((SELECT auth.uid()), 'invitation.accepted', pending_invitation.establishment_id, (SELECT auth.uid()),
+    jsonb_build_object('invitation_id', pending_invitation.id, 'role', effective_role));
+
+  RETURN QUERY SELECT effective_role, pending_invitation.establishment_id;
+END;
+$$;
+
 REVOKE UPDATE ON public.profiles FROM authenticated;
 GRANT UPDATE (name, phone, avatar_url, push_token) ON public.profiles TO authenticated;
 REVOKE ALL ON FUNCTION public.bootstrap_superadmins_from_config() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.protect_profile_authorization_fields() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.inspect_invitation(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.accept_invitation(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.inspect_invitation(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.accept_invitation(text) TO authenticated;
 
 COMMIT;

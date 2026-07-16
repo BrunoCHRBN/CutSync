@@ -139,6 +139,10 @@ SELECT pg_temp.assert_zero(
   $$SELECT count(*) FROM public.memberships WHERE establishment_id = '20000000-0000-0000-0000-000000000002'$$,
   'professional can see another tenant memberships'
 );
+SELECT pg_temp.assert_zero(
+  $$SELECT count(*) FROM public.profiles WHERE id = '10000000-0000-0000-0000-000000000004'$$,
+  'professional can see another tenant profile'
+);
 SELECT pg_temp.expect_error(
   $$SELECT public.create_invitation('20000000-0000-0000-0000-000000000001', 'new-prof@example.test', 'professional')$$,
   'forbidden'
@@ -157,6 +161,14 @@ SELECT pg_temp.assert_one(
 SELECT pg_temp.assert_zero(
   $$SELECT count(*) FROM public.memberships WHERE establishment_id = '20000000-0000-0000-0000-000000000002'$$,
   'admin can see another tenant memberships'
+);
+SELECT pg_temp.assert_zero(
+  $$SELECT count(*) FROM public.profiles WHERE id = '10000000-0000-0000-0000-000000000004'$$,
+  'admin can see another tenant profile'
+);
+SELECT pg_temp.expect_error(
+  $$INSERT INTO public.memberships(profile_id, establishment_id, role) VALUES ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'admin')$$,
+  'permission denied'
 );
 SELECT pg_temp.expect_error(
   $$SELECT public.create_invitation('20000000-0000-0000-0000-000000000002', 'cross@example.test', 'professional')$$,

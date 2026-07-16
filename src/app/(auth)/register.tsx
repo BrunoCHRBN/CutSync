@@ -9,6 +9,10 @@ import { RegisterExperience } from '../../components/screens/RegisterExperience'
 export default RegisterExperience;
 
 function LegacyRegisterScreen() {
+  // SECURITY: fluxo mantido apenas como referência histórica durante a limpeza.
+  // Mesmo se importado por engano, delega imediatamente ao cadastro seguro.
+  return <RegisterExperience />;
+
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

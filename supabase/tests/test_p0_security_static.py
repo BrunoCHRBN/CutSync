@@ -87,7 +87,9 @@ def test_negative_rls_matrix_covers_roles_and_cross_tenant_cases():
     assert "Admin A:" in matrix_sql
     assert "Superadmin:" in matrix_sql
     assert "professional can see another tenant memberships" in matrix_sql
+    assert "professional can see another tenant profile" in matrix_sql
     assert "admin can see another tenant memberships" in matrix_sql
+    assert "admin can see another tenant profile" in matrix_sql
     assert "invalid_invitation_token" in matrix_sql
     assert "invalid_or_used_invitation" in matrix_sql
     assert "expired_invitation" in matrix_sql
@@ -105,8 +107,9 @@ def test_active_register_experience_does_not_send_role_or_establishment():
 def test_register_route_exports_secure_experience_component():
     route = _read(REGISTER_ROUTE)
     assert "export default RegisterExperience;" in route
-    # Legacy block remains in file but is not exported.
     assert "function LegacyRegisterScreen()" in route
+    legacy_body = route.split("function LegacyRegisterScreen()", 1)[1]
+    assert "return <RegisterExperience />;" in legacy_body[:300]
 
 
 # module: appointments query projection review
@@ -124,3 +127,5 @@ def test_finalize_migration_is_present_and_reasserts_profile_protection():
     assert "DROP TRIGGER IF EXISTS protect_profile_authorization_fields ON public.profiles;" in sql
     assert "REVOKE UPDATE ON public.profiles FROM authenticated;" in sql
     assert "GRANT UPDATE (name, phone, avatar_url, push_token) ON public.profiles TO authenticated;" in sql
+    assert "CREATE OR REPLACE FUNCTION public.accept_invitation(invitation_token text)" in sql
+    assert "IF invitation_token !~ '^[0-9a-f]{64}$'" in sql

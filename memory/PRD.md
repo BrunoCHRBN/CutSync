@@ -1,5 +1,56 @@
 # PRD — CutSync
 
+## Estado atual — P0 de escalada de privilégio e tomada de estabelecimento
+
+### Problema original
+
+> Continuar a primeira tarefa P0 da auditoria: impedir cadastro público como admin/profissional, tomada de estabelecimento por metadata, alteração direta de role/vínculo/comissão e autorização baseada em campos controláveis pelo cliente. Implementar banco, RLS, cadastro, convites e testes; novos estabelecimentos são aprovados por superadmin; superadmin convida admins; admins convidam profissionais; convites são de uso único por 24 horas; vínculos atuais devem ser preservados.
+
+### Decisões de arquitetura
+
+- `memberships` é a fonte de verdade para autorização por tenant; campos de role/estabelecimento no perfil permanecem apenas como espelho de compatibilidade.
+- Cadastro público sempre cria `client` sem estabelecimento, ignorando metadata sensível.
+- Superadmins existentes são preservados; bootstrap adicional usa exclusivamente `app.settings.cutsync_superadmin_emails` no PostgreSQL.
+- Convites armazenam somente hash SHA-256 de token aleatório de 256 bits, exigem e-mail confirmado, expiram em 24 horas e são consumidos uma vez.
+- Escrita administrativa ocorre por RPC `SECURITY DEFINER` endurecida; usuários recebem UPDATE apenas para nome, telefone, avatar e push token.
+- Migration complementar idempotente cobre projetos onde a primeira migration P0 já tenha sido registrada.
+
+### Implementado
+
+- Migração segura de vínculos atuais para `memberships`, funções de autorização, auditoria, solicitação/aprovação de estabelecimento e convites.
+- Fluxos de superadmin, convite de profissional, inspeção/aceite de convite e cadastro público cliente integrados ao app.
+- Leitura de equipe movida de `profiles` para RPC autorizada; queries de agenda usam projeções mínimas de perfil.
+- Matriz SQL negativa para cliente, profissional, admin, superadmin, uso único/expiração de convite e isolamento entre dois tenants.
+- Suíte estática permanente com 11 testes aprovada; sintaxe SQL, TypeScript e export web aprovados.
+- Runbook operacional salvo em `supabase/P0_SECURITY_RUNBOOK.md`.
+
+### Backlog priorizado
+
+#### P0
+
+1. Aplicar as migrations no projeto Supabase de validação quando a conexão administrativa estiver disponível.
+2. Executar `supabase/tests/authorization_p0.sql` no banco e arquivar a saída sem falhas.
+3. Validar ao vivo cadastro → aprovação → convite admin/profissional → aceite com as quatro roles.
+
+#### P1
+
+1. Remover definitivamente o bloco histórico `LegacyRegisterScreen`, hoje isolado por delegação imediata ao cadastro seguro.
+2. Gerar tipos Supabase diretamente do schema remoto para evitar divergências de contrato.
+3. Continuar os demais P0 da auditoria: operações de agenda/serviços e reserva transacional anti-sobreposição.
+
+#### P2
+
+1. Automatizar a matriz RLS em CI com banco efêmero.
+2. Adicionar alertas sobre convites expirados/revogados e trilha administrativa consultável.
+
+### Próximas tarefas
+
+1. Disponibilizar conexão administrativa do Supabase de validação e aplicar o pacote.
+2. Executar a matriz RLS real e corrigir qualquer diferença do schema remoto.
+3. Iniciar o próximo P0 somente após a validação ao vivo desta etapa.
+
+---
+
 ## Estado atual — auditoria prioritária de 16/07/2026
 
 ### Problema original

@@ -250,13 +250,10 @@ $$;
 CREATE OR REPLACE FUNCTION public.protect_profile_authorization_fields()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 BEGIN
-  IF (SELECT auth.uid()) = OLD.id
-    AND current_setting('app.cutsync_authorization_write', true) IS DISTINCT FROM 'trusted'
-    AND (
+  IF current_user = 'authenticated' AND (SELECT auth.uid()) = OLD.id AND (
     NEW.role IS DISTINCT FROM OLD.role
     OR NEW.establishment_id IS DISTINCT FROM OLD.establishment_id
     OR NEW.commission_rate IS DISTINCT FROM OLD.commission_rate
@@ -485,7 +482,6 @@ BEGIN
   SELECT role INTO effective_role FROM public.memberships
   WHERE profile_id = (SELECT auth.uid()) AND establishment_id = pending_invitation.establishment_id;
 
-  PERFORM set_config('app.cutsync_authorization_write', 'trusted', true);
   UPDATE public.profiles
   SET establishment_id = pending_invitation.establishment_id,
       role = effective_role,
@@ -493,7 +489,6 @@ BEGIN
         WHERE profile_id = (SELECT auth.uid()) AND establishment_id = pending_invitation.establishment_id),
       updated_at = now()
   WHERE id = (SELECT auth.uid());
-  PERFORM set_config('app.cutsync_authorization_write', '', true);
 
   INSERT INTO public.profile_establishments(profile_id, establishment_id, role)
   VALUES ((SELECT auth.uid()), pending_invitation.establishment_id, effective_role)
@@ -522,14 +517,12 @@ BEGIN
   SELECT role INTO membership_role FROM public.memberships
   WHERE profile_id = (SELECT auth.uid()) AND establishment_id = target_establishment_id AND status = 'active';
   IF membership_role IS NULL THEN RAISE EXCEPTION 'membership_required'; END IF;
-  PERFORM set_config('app.cutsync_authorization_write', 'trusted', true);
   UPDATE public.profiles
   SET establishment_id = target_establishment_id, role = membership_role,
       commission_rate = (SELECT commission_rate FROM public.memberships
         WHERE profile_id = (SELECT auth.uid()) AND establishment_id = target_establishment_id),
       updated_at = now()
   WHERE id = (SELECT auth.uid());
-  PERFORM set_config('app.cutsync_authorization_write', '', true);
   RETURN membership_role;
 END;
 $$;
