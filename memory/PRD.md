@@ -1,5 +1,60 @@
 # PRD — CutSync
 
+## Estado atual — recuperação e alteração segura de senha
+
+### Problema original
+
+> Implementar recuperação de senha no web e mobile, com “Esqueci minha senha” no login, alteração autenticada nas configurações e regras fortes compartilhadas no cadastro inicial e na redefinição.
+
+### Arquitetura
+
+- Supabase Auth continua sendo a única fonte de identidade.
+- `resetPasswordForEmail` usa `https://cut-sync.vercel.app/reset-password` no web e `cutsync://reset-password` no mobile.
+- A tela de redefinição aceita sessão por fragment tokens, `token_hash` ou PKCE code e não aceita sessão comum sem URL de recuperação.
+- Após redefinir, a sessão é encerrada e o usuário entra novamente com a nova senha.
+- Alteração autenticada valida a senha atual com `signInWithPassword`, atualiza com `updateUser` e encerra outras sessões.
+- Política compartilhada: mínimo 8 caracteres, maiúscula, minúscula, número e símbolo.
+- Resposta de solicitação é genérica para impedir enumeração de e-mails.
+- `vercel.json` redireciona deep links web ao Expo Router; o scheme `cutsync` já atende iOS e Android.
+
+### Implementado
+
+- Link “Esqueci minha senha” na tela de login.
+- Tela de solicitação com validação de e-mail, estado enviado e reenvio.
+- Tela `/reset-password` com validação/consumo seguro do link e estados expirado, carregando e pronto.
+- Tela `/security` para alteração autenticada, acessível por cliente, profissional, admin e superadmin.
+- Componentes reutilizáveis `PasswordInput` e `PasswordStrengthChecklist`.
+- Política forte aplicada ao cadastro principal, cadastro durante agendamento, recuperação e alteração autenticada.
+- Mensagem de sucesso no login após redefinição.
+- Manual `docs/PASSWORD_RECOVERY_SETUP.md` com redirects e política Auth do servidor.
+
+### Verificações
+
+- Chave pública e Auth settings responderam HTTP 200.
+- As três contas QA retornaram sessão Auth 200 com a configuração correta.
+- Endpoint de recuperação aceitou o redirect de produção e respondeu 200.
+- Fluxos web validados: login → recuperação, e-mail inválido, resposta anti-enumeração, link inválido e segurança autenticada.
+- Layout mobile validado sem overflow em recuperação e cadastro.
+- 24 testes estáticos aprovados; TypeScript, lint dos arquivos alterados e export web aprovados.
+
+### Ação manual necessária no Supabase
+
+- Configurar os redirects web/mobile e a política de senha no painel conforme `docs/PASSWORD_RECOVERY_SETUP.md` para que as mesmas regras sejam impostas pelo servidor.
+
+### Backlog
+
+#### P0
+
+1. Aplicar no painel Supabase os redirects e requisitos de senha documentados.
+2. Abrir um e-mail real de recuperação em web, iOS e Android e confirmar a troca completa após a configuração do painel.
+
+#### P1
+
+1. Personalizar o template de e-mail com marca CutSync e aviso de expiração.
+2. Adicionar telemetria de solicitação, sucesso e link expirado sem registrar e-mail ou tokens.
+
+---
+
 ## Estado atual — limpeza final e P0 de reserva transacional anti-overbooking
 
 ### Problema original

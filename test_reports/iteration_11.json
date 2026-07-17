@@ -1,0 +1,70 @@
+{
+  "summary": "Executed requested password-recovery validation on code + live production domain. Static/lint/ts/export checks passed, Supabase auth API checks passed, but production deep-link routes are returning Vercel 404 and the forgot-password link/state is not present in the deployed login UI.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "https://cut-sync.vercel.app/forgot-password, /reset-password, /security, /login",
+        "issue": "All tested deep-link paths return Vercel 404 NOT_FOUND in production, breaking direct password-recovery and security route access.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "https://hxoenfnszrrgaqxplzmd.supabase.co/auth/v1/recover",
+        "issue": "Recover endpoint correctly anti-enumerates unknown email (200), but known email hit 429 rate limit during this run; flow should be rechecked after cooldown."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LoginExperience (production deployment)",
+        "issue": "Expected 'Esqueci minha senha' entry point not visible in deployed login page, so in-app navigation to forgot-password could not be exercised from UI.",
+        "selector": "[data-testid=\"forgot-password-link\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Password recovery deep-link from email to app",
+        "issue": "Reset/forgot/security direct URLs fail at edge with 404, preventing route initialization and token consumption flow in production.",
+        "affected_selectors": [
+          "[data-testid=\"forgot-password-screen\"]",
+          "[data-testid=\"reset-password-screen\"]",
+          "[data-testid=\"change-password-screen\"]"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/test_password_recovery_static.py",
+    "/app/test_reports/pytest/pytest_results_iteration_11.xml",
+    "/app/src/services/passwordRecovery.ts",
+    "/app/src/components/screens/LoginExperience.tsx",
+    "/app/vercel.json"
+  ],
+  "action_items": [
+    "Fix production routing/deployment so /forgot-password, /reset-password, /security and /login resolve to the SPA instead of Vercel 404.",
+    "Deploy the latest login screen build containing forgot-password-link and re-run e2e recovery path.",
+    "Re-test recover endpoint for known email after Supabase rate-limit cooldown to validate full sent-state UX."
+  ],
+  "critical_code_review_comments": [
+    "Code-level implementation for password policy sharing, recovery URL token formats (access/refresh, token_hash, code), security re-auth check, and non-hardcoded Supabase keys is present and passed static regression checks.",
+    "Root issue observed is deployment/runtime mismatch on public domain, not local source code in reviewed files.",
+    "vercel.json includes catch-all rewrite in repo, but live behavior indicates rewrite is not active in current production deployment."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_11.json"
+  ],
+  "success_rate": {
+    "backend": "85%",
+    "frontend": "45%"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use production URL first. Confirm whether deployment includes latest commit and active Vercel SPA rewrites before re-running UI selectors. Supabase password grant for all three QA users is currently 200.",
+  "rca of the issue": "Reproduction: open https://cut-sync.vercel.app/forgot-password (or /reset-password, /security, /login) and server returns 404 NOT_FOUND page. This blocks deep-link recovery and security route access despite source code implementing these routes. Likely root cause is outdated deployment artifact and/or missing rewrite application on active Vercel deployment.",
+  "test_credentials": "Read from /app/memory/test_credentials.md and validated via Supabase password grant endpoint (client/professional/admin => HTTP 200)."
+}
