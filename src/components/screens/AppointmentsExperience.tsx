@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CalendarDays, MapPin, Scissors, UserRound, X, RefreshCw } from 'lucide-react-native';
@@ -43,7 +43,6 @@ export const AppointmentsExperience = () => {
   const { profile, signOut } = useAuth();
   const { appointments: records, loading, error: syncError, refresh } = useAppointments({ clientId: profile?.id });
   const router = useRouter();
-  const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
   const [tab, setTab] = useState<AppointmentTab>('upcoming');
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string>('');
@@ -53,8 +52,7 @@ export const AppointmentsExperience = () => {
   const [targetDate, setTargetDate] = useState<string>('');
   const [targetTime, setTargetTime] = useState<string>('');
 
-  useEffect(() => {
-    setAppointments(records.map((item) => ({
+  const appointments = useMemo<AppointmentDetail[]>(() => records.map((item) => ({
       id: item.id,
       dateTime: item.dateTime,
       status: item.status,
@@ -66,8 +64,9 @@ export const AppointmentsExperience = () => {
       shopSlug: item.establishment?.slug || '',
       rescheduleCount: item.rescheduleCount,
       cancellationReason: item.cancellationReason || '',
-    })));
-  }, [records]);
+    })), [records]);
+
+  const [referenceTime] = useState(() => new Date().getTime());
 
   const visible = useMemo(() => appointments.filter((item) => {
     const startOfToday = new Date();
@@ -186,11 +185,11 @@ export const AppointmentsExperience = () => {
           <View testID="client-appointments-list" style={styles.list}>
             {visible.map((item) => {
               const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
-              const isUpcoming = item.dateTime.getTime() > Date.now();
+              const isUpcoming = item.dateTime.getTime() > referenceTime;
               const cancellable = isUpcoming && (item.status === 'pending' || item.status === 'confirmed');
               
               // Diferença de horas para limite de cancelamento/reagendamento tardio (2 horas)
-              const timeDiff = item.dateTime.getTime() - Date.now();
+              const timeDiff = item.dateTime.getTime() - referenceTime;
               const hoursDiff = timeDiff / (1000 * 60 * 60);
               const isLateCancellation = hoursDiff > 0 && hoursDiff < 2;
 

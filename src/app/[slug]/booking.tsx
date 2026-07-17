@@ -8,7 +8,6 @@ import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { supabase } from '../../services/supabase';
-import { ProfileRecord, ServiceRecord } from '../../types/database';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
@@ -20,7 +19,7 @@ export default function BookingSlugScreen() {
   const { establishment: barbershop, loading: shopLoading } = useEstablishment(slug, 'slug');
   const { services, loading: servicesLoading } = useServices(barbershop?.id, true);
   const { team: barbers, loading: teamLoading } = usePublicTeam(barbershop?.id);
-  const [barberServices, setBarberServices] = useState<Array<{ professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }>>([]);
+  const [barberServices, setBarberServices] = useState<{ professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }[]>([]);
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -85,7 +84,6 @@ export default function BookingSlugScreen() {
   // 1. Monitorar slots de tempo ocupados
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
-      setBookedSegments([]);
       return;
     }
 
@@ -97,17 +95,16 @@ export default function BookingSlugScreen() {
         const endOfDay = new Date(selectedDate);
         endOfDay.setHours(23, 59, 59, 999);
 
-        const { data: list, error } = await supabase.from('appointments').select('date_time,service_id,professional_id')
-          .eq('professional_id', selectedBarber).neq('status', 'cancelled')
-          .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+        const { data: list, error } = await supabase.rpc('get_public_busy_slots', {
+          target_professional_id: selectedBarber,
+          range_start: startOfDay.toISOString(),
+          range_end: endOfDay.toISOString(),
+        });
         if (error) throw error;
-        const segments = [];
-        for (const apt of list || []) {
-          const { duration } = getServicePriceAndDuration(apt.service_id, apt.professional_id);
-          const startTime = new Date(apt.date_time).getTime();
-          const endTime = startTime + duration * 60 * 1000;
-          segments.push({ start: startTime, end: endTime });
-        }
+        const segments = (list || []).map((slot: any) => ({
+          start: new Date(slot.starts_at).getTime(),
+          end: new Date(slot.ends_at).getTime(),
+        }));
 
         setBookedSegments(segments);
       } catch (err) {
@@ -117,6 +114,8 @@ export default function BookingSlugScreen() {
 
     fetchBookedSegments();
   }, [selectedBarber, selectedDate, services, barberServices]);
+
+  const visibleBookedSegments = selectedBarber && selectedDate ? bookedSegments : [];
 
   const availableTimes = [
     '08:00', '09:00', '10:00', '11:00', 
@@ -195,25 +194,25 @@ export default function BookingSlugScreen() {
 
       let targetAppointmentId = '';
       if (reschedule_id) {
-        const { data: current, error: readError } = await supabase.from('appointments')
-          .select('date_time,original_date_time,reschedule_count').eq('id', reschedule_id).single();
-        if (readError) throw readError;
-        const { error } = await supabase.from('appointments').update({
-          original_date_time: current.original_date_time || current.date_time,
-          date_time: appointmentDate.toISOString(), status: 'pending',
-          reschedule_count: Number(current.reschedule_count || 0) + 1,
-          professional_id: selectedBarber, service_id: selectedService,
-        }).eq('id', reschedule_id);
+        const { error } = await supabase.rpc('reschedule_appointment', {
+          target_appointment_id: reschedule_id,
+          new_date_time: appointmentDate.toISOString(),
+          new_professional_id: selectedBarber,
+          new_service_id: selectedService,
+        });
         if (error) throw error;
         targetAppointmentId = reschedule_id;
       } else {
-        const { data, error } = await supabase.from('appointments').insert({
-          establishment_id: barbershop!.id, client_id: clientId,
-          professional_id: selectedBarber, service_id: selectedService,
-          date_time: appointmentDate.toISOString(), status: 'pending', reschedule_count: 0,
-        }).select('id').single();
+        const { data, error } = await supabase.rpc('create_appointment', {
+          target_establishment_id: barbershop!.id,
+          target_professional_id: selectedBarber,
+          target_service_id: selectedService,
+          target_date_time: appointmentDate.toISOString(),
+          target_client_name: null,
+          target_client_id: clientId,
+        });
         if (error) throw error;
-        targetAppointmentId = data.id;
+        targetAppointmentId = data as string;
       }
 
       if (barbershop?.name) {
@@ -223,8 +222,11 @@ export default function BookingSlugScreen() {
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       router.replace(`/salon/${slug}` as never);
-    } catch (error) {
-      displayAlert('Erro', 'Não foi possível salvar o agendamento.');
+    } catch (error: any) {
+      const conflict = error?.message?.includes('appointment_conflict') || error?.code === '23P01';
+      displayAlert('Erro', conflict
+        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
+        : 'Não foi possível salvar o agendamento.');
     } finally {
       setBookingLoading(false);
     }
@@ -541,7 +543,7 @@ export default function BookingSlugScreen() {
                   const slotStart = slotDate.getTime();
                   const slotEnd = slotStart + durationMinutes * 60 * 1000;
 
-                  const isBooked = bookedSegments.some(
+                  const isBooked = visibleBookedSegments.some(
                     (seg) => slotStart < seg.end && slotEnd > seg.start
                   );
                   const isSelected = selectedTime === time;

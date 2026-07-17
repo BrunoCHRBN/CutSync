@@ -72,7 +72,7 @@ export const BarberDashboardExperience = () => {
   const [isOffline, setIsOffline] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tab, setTab] = useState<Tab>('mine');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [cancelCandidateId, setCancelCandidateId] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -131,7 +131,7 @@ export const BarberDashboardExperience = () => {
     return d.toISOString();
   }, [selectedDate]);
 
-  const { appointments: rawAppointments, loading: appointmentsLoading, refresh: refreshAppointments } = useAppointments({
+  const { appointments: rawAppointments, refresh: refreshAppointments } = useAppointments({
     establishmentId: profile?.establishment_id,
     dateFrom: startOfDay,
     dateTo: endOfDay,
@@ -162,12 +162,6 @@ export const BarberDashboardExperience = () => {
     ]);
     setLoading(false);
   };
-
-  useEffect(() => {
-    if (!appointmentsLoading) {
-      setLoading(false);
-    }
-  }, [appointmentsLoading]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -232,7 +226,6 @@ export const BarberDashboardExperience = () => {
 
   useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
-      setOccupiedTimes([]);
       return;
     }
     const start = new Date(newRescheduleDate);
@@ -267,25 +260,7 @@ export const BarberDashboardExperience = () => {
   }, [rescheduleItem, newRescheduleDate]);
 
   useEffect(() => {
-    if (quickOpen) {
-      const today = new Date();
-      setQuickDate(today);
-      
-      const currentHour = today.getHours();
-      const currentMin = today.getMinutes();
-      const todaySlots = quickTimes.filter(slot => {
-        const [h, m] = slot.split(':').map(Number);
-        return h > currentHour || (h === currentHour && m >= currentMin);
-      });
-      
-      const nearest = todaySlots.length > 0 ? todaySlots[0] : null;
-      setQuickTime(nearest);
-    }
-  }, [quickOpen]);
-
-  useEffect(() => {
     if (!quickOpen || !profile?.id || !quickDate) {
-      setQuickOccupiedTimes([]);
       return;
     }
     const start = new Date(quickDate);
@@ -318,6 +293,9 @@ export const BarberDashboardExperience = () => {
     fetchQuickOccupied();
   }, [quickOpen, profile?.id, quickDate]);
 
+  const visibleOccupiedTimes = rescheduleItem ? occupiedTimes : [];
+  const visibleQuickOccupiedTimes = quickOpen && profile?.id ? quickOccupiedTimes : [];
+
   const visibleAppointments = tab === 'mine' ? appointments.filter((item) => item.professionalId === profile?.id) : appointments;
   const completed = visibleAppointments.filter((item) => item.status === 'completed');
   const revenue = completed.reduce((sum, item) => sum + item.price, 0);
@@ -345,12 +323,13 @@ export const BarberDashboardExperience = () => {
     }
   };
 
+  const workHours = profile?.work_hours;
   const timeSlots = useMemo(() => {
     const dayOfWeek = selectedDate.getDay();
     let schedule = defaultSchedule.find(s => s.day === dayOfWeek);
-    if (profile?.work_hours) {
+    if (workHours) {
       try {
-        const parsed = JSON.parse(profile.work_hours);
+        const parsed = JSON.parse(workHours);
         const found = parsed.find((s: any) => s.day === dayOfWeek);
         if (found) schedule = found;
       } catch {}
@@ -375,7 +354,7 @@ export const BarberDashboardExperience = () => {
       current.setMinutes(current.getMinutes() + 30);
     }
     return slots;
-  }, [selectedDate, profile?.work_hours]);
+  }, [selectedDate, workHours]);
 
   const activeAppointments = useMemo(() => {
     return visibleAppointments.filter(app => app.status === 'pending' || app.status === 'confirmed');
@@ -443,7 +422,7 @@ export const BarberDashboardExperience = () => {
     setActionLoadingId(id);
     try {
       const appLocal = appointments.find(a => a.id === id);
-      if (status === 'completed' && appLocal && appLocal.dateTime.getTime() > Date.now()) {
+      if (status === 'completed' && appLocal && appLocal.dateTime.getTime() > new Date().getTime()) {
         setNotice({ tone: 'danger', message: 'Não é possível concluir um agendamento no futuro.' });
         setActionLoadingId(null);
         return;
@@ -525,16 +504,14 @@ export const BarberDashboardExperience = () => {
 
     setQuickLoading(true);
     try {
-      const { error } = await supabase
-        .from('appointments')
-        .insert({
-          establishment_id: profile.establishment_id,
-          professional_id: profile.id,
-          client_name: quickName.trim(),
-          service_id: quickService,
-          date_time: dateTime.toISOString(),
-          status: 'confirmed',
-        });
+      const { error } = await supabase.rpc('create_appointment', {
+        target_establishment_id: profile.establishment_id,
+        target_professional_id: profile.id,
+        target_service_id: quickService,
+        target_date_time: dateTime.toISOString(),
+        target_client_name: quickName.trim(),
+        target_client_id: null,
+      });
 
       if (error) throw error;
 
@@ -543,8 +520,9 @@ export const BarberDashboardExperience = () => {
       if (Platform.OS !== 'web') {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível criar o encaixe.' });
+    } catch (bookingError: any) {
+      const conflict = bookingError?.message?.includes('appointment_conflict') || bookingError?.code === '23P01';
+      setNotice({ tone: 'danger', message: conflict ? 'Esse horário acabou de ser reservado.' : 'Não foi possível criar o encaixe.' });
     } finally {
       setQuickLoading(false);
     }
@@ -565,10 +543,20 @@ export const BarberDashboardExperience = () => {
               label="Encaixe rápido" 
               testID="barber-quick-booking-button" 
               onPress={() => {
+                const today = new Date();
+                const currentHour = today.getHours();
+                const currentMin = today.getMinutes();
+                const nearest = quickTimes.find((slot) => {
+                  const [hour, minute] = slot.split(':').map(Number);
+                  return hour > currentHour || (hour === currentHour && minute >= currentMin);
+                }) || null;
                 setQuickOpen(true);
                 setQuickName('');
                 setQuickService(null);
-                setQuickReferenceTime(Date.now());
+                setQuickDate(today);
+                setQuickTime(nearest);
+                setQuickOccupiedTimes([]);
+                setQuickReferenceTime(today.getTime());
               }} 
               icon={<Plus color={primaryForeground} size={17} />}
               style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
@@ -715,6 +703,7 @@ export const BarberDashboardExperience = () => {
                                 testID={`barber-appointment-${item.id}-reschedule-button`} 
                                 onPress={() => {
                                   setRescheduleItem(item);
+                                  setOccupiedTimes([]);
                                   setNewRescheduleDate(new Date(item.dateTime));
                                   setNewRescheduleTime(time(item.dateTime));
                                 }} 
@@ -743,7 +732,8 @@ export const BarberDashboardExperience = () => {
                       const [h, m] = slot.split(':').map(Number);
                       newDate.setHours(h, m, 0, 0);
                       setQuickDate(newDate);
-                      setQuickReferenceTime(Date.now());
+                      setQuickOccupiedTimes([]);
+                      setQuickReferenceTime(new Date().getTime());
                       setQuickOpen(true);
                     }}
                     style={({ pressed }) => [styles.freeSlotCard, pressed && styles.pressed]}
@@ -801,7 +791,7 @@ export const BarberDashboardExperience = () => {
                     <Pressable 
                       key={id} 
                       testID={`barber-quick-date-${id}`}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickDate(date); setQuickTime(null); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickDate(date); setQuickTime(null); setQuickOccupiedTimes([]); }}
                       style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}
                     >
                       <Text testID={`barber-quick-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
@@ -823,7 +813,7 @@ export const BarberDashboardExperience = () => {
                   const slotDate = new Date(quickDate);
                   const [slotHour, slotMinute] = slot.split(':').map(Number);
                   slotDate.setHours(slotHour, slotMinute, 0, 0);
-                  const isOccupied = quickOccupiedTimes.includes(slot) || slotDate.getTime() < quickReferenceTime;
+                  const isOccupied = visibleQuickOccupiedTimes.includes(slot) || slotDate.getTime() < quickReferenceTime;
                   return (
                     <Pressable 
                       key={slot} 
@@ -881,7 +871,7 @@ export const BarberDashboardExperience = () => {
                     <Pressable 
                       key={id} 
                       testID={`barber-reschedule-date-${id}`}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewRescheduleDate(date); setNewRescheduleTime(null); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewRescheduleDate(date); setNewRescheduleTime(null); setOccupiedTimes([]); }}
                       style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}
                     >
                       <Text testID={`barber-reschedule-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
@@ -898,7 +888,7 @@ export const BarberDashboardExperience = () => {
               <Text testID="barber-reschedule-time-label" style={styles.fieldLabel}>Selecione o novo horário</Text>
               <View style={styles.timeGrid}>
                 {filteredRescheduleTimes.map((slot) => {
-                  const isOccupied = occupiedTimes.includes(slot);
+                  const isOccupied = visibleOccupiedTimes.includes(slot);
                   return (
                     <Pressable 
                       key={slot} 

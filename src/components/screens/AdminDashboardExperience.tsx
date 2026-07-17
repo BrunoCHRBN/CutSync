@@ -18,14 +18,12 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react-native';
-import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
-import type { Establishment, Profile, Service, RichAppointment as DBRichAppointment } from '../../types/database';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -71,10 +69,8 @@ export const AdminDashboardExperience = () => {
   const isWide = width >= layout.desktopBreakpoint;
   const isTablet = width >= layout.mobileBreakpoint;
   const { profile, signOut } = useAuth();
-  const [isOffline, setIsOffline] = useState(false);
-  
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // Estados locais para Encaixe Rápido
@@ -120,13 +116,6 @@ export const AdminDashboardExperience = () => {
       day: date.getDate(),
     };
   }), [weekOffset]);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOffline(!state.isConnected || state.isInternetReachable === false);
-    });
-    return () => unsubscribe();
-  }, []);
 
   const { establishment: barbershop, refresh: refreshBarbershop } = useEstablishment(profile?.establishment_id);
   const { services, refresh: refreshServices } = useServices(profile?.establishment_id, true);
@@ -194,14 +183,7 @@ export const AdminDashboardExperience = () => {
   const sync = handleRefresh;
 
   useEffect(() => {
-    if (!appointmentsLoading) {
-      setLoading(false);
-    }
-  }, [appointmentsLoading]);
-
-  useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
-      setOccupiedTimes([]);
       return;
     }
     const start = new Date(newRescheduleDate);
@@ -237,7 +219,6 @@ export const AdminDashboardExperience = () => {
 
   useEffect(() => {
     if (!quickOpen || !quickBarber || !quickDate) {
-      setQuickOccupiedTimes([]);
       return;
     }
     const start = new Date(quickDate);
@@ -297,7 +278,7 @@ export const AdminDashboardExperience = () => {
     try {
       const appLocal = appointments.find(a => a.id === id);
       
-      if (status === 'completed' && appLocal && appLocal.dateTime.getTime() > Date.now()) {
+      if (status === 'completed' && appLocal && appLocal.dateTime.getTime() > new Date().getTime()) {
         const msg = 'Não é possível concluir um agendamento no futuro.';
         if (Platform.OS === 'web') {
           window.alert(msg);
@@ -402,16 +383,14 @@ export const AdminDashboardExperience = () => {
 
     setQuickLoading(true);
     try {
-      const { error } = await supabase
-        .from('appointments')
-        .insert({
-          establishment_id: barbershop.id,
-          professional_id: quickBarber,
-          client_name: quickName.trim(),
-          service_id: quickService,
-          date_time: dateTime.toISOString(),
-          status: 'confirmed',
-        });
+      const { error } = await supabase.rpc('create_appointment', {
+        target_establishment_id: barbershop.id,
+        target_professional_id: quickBarber,
+        target_service_id: quickService,
+        target_date_time: dateTime.toISOString(),
+        target_client_name: quickName.trim(),
+        target_client_id: null,
+      });
 
       if (error) throw error;
 
@@ -420,8 +399,9 @@ export const AdminDashboardExperience = () => {
       setQuickService(null); 
       setQuickBarber(null); 
       setQuickTime(null);
-    } catch {
-      const msg = 'Não foi possível criar o encaixe.';
+    } catch (bookingError: any) {
+      const conflict = bookingError?.message?.includes('appointment_conflict') || bookingError?.code === '23P01';
+      const msg = conflict ? 'Esse horário acabou de ser reservado.' : 'Não foi possível criar o encaixe.';
       if (Platform.OS === 'web') {
         window.alert(msg);
       } else {
@@ -501,6 +481,7 @@ export const AdminDashboardExperience = () => {
                 disabled={!!actionLoadingId}
                 onPress={() => {
                   setRescheduleItem(item);
+                  setOccupiedTimes([]);
                   setNewRescheduleDate(new Date(item.dateTime));
                   setNewRescheduleTime(time(item.dateTime));
                 }}
@@ -567,6 +548,7 @@ export const AdminDashboardExperience = () => {
             testID="admin-new-booking-button"
             onPress={() => {
               setQuickOpen(true);
+              setQuickOccupiedTimes([]);
               setQuickDate(selectedDate);
               setQuickTime(null);
               setQuickBarber(null);
@@ -789,7 +771,7 @@ export const AdminDashboardExperience = () => {
                     title={barber.name} 
                     subtitle={barber.role === 'admin' ? 'Proprietário' : 'Barbeiro'} 
                     selected={quickBarber === barber.id} 
-                    onPress={() => { setQuickBarber(barber.id); setQuickTime(null); }} 
+                    onPress={() => { setQuickBarber(barber.id); setQuickTime(null); setQuickOccupiedTimes([]); }} 
                     icon={<UserRound color={colors.textSecondary} size={15} />} 
                     style={styles.choiceCard} 
                   />
@@ -803,7 +785,7 @@ export const AdminDashboardExperience = () => {
                   return (
                     <Pressable 
                       key={opt.id} 
-                      onPress={() => { setQuickDate(opt.date); setQuickTime(null); }} 
+                      onPress={() => { setQuickDate(opt.date); setQuickTime(null); setQuickOccupiedTimes([]); }} 
                       style={[styles.dateItem, selected && styles.dateItemSelected]}
                     >
                       <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>
@@ -901,7 +883,7 @@ export const AdminDashboardExperience = () => {
                   return (
                     <Pressable 
                       key={opt.id} 
-                      onPress={() => { setNewRescheduleDate(opt.date); setNewRescheduleTime(null); }} 
+                      onPress={() => { setNewRescheduleDate(opt.date); setNewRescheduleTime(null); setOccupiedTimes([]); }} 
                       style={[styles.dateItem, selected && styles.dateItemSelected]}
                     >
                       <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>

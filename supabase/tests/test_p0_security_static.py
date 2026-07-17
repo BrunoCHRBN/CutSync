@@ -13,6 +13,8 @@ TEAM_HOOK = ROOT / "src/hooks/useTeam.ts"
 APPOINTMENTS_HOOK = ROOT / "src/hooks/useAppointments.ts"
 PRIVACY_MIGRATION = ROOT / "supabase/migrations/20260716052000_privacy_audit_and_professional_profiles.sql"
 PRIVACY_MATRIX = ROOT / "supabase/tests/privacy_audit_p0.sql"
+BOOKING_MIGRATION = ROOT / "supabase/migrations/20260716057000_transactional_appointment_creation.sql"
+BOOKING_MATRIX = ROOT / "supabase/tests/transactional_booking_p0.sql"
 
 
 def _read(path: Path) -> str:
@@ -176,3 +178,24 @@ def test_revocations_require_reasons():
     assert "CREATE OR REPLACE FUNCTION public.revoke_invitation" in sql
     assert sql.count("revocation_reason_required") >= 2
     assert _read(PRIVACY_MATRIX)
+
+
+def test_transactional_booking_has_database_level_overlap_protection():
+    sql = _read(BOOKING_MIGRATION)
+    assert "CREATE OR REPLACE FUNCTION public.create_appointment" in sql
+    assert "appointments_no_professional_overlap" in sql
+    assert "EXCLUDE USING gist" in sql
+    assert "WHEN exclusion_violation" in sql
+    assert "RAISE EXCEPTION 'appointment_conflict'" in sql
+    assert "REVOKE INSERT ON public.appointments FROM authenticated;" in sql
+
+
+def test_booking_duration_is_snapshotted_and_public_slots_are_minimal():
+    sql = _read(BOOKING_MIGRATION)
+    assert "duration_minutes integer" in sql
+    assert "set_appointment_duration_snapshot" in sql
+    public_slots = sql.split("CREATE FUNCTION public.get_public_busy_slots", 1)[1]
+    assert "RETURNS TABLE (starts_at timestamptz, ends_at timestamptz)" in public_slots
+    assert "client_id" not in public_slots
+    assert "appointment.id" not in public_slots
+    assert _read(BOOKING_MATRIX)
