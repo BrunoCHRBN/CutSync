@@ -194,7 +194,7 @@ def test_transactional_booking_has_database_level_overlap_protection():
     assert "EXCLUDE USING gist" in sql
     assert "WHEN exclusion_violation" in sql
     assert "RAISE EXCEPTION 'appointment_conflict'" in sql
-    assert "REVOKE INSERT ON public.appointments FROM authenticated;" in sql
+    assert "REVOKE INSERT, UPDATE, DELETE ON public.appointments FROM authenticated;" in sql
     assert "appointments_no_professional_overlap" in setup
     assert "tstzrange(date_time, ends_at, '[)') WITH &&" in setup
 

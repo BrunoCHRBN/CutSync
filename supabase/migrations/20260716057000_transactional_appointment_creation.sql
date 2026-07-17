@@ -267,7 +267,7 @@ BEGIN
 END;
 $$;
 
-REVOKE INSERT ON public.appointments FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.appointments FROM authenticated;
 REVOKE ALL ON FUNCTION public.create_appointment(uuid, uuid, text, timestamptz, text, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_public_busy_slots(uuid, timestamptz, timestamptz) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.set_appointment_duration_snapshot() FROM PUBLIC;

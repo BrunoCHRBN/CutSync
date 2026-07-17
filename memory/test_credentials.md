@@ -1,5 +1,7 @@
 # Credenciais de teste — Migração Supabase
 
+> Status em 17/07/2026: as três senhas abaixo retornam Supabase Auth 401 e não devem ser consideradas válidas até serem redefinidas.
+
 ## Cliente
 - E-mail: `bakdmskaj8183@gmail.com`
 - Senha: `bruno1324`
@@ -38,3 +40,4 @@
 ## Ação de segurança
 
 - Rotacionar as três senhas de teste, pois são iguais e foram compartilhadas durante a auditoria.
+- Após a rotação, substituir imediatamente os valores acima e repetir login cliente/profissional/admin.
