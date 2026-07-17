@@ -1,6 +1,6 @@
 # Credenciais de teste — Migração Supabase
 
-> Status em 17/07/2026: as três senhas abaixo retornam Supabase Auth 401 e não devem ser consideradas válidas até serem redefinidas.
+> Status em 17/07/2026: as três contas foram validadas com a chave pública correta do projeto e retornaram sessão Auth 200.
 
 ## Cliente
 - E-mail: `bakdmskaj8183@gmail.com`
@@ -15,8 +15,8 @@
 - Senha: `bruno1324`
 
 ## Ambiente
-- As variáveis Supabase não estão presentes no workspace atual.
-- A auditoria recuperou temporariamente a configuração pública do histórico Git apenas para validação de leitura e não a restaurou no projeto.
+- As variáveis públicas Supabase corretas estão configuradas no `.env` local, que permanece ignorado pelo Git.
+- URL web oficial: `https://cut-sync.vercel.app`.
 - A senha do banco informada pelo usuário não é registrada neste arquivo e deve ser rotacionada.
 
 ## Administrador informado pelo usuário
@@ -40,4 +40,4 @@
 ## Ação de segurança
 
 - Rotacionar as três senhas de teste, pois são iguais e foram compartilhadas durante a auditoria.
-- Após a rotação, substituir imediatamente os valores acima e repetir login cliente/profissional/admin.
+- Após qualquer rotação, substituir imediatamente os valores acima e repetir login cliente/profissional/admin.

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { Check, Clock3, Copy, LogOut, ShieldCheck, Store, X } from 'lucide-react-native';
+import { Check, Clock3, Copy, KeyRound, LogOut, ShieldCheck, Store, X } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { AppButton } from '../../components/ui/AppButton';
@@ -17,6 +18,7 @@ interface EstablishmentRequest {
 }
 
 export default function SuperadminDashboard() {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= layout.mobileBreakpoint;
   const { profile, signOut } = useAuth();
@@ -36,7 +38,10 @@ export default function SuperadminDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { void loadRequests(); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => { void loadRequests(); }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const approve = async (requestId: string) => {
     setActionId(requestId); setNotice(null); setGeneratedLink('');
@@ -69,6 +74,7 @@ export default function SuperadminDashboard() {
       <View testID="superadmin-header" style={styles.header}>
         <BrandMark compact testID="superadmin-brand" />
         <View style={styles.headerIdentity}><Text style={styles.headerLabel}>Superadmin</Text><Text testID="superadmin-user-name" style={styles.headerName}>{profile?.name}</Text></View>
+        <Pressable testID="superadmin-security-button" accessibilityRole="button" accessibilityLabel="Segurança da conta" onPress={() => router.push('/security')} style={styles.iconButton}><KeyRound color={colors.textSecondary} size={18} /></Pressable>
         <Pressable testID="superadmin-sign-out-button" accessibilityRole="button" accessibilityLabel="Sair" onPress={signOut} style={styles.iconButton}><LogOut color={colors.danger} size={18} /></Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>

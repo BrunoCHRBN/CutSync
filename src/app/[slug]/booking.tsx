@@ -11,6 +11,9 @@ import { supabase } from '../../services/supabase';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
+import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
+import { PasswordInput } from '../../components/ui/PasswordInput';
+import { PasswordStrengthChecklist } from '../../components/ui/PasswordStrengthChecklist';
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -51,6 +54,7 @@ export default function BookingSlugScreen() {
   const [authEmail, setAuthEmail] = useState('');
   const [authName, setAuthName] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authPasswordConfirmation, setAuthPasswordConfirmation] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -282,6 +286,14 @@ export default function BookingSlugScreen() {
   const handleAuthSubmit = async () => {
     if (!authEmail || !authPassword || (isRegisterMode && !authName)) {
       displayAlert('Campos incompletos', 'Preencha todos os campos obrigatórios.');
+      return;
+    }
+    if (isRegisterMode && !isStrongPassword(authPassword)) {
+      displayAlert('Senha fraca', passwordPolicyMessage);
+      return;
+    }
+    if (isRegisterMode && authPassword !== authPasswordConfirmation) {
+      displayAlert('Senhas diferentes', 'Digite a mesma senha nos dois campos.');
       return;
     }
 
@@ -666,19 +678,27 @@ export default function BookingSlugScreen() {
                       value={authEmail}
                       onChangeText={setAuthEmail}
                     />
-                    <TextInput
+                    <PasswordInput
                       testID="public-booking-register-password-input"
-                      style={styles.modalInput}
-                      placeholder="Senha (mínimo 6 dígitos)"
-                      placeholderTextColor={colors.textMuted}
-                      secureTextEntry
+                      label="Senha"
+                      placeholder="Crie uma senha forte"
                       value={authPassword}
                       onChangeText={setAuthPassword}
+                      autoComplete="new-password"
+                    />
+                    <PasswordStrengthChecklist password={authPassword} testID="public-booking-register-password-checklist" />
+                    <PasswordInput
+                      testID="public-booking-register-password-confirm-input"
+                      label="Confirmar senha"
+                      placeholder="Repita sua senha"
+                      value={authPasswordConfirmation}
+                      onChangeText={setAuthPasswordConfirmation}
+                      autoComplete="new-password"
                     />
                     <Pressable testID="public-booking-register-submit-button"
                       style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
                       onPress={handleAuthSubmit}
-                      disabled={authLoading}
+                      disabled={authLoading || !isStrongPassword(authPassword) || authPassword !== authPasswordConfirmation}
                     >
                       {authLoading ? <ActivityIndicator color={primaryFg} /> : <Text style={[styles.modalBtnText, { color: primaryFg }]}>Criar e reservar</Text>}
                     </Pressable>

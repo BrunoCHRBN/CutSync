@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Mail, Phone, ShieldCheck, UserRound, UsersRound, LockKeyhole, Link2 } from 'lucide-react-native';
+import { Mail, Phone, ShieldCheck, UserRound, UsersRound, Link2 } from 'lucide-react-native';
 import { supabase } from '../../services/supabase';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { BrandMark } from '../ui/BrandMark';
 import { InlineNotice } from '../ui/InlineNotice';
+import { PasswordInput } from '../ui/PasswordInput';
+import { PasswordStrengthChecklist } from '../ui/PasswordStrengthChecklist';
 import { ScreenBackground } from '../ui/ScreenBackground';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+import { colors, radii, typography } from '../../theme/tokens';
+import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
 
 export const RegisterExperience = () => {
   const router = useRouter();
@@ -20,13 +23,22 @@ export const RegisterExperience = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleRegister = async () => {
     setError('');
-    if (!name.trim() || !email.trim() || password.length < 8) {
-      setError('Informe nome, e-mail e uma senha com pelo menos 8 caracteres.');
+    if (!name.trim() || !email.trim()) {
+      setError('Informe nome e e-mail para continuar.');
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      setError(passwordPolicyMessage);
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      setError('As senhas não coincidem.');
       return;
     }
 
@@ -85,12 +97,14 @@ export const RegisterExperience = () => {
                   <AppInput containerStyle={styles.halfField} label="E-mail" testID="register-email-input" icon={<Mail color={colors.textMuted} size={17} />} placeholder="voce@exemplo.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
                   <AppInput containerStyle={styles.halfField} label="Telefone" testID="register-phone-input" icon={<Phone color={colors.textMuted} size={17} />} placeholder="(11) 99999-9999" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
                 </View>
-                <AppInput label="Senha" testID="register-password-input" icon={<LockKeyhole color={colors.textMuted} size={17} />} placeholder="Mínimo de 8 caracteres" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
+                <PasswordInput label="Senha" testID="register-password-input" placeholder="Crie uma senha forte" value={password} onChangeText={setPassword} autoComplete="new-password" />
+                <PasswordStrengthChecklist password={password} testID="register-password-strength-checklist" />
+                <PasswordInput label="Confirmar senha" testID="register-password-confirm-input" placeholder="Repita sua senha" value={passwordConfirmation} onChangeText={setPasswordConfirmation} autoComplete="new-password" onSubmitEditing={handleRegister} returnKeyType="done" />
               </View>
 
               {!!error && <InlineNotice testID="register-error-message" tone="danger" message={error} />}
 
-              <AppButton label="Criar conta" testID="register-submit-button" onPress={handleRegister} loading={loading} fullWidth />
+              <AppButton label="Criar conta" testID="register-submit-button" onPress={handleRegister} loading={loading} disabled={!isStrongPassword(password) || password !== passwordConfirmation} fullWidth />
               <Pressable testID="register-login-link" accessibilityRole="link" onPress={() => router.push({ pathname: '/(auth)/login', params: redirect ? { redirect } : undefined } as never)} style={({ pressed }) => [styles.loginLink, pressed && styles.pressed]}>
                 <Text style={styles.loginText}>Já possui uma conta? <Text style={styles.loginAccent}>Entrar</Text></Text>
               </Pressable>

@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CalendarDays, LogOut, UserRound, Wifi } from 'lucide-react-native';
+import { CalendarDays, LogOut, ShieldCheck, UserRound, Wifi } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
 import { colors, radii, typography } from '../../theme/tokens';
@@ -12,7 +12,7 @@ interface ProfessionalShellProps {
   onSignOut: () => void;
   testID: string;
   isOffline?: boolean;
-  activeRoute?: 'agenda' | 'profile';
+  activeRoute?: 'agenda' | 'profile' | 'security';
 }
 
 export const ProfessionalShell = ({ children, name, shopName, onSignOut, testID, isOffline = false, activeRoute = 'agenda' }: ProfessionalShellProps) => {
@@ -35,6 +35,7 @@ export const ProfessionalShell = ({ children, name, shopName, onSignOut, testID,
     <View testID="professional-shell-navigation" style={styles.navigation}>
       <Pressable testID="professional-nav-agenda" onPress={() => router.push('/(professional)' as never)} style={[styles.navButton, activeRoute === 'agenda' && styles.navButtonActive]}><CalendarDays color={activeRoute === 'agenda' ? colors.text : colors.textMuted} size={15} /><Text style={[styles.navText, activeRoute === 'agenda' && styles.navTextActive]}>Agenda</Text></Pressable>
       <Pressable testID="professional-nav-profile" onPress={() => router.push('/professional-profile' as never)} style={[styles.navButton, activeRoute === 'profile' && styles.navButtonActive]}><UserRound color={activeRoute === 'profile' ? colors.text : colors.textMuted} size={15} /><Text style={[styles.navText, activeRoute === 'profile' && styles.navTextActive]}>Meu perfil</Text></Pressable>
+      <Pressable testID="professional-nav-security" onPress={() => router.push('/security' as never)} style={[styles.navButton, activeRoute === 'security' && styles.navButtonActive]}><ShieldCheck color={activeRoute === 'security' ? colors.text : colors.textMuted} size={15} /><Text style={[styles.navText, activeRoute === 'security' && styles.navTextActive]}>Segurança</Text></Pressable>
     </View>
     {children}
   </View>;

@@ -9,6 +9,7 @@ export interface AppInputProps extends TextInputProps {
   hint?: string;
   error?: string;
   containerStyle?: StyleProp<ViewStyle>;
+  rightAccessory?: ReactNode;
 }
 
 export const AppInput = ({
@@ -18,6 +19,7 @@ export const AppInput = ({
   hint,
   error,
   containerStyle,
+  rightAccessory,
   style,
   ...props
 }: AppInputProps) => {
@@ -43,6 +45,7 @@ export const AppInput = ({
           }}
           style={[styles.input, style]}
         />
+        {rightAccessory}
       </View>
       {!!error && <Text testID={`${testID}-error`} style={styles.error}>{error}</Text>}
       {!error && !!hint && <Text testID={`${testID}-hint`} style={styles.hint}>{hint}</Text>}

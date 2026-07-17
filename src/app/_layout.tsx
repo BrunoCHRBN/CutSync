@@ -20,12 +20,16 @@ function RootLayoutNavigation() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const isDynamicSlug = segments[0] === '[slug]';
-    const isPublicSalon = segments[0] === 'salon';
-    const isInvite = segments[0] === 'invite';
-    const isPublicProfessionalProfile = segments[0] === 'profile';
-    const isProfessionalProfileEditor = segments[0] === 'professional-profile';
+    const firstSegment = segments[0] as string | undefined;
+    const secondSegment = segments[1] as string | undefined;
+    const inAuthGroup = firstSegment === '(auth)';
+    const isDynamicSlug = firstSegment === '[slug]';
+    const isPublicSalon = firstSegment === 'salon';
+    const isInvite = firstSegment === 'invite';
+    const isPublicProfessionalProfile = firstSegment === 'profile';
+    const isProfessionalProfileEditor = firstSegment === 'professional-profile';
+    const isSecurity = firstSegment === 'security';
+    const isPasswordReset = inAuthGroup && secondSegment === 'reset-password';
 
     if (!user) {
       // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
@@ -33,8 +37,8 @@ function RootLayoutNavigation() {
         router.replace('/(auth)/login');
       }
     } else if (profile) {
+      if (isPasswordReset || isSecurity) return;
       // Se estiver logado e perfil carregado, direciona para o respectivo fluxo
-      const firstSegment = segments[0] as string | undefined;
       const inAdminGroup = firstSegment === '(admin)' || firstSegment === 'admin';
       const inClientGroup = 
         firstSegment === '(client)' || 

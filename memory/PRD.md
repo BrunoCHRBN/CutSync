@@ -47,7 +47,7 @@
 
 - O acesso remoto foi restaurado pelo Session pooler IPv4 correto e a migration está ativa.
 - O clone ainda não contém os arquivos locais das migrations remotas `20260716049000`–`20260716056000` nem `backend/tests/test_supabase_p0_live.py`; o schema remoto continua sendo a referência para esses contratos anteriores.
-- As três contas QA existem e estão confirmadas, mas as senhas documentadas retornam Auth 401; os testes SQL remotos e de concorrência foram concluídos pelo pooler, enquanto a navegação autenticada multi-role permanece pendente de credenciais QA válidas.
+- As três contas QA foram revalidadas com a chave pública correta do projeto e retornaram sessão Auth 200; o 401 anterior era causado pela chave pública incorreta.
 
 ### Backlog priorizado
 

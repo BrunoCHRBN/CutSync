@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Copy, ExternalLink, Link2, MapPin, Palette, Phone, Save, Store, X } from 'lucide-react-native';
+import { Copy, ExternalLink, KeyRound, Link2, MapPin, Palette, Phone, Save, Store, X } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -33,6 +34,7 @@ const defaultSchedule: DaySchedule[] = [
 ];
 
 export const SettingsExperience = () => {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
@@ -176,7 +178,8 @@ export const SettingsExperience = () => {
   };
 
   useEffect(() => {
-    if (barbershop) {
+    const timer = setTimeout(() => {
+      if (barbershop) {
       const shop = barbershop;
         setName(shop.name || '');
         setSlug(shop.slug || '');
@@ -207,7 +210,9 @@ export const SettingsExperience = () => {
           }
         }
         setSchedule(parsedHours);
-    }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [barbershop]);
 
   const saveSettings = async () => {
@@ -301,6 +306,17 @@ export const SettingsExperience = () => {
                     ]} 
                   />
                 </View>
+              </View>
+            </FormSection>
+
+            <FormSection testID="settings-account-security-section" title="Segurança da conta" description="Atualize sua senha pessoal sem alterar dados ou permissões do estabelecimento.">
+              <View style={styles.securityRow}>
+                <View style={styles.securityIcon}><KeyRound color={colors.info} size={20} /></View>
+                <View style={styles.securityCopy}>
+                  <Text testID="settings-account-security-title" style={styles.securityTitle}>Senha de acesso</Text>
+                  <Text testID="settings-account-security-description" style={styles.securityDescription}>Exigimos senha atual, 8 caracteres, maiúscula, minúscula, número e símbolo.</Text>
+                </View>
+                <AppButton label="Alterar senha" testID="settings-change-password-button" onPress={() => router.push('/security' as never)} variant="secondary" />
               </View>
             </FormSection>
 
@@ -483,6 +499,11 @@ const styles = StyleSheet.create({
   emptyGalleryText: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic', marginVertical: 4 },
   galleryPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 8 },
   galleryItemContainer: { width: 80, height: 100, borderRadius: radii.md, overflow: 'hidden', position: 'relative' },
+  securityRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
+  securityIcon: { width: 42, height: 42, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.infoSoft },
+  securityCopy: { flex: 1, minWidth: 210 },
+  securityTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  securityDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, lineHeight: 16, marginTop: 3 },
   galleryItemImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }
 });
