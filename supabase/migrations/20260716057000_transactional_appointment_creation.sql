@@ -1,9 +1,12 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA extensions;
+ALTER EXTENSION btree_gist SET SCHEMA extensions;
+SET LOCAL search_path = pg_catalog, public, extensions;
 
 ALTER TABLE public.appointments
-  ADD COLUMN IF NOT EXISTS duration_minutes integer;
+  ADD COLUMN IF NOT EXISTS duration_minutes integer,
+  ADD COLUMN IF NOT EXISTS ends_at timestamptz;
 
 UPDATE public.appointments appointment
 SET duration_minutes = COALESCE(
@@ -25,9 +28,14 @@ SET duration_minutes = COALESCE(
 )
 WHERE appointment.duration_minutes IS NULL;
 
+UPDATE public.appointments
+SET ends_at = date_time + make_interval(mins => duration_minutes)
+WHERE ends_at IS NULL;
+
 ALTER TABLE public.appointments
   ALTER COLUMN duration_minutes SET DEFAULT 30,
-  ALTER COLUMN duration_minutes SET NOT NULL;
+  ALTER COLUMN duration_minutes SET NOT NULL,
+  ALTER COLUMN ends_at SET NOT NULL;
 
 DO $$
 BEGIN
@@ -40,6 +48,16 @@ BEGIN
     ALTER TABLE public.appointments
       ADD CONSTRAINT appointments_duration_minutes_check
       CHECK (duration_minutes BETWEEN 1 AND 1440);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'appointments_valid_time_range_check'
+      AND conrelid = 'public.appointments'::regclass
+  ) THEN
+    ALTER TABLE public.appointments
+      ADD CONSTRAINT appointments_valid_time_range_check
+      CHECK (ends_at > date_time);
   END IF;
 END $$;
 
@@ -77,15 +95,35 @@ BEGIN
     NEW.duration_minutes := resolved_duration;
   END IF;
 
+  NEW.ends_at := NEW.date_time + make_interval(mins => NEW.duration_minutes);
   RETURN NEW;
 END;
 $$;
 
 DROP TRIGGER IF EXISTS set_appointment_duration_snapshot ON public.appointments;
 CREATE TRIGGER set_appointment_duration_snapshot
-  BEFORE INSERT OR UPDATE OF service_id, professional_id, establishment_id
+  BEFORE INSERT OR UPDATE OF service_id, professional_id, establishment_id, date_time
   ON public.appointments
   FOR EACH ROW EXECUTE FUNCTION public.set_appointment_duration_snapshot();
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.appointments first_appointment
+    JOIN public.appointments second_appointment
+      ON second_appointment.professional_id = first_appointment.professional_id
+      AND second_appointment.id > first_appointment.id
+      AND tstzrange(second_appointment.date_time, second_appointment.ends_at, '[)')
+        && tstzrange(first_appointment.date_time, first_appointment.ends_at, '[)')
+    WHERE first_appointment.status IN ('pending', 'confirmed')
+      AND second_appointment.status IN ('pending', 'confirmed')
+      AND first_appointment.deleted_at IS NULL
+      AND second_appointment.deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'existing_appointment_conflicts';
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -99,11 +137,7 @@ BEGIN
       ADD CONSTRAINT appointments_no_professional_overlap
       EXCLUDE USING gist (
         professional_id WITH =,
-        tstzrange(
-          date_time,
-          date_time + make_interval(mins => duration_minutes),
-          '[)'
-        ) WITH &&
+        tstzrange(date_time, ends_at, '[)') WITH &&
       )
       WHERE (status IN ('pending', 'confirmed') AND deleted_at IS NULL)
       DEFERRABLE INITIALLY IMMEDIATE;
@@ -218,13 +252,13 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
   SELECT appointment.date_time,
-    appointment.date_time + make_interval(mins => appointment.duration_minutes)
+    appointment.ends_at
   FROM public.appointments appointment
   WHERE appointment.professional_id = target_professional_id
     AND appointment.status IN ('pending', 'confirmed')
     AND appointment.deleted_at IS NULL
     AND appointment.date_time < range_end
-    AND appointment.date_time + make_interval(mins => appointment.duration_minutes) > range_start
+    AND appointment.ends_at > range_start
   ORDER BY appointment.date_time;
 $$;
 

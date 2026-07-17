@@ -83,9 +83,10 @@ export const AppointmentsExperience = () => {
     const proceedCancel = async () => {
       setActionLoading(true);
       try {
-        const { error } = await supabase.from('appointments').update({
-          status: 'cancelled', cancellation_reason: reason, cancelled_by_role: 'client',
-        }).eq('id', item.id);
+        const { error } = await supabase.rpc('cancel_appointment', {
+          target_appointment_id: item.id,
+          reason,
+        });
         if (error) throw error;
         setCancelId(null);
         setSelectedReason('');

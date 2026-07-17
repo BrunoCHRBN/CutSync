@@ -289,15 +289,15 @@ export const AdminDashboardExperience = () => {
         return;
       }
 
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          status,
-          cancellation_reason: status === 'cancelled' ? (reason || 'Cliente solicitou') : null,
-          cancelled_by_role: status === 'cancelled' ? 'admin' : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+      const rpcName = status === 'cancelled'
+        ? 'cancel_appointment'
+        : status === 'confirmed'
+          ? 'confirm_appointment'
+          : 'complete_appointment';
+      const params = status === 'cancelled'
+        ? { target_appointment_id: id, reason: reason || 'Cliente solicitou' }
+        : { target_appointment_id: id };
+      const { error } = await supabase.rpc(rpcName, params);
 
       if (error) throw error;
 
@@ -321,19 +321,12 @@ export const AdminDashboardExperience = () => {
       const [hours, minutes] = newRescheduleTime.split(':');
       newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-      const appLocal = appointments.find(a => a.id === rescheduleItem.id);
-      const originalDateTime = appLocal ? appLocal.dateTime.toISOString() : newDate.toISOString();
-
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          original_date_time: originalDateTime,
-          date_time: newDate.toISOString(),
-          reschedule_count: (rescheduleItem.rescheduleCount || 0) + 1,
-          status: 'confirmed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', rescheduleItem.id);
+      const { error } = await supabase.rpc('reschedule_appointment', {
+        target_appointment_id: rescheduleItem.id,
+        new_date_time: newDate.toISOString(),
+        new_professional_id: rescheduleItem.professionalId,
+        new_service_id: null,
+      });
 
       if (error) throw error;
 

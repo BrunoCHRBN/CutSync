@@ -1,5 +1,68 @@
 # PRD — CutSync
 
+## Estado atual — limpeza final e P0 de reserva transacional anti-overbooking
+
+### Problema original
+
+> Retomar do ponto em que a segurança de agendamentos, serviços, disponibilidade pública e galeria já estava validada; corrigir os 14 erros ESLint nas telas alteradas; repetir TypeScript, testes e limpeza de fixtures; atualizar a documentação; em seguida implementar a criação transacional de agendamento com prevenção de conflito/overbooking.
+
+### Decisões de arquitetura
+
+- A disponibilidade exibida no cliente continua sendo apenas informativa; a decisão final de conflito pertence obrigatoriamente ao PostgreSQL.
+- Cada agendamento mantém snapshots de `duration_minutes` e `ends_at`, evitando que alterações futuras no serviço mudem retroativamente o intervalo reservado.
+- Uma exclusion constraint GiST sobre profissional + intervalo `[date_time, ends_at)` impede sobreposição concorrente para estados `pending` e `confirmed`.
+- A RPC `create_appointment` valida autenticação, tenant, profissional ativo, serviço ativo, ownership do cliente e papel do criador antes do INSERT.
+- Clientes criam em `pending`; admin ou o próprio profissional criam encaixes em `confirmed`.
+- INSERT direto de `authenticated` foi revogado; todos os fluxos ativos de criação usam a RPC transacional.
+- As RPCs remotas já existentes de cancelamento, confirmação, conclusão e reagendamento foram apenas conectadas às telas, sem redefinição local do contrato validado.
+- `get_public_busy_slots` retorna somente início e fim ocupados, sem ID do agendamento ou dados do cliente.
+
+### Implementado
+
+- Corrigidos os 14 erros ESLint nas quatro telas solicitadas: efeitos com setState síncrono, relógios impuros, estado derivável, memoização e imports/tipos não usados.
+- Estados de agenda derivados com `useMemo`/valores estáveis e cargas assíncronas sem renderizações em cascata.
+- Migration `20260716057000_transactional_appointment_creation.sql` adiciona snapshot de duração/fim, valida conflitos preexistentes, constraint anti-overlap, RPC de criação e busy slots mínimos.
+- Reserva pública, fluxo legado, encaixe administrativo e encaixe profissional agora chamam `create_appointment`.
+- Cancelamento do cliente e ações de status/reagendamento dos painéis agora chamam as RPCs transacionais já disponíveis.
+- Matriz `transactional_booking_p0.sql` cobre criação e conflito; regressões estáticas impedem retorno de INSERT/UPDATE/DELETE direto nas telas.
+- Nenhuma fixture `TEST-*`, `qa-*` ou `quota-*` foi encontrada no workspace.
+
+### Verificações concluídas
+
+- ESLint solicitado: zero erros e zero avisos.
+- TypeScript: `npx tsc --noEmit` aprovado.
+- 18 testes estáticos Supabase aprovados.
+- Sintaxe PostgreSQL da migration e matriz validada com parser.
+- Export web aprovado e servidor Expo respondeu HTTP 200 em validação local.
+- Nenhum INSERT/UPDATE/DELETE direto de `appointments` permanece nas telas revisadas.
+
+### Limitações desta sessão
+
+- O host Supabase fornecido retornou DNS inexistente e o pooler respondeu `tenant/user not found`; por isso a migration nova não foi aplicada nem validada ao vivo no remoto.
+- O clone atual não contém as migrations remotas `20260716049000`–`20260716056000` nem `backend/tests/test_supabase_p0_live.py`; a regressão ao vivo indicada no handoff não pôde ser executada localmente.
+
+### Backlog priorizado
+
+#### P0
+
+1. Restaurar/confirmar o projeto Supabase correto e trazer as migrations remotas `49000`–`56000` para o repositório.
+2. Revisar a assinatura remota de `create_appointment`, aplicar `20260716057000` e executar `transactional_booking_p0.sql`.
+3. Executar concorrência real com duas sessões tentando reservar intervalos sobrepostos e confirmar exatamente um sucesso.
+4. Reexecutar os testes ao vivo de cliente/profissional/admin e confirmar que nenhum dado de teste permanece.
+
+#### P1
+
+1. Centralizar chamadas de RPC de agendamento em um serviço TypeScript compartilhado e tipado.
+2. Gerar tipos Supabase diretamente do schema remoto.
+3. Exibir feedback de conflito padronizado em toast/notice em todos os clientes.
+
+#### P2
+
+1. Automatizar a matriz transacional em CI com PostgreSQL/Supabase efêmero.
+2. Adicionar métricas do funil de reserva e taxa de conflitos por horário.
+
+---
+
 ## Estado atual — auditoria mínima e P0 #2 LGPD
 
 ### Problema original

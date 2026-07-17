@@ -54,12 +54,20 @@ SELECT pg_temp.expect_error(
 );
 
 DO $$
-DECLARE exposed_columns text[];
+DECLARE function_result text;
 BEGIN
-  SELECT array_agg(column_name ORDER BY ordinal_position)
-  INTO exposed_columns
-  FROM information_schema.columns
-  WHERE table_schema = 'public' AND table_name = 'get_public_busy_slots';
+  SELECT pg_get_function_result(procedure.oid)
+  INTO function_result
+  FROM pg_proc procedure
+  JOIN pg_namespace namespace ON namespace.oid = procedure.pronamespace
+  WHERE namespace.nspname = 'public'
+    AND procedure.proname = 'get_public_busy_slots'
+    AND pg_get_function_identity_arguments(procedure.oid) =
+      'target_professional_id uuid, range_start timestamp with time zone, range_end timestamp with time zone';
+
+  IF function_result IS DISTINCT FROM
+    'TABLE(starts_at timestamp with time zone, ends_at timestamp with time zone)'
+  THEN RAISE EXCEPTION 'FAIL: unexpected public busy slots output: %', function_result; END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.get_public_busy_slots(

@@ -15,6 +15,11 @@ PRIVACY_MIGRATION = ROOT / "supabase/migrations/20260716052000_privacy_audit_and
 PRIVACY_MATRIX = ROOT / "supabase/tests/privacy_audit_p0.sql"
 BOOKING_MIGRATION = ROOT / "supabase/migrations/20260716057000_transactional_appointment_creation.sql"
 BOOKING_MATRIX = ROOT / "supabase/tests/transactional_booking_p0.sql"
+BOOKING_SCREEN = ROOT / "src/app/[slug]/booking.tsx"
+LEGACY_BOOKING_SCREEN = ROOT / "src/components/screens/BookingExperience.tsx"
+CLIENT_APPOINTMENTS_SCREEN = ROOT / "src/components/screens/AppointmentsExperience.tsx"
+ADMIN_DASHBOARD_SCREEN = ROOT / "src/components/screens/AdminDashboardExperience.tsx"
+BARBER_DASHBOARD_SCREEN = ROOT / "src/components/screens/BarberDashboardExperience.tsx"
 
 
 def _read(path: Path) -> str:
@@ -193,9 +198,34 @@ def test_transactional_booking_has_database_level_overlap_protection():
 def test_booking_duration_is_snapshotted_and_public_slots_are_minimal():
     sql = _read(BOOKING_MIGRATION)
     assert "duration_minutes integer" in sql
+    assert "ends_at timestamptz" in sql
     assert "set_appointment_duration_snapshot" in sql
+    assert "NEW.ends_at := NEW.date_time + make_interval" in sql
     public_slots = sql.split("CREATE FUNCTION public.get_public_busy_slots", 1)[1]
     assert "RETURNS TABLE (starts_at timestamptz, ends_at timestamptz)" in public_slots
     assert "client_id" not in public_slots
     assert "appointment.id" not in public_slots
     assert _read(BOOKING_MATRIX)
+
+
+def test_appointment_mutations_are_rpc_only_in_active_screens():
+    screens = [
+        _read(BOOKING_SCREEN),
+        _read(LEGACY_BOOKING_SCREEN),
+        _read(CLIENT_APPOINTMENTS_SCREEN),
+        _read(ADMIN_DASHBOARD_SCREEN),
+        _read(BARBER_DASHBOARD_SCREEN),
+    ]
+    combined = "\n".join(screens)
+    assert ".from('appointments').insert" not in combined
+    assert ".from('appointments').update" not in combined
+    assert ".from('appointments').delete" not in combined
+    for rpc_name in (
+        "create_appointment",
+        "cancel_appointment",
+        "confirm_appointment",
+        "complete_appointment",
+        "reschedule_appointment",
+    ):
+        assert rpc_name in combined
+
