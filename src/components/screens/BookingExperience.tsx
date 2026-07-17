@@ -78,10 +78,10 @@ export const BookingExperience = () => {
         range_end: end.toISOString(),
       });
       if (queryError) throw queryError;
-      const segments = (data || []).map((slot: any) => ({
-        start: new Date(slot.starts_at).getTime(),
-        end: new Date(slot.ends_at).getTime(),
-      }));
+      const segments = (data || []).map((slot: any) => {
+        const start = new Date(slot.date_time).getTime();
+        return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
+      });
       setBookedSegments(segments);
     };
     loadAvailability();

@@ -323,9 +323,9 @@ export const AdminDashboardExperience = () => {
 
       const { error } = await supabase.rpc('reschedule_appointment', {
         target_appointment_id: rescheduleItem.id,
-        new_date_time: newDate.toISOString(),
-        new_professional_id: rescheduleItem.professionalId,
-        new_service_id: null,
+        requested_date_time: newDate.toISOString(),
+        requested_professional_id: rescheduleItem.professionalId,
+        requested_service_id: null,
       });
 
       if (error) throw error;

@@ -101,10 +101,10 @@ export default function BookingSlugScreen() {
           range_end: endOfDay.toISOString(),
         });
         if (error) throw error;
-        const segments = (list || []).map((slot: any) => ({
-          start: new Date(slot.starts_at).getTime(),
-          end: new Date(slot.ends_at).getTime(),
-        }));
+        const segments = (list || []).map((slot: any) => {
+          const start = new Date(slot.date_time).getTime();
+          return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
+        });
 
         setBookedSegments(segments);
       } catch (err) {
@@ -196,9 +196,9 @@ export default function BookingSlugScreen() {
       if (reschedule_id) {
         const { error } = await supabase.rpc('reschedule_appointment', {
           target_appointment_id: reschedule_id,
-          new_date_time: appointmentDate.toISOString(),
-          new_professional_id: selectedBarber,
-          new_service_id: selectedService,
+          requested_date_time: appointmentDate.toISOString(),
+          requested_professional_id: selectedBarber,
+          requested_service_id: selectedService,
         });
         if (error) throw error;
         targetAppointmentId = reschedule_id;

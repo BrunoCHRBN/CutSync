@@ -239,20 +239,24 @@ EXCEPTION
 END;
 $$;
 
-DROP FUNCTION IF EXISTS public.get_public_busy_slots(uuid, timestamptz, timestamptz);
-CREATE FUNCTION public.get_public_busy_slots(
+CREATE OR REPLACE FUNCTION public.get_public_busy_slots(
   target_professional_id uuid,
   range_start timestamptz,
   range_end timestamptz
 )
-RETURNS TABLE (starts_at timestamptz, ends_at timestamptz)
-LANGUAGE sql
+RETURNS TABLE (date_time timestamptz, duration_minutes integer)
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
-  SELECT appointment.date_time,
-    appointment.ends_at
+BEGIN
+  IF range_end <= range_start OR range_end > range_start + interval '31 days' THEN
+    RAISE EXCEPTION 'invalid_availability_range';
+  END IF;
+
+  RETURN QUERY
+  SELECT appointment.date_time, appointment.duration_minutes
   FROM public.appointments appointment
   WHERE appointment.professional_id = target_professional_id
     AND appointment.status IN ('pending', 'confirmed')
@@ -260,6 +264,7 @@ AS $$
     AND appointment.date_time < range_end
     AND appointment.ends_at > range_start
   ORDER BY appointment.date_time;
+END;
 $$;
 
 REVOKE INSERT ON public.appointments FROM authenticated;
@@ -268,5 +273,7 @@ REVOKE ALL ON FUNCTION public.get_public_busy_slots(uuid, timestamptz, timestamp
 REVOKE ALL ON FUNCTION public.set_appointment_duration_snapshot() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_appointment(uuid, uuid, text, timestamptz, text, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_busy_slots(uuid, timestamptz, timestamptz) TO anon, authenticated;
+
+NOTIFY pgrst, 'reload schema';
 
 COMMIT;

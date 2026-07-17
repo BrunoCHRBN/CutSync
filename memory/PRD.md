@@ -15,7 +15,7 @@
 - Clientes criam em `pending`; admin ou o próprio profissional criam encaixes em `confirmed`.
 - INSERT direto de `authenticated` foi revogado; todos os fluxos ativos de criação usam a RPC transacional.
 - As RPCs remotas já existentes de cancelamento, confirmação, conclusão e reagendamento foram apenas conectadas às telas, sem redefinição local do contrato validado.
-- `get_public_busy_slots` retorna somente início e fim ocupados, sem ID do agendamento ou dados do cliente.
+- `get_public_busy_slots` preserva o contrato remoto mínimo (`date_time`, `duration_minutes`), sem ID do agendamento ou dados do cliente.
 
 ### Implementado
 
@@ -25,7 +25,8 @@
 - Reserva pública, fluxo legado, encaixe administrativo e encaixe profissional agora chamam `create_appointment`.
 - Cancelamento do cliente e ações de status/reagendamento dos painéis agora chamam as RPCs transacionais já disponíveis.
 - Matriz `transactional_booking_p0.sql` cobre criação e conflito; regressões estáticas impedem retorno de INSERT/UPDATE/DELETE direto nas telas.
-- Nenhuma fixture `TEST-*`, `qa-*` ou `quota-*` foi encontrada no workspace.
+- `supabase/setup.sql` também cria os snapshots e a exclusion constraint, evitando regressão em bancos novos.
+- Foram removidos 10 agendamentos cancelados `TEST-*` deixados por testes anteriores; não restaram fixtures `TEST-*`, `qa-*` ou `quota-*` nas tabelas auditadas.
 
 ### Verificações concluídas
 
@@ -35,20 +36,23 @@
 - Sintaxe PostgreSQL da migration e matriz validada com parser.
 - Export web aprovado e servidor Expo respondeu HTTP 200 em validação local.
 - Nenhum INSERT/UPDATE/DELETE direto de `appointments` permanece nas telas revisadas.
+- Migration `20260716057000` aplicada e registrada no Supabase remoto.
+- Dry-run remoto com rollback aprovado antes da aplicação definitiva.
+- Matriz SQL transacional executada no remoto com sucesso.
+- Corrida real com duas sessões usando `create_appointment`: exatamente uma reserva confirmou e a concorrente recebeu `23P01`; fixture vencedora removida.
+- Grants remotos confirmados: `authenticated` não possui INSERT/UPDATE/DELETE direto e possui EXECUTE na RPC de criação.
 
-### Limitações desta sessão
+### Observações de continuidade
 
-- O host Supabase fornecido retornou DNS inexistente e o pooler respondeu `tenant/user not found`; por isso a migration nova não foi aplicada nem validada ao vivo no remoto.
-- O clone atual não contém as migrations remotas `20260716049000`–`20260716056000` nem `backend/tests/test_supabase_p0_live.py`; a regressão ao vivo indicada no handoff não pôde ser executada localmente.
+- O acesso remoto foi restaurado pelo Session pooler IPv4 correto e a migration está ativa.
+- O clone ainda não contém os arquivos locais das migrations remotas `20260716049000`–`20260716056000` nem `backend/tests/test_supabase_p0_live.py`; o schema remoto continua sendo a referência para esses contratos anteriores.
 
 ### Backlog priorizado
 
 #### P0
 
-1. Restaurar/confirmar o projeto Supabase correto e trazer as migrations remotas `49000`–`56000` para o repositório.
-2. Revisar a assinatura remota de `create_appointment`, aplicar `20260716057000` e executar `transactional_booking_p0.sql`.
-3. Executar concorrência real com duas sessões tentando reservar intervalos sobrepostos e confirmar exatamente um sucesso.
-4. Reexecutar os testes ao vivo de cliente/profissional/admin e confirmar que nenhum dado de teste permanece.
+1. Trazer os arquivos das migrations remotas `49000`–`56000` para o repositório e restaurar `backend/tests/test_supabase_p0_live.py`.
+2. Reexecutar a regressão completa de cliente/profissional/admin quando o arquivo de testes ao vivo for recuperado.
 
 #### P1
 

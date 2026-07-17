@@ -66,7 +66,7 @@ BEGIN
       'target_professional_id uuid, range_start timestamp with time zone, range_end timestamp with time zone';
 
   IF function_result IS DISTINCT FROM
-    'TABLE(starts_at timestamp with time zone, ends_at timestamp with time zone)'
+    'TABLE(date_time timestamp with time zone, duration_minutes integer)'
   THEN RAISE EXCEPTION 'FAIL: unexpected public busy slots output: %', function_result; END IF;
 
   IF EXISTS (
@@ -74,7 +74,7 @@ BEGIN
       '71000000-0000-0000-0000-000000000002',
       now() + interval '1 day', now() + interval '3 days'
     ) slot
-    WHERE slot.ends_at <= slot.starts_at
+    WHERE slot.duration_minutes <= 0
   ) THEN RAISE EXCEPTION 'FAIL: invalid public busy slot'; END IF;
 END $$;
 

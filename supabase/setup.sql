@@ -4,6 +4,10 @@
 
 -- Habilitar extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA extensions;
+ALTER EXTENSION btree_gist SET SCHEMA extensions;
+SET search_path = public, extensions;
 
 -- ==========================================
 -- 1. TABELAS PRINCIPAIS
@@ -84,6 +88,8 @@ CREATE TABLE public.appointments (
     professional_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     service_id TEXT REFERENCES public.services(id) ON DELETE CASCADE NOT NULL,
     date_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_minutes INTEGER DEFAULT 30 NOT NULL CHECK (duration_minutes BETWEEN 1 AND 1440),
+    ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')) DEFAULT 'pending',
     cancellation_reason TEXT,
     cancelled_by_role TEXT CHECK (cancelled_by_role IN ('client', 'professional', 'admin')),
@@ -91,7 +97,15 @@ CREATE TABLE public.appointments (
     original_date_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    deleted_at TIMESTAMP WITH TIME ZONE
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT appointments_valid_time_range_check CHECK (ends_at > date_time),
+    CONSTRAINT appointments_no_professional_overlap
+        EXCLUDE USING gist (
+            professional_id WITH =,
+            tstzrange(date_time, ends_at, '[)') WITH &&
+        )
+        WHERE (status IN ('pending', 'confirmed') AND deleted_at IS NULL)
+        DEFERRABLE INITIALLY IMMEDIATE
 );
 
 -- Tabela de Configurações de Serviços por Barbeiro (Preços e Tempos customizados)

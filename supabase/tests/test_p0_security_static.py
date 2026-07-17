@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path("/app")
+SETUP = ROOT / "supabase/setup.sql"
 MIGRATION_MAIN = ROOT / "supabase/migrations/20260716050000_secure_memberships_and_invites.sql"
 MIGRATION_FINAL = ROOT / "supabase/migrations/20260716051000_finalize_p0_authorization.sql"
 RLS_MATRIX = ROOT / "supabase/tests/authorization_p0.sql"
@@ -187,12 +188,15 @@ def test_revocations_require_reasons():
 
 def test_transactional_booking_has_database_level_overlap_protection():
     sql = _read(BOOKING_MIGRATION)
+    setup = _read(SETUP)
     assert "CREATE OR REPLACE FUNCTION public.create_appointment" in sql
     assert "appointments_no_professional_overlap" in sql
     assert "EXCLUDE USING gist" in sql
     assert "WHEN exclusion_violation" in sql
     assert "RAISE EXCEPTION 'appointment_conflict'" in sql
     assert "REVOKE INSERT ON public.appointments FROM authenticated;" in sql
+    assert "appointments_no_professional_overlap" in setup
+    assert "tstzrange(date_time, ends_at, '[)') WITH &&" in setup
 
 
 def test_booking_duration_is_snapshotted_and_public_slots_are_minimal():
@@ -201,8 +205,8 @@ def test_booking_duration_is_snapshotted_and_public_slots_are_minimal():
     assert "ends_at timestamptz" in sql
     assert "set_appointment_duration_snapshot" in sql
     assert "NEW.ends_at := NEW.date_time + make_interval" in sql
-    public_slots = sql.split("CREATE FUNCTION public.get_public_busy_slots", 1)[1]
-    assert "RETURNS TABLE (starts_at timestamptz, ends_at timestamptz)" in public_slots
+    public_slots = sql.split("CREATE OR REPLACE FUNCTION public.get_public_busy_slots", 1)[1]
+    assert "RETURNS TABLE (date_time timestamptz, duration_minutes integer)" in public_slots
     assert "client_id" not in public_slots
     assert "appointment.id" not in public_slots
     assert _read(BOOKING_MATRIX)
