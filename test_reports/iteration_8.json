@@ -1,0 +1,50 @@
+{
+  "summary": "Validação backend-only concluída para verificação automática de drift do schema Supabase (local + CI). Scripts, workflow e suíte de regressão passaram com CLI MOCKED, sem credenciais reais.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "N/A (script command)",
+        "issue": "`yarn check:supabase-schema` falha no workspace sem `SUPABASE_PROJECT_ID`/`EXPO_PUBLIC_SUPABASE_URL`; comportamento esperado de fail-fast para ambiente sem variáveis."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_supabase_schema_drift.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/scripts/generate-supabase-types.sh",
+    "/app/scripts/check-supabase-schema.sh",
+    "/app/.github/workflows/supabase-schema-drift.yml",
+    "/app/package.json"
+  ],
+  "action_items": [
+    "Opcional: documentar no README que `check:supabase-schema` requer `SUPABASE_PROJECT_ID` ou `EXPO_PUBLIC_SUPABASE_URL` no ambiente local.",
+    "No GitHub, garantir secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID` configurados para execução real contra projeto remoto."
+  ],
+  "critical_code_review_comments": [
+    "`generate-supabase-types.sh` escreve para arquivo temporário e só então grava destino; em falha de geração, arquivo versionado não é corrompido.",
+    "`generate-supabase-types.sh` aceita caminho opcional de saída e resolve project ref via `SUPABASE_PROJECT_ID` ou derivação de `EXPO_PUBLIC_SUPABASE_URL`.",
+    "`check-supabase-schema.sh` retorna 0 quando idêntico e 1 com diff unificado (`diff -u`) quando há drift.",
+    "Workflow `supabase-schema-drift.yml` está válido, dispara em PR/push/schedule/manual e bloqueia drift ao falhar o check.",
+    "Nenhuma credencial hardcoded detectada nos scripts/workflow; uso via secrets do GitHub Actions está correto."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_supabase_schema_drift.py",
+    "/app/test_reports/iteration_8.json"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 pytest)",
+    "frontend": "N/A (escopo backend-only)"
+  },
+  "test_credentials": "`/app/memory/test_credentials.md` lido; não aplicável ao escopo atual (sem fluxo de auth).",
+  "seed_data_creation": "Nenhuma",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "A suíte de regressão de drift já está em `/app/backend/tests/test_supabase_schema_drift.py` e cobre scripts + workflow com Supabase CLI MOCKED. Para validação final de integração real, executar no GitHub Actions com secrets configurados.",
+  "rca of the issue": "Não há bug funcional confirmado neste escopo. Observação única: falha local sem variáveis é comportamento intencional de proteção (fail-fast), não defeito."
+}
