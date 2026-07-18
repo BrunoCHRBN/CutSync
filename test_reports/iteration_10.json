@@ -1,69 +1,63 @@
 {
-  "summary": "Executed requested both-scope validation for P0 #4 using available workspace/runtime: migration/static contracts, lint/TypeScript/export, and live UI smoke. Static checks passed (18/18), but authenticated live flows are blocked because all provided test credentials return 401 from Supabase Auth, and remote SQL race/grant checks requiring Session pooler were not executable in this environment context.",
+  "summary": "Validated dependency/build pipeline fix for React 19 + lucide-react-native. npm ci, TypeScript, lint, build:web and workflow/config checks passed; added regression tests for lockfile peers, Node 22, Vercel commands, and Camera icon import migration.",
   "backend_issues": {
-    "critical": [
-      {
-        "endpoint": "https://hxoenfnszrrgaqxplzmd.supabase.co/auth/v1/token?grant_type=password",
-        "issue": "All three documented test accounts failed login with HTTP 401, blocking authenticated verification of RPC create_appointment, reschedule flow, and role-protected behavior.",
-        "priority": "CRITICAL"
-      },
-      {
-        "endpoint": "public.appointments privileges (remote)",
-        "issue": "Could not confirm remote privilege state for 'authenticated sem INSERT/UPDATE/DELETE direto' via Session pooler SQL in this run; local migration 20260716057000 explicitly revokes INSERT only, while UPDATE/DELETE revocations are not present in this file.",
-        "priority": "HIGH"
-      }
-    ],
+    "critical": [],
     "minor": []
   },
   "frontend_issues": {
     "ui_bugs": [
       {
-        "component": "LoginExperience",
-        "issue": "Credential matrix (client/professional/admin) consistently shows 'Não foi possível entrar...' due upstream 401, so post-login role dashboards and booking/reagendamento paths were not reachable in live mode.",
-        "selector": "[data-testid=\"login-submit-button\"]",
-        "priority": "HIGH"
+        "component": "Web app runtime smoke",
+        "issue": "Browser automation could not connect to http://127.0.0.1:3000 (ERR_CONNECTION_REFUSED), so runtime UI interaction validation did not execute.",
+        "selector": "N/A",
+        "priority": "MEDIUM"
       }
     ],
     "integration_issues": [
       {
-        "flow": "Reagendamento em dashboards admin/profissional",
-        "issue": "Code wiring uses requested_service_id: null instead of forwarding a selected/actual service id; this may diverge from strict remote contract expectations for reschedule_appointment parameterization.",
+        "flow": "Public endpoint smoke",
+        "issue": "Instruction referenced frontend/.env REACT_APP_BACKEND_URL, but this Expo workspace has no /app/frontend/.env and no provided public app URL variable to drive browser test against user-facing endpoint.",
         "affected_selectors": [
-          "[data-testid=\"reschedule-submit-button\"]"
+          "N/A"
         ]
       }
     ],
     "design_issues": []
   },
   "test_report_links": [
-    "/app/supabase/tests/test_p0_security_static.py",
-    "/app/supabase/tests/transactional_booking_p0.sql",
-    "/app/supabase/migrations/20260716057000_transactional_appointment_creation.sql",
-    "/app/test_reports/pytest/pytest_results_iteration_10.xml",
-    "/root/.emergent/automation_output/20260717_045127/console_20260717_045127.log"
+    "/app/backend/tests/test_install_build_pipeline_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration_10_pipeline.xml",
+    "/app/test_reports/pytest/pytest_results_iteration_10_full.xml",
+    "/app/package.json",
+    "/app/package-lock.json",
+    "/app/.nvmrc",
+    "/app/vercel.json",
+    "/app/.github/workflows/install-and-build.yml",
+    "/app/src/app/[slug]/index.tsx",
+    "/app/src/components/screens/BarbershopProfileExperience.tsx"
   ],
   "action_items": [
-    "Validate/rotate and re-provision active QA credentials in Supabase Auth, then rerun multi-role live tests.",
-    "Run remote SQL verification through Session pooler for: duration_minutes/ends_at integrity, active-only overlap constraint behavior, create_appointment race (expect 1 success + 1 error 23P01), and get_public_busy_slots contract.",
-    "Re-confirm that authenticated has no direct INSERT/UPDATE/DELETE on appointments in remote grants (not only RLS path).",
-    "Review reschedule payload in admin/professional screens to send requested_service_id according to remote contract expectations."
+    "For full UI runtime retest, provide the actual public app URL (or ensure frontend service is reachable in this environment) and rerun browser flows.",
+    "Optional hygiene: remove stale note in CUTSYNC_AUDIT.md that still mentions legacy-peer-deps workaround, to avoid confusion after fix."
   ],
   "critical_code_review_comments": [
-    "Static contract checks passed: migration defines duration snapshot trigger, ends_at backfill/checks, overlap exclusion constraint scoped to pending/confirmed + deleted_at IS NULL, and create_appointment maps exclusion_violation to 23P01 appointment_conflict.",
-    "RPC-only creation wiring is present across reviewed screens (public, legacy, admin, professional) with no direct appointments INSERT/UPDATE/DELETE in current frontend code scan.",
-    "Local migration text does not explicitly revoke UPDATE/DELETE on appointments for authenticated; if remote default grants allow these, requirement 'sem INSERT/UPDATE/DELETE direto' may be only partially enforced unless separately revoked elsewhere."
+    "package-lock.json now pins lucide-react-native@1.25.0 with peer react '^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0', matching React 19.2.3 and removing previous resolver conflict.",
+    "vercel.json is correctly configured with installCommand 'npm ci', buildCommand 'npm run build:web', outputDirectory 'dist'.",
+    "GitHub workflow install-and-build.yml is valid and runs setup-node(22), npm ci, lint, and build:web in sequence.",
+    "No legacy-peer-deps/force workaround present in release-critical files checked.",
+    "Icon import migration is consistent in referenced files (Camera used; removed Instagram import from lucide-react-native)."
   ],
   "updated_files": [
+    "/app/backend/tests/test_install_build_pipeline_regression.py",
     "/app/test_reports/iteration_10.json"
   ],
   "success_rate": {
-    "backend": "80% (static/regression pass, live remote DB verification blocked)",
-    "frontend": "45% (runtime load + unauthenticated smoke pass, authenticated/integration flows blocked by auth 401)"
+    "backend": "100% (25/25 pytest)",
+    "frontend": "85% (typecheck/lint/build/config checks passed; runtime smoke blocked by connection refusal)"
   },
-  "test_credentials": "Read from /app/memory/test_credentials.md and used exactly as documented; all returned 401 on Supabase password grant during live UI testing.",
   "seed_data_creation": "None",
   "retest_needed": true,
-  "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Do not assume previous auth credentials are valid. First verify Supabase auth login for all three roles; once restored, execute live booking+reschedule flows and run Session-pooler SQL matrix for race/grants/constraint checks. Keep DB clean (no residual fixtures).",
-  "rca of the issue": "Primary blocker in this run was authentication failure, not UI selector instability: Supabase auth password endpoint returned 401 for all documented QA users, reproducing consistent login denial and preventing entry into role-protected flows. Secondary verification gap: remote SQL checks requiring Session pooler connection were not runnable from available environment context in this run, so concurrency and grant assertions could not be re-proven live."
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Core requested fix validations are green. Remaining gap is only runtime browser validation against a reachable public URL/service.",
+  "rca of the issue": "Original failure was dependency resolution conflict: old lucide-react-native peer range excluded React 19. Fix worked by upgrading lucide-react-native to 1.25.0 and aligning lockfile; clean install now succeeds without legacy-peer-deps/force."
 }

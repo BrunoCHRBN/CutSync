@@ -1,6 +1,7 @@
 # PRD — CutSync
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## Estado atual — recuperação e alteração segura de senha
 
 ### Problema original
@@ -229,6 +230,44 @@
 2. Executar a matriz RLS real e corrigir qualquer diferença do schema remoto.
 3. Iniciar o próximo P0 somente após a validação ao vivo desta etapa.
 =======
+=======
+## Estado atual — correção do build Vercel após merge de 18/07/2026
+
+### Problema original desta etapa
+
+> Build Vercel falhando em `src/app/[slug]/booking.tsx` com `Unexpected token` sobre o marcador `<<<<<<< HEAD`.
+
+### Decisões de arquitetura
+
+- Combinar os dois lados do merge: política forte de senha e modal público de autenticação extraído.
+- Manter criação, disponibilidade e reagendamento em RPCs transacionais para impedir dupla reserva e escrita direta insegura.
+- Preservar export web Expo e rewrite SPA do Vercel.
+
+### Implementado
+
+- Marcadores de conflito removidos do workspace e teste de regressão adicionado para impedir recorrência.
+- `PublicBookingAuthModal` agora inclui senha forte, confirmação, checklist e mostrar/ocultar senha.
+- RPCs `create_appointment`, `get_public_busy_slots` e `reschedule_appointment` conectadas e tipadas.
+- Migração transacional adicionada com snapshot de duração, exclusão de sobreposição e permissões mínimas.
+- `vercel.json` restaurado com rewrite para `index.html`.
+- TypeScript, lint sem erros, export web, smoke visual e 9 testes de regressão aprovados.
+
+### Backlog priorizado
+
+- **P0:** sincronizar a correção com a `master` do GitHub, que ainda aponta para o commit conflitado `d8da387`.
+- **P0:** aplicar a migração `20260716057000_transactional_appointment_creation.sql` no Supabase antes de usar as RPCs em produção.
+- **P0:** confirmar `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` no ambiente Vercel.
+- **P1:** executar E2E real de magic link, cadastro, reserva concorrente e reagendamento com Supabase configurado.
+
+### Próximas tarefas
+
+1. Usar “Save to Github” para enviar o workspace limpo ao repositório.
+2. Aplicar a migração transacional no projeto Supabase.
+3. Reexecutar o deploy Vercel e validar a reserva pública real.
+
+---
+
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
 ## Estado atual — verificação automática de schema de 18/07/2026
 
 ### Problema original desta etapa

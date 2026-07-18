@@ -1,4 +1,10 @@
 {
+<<<<<<< HEAD
+=======
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist",
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

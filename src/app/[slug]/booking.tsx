@@ -18,7 +18,11 @@ import { PasswordInput } from '../../components/ui/PasswordInput';
 import { PasswordStrengthChecklist } from '../../components/ui/PasswordStrengthChecklist';
 =======
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
+<<<<<<< HEAD
 >>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
+=======
+import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -110,7 +114,11 @@ export default function BookingSlugScreen() {
           range_end: endOfDay.toISOString(),
         });
         if (error) throw error;
+<<<<<<< HEAD
         const segments = (list || []).map((slot: any) => {
+=======
+        const segments = (list || []).map((slot) => {
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
           const start = new Date(slot.date_time).getTime();
           return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
         });
@@ -214,14 +222,20 @@ export default function BookingSlugScreen() {
         targetAppointmentId = reschedule_id;
       } else {
 <<<<<<< HEAD
+<<<<<<< HEAD
         const { data, error } = await supabase.rpc('create_appointment', {
           target_establishment_id: barbershop!.id,
+=======
+        const { data, error } = await supabase.rpc('create_appointment', {
+          target_establishment_id: barbershop.id,
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
           target_professional_id: selectedBarber,
           target_service_id: selectedService,
           target_date_time: appointmentDate.toISOString(),
           target_client_name: null,
           target_client_id: clientId,
         });
+<<<<<<< HEAD
 =======
         const { data, error } = await supabase.from('appointments').insert({
           establishment_id: barbershop.id, client_id: clientId,
@@ -231,6 +245,10 @@ export default function BookingSlugScreen() {
 >>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
         if (error) throw error;
         targetAppointmentId = data as string;
+=======
+        if (error) throw error;
+        targetAppointmentId = data;
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
       }
 
       if (barbershop?.name) {
@@ -241,6 +259,7 @@ export default function BookingSlugScreen() {
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       router.replace(`/salon/${slug}` as never);
 <<<<<<< HEAD
+<<<<<<< HEAD
     } catch (error: any) {
       const conflict = error?.message?.includes('appointment_conflict') || error?.code === '23P01';
       displayAlert('Erro', conflict
@@ -250,6 +269,14 @@ export default function BookingSlugScreen() {
     } catch {
       displayAlert('Erro', 'Não foi possível salvar o agendamento.');
 >>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
+=======
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, '');
+      const conflict = message.includes('appointment_conflict');
+      displayAlert('Erro', conflict
+        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
+        : 'Não foi possível salvar o agendamento.');
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
     } finally {
       setBookingLoading(false);
     }
@@ -767,11 +794,13 @@ export default function BookingSlugScreen() {
         email={authEmail}
         name={authName}
         password={authPassword}
+        passwordConfirmation={authPasswordConfirmation}
         primaryColor={primaryColor}
         foregroundColor={primaryFg}
         onEmailChange={setAuthEmail}
         onNameChange={setAuthName}
         onPasswordChange={setAuthPassword}
+        onPasswordConfirmationChange={setAuthPasswordConfirmation}
         onModeChange={setIsRegisterMode}
         onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
         onMagicLinkSubmit={handleSendMagicLink}

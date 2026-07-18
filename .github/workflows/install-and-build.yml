@@ -1,0 +1,32 @@
+name: Install and Build
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clean-install-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalação limpa
+        run: npm ci
+
+      - name: Verificar lint
+        run: npm run lint
+
+      - name: Exportar web
+        run: npm run build:web

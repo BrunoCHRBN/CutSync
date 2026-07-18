@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+<<<<<<< HEAD
 import { ArrowLeft, ArrowRight, Clock3, Coins, ExternalLink, Instagram, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
+=======
+import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -158,7 +162,7 @@ export default function BarbershopSlugScreen() {
                     onPress={() => Linking.openURL(`https://instagram.com/${barbershop.instagram}`)}
                     style={({ pressed }) => [styles.instagramBadge, pressed && styles.pressedScale]}
                   >
-                    <Instagram color={colors.textSecondary} size={12} strokeWidth={1.8} />
+                    <Camera color={colors.textSecondary} size={12} strokeWidth={1.8} />
                     <Text style={styles.instagramBadgeText}>@{barbershop.instagram}</Text>
                   </Pressable>
                 )}
@@ -318,8 +322,13 @@ export default function BarbershopSlugScreen() {
                     {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
                     {!!item.professionalProfileSlug && (
                       <View style={styles.barberInstaBtn}>
+<<<<<<< HEAD
                         <ExternalLink color={colors.textMuted} size={11} strokeWidth={1.6} />
                         <Text style={styles.barberInstaText}>Ver perfil</Text>
+=======
+                        <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
+                        <Text style={styles.barberInstaText}>@{item.instagram}</Text>
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
                       </View>
                     )}
                   </View>
@@ -376,8 +385,13 @@ export default function BarbershopSlugScreen() {
                         onPress={() => { setSelectedTeamMember(null); router.push(`/profile/${selectedTeamMember.professionalProfileSlug}` as never); }}
                         style={styles.bottomSheetInstagramBtn}
                       >
+<<<<<<< HEAD
                         <ExternalLink color={colors.text} size={15} strokeWidth={1.8} />
                         <Text style={styles.bottomSheetInstagramText}>Ver perfil completo</Text>
+=======
+                        <Camera color={colors.text} size={15} strokeWidth={1.8} />
+                        <Text style={styles.bottomSheetInstagramText}>Ver Instagram @{selectedTeamMember.instagram}</Text>
+>>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
                       </TouchableOpacity>
                     )}
                   </View>
