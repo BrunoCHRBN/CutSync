@@ -6,12 +6,24 @@ output_path="${1:-$repo_root/src/types/supabase.generated.ts}"
 project_id="${SUPABASE_PROJECT_ID:-}"
 
 if [[ -z "$project_id" && -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]]; then
-  project_id="${EXPO_PUBLIC_SUPABASE_URL#https://}"
-  project_id="${project_id%%.*}"
+  project_id="$EXPO_PUBLIC_SUPABASE_URL"
 fi
+
+# Normalize project ref: strip whitespace, protocol, host suffix.
+project_id="${project_id//[[:space:]]/}"
+project_id="${project_id#https://}"
+project_id="${project_id#http://}"
+project_id="${project_id%%/*}"
+project_id="${project_id%%.*}"
 
 if [[ -z "$project_id" ]]; then
   echo "Defina SUPABASE_PROJECT_ID ou EXPO_PUBLIC_SUPABASE_URL antes de gerar os tipos." >&2
+  exit 1
+fi
+
+if [[ ! "$project_id" =~ ^[a-z]{20}$ ]]; then
+  echo "SUPABASE_PROJECT_ID inválido: '$project_id'. Deve ser um ref de 20 letras minúsculas (ex.: abcdefghijklmnopqrst)." >&2
+  echo "Se você configurou a URL completa (https://xxxx.supabase.co), o script já extrai automaticamente; verifique o secret." >&2
   exit 1
 fi
 

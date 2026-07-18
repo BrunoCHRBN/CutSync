@@ -2,11 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-<<<<<<< HEAD
-import { ArrowLeft, ArrowRight, Clock3, Coins, ExternalLink, Instagram, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
-=======
 import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -308,7 +304,7 @@ export default function BarbershopSlugScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
               renderItem={({ item }) => (
-                <Pressable testID={`barbershop-professional-${item.id}-open-button`} onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
+                <Pressable onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
                   <View testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
                     <View style={styles.avatarCircleSmall}>
                       {item.avatarUrl ? (
@@ -320,15 +316,10 @@ export default function BarbershopSlugScreen() {
                     <Text style={styles.professionalName}>{item.name}</Text>
                     <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                     {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                    {!!item.professionalProfileSlug && (
+                    {!!item.instagram && (
                       <View style={styles.barberInstaBtn}>
-<<<<<<< HEAD
-                        <ExternalLink color={colors.textMuted} size={11} strokeWidth={1.6} />
-                        <Text style={styles.barberInstaText}>Ver perfil</Text>
-=======
                         <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
                         <Text style={styles.barberInstaText}>@{item.instagram}</Text>
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
                       </View>
                     )}
                   </View>
@@ -345,7 +336,7 @@ export default function BarbershopSlugScreen() {
           visible={!!selectedTeamMember}
           onRequestClose={() => setSelectedTeamMember(null)}
         >
-          <Pressable testID="barbershop-professional-modal-overlay" style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
             <View style={styles.bottomSheetContainer}>
               {selectedTeamMember && (
                 <View style={styles.bottomSheetContent}>
@@ -353,7 +344,7 @@ export default function BarbershopSlugScreen() {
 
                   <View style={styles.bottomSheetHeader}>
                     <Text style={styles.bottomSheetTitle}>Perfil profissional</Text>
-                    <Pressable testID="barbershop-professional-modal-close-button" style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
+                    <Pressable style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
                       <X color={colors.textSecondary} size={18} strokeWidth={1.8} />
                     </Pressable>
                   </View>
@@ -369,7 +360,7 @@ export default function BarbershopSlugScreen() {
 
                     <Text style={styles.bottomSheetName}>{selectedTeamMember.name}</Text>
                     <Text style={styles.bottomSheetRole}>
-                      {selectedTeamMember.tituloProfissional || 'Profissional'}
+                      {selectedTeamMember.role === 'admin' ? 'Proprietário' : 'Profissional'}
                     </Text>
 
                     {!!selectedTeamMember.specialties && (
@@ -379,20 +370,23 @@ export default function BarbershopSlugScreen() {
                       </View>
                     )}
 
-                    {!!selectedTeamMember.professionalProfileSlug && (
+                    {!!selectedTeamMember.instagram && (
                       <TouchableOpacity 
-                        testID="barbershop-professional-public-profile-button"
-                        onPress={() => { setSelectedTeamMember(null); router.push(`/profile/${selectedTeamMember.professionalProfileSlug}` as never); }}
+                        onPress={() => Linking.openURL(`https://instagram.com/${selectedTeamMember.instagram}`)}
                         style={styles.bottomSheetInstagramBtn}
                       >
-<<<<<<< HEAD
-                        <ExternalLink color={colors.text} size={15} strokeWidth={1.8} />
-                        <Text style={styles.bottomSheetInstagramText}>Ver perfil completo</Text>
-=======
                         <Camera color={colors.text} size={15} strokeWidth={1.8} />
                         <Text style={styles.bottomSheetInstagramText}>Ver Instagram @{selectedTeamMember.instagram}</Text>
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
                       </TouchableOpacity>
+                    )}
+
+                    {!!selectedTeamMember.workHours && (
+                      <View style={styles.bottomSheetSection}>
+                        <Text style={styles.bottomSheetSectionLabel}>Horários de trabalho</Text>
+                        <Text style={styles.bottomSheetSectionValue}>
+                          {selectedTeamMember.workHours}
+                        </Text>
+                      </View>
                     )}
                   </View>
                 </View>

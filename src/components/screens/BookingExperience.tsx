@@ -8,11 +8,12 @@ import {
   Text,
   useWindowDimensions,
   View,
+  Animated,
   Vibration,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
+import { ArrowLeft, CalendarDays, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
@@ -52,10 +53,44 @@ export const BookingExperience = () => {
     }
   };
 
+  const barberOpacity = React.useRef(new Animated.Value(selectedService ? 1 : 0.48)).current;
+  const barberTranslateY = React.useRef(new Animated.Value(selectedService ? 0 : 15)).current;
+
+  const dateTimeOpacity = React.useRef(new Animated.Value(selectedBarber ? 1 : 0.48)).current;
+  const dateTimeTranslateY = React.useRef(new Animated.Value(selectedBarber ? 0 : 15)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(barberOpacity, {
+        toValue: selectedService ? 1 : 0.48,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(barberTranslateY, {
+        toValue: selectedService ? 0 : 15,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [selectedService]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(dateTimeOpacity, {
+        toValue: selectedBarber ? 1 : 0.48,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dateTimeTranslateY, {
+        toValue: selectedBarber ? 0 : 15,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [selectedBarber]);
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
   const [error, setError] = useState('');
-  const [referenceTime] = useState(() => new Date().getTime());
 
   const dateOptions = useMemo(() => Array.from({ length: 14 }, (_, index) => {
     const date = new Date();
@@ -63,8 +98,11 @@ export const BookingExperience = () => {
     return date;
   }), []);
 
+  useEffect(() => { if (barbershopId) setSelectedDate(new Date()); }, [barbershopId]);
+
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
+      setBookedSegments([]);
       return;
     }
     const loadAvailability = async () => {
@@ -72,22 +110,15 @@ export const BookingExperience = () => {
       start.setHours(0, 0, 0, 0);
       const end = new Date(selectedDate);
       end.setHours(23, 59, 59, 999);
-      const { data, error: queryError } = await supabase.rpc('get_public_busy_slots', {
-        target_professional_id: selectedBarber,
-        range_start: start.toISOString(),
-        range_end: end.toISOString(),
-      });
+      const { data, error: queryError } = await supabase.from('appointments')
+        .select('date_time, service:services!appointments_service_id_fkey(duration_minutes)')
+        .eq('professional_id', selectedBarber).neq('status', 'cancelled')
+        .gte('date_time', start.toISOString()).lte('date_time', end.toISOString());
       if (queryError) throw queryError;
-<<<<<<< HEAD
-      const segments = (data || []).map((slot: any) => {
-        const start = new Date(slot.date_time).getTime();
-        return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
-=======
       const segments = (data || []).map((appointment) => {
         const duration = Number(appointment.service?.duration_minutes || 30);
         const segmentStart = new Date(appointment.date_time).getTime();
         return { start: segmentStart, end: segmentStart + duration * 60 * 1000 };
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
       });
       setBookedSegments(segments);
     };
@@ -106,7 +137,7 @@ export const BookingExperience = () => {
     slot.setHours(hours, minutes, 0, 0);
     const start = slot.getTime();
     const end = start + (currentService?.durationMinutes || 30) * 60 * 1000;
-    const isPast = start < referenceTime;
+    const isPast = start < Date.now();
     return isPast || bookedSegments.some((segment) => start < segment.end && end > segment.start);
   };
 
@@ -151,23 +182,17 @@ export const BookingExperience = () => {
       const appointmentDate = new Date(selectedDate);
       const [hours, minutes] = selectedTime.split(':').map(Number);
       appointmentDate.setHours(hours, minutes, 0, 0);
-      const { data, error: insertError } = await supabase.rpc('create_appointment', {
-        target_establishment_id: barbershopId,
-        target_professional_id: selectedBarber,
-        target_service_id: selectedService,
-        target_date_time: appointmentDate.toISOString(),
-        target_client_name: profile?.name || null,
-        target_client_id: user.id,
-      });
+      const { data, error: insertError } = await supabase.from('appointments').insert({
+        establishment_id: barbershopId, client_id: user.id, client_name: profile?.name || 'Cliente',
+        professional_id: selectedBarber, service_id: selectedService,
+        date_time: appointmentDate.toISOString(), status: 'pending',
+      }).select('id').single();
       if (insertError) throw insertError;
-      const appointmentId = data as string;
+      const appointmentId = data.id;
       if (barbershop?.name) await scheduleAppointmentNotification(appointmentId, barbershop.name, appointmentDate);
       router.replace('/(client)');
-    } catch (bookingError: any) {
-      const conflict = bookingError?.message?.includes('appointment_conflict') || bookingError?.code === '23P01';
-      setError(conflict
-        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
-        : 'Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');
+    } catch {
+      setError('Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');
     } finally {
       setBookingLoading(false);
     }
@@ -231,7 +256,7 @@ export const BookingExperience = () => {
               )}
             </AppCard>
 
-            <View style={!selectedService && styles.stepDisabled}>
+            <Animated.View style={{ opacity: barberOpacity, transform: [{ translateY: barberTranslateY }] }}>
               <AppCard testID="booking-barber-step" style={[styles.stepCard, !selectedService && styles.stepDisabled]}>
                 <StepHeader number="02" title="Escolha o profissional" active={activeStep === 2} complete={!!selectedBarber} />
                 <View style={styles.choiceGrid}>
@@ -240,7 +265,7 @@ export const BookingExperience = () => {
                       key={barber.id}
                       testID={`booking-barber-${barber.id}`}
                       title={barber.name}
-                      subtitle={barber.tituloProfissional || 'Profissional'}
+                      subtitle={barber.role === 'admin' ? 'Proprietário' : 'Profissional'}
                       selected={selectedBarber === barber.id}
                       onPress={() => selectedService && chooseBarber(barber.id)}
                       icon={<UserRound color={colors.textSecondary} size={16} />}
@@ -249,9 +274,9 @@ export const BookingExperience = () => {
                   ))}
                 </View>
               </AppCard>
-            </View>
+            </Animated.View>
 
-            <View style={!selectedBarber && styles.stepDisabled}>
+            <Animated.View style={{ opacity: dateTimeOpacity, transform: [{ translateY: dateTimeTranslateY }] }}>
               <AppCard testID="booking-datetime-step" style={[styles.stepCard, !selectedBarber && styles.stepDisabled]}>
                 <StepHeader number="03" title="Data e horário" active={activeStep === 3} complete={!!selectedTime} />
                 <Text style={styles.subsectionLabel}>Próximos 14 dias</Text>
@@ -300,7 +325,7 @@ export const BookingExperience = () => {
                   })}
                 </View>
               </AppCard>
-            </View>
+            </Animated.View>
           </View>
 
           <View style={styles.summaryColumn}>

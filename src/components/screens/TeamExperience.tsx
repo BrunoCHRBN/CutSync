@@ -61,9 +61,6 @@ export const TeamExperience = () => {
   const [workHoursSchedule, setWorkHoursSchedule] = useState<DaySchedule[]>(defaultSchedule);
 
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [removalReason, setRemovalReason] = useState('');
-  const [revokingInvitationId, setRevokingInvitationId] = useState<string | null>(null);
-  const [invitationRevocationReason, setInvitationRevocationReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -149,53 +146,20 @@ export const TeamExperience = () => {
   };
 
   const removeBarber = async (barberId: string) => {
-<<<<<<< HEAD
-    if (removalReason.trim().length < 5) {
-      setNotice({ tone: 'danger', message: 'Informe o motivo da remoção com pelo menos 5 caracteres.' });
-      return;
-    }
-=======
     if (!profile?.establishment_id) return;
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('remove_professional', {
         target_profile_id: barberId,
-<<<<<<< HEAD
-        target_establishment_id: profile?.establishment_id,
-        reason: removalReason.trim(),
-=======
         target_establishment_id: profile.establishment_id,
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
       });
       if (error) throw error;
       setRemovingId(null);
-      setRemovalReason('');
       setNotice({ tone: 'success', message: 'Profissional removido da equipe.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível remover este profissional.' });
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  const revokeInvitation = async () => {
-    if (!revokingInvitationId || invitationRevocationReason.trim().length < 5) {
-      setNotice({ tone: 'danger', message: 'Informe o motivo da revogação com pelo menos 5 caracteres.' });
-      return;
-    }
-    setActionLoading(true);
-    const { error } = await supabase.rpc('revoke_invitation', {
-      target_invitation_id: revokingInvitationId,
-      reason: invitationRevocationReason.trim(),
-    });
-    setActionLoading(false);
-    if (error) setNotice({ tone: 'danger', message: 'Não foi possível revogar este convite.' });
-    else {
-      setRevokingInvitationId(null);
-      setInvitationRevocationReason('');
-      setNotice({ tone: 'success', message: 'Convite revogado e registrado na auditoria.' });
-      await loadInvitations();
     }
   };
 
@@ -256,10 +220,8 @@ export const TeamExperience = () => {
             {invitations.length > 0 && <View testID="team-invitations-list" style={styles.invitationList}>{invitations.slice(0, 5).map((invitation) => (
               <View key={invitation.id} testID={`team-invitation-${invitation.id}`} style={styles.invitationRow}>
                 <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>{invitation.status === 'pending' ? 'Pendente' : invitation.status === 'accepted' ? 'Aceito' : invitation.status === 'expired' ? 'Expirado' : 'Revogado'} · {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
-                {invitation.status === 'pending' && <Pressable testID={`team-invitation-${invitation.id}-revoke-button`} onPress={() => { setRevokingInvitationId(invitation.id); setInvitationRevocationReason(''); }} style={styles.invitationRevokeButton}><Trash2 color={colors.danger} size={14} /></Pressable>}
               </View>
             ))}</View>}
-            {!!revokingInvitationId && <View testID="team-invitation-revoke-form" style={styles.revocationForm}><AppInput testID="team-invitation-revoke-reason-input" label="Motivo da revogação" value={invitationRevocationReason} onChangeText={setInvitationRevocationReason} maxLength={500} placeholder="Ex.: convite emitido para o e-mail incorreto" /><View style={styles.confirmActions}><AppButton testID="team-invitation-revoke-confirm-button" label="Revogar convite" onPress={revokeInvitation} loading={actionLoading} variant="danger" /><AppButton testID="team-invitation-revoke-cancel-button" label="Cancelar" onPress={() => setRevokingInvitationId(null)} variant="secondary" /></View></View>}
           </AppCard>
 
           <View style={styles.teamColumn}>
@@ -381,13 +343,13 @@ export const TeamExperience = () => {
                         tone="danger"
                         title="Remover da equipe?"
                         message="O profissional deixa de aparecer para novos agendamentos."
-                        action={<View style={styles.removalForm}><AppInput testID={`team-member-${barber.id}-removal-reason-input`} label="Motivo obrigatório" value={removalReason} onChangeText={setRemovalReason} maxLength={500} placeholder="Ex.: encerramento do vínculo profissional" /><View style={styles.confirmActions}><AppButton label="Remover" testID={`team-member-${barber.id}-remove-confirm-button`} onPress={() => removeBarber(barber.id)} loading={actionLoading} variant="danger" style={styles.smallButton} /><AppButton label="Cancelar" testID={`team-member-${barber.id}-remove-cancel-button`} onPress={() => { setRemovingId(null); setRemovalReason(''); }} variant="secondary" style={styles.smallButton} /></View></View>}
+                        action={<View style={styles.confirmActions}><AppButton label="Remover" testID={`team-member-${barber.id}-remove-confirm-button`} onPress={() => removeBarber(barber.id)} loading={actionLoading} variant="danger" style={styles.smallButton} /><AppButton label="Cancelar" testID={`team-member-${barber.id}-remove-cancel-button`} onPress={() => setRemovingId(null)} variant="secondary" style={styles.smallButton} /></View>}
                       />
                     ) : (
                       <View style={styles.memberActions}>
                         <AppButton label="Editar perfil" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
                         <AppButton label="Jornada / Escala" testID={`team-member-${barber.id}-edit-hours-button`} onPress={() => startEditingWorkHours(barber)} variant="secondary" icon={<Clock color={colors.text} size={15} />} style={styles.smallButton} />
-                        <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => { setRemovingId(barber.id); setRemovalReason(''); }} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
+                        <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
                       </View>
                     )}
                   </AppCard>
@@ -418,8 +380,6 @@ const styles = StyleSheet.create({
   invitationCopy: { flex: 1 },
   invitationEmail: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   invitationMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
-  invitationRevokeButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: colors.dangerSoft },
-  revocationForm: { gap: 10, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   teamColumn: { flex: 1.4 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },
@@ -442,7 +402,6 @@ const styles = StyleSheet.create({
   smallButton: { minHeight: 38, paddingVertical: 7, paddingHorizontal: 12 },
   pressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
   confirmActions: { gap: 6 },
-  removalForm: { gap: 10, width: '100%' },
   workHoursForm: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   workHoursTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   scheduleGrid: { backgroundColor: colors.canvas, borderRadius: radii.md, padding: 12, gap: 8, borderWidth: 1, borderColor: colors.border },

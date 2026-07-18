@@ -1,72 +1,4 @@
 {
-<<<<<<< HEAD
-  "summary": "Validated P0 #2 privacy/audit scope with static regression + build checks. TypeScript, web export, and static security tests passed; live UI/API integration remained blocked by environment/service startup issues.",
-  "backend_issues": {
-    "critical": [
-      {
-        "endpoint": "N/A (runtime app/API)",
-        "issue": "Live backend/frontend services are not running in this workspace supervisor setup (configured paths /app/backend and /app/frontend do not exist), preventing real API/RLS flow execution.",
-        "priority": "HIGH"
-      }
-    ],
-    "minor": []
-  },
-  "frontend_issues": {
-    "ui_bugs": [
-      {
-        "component": "Runtime bootstrap",
-        "issue": "Public URL smoke test returned blank/connection-refused behavior due unavailable runtime service.",
-        "selector": "body",
-        "priority": "HIGH"
-      }
-    ],
-    "integration_issues": [
-      {
-        "flow": "Public profile, booking, role-based dashboards and tenant privacy",
-        "issue": "Could not execute end-to-end flows against live Supabase/runtime because app services are down in current container.",
-        "affected_selectors": [
-          "[data-testid=\"public-professional-profile-screen\"]",
-          "[data-testid=\"professional-profile-editor-screen\"]",
-          "[data-testid=\"booking-confirm-button\"]"
-        ]
-      }
-    ],
-    "design_issues": []
-  },
-  "test_report_links": [
-    "/app/supabase/tests/test_p0_security_static.py",
-    "/app/test_reports/pytest/pytest_results_iteration_8.xml",
-    "/app/supabase/migrations/20260716052000_privacy_audit_and_professional_profiles.sql",
-    "/var/log/supervisor/frontend.err.log",
-    "/var/log/supervisor/backend.err.log"
-  ],
-  "action_items": [
-    "Fix runtime service boot configuration (supervisor directories/commands) so app is reachable for live UI/API verification.",
-    "After runtime is up, rerun tenant-isolation flows with real accounts: client/professional/admin/superadmin and validate no email/phone leakage across tenants.",
-    "Re-run public /profile/[slug] and /[slug]/booking flows in browser with network assertions for RPC payload minimization."
-  ],
-  "critical_code_review_comments": [
-    "Migration 20260716052000 correctly removes global profile read and restricts profile grants to minimal columns (id,name,avatar_url), matching P0 intent.",
-    "get_public_team and get_public_professional_profile contract is minimal/public-safe; no direct email/phone/work_hours/tenant/role exposure in returned shape.",
-    "Quick signup in /[slug]/booking sends only { name } in signUp metadata and appointment insert payload does not include role or establishment_id for user creation path, aligned to requirement.",
-    "Auth guard in _layout keeps /profile, /salon, /invite and dynamic [slug] routes public, aligned to public-route requirement.",
-    "TeamExperience still renders professional email/phone for admins (tenant context); verify policy expectation with product owner if admin should continue seeing these fields."
-  ],
-  "updated_files": [
-    "/app/test_reports/iteration_8.json"
-  ],
-  "success_rate": {
-    "backend": "0% live / 100% static-contract checks",
-    "frontend": "35% (code/build/static), 0% live e2e"
-  },
-  "test_credentials": "Read /app/memory/test_credentials.md successfully. No live auth flow executed due runtime service unavailability.",
-  "seed_data_creation": "None",
-  "retest_needed": true,
-  "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Static checks are green: pytest 15/15, tsc noEmit pass, expo export web pass. Next agent should first restore runtime availability, then run live Supabase tenant/privacy e2e and RLS checks.",
-  "rca of the issue": "Primary blocker is infrastructure mismatch: supervisor is configured to start from /app/backend and /app/frontend, but this repo is a single Expo/Supabase app rooted at /app. Logs show 'couldn't chdir ... ENOENT', causing service startup failure and preventing live browser/API testing."
-}
-=======
   "summary": "Validação backend-only concluída para verificação automática de drift do schema Supabase (local + CI). Scripts, workflow e suíte de regressão passaram com CLI MOCKED, sem credenciais reais.",
   "backend_issues": {
     "critical": [],
@@ -116,4 +48,3 @@
   "context_for_next_testing_agent": "A suíte de regressão de drift já está em `/app/backend/tests/test_supabase_schema_drift.py` e cobre scripts + workflow com Supabase CLI MOCKED. Para validação final de integração real, executar no GitHub Actions com secrets configurados.",
   "rca of the issue": "Não há bug funcional confirmado neste escopo. Observação única: falha local sem variáveis é comportamento intencional de proteção (fail-fast), não defeito."
 }
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9

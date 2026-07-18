@@ -39,13 +39,8 @@ export interface ProfileRecord {
   id: string;
   establishmentId?: string | null;
   name: string;
-<<<<<<< HEAD
-  role: 'client' | 'professional' | 'admin';
-  email?: string;
-=======
   role: ProfileRole;
   email: string;
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
   phone?: string | null;
   avatarUrl?: string | null;
   commissionRate?: number | null;
@@ -53,7 +48,6 @@ export interface ProfileRecord {
   specialties?: string | null;
   instagram?: string | null;
   tituloProfissional?: string | null;
-  professionalProfileSlug?: string | null;
 }
 
 export interface ServiceRecord {
@@ -79,7 +73,7 @@ export interface AppointmentRecord {
   rescheduleCount: number;
   originalDateTime?: Date | null;
   client?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
-  professional?: Pick<ProfileRecord, 'id' | 'name'> | null;
+  professional?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   service?: Pick<ServiceRecord, 'id' | 'name' | 'price' | 'durationMinutes'> | null;
   establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency'> | null;
 }
@@ -117,11 +111,7 @@ export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRe
   id: row.id,
   establishmentId: row.establishment_id,
   name: row.name,
-<<<<<<< HEAD
-  role: row.role || 'professional',
-=======
   role: toProfileRole(row.role),
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
   email: row.email,
   phone: row.phone,
   avatarUrl: row.avatar_url,
@@ -130,7 +120,6 @@ export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRe
   specialties: row.specialties,
   instagram: row.instagram,
   tituloProfissional: row.titulo_profissional,
-  professionalProfileSlug: row.professional_profile_slug,
 });
 
 export const mapService = (row: ServiceRow): ServiceRecord => ({
@@ -157,36 +146,6 @@ export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => (
     : null,
   rescheduleCount: Number(row.reschedule_count || 0),
   originalDateTime: row.original_date_time ? new Date(row.original_date_time) : null,
-<<<<<<< HEAD
-  client: row.client ? mapProfile(row.client) : null,
-  professional: row.professional ? mapProfile(row.professional) : null,
-  service: row.service ? mapService(row.service) : null,
-  establishment: row.establishment ? mapEstablishment(row.establishment) : null,
-});
-
-export interface ProfessionalGalleryItem {
-  url: string;
-  alt: string;
-}
-
-export interface ProfessionalPublicProfile {
-  id: string;
-  slug: string;
-  name: string;
-  avatarUrl?: string | null;
-  tituloProfissional?: string | null;
-  specialties?: string | null;
-  bio?: string | null;
-  portfolioUrl?: string | null;
-  instagramUrl?: string | null;
-  gallery: ProfessionalGalleryItem[];
-  isPublic?: boolean;
-}
-
-export type Profile = ProfileRecord;
-export type Service = ServiceRecord;
-export type RichAppointment = AppointmentRecord;
-=======
   client: row.client,
   professional: row.professional,
   service: row.service ? {
@@ -205,4 +164,3 @@ export type RichAppointment = AppointmentRecord;
     currency: row.establishment.currency,
   } : null,
 });
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9

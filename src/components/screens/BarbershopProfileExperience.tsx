@@ -2,11 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-<<<<<<< HEAD
-import { ArrowLeft, ArrowRight, Clock3, Coins, ExternalLink, Instagram, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
-=======
 import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -317,19 +313,13 @@ export const BarbershopProfileExperience = () => {
                   <Text style={styles.professionalName}>{item.name}</Text>
                   <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                   {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                  {!!item.professionalProfileSlug && (
+                  {!!item.instagram && (
                     <Pressable 
-                      testID={`barbershop-professional-${item.id}-profile-button`}
-                      onPress={() => router.push(`/profile/${item.professionalProfileSlug}` as never)}
+                      onPress={() => Linking.openURL(`https://instagram.com/${item.instagram}`)}
                       style={({ pressed }) => [styles.barberInstaBtn, pressed && styles.pressedScale]}
                     >
-<<<<<<< HEAD
-                      <ExternalLink color={colors.textMuted} size={11} strokeWidth={1.6} />
-                      <Text style={styles.barberInstaText}>Ver perfil</Text>
-=======
                       <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
                       <Text style={styles.barberInstaText}>@{item.instagram}</Text>
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
                     </Pressable>
                   )}
                 </View>

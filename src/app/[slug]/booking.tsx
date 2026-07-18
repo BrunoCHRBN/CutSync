@@ -12,17 +12,8 @@ import { supabase } from '../../services/supabase';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
-<<<<<<< HEAD
-import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
-import { PasswordInput } from '../../components/ui/PasswordInput';
-import { PasswordStrengthChecklist } from '../../components/ui/PasswordStrengthChecklist';
-=======
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
-<<<<<<< HEAD
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
-=======
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -97,6 +88,7 @@ export default function BookingSlugScreen() {
   // 1. Monitorar slots de tempo ocupados
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
+      setBookedSegments([]);
       return;
     }
 
@@ -114,11 +106,7 @@ export default function BookingSlugScreen() {
           range_end: endOfDay.toISOString(),
         });
         if (error) throw error;
-<<<<<<< HEAD
-        const segments = (list || []).map((slot: any) => {
-=======
         const segments = (list || []).map((slot) => {
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
           const start = new Date(slot.date_time).getTime();
           return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
         });
@@ -131,8 +119,6 @@ export default function BookingSlugScreen() {
 
     fetchBookedSegments();
   }, [selectedBarber, selectedDate, services, barberServices]);
-
-  const visibleBookedSegments = selectedBarber && selectedDate ? bookedSegments : [];
 
   const availableTimes = [
     '08:00', '09:00', '10:00', '11:00', 
@@ -221,34 +207,16 @@ export default function BookingSlugScreen() {
         if (error) throw error;
         targetAppointmentId = reschedule_id;
       } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-        const { data, error } = await supabase.rpc('create_appointment', {
-          target_establishment_id: barbershop!.id,
-=======
         const { data, error } = await supabase.rpc('create_appointment', {
           target_establishment_id: barbershop.id,
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
           target_professional_id: selectedBarber,
           target_service_id: selectedService,
           target_date_time: appointmentDate.toISOString(),
           target_client_name: null,
           target_client_id: clientId,
         });
-<<<<<<< HEAD
-=======
-        const { data, error } = await supabase.from('appointments').insert({
-          establishment_id: barbershop.id, client_id: clientId,
-          professional_id: selectedBarber, service_id: selectedService,
-          date_time: appointmentDate.toISOString(), status: 'pending', reschedule_count: 0,
-        }).select('id').single();
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
-        if (error) throw error;
-        targetAppointmentId = data as string;
-=======
         if (error) throw error;
         targetAppointmentId = data;
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
       }
 
       if (barbershop?.name) {
@@ -258,25 +226,12 @@ export default function BookingSlugScreen() {
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       router.replace(`/salon/${slug}` as never);
-<<<<<<< HEAD
-<<<<<<< HEAD
-    } catch (error: any) {
-      const conflict = error?.message?.includes('appointment_conflict') || error?.code === '23P01';
-      displayAlert('Erro', conflict
-        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
-        : 'Não foi possível salvar o agendamento.');
-=======
-    } catch {
-      displayAlert('Erro', 'Não foi possível salvar o agendamento.');
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
-=======
     } catch (error: unknown) {
       const message = getErrorMessage(error, '');
       const conflict = message.includes('appointment_conflict');
       displayAlert('Erro', conflict
         ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
         : 'Não foi possível salvar o agendamento.');
->>>>>>> 7148324c8eaef5800955c03c9aa7b36241bb480c
     } finally {
       setBookingLoading(false);
     }
@@ -601,7 +556,7 @@ export default function BookingSlugScreen() {
                   const slotStart = slotDate.getTime();
                   const slotEnd = slotStart + durationMinutes * 60 * 1000;
 
-                  const isBooked = visibleBookedSegments.some(
+                  const isBooked = bookedSegments.some(
                     (seg) => slotStart < seg.end && slotEnd > seg.start
                   );
                   const isSelected = selectedTime === time;
@@ -663,129 +618,6 @@ export default function BookingSlugScreen() {
         </View>
       )}
 
-<<<<<<< HEAD
-      {/* Modal: Autenticação Rápida de Atrito Zero (Magic Link e Cadastro Rápido) */}
-      <Modal visible={isAuthModalVisible} transparent animationType="slide">
-        <View testID="public-booking-auth-overlay" style={styles.modalOverlay}>
-          <View testID="public-booking-auth-modal" style={styles.modalCard}>
-            <Text testID="public-booking-auth-title" style={styles.modalTitle}>Identifique-se</Text>
-            <Text testID="public-booking-auth-description" style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
-
-            {magicLinkSent ? (
-              <View style={styles.magicLinkState}>
-                <Text style={styles.magicSuccessTitle}>E-mail enviado!</Text>
-                <Text style={styles.magicSuccessDesc}>
-                  Enviamos um link de login rápido para {authEmail}. Abra o link e retorne aqui para finalizar o agendamento!
-                </Text>
-                <Pressable testID="public-booking-magic-link-dismiss-button"
-                  style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor, marginTop: 16 }, pressed && styles.pressedScale]}
-                  onPress={() => {
-                    setMagicLinkSent(false);
-                    setIsAuthModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.modalBtnText, { color: primaryFg }]}>Entendi</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={{ gap: 12 }}>
-                {/* Abas */}
-                <View style={styles.authTabs}>
-                  <TouchableOpacity testID="public-booking-magic-link-tab"
-                    style={[styles.authTab, !isRegisterMode && styles.authTabActive]}
-                    onPress={() => setIsRegisterMode(false)}
-                  >
-                    <Text style={[styles.authTabText, !isRegisterMode && styles.authTabTextActive]}>Sem senha</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity testID="public-booking-register-tab"
-                    style={[styles.authTab, isRegisterMode && styles.authTabActive]}
-                    onPress={() => setIsRegisterMode(true)}
-                  >
-                    <Text style={[styles.authTabText, isRegisterMode && styles.authTabTextActive]}>Criar conta</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Formulário */}
-                {isRegisterMode ? (
-                  <>
-                    <TextInput
-                      testID="public-booking-register-name-input"
-                      style={styles.modalInput}
-                      placeholder="Seu nome completo"
-                      placeholderTextColor={colors.textMuted}
-                      value={authName}
-                      onChangeText={setAuthName}
-                    />
-                    <TextInput
-                      testID="public-booking-register-email-input"
-                      style={styles.modalInput}
-                      placeholder="E-mail"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="email-address"
-                      value={authEmail}
-                      onChangeText={setAuthEmail}
-                    />
-                    <PasswordInput
-                      testID="public-booking-register-password-input"
-                      label="Senha"
-                      placeholder="Crie uma senha forte"
-                      value={authPassword}
-                      onChangeText={setAuthPassword}
-                      autoComplete="new-password"
-                    />
-                    <PasswordStrengthChecklist password={authPassword} testID="public-booking-register-password-checklist" />
-                    <PasswordInput
-                      testID="public-booking-register-password-confirm-input"
-                      label="Confirmar senha"
-                      placeholder="Repita sua senha"
-                      value={authPasswordConfirmation}
-                      onChangeText={setAuthPasswordConfirmation}
-                      autoComplete="new-password"
-                    />
-                    <Pressable testID="public-booking-register-submit-button"
-                      style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
-                      onPress={handleAuthSubmit}
-                      disabled={authLoading || !isStrongPassword(authPassword) || authPassword !== authPasswordConfirmation}
-                    >
-                      {authLoading ? <ActivityIndicator color={primaryFg} /> : <Text style={[styles.modalBtnText, { color: primaryFg }]}>Criar e reservar</Text>}
-                    </Pressable>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.magicLinkInfo}>
-                      Digite seu e-mail abaixo. Você receberá um link de login imediato, sem senhas.
-                    </Text>
-                    <TextInput
-                      testID="public-booking-magic-link-email-input"
-                      style={styles.modalInput}
-                      placeholder="Seu melhor e-mail"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="email-address"
-                      value={authEmail}
-                      onChangeText={setAuthEmail}
-                    />
-                    <Pressable testID="public-booking-magic-link-submit-button"
-                      style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
-                      onPress={handleSendMagicLink}
-                      disabled={authLoading}
-                    >
-                      {authLoading ? <ActivityIndicator color={primaryFg} /> : <Text style={[styles.modalBtnText, { color: primaryFg }]}>Enviar link de acesso</Text>}
-                    </Pressable>
-                  </>
-                )}
-
-                <TouchableOpacity testID="public-booking-auth-cancel-button"
-                  style={styles.modalCancelBtn}
-                  onPress={() => setIsAuthModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
-=======
       <PublicBookingAuthModal
         visible={isAuthModalVisible}
         magicLinkSent={magicLinkSent}
@@ -807,7 +639,6 @@ export default function BookingSlugScreen() {
         onAuthSubmit={handleAuthSubmit}
         onClose={() => setIsAuthModalVisible(false)}
       />
->>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     </View>
   );
 }
