@@ -1,5 +1,40 @@
 # PRD — CutSync
 
+## Estado atual — verificação automática de schema de 18/07/2026
+
+### Problema original desta etapa
+
+> “adicione a verificação automatica de divergencia do schema”
+
+### Decisões de arquitetura
+
+- A comparação usa o Supabase CLI como fonte do contrato remoto, sem acesso direto ao banco.
+- O gerador escreve em arquivo temporário e move o resultado atomicamente, evitando corromper o contrato versionado.
+- A verificação local imprime diff unificado e retorna código `1` quando encontra divergência.
+- O GitHub Actions usa somente secrets, permissão de leitura e bloqueia mudanças divergentes.
+
+### Implementado
+
+- Comando local `yarn check:supabase-schema`.
+- Workflow para pull request, push, execução diária e manual.
+- Validação dos secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`.
+- Oito testes automatizados para igualdade, drift, escrita segura, project ref, workflow e credenciais.
+- README atualizado com setup local e configuração do GitHub.
+
+### Backlog priorizado
+
+- **P0:** configurar os secrets no GitHub e executar o workflow real contra o projeto remoto.
+- **P1:** fixar uma versão revisada da Supabase CLI para builds totalmente reproduzíveis.
+- **P2:** notificar o time quando a execução diária detectar drift fora de um pull request.
+
+### Próximas tarefas
+
+1. Configurar `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID` nos secrets do repositório.
+2. Executar manualmente “Supabase Schema Drift” e revisar o primeiro resultado remoto.
+3. Se houver divergência, executar `yarn types:supabase` e versionar o contrato atualizado.
+
+---
+
 ## Estado atual — tipagem Supabase e modularização de 18/07/2026
 
 ### Problema original desta etapa
@@ -29,7 +64,6 @@
 - **P1:** eliminar gradualmente os 17 casts de estilo web com tipos compartilhados para React Native Web.
 - **P1:** tratar os 16 avisos ESLint legados de imports e dependências de hooks.
 - **P1:** extrair `AdminOverview` e a timeline profissional para componentes menores, aproximando telas principais de 300–500 linhas.
-- **P2:** adicionar verificação automatizada de divergência entre tipos gerados e schema remoto no CI.
 
 ### Próximas tarefas
 
