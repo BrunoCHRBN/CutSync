@@ -13,6 +13,7 @@ import { atmosphericShadow, colors, glassSurface, radii, typography } from '../.
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
+import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -53,6 +54,7 @@ export default function BookingSlugScreen() {
   const [authEmail, setAuthEmail] = useState('');
   const [authName, setAuthName] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authPasswordConfirmation, setAuthPasswordConfirmation] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -98,17 +100,16 @@ export default function BookingSlugScreen() {
         const endOfDay = new Date(selectedDate);
         endOfDay.setHours(23, 59, 59, 999);
 
-        const { data: list, error } = await supabase.from('appointments').select('date_time,service_id,professional_id')
-          .eq('professional_id', selectedBarber).neq('status', 'cancelled')
-          .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
+        const { data: list, error } = await supabase.rpc('get_public_busy_slots', {
+          target_professional_id: selectedBarber,
+          range_start: startOfDay.toISOString(),
+          range_end: endOfDay.toISOString(),
+        });
         if (error) throw error;
-        const segments = [];
-        for (const apt of list || []) {
-          const { duration } = getServicePriceAndDuration(apt.service_id, apt.professional_id);
-          const startTime = new Date(apt.date_time).getTime();
-          const endTime = startTime + duration * 60 * 1000;
-          segments.push({ start: startTime, end: endTime });
-        }
+        const segments = (list || []).map((slot) => {
+          const start = new Date(slot.date_time).getTime();
+          return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
+        });
 
         setBookedSegments(segments);
       } catch (err) {
@@ -197,25 +198,25 @@ export default function BookingSlugScreen() {
 
       let targetAppointmentId = '';
       if (reschedule_id) {
-        const { data: current, error: readError } = await supabase.from('appointments')
-          .select('date_time,original_date_time,reschedule_count').eq('id', reschedule_id).single();
-        if (readError) throw readError;
-        const { error } = await supabase.from('appointments').update({
-          original_date_time: current.original_date_time || current.date_time,
-          date_time: appointmentDate.toISOString(), status: 'pending',
-          reschedule_count: Number(current.reschedule_count || 0) + 1,
-          professional_id: selectedBarber, service_id: selectedService,
-        }).eq('id', reschedule_id);
+        const { error } = await supabase.rpc('reschedule_appointment', {
+          target_appointment_id: reschedule_id,
+          requested_date_time: appointmentDate.toISOString(),
+          requested_professional_id: selectedBarber,
+          requested_service_id: selectedService,
+        });
         if (error) throw error;
         targetAppointmentId = reschedule_id;
       } else {
-        const { data, error } = await supabase.from('appointments').insert({
-          establishment_id: barbershop.id, client_id: clientId,
-          professional_id: selectedBarber, service_id: selectedService,
-          date_time: appointmentDate.toISOString(), status: 'pending', reschedule_count: 0,
-        }).select('id').single();
+        const { data, error } = await supabase.rpc('create_appointment', {
+          target_establishment_id: barbershop.id,
+          target_professional_id: selectedBarber,
+          target_service_id: selectedService,
+          target_date_time: appointmentDate.toISOString(),
+          target_client_name: null,
+          target_client_id: clientId,
+        });
         if (error) throw error;
-        targetAppointmentId = data.id;
+        targetAppointmentId = data;
       }
 
       if (barbershop?.name) {
@@ -225,8 +226,12 @@ export default function BookingSlugScreen() {
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       router.replace(`/salon/${slug}` as never);
-    } catch {
-      displayAlert('Erro', 'Não foi possível salvar o agendamento.');
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, '');
+      const conflict = message.includes('appointment_conflict');
+      displayAlert('Erro', conflict
+        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
+        : 'Não foi possível salvar o agendamento.');
     } finally {
       setBookingLoading(false);
     }
@@ -284,6 +289,14 @@ export default function BookingSlugScreen() {
       displayAlert('Campos incompletos', 'Preencha todos os campos obrigatórios.');
       return;
     }
+    if (isRegisterMode && !isStrongPassword(authPassword)) {
+      displayAlert('Senha fraca', passwordPolicyMessage);
+      return;
+    }
+    if (isRegisterMode && authPassword !== authPasswordConfirmation) {
+      displayAlert('Senhas diferentes', 'Digite a mesma senha nos dois campos.');
+      return;
+    }
 
     setAuthLoading(true);
     try {
@@ -295,8 +308,6 @@ export default function BookingSlugScreen() {
           options: {
             data: {
               name: authName,
-              role: 'client',
-              establishment_id: barbershop?.id || null,
             }
           }
         });
@@ -615,11 +626,13 @@ export default function BookingSlugScreen() {
         email={authEmail}
         name={authName}
         password={authPassword}
+        passwordConfirmation={authPasswordConfirmation}
         primaryColor={primaryColor}
         foregroundColor={primaryFg}
         onEmailChange={setAuthEmail}
         onNameChange={setAuthName}
         onPasswordChange={setAuthPassword}
+        onPasswordConfirmationChange={setAuthPasswordConfirmation}
         onModeChange={setIsRegisterMode}
         onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
         onMagicLinkSubmit={handleSendMagicLink}

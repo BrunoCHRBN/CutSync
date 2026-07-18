@@ -1,6 +1,9 @@
 import React from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
+import { isStrongPassword } from '../../utils/passwordPolicy';
+import { PasswordInput } from '../ui/PasswordInput';
+import { PasswordStrengthChecklist } from '../ui/PasswordStrengthChecklist';
 
 interface PublicBookingAuthModalProps {
   visible: boolean;
@@ -10,11 +13,13 @@ interface PublicBookingAuthModalProps {
   email: string;
   name: string;
   password: string;
+  passwordConfirmation: string;
   primaryColor: string;
   foregroundColor: string;
   onEmailChange: (value: string) => void;
   onNameChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
+  onPasswordConfirmationChange: (value: string) => void;
   onModeChange: (registerMode: boolean) => void;
   onMagicLinkDismiss: () => void;
   onMagicLinkSubmit: () => void;
@@ -22,7 +27,7 @@ interface PublicBookingAuthModalProps {
   onClose: () => void;
 }
 
-export const PublicBookingAuthModal = ({ visible, magicLinkSent, registerMode, loading, email, name, password, primaryColor, foregroundColor, onEmailChange, onNameChange, onPasswordChange, onModeChange, onMagicLinkDismiss, onMagicLinkSubmit, onAuthSubmit, onClose }: PublicBookingAuthModalProps) => (
+export const PublicBookingAuthModal = ({ visible, magicLinkSent, registerMode, loading, email, name, password, passwordConfirmation, primaryColor, foregroundColor, onEmailChange, onNameChange, onPasswordChange, onPasswordConfirmationChange, onModeChange, onMagicLinkDismiss, onMagicLinkSubmit, onAuthSubmit, onClose }: PublicBookingAuthModalProps) => (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <View testID="public-booking-auth-overlay" style={styles.overlay}>
       <View testID="public-booking-auth-modal" style={styles.card}>
@@ -44,8 +49,10 @@ export const PublicBookingAuthModal = ({ visible, magicLinkSent, registerMode, l
               <>
                 <TextInput testID="public-booking-register-name-input" style={styles.input} placeholder="Seu nome completo" placeholderTextColor={colors.textMuted} value={name} onChangeText={onNameChange} />
                 <TextInput testID="public-booking-register-email-input" style={styles.input} placeholder="E-mail" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={onEmailChange} />
-                <TextInput testID="public-booking-register-password-input" style={styles.input} placeholder="Senha (mínimo 6 dígitos)" placeholderTextColor={colors.textMuted} secureTextEntry value={password} onChangeText={onPasswordChange} />
-                <Pressable testID="public-booking-register-submit-button" style={({ pressed }) => [styles.primaryButton, { backgroundColor: primaryColor }, pressed && styles.pressed]} onPress={onAuthSubmit} disabled={loading}>{loading ? <ActivityIndicator color={foregroundColor} /> : <Text style={[styles.primaryButtonText, { color: foregroundColor }]}>Criar e reservar</Text>}</Pressable>
+                <PasswordInput testID="public-booking-register-password-input" label="Senha" placeholder="Crie uma senha forte" value={password} onChangeText={onPasswordChange} autoComplete="new-password" />
+                <PasswordStrengthChecklist password={password} testID="public-booking-register-password-checklist" />
+                <PasswordInput testID="public-booking-register-password-confirm-input" label="Confirmar senha" placeholder="Repita sua senha" value={passwordConfirmation} onChangeText={onPasswordConfirmationChange} autoComplete="new-password" error={passwordConfirmation && password !== passwordConfirmation ? 'As senhas precisam ser iguais.' : undefined} />
+                <Pressable testID="public-booking-register-submit-button" style={({ pressed }) => [styles.primaryButton, { backgroundColor: primaryColor }, pressed && styles.pressed]} onPress={onAuthSubmit} disabled={loading || !isStrongPassword(password) || password !== passwordConfirmation}>{loading ? <ActivityIndicator color={foregroundColor} /> : <Text style={[styles.primaryButtonText, { color: foregroundColor }]}>Criar e reservar</Text>}</Pressable>
               </>
             ) : (
               <>
