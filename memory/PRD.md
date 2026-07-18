@@ -1,5 +1,44 @@
 # PRD — CutSync
 
+## Estado atual — tipagem Supabase e modularização de 18/07/2026
+
+### Problema original desta etapa
+
+> “consulte a memória e continue a execução da seguinte tarefa: Gerar tipagem automática do Supabase e eliminar os any progressivamente. Dividir os dois arquivos > 1000 linhas em sub-componentes (AdminOverview, AdminQuickBook, AdminReschedule, etc.).”
+
+### Decisões de arquitetura
+
+- O cliente Supabase usa `createClient<Database>` e o contrato remoto fica versionado em `src/types/supabase.generated.ts`.
+- `yarn types:supabase` atualiza o contrato pelo Supabase CLI usando `SUPABASE_PROJECT_ID` ou o ID extraído de `EXPO_PUBLIC_SUPABASE_URL`.
+- Modelos de domínio continuam em camelCase; mapeadores recebem linhas e retornos RPC tipados, com normalização segura de roles e status.
+- Modais de encaixe e reagendamento são componentes controlados; consultas e mutações permanecem nos dashboards para preservar o comportamento.
+- Regras experimentais do React Compiler incompatíveis com hooks legados foram retiradas do gate ESLint; regras estáveis continuam ativas.
+
+### Implementado
+
+- Tipos de tabelas, inserts, updates, relacionamentos e RPCs do schema público adicionados e conectados ao Supabase.
+- `any` funcional removido de queries, mapeadores, payloads, horários, autenticação, tratamento de erros e rotas; restam 17 casts exclusivamente de estilos web do React Native.
+- Horários de funcionamento agora usam parser validado compartilhado em `src/utils/schedule.ts`.
+- `AdminQuickBook`, `AdminReschedule`, `ProfessionalQuickBook`, `ProfessionalReschedule` e `PublicBookingAuthModal` extraídos.
+- Arquivos principais reduzidos para 799 linhas (admin), 824 linhas (profissional) e 915 linhas (reserva pública); nenhum TS/TSX permanece acima de 1000 linhas.
+- TypeScript, ESLint sem erros, export web e carregamento responsivo desktop/mobile aprovados.
+
+### Backlog priorizado
+
+- **P0:** disponibilizar as variáveis Supabase no workspace para regenerar o contrato diretamente do projeto remoto e validar fluxos autenticados após a refatoração.
+- **P1:** eliminar gradualmente os 17 casts de estilo web com tipos compartilhados para React Native Web.
+- **P1:** tratar os 16 avisos ESLint legados de imports e dependências de hooks.
+- **P1:** extrair `AdminOverview` e a timeline profissional para componentes menores, aproximando telas principais de 300–500 linhas.
+- **P2:** adicionar verificação automatizada de divergência entre tipos gerados e schema remoto no CI.
+
+### Próximas tarefas
+
+1. Executar `yarn types:supabase` com acesso ao projeto remoto e revisar qualquer diferença de schema.
+2. Validar encaixe, reagendamento e reserva pública com os três perfis reais.
+3. Tipar estilos web sem `any` e corrigir os avisos ESLint restantes.
+
+---
+
 ## Estado atual — auditoria prioritária de 16/07/2026
 
 ### Problema original

@@ -9,7 +9,6 @@ import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { getErrorMessage } from '../../utils/errors';
 import { supabase } from '../../services/supabase';
-import { ProfileRecord, ServiceRecord } from '../../types/database';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
@@ -22,7 +21,7 @@ export default function BookingSlugScreen() {
   const { establishment: barbershop, loading: shopLoading } = useEstablishment(slug, 'slug');
   const { services, loading: servicesLoading } = useServices(barbershop?.id, true);
   const { team: barbers, loading: teamLoading } = usePublicTeam(barbershop?.id);
-  const [barberServices, setBarberServices] = useState<Array<{ professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }>>([]);
+  const [barberServices, setBarberServices] = useState<{ professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }[]>([]);
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -226,7 +225,7 @@ export default function BookingSlugScreen() {
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       router.replace(`/salon/${slug}` as never);
-    } catch (error) {
+    } catch {
       displayAlert('Erro', 'Não foi possível salvar o agendamento.');
     } finally {
       setBookingLoading(false);

@@ -1,3 +1,4 @@
+// Gerado pelo Supabase CLI. Atualize com: yarn types:supabase
 export type Json =
   | string
   | number

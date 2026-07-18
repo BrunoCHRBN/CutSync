@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, WalletCards, X } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -11,8 +11,6 @@ import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
-import { AppInput } from '../ui/AppInput';
-import { ChoiceCard } from '../ui/ChoiceCard';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
