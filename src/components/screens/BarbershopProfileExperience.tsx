@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Clock3, Coins, Instagram, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -156,7 +156,7 @@ export const BarbershopProfileExperience = () => {
                     onPress={() => Linking.openURL(`https://instagram.com/${barbershop.instagram}`)}
                     style={({ pressed }) => [styles.instagramBadge, pressed && styles.pressedScale]}
                   >
-                    <Instagram color={colors.textSecondary} size={12} strokeWidth={1.8} />
+                    <Camera color={colors.textSecondary} size={12} strokeWidth={1.8} />
                     <Text style={styles.instagramBadgeText}>@{barbershop.instagram}</Text>
                   </Pressable>
                 )}
@@ -318,7 +318,7 @@ export const BarbershopProfileExperience = () => {
                       onPress={() => Linking.openURL(`https://instagram.com/${item.instagram}`)}
                       style={({ pressed }) => [styles.barberInstaBtn, pressed && styles.pressedScale]}
                     >
-                      <Instagram color={colors.textMuted} size={11} strokeWidth={1.6} />
+                      <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
                       <Text style={styles.barberInstaText}>@{item.instagram}</Text>
                     </Pressable>
                   )}
