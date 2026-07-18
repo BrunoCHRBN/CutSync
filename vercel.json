@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm ci",
+  "installCommand": "npm install --legacy-peer-deps --no-audit --no-fund --no-progress",
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "rewrites": [
