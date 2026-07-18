@@ -1,0 +1,59 @@
+{
+  "summary": "Validação both (estática + build + smoke UI) concluída para correção de merge em booking público. Sem marcadores de conflito nos arquivos versionáveis do workspace local; TypeScript, lint e build web passaram; suíte pytest de regressão (9/9) validou modal, senha forte/confirmação, RPCs tipadas, migração transacional, rewrite Vercel e ausência de secrets hardcoded no escopo.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Auth/booking runtime com Supabase real",
+        "issue": "Não foi possível executar fluxos reais (magic link/login/cadastro/agendamento) por ausência de EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no ambiente atual; app entra em safe-state de configuração.",
+        "affected_selectors": [
+          "N/A (bloqueio de ambiente)"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_booking_merge_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration_9.xml",
+    "/app/src/app/[slug]/booking.tsx",
+    "/app/src/components/booking/PublicBookingAuthModal.tsx",
+    "/app/src/components/ui/AppInput.tsx",
+    "/app/src/components/ui/PasswordInput.tsx",
+    "/app/src/components/ui/PasswordStrengthChecklist.tsx",
+    "/app/src/utils/passwordPolicy.ts",
+    "/app/src/types/supabase.generated.ts",
+    "/app/supabase/migrations/20260716057000_transactional_appointment_creation.sql",
+    "/app/vercel.json",
+    "/root/.emergent/automation_output/20260718_204048/console_20260718_204048.log"
+  ],
+  "action_items": [
+    "Se necessário validar integração fim-a-fim, fornecer EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no ambiente e reexecutar fluxo público de reserva/autenticação.",
+    "Sincronizar instrução de endpoint público com este repositório Expo (não existe /app/frontend/.env nem REACT_APP_BACKEND_URL neste workspace)."
+  ],
+  "critical_code_review_comments": [
+    "booking.tsx preserva uso de PublicBookingAuthModal com passwordConfirmation e validação de força de senha (isStrongPassword/passwordPolicyMessage).",
+    "PublicBookingAuthModal preserva os dois caminhos (magic link e cadastro), checklist de senha forte, confirmação de senha, mostrar/ocultar senha e testIDs necessários.",
+    "RPCs create_appointment, get_public_busy_slots e reschedule_appointment estão presentes no fluxo e tipadas em src/types/supabase.generated.ts.",
+    "Migração transacional contém proteção de sobreposição via EXCLUDE USING gist + tratamento appointment_conflict e grants/revokes consistentes.",
+    "vercel.json mantém rewrite SPA para /index.html e não há evidência de secret hardcoded nos arquivos de referência."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_booking_merge_regression.py",
+    "/app/test_reports/iteration_9.json"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 pytest)",
+    "frontend": "90% (build+smoke+static OK; integração real bloqueada por env)"
+  },
+  "test_credentials": "`/app/memory/test_credentials.md` lido. Credenciais disponíveis, porém não utilizadas por falta de variáveis Supabase no ambiente atual.",
+  "seed_data_creation": "Nenhuma",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "A base está limpa para o bug de conflito e build. Próximo passo é apenas reteste de integração real (magic link/cadastro/agendamento/reagendamento) quando variáveis Supabase forem fornecidas.",
+  "rca of the issue": "RCA do incidente original: marcador de conflito Git em booking.tsx quebrava parsing/build no Vercel. No workspace atual, o arquivo está limpo e combina os dois comportamentos esperados (modal + validação de senha). Limitação remanescente não é bug de código desta correção: ausência de env Supabase impede validação runtime completa."
+}
