@@ -20,7 +20,12 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { PasswordInput } from '../ui/PasswordInput';
 import { BrandMark } from '../ui/BrandMark';
 import { ScreenBackground } from '../ui/ScreenBackground';
+<<<<<<< HEAD
 import { colors, radii, typography } from '../../theme/tokens';
+=======
+import { colors, layout, radii, typography } from '../../theme/tokens';
+import { getErrorMessage } from '../../utils/errors';
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 
 const heroImage = 'https://images.unsplash.com/photo-1759134198561-e2041049419c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBiYXJiZXJzaG9wJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85';
 
@@ -68,8 +73,8 @@ export const LoginExperience = () => {
         if (loginError) setError('Não foi possível entrar. Confira seus dados e tente novamente.');
         else if (data.session && redirect?.startsWith('/')) router.replace(redirect as never);
       }
-    } catch (err: any) {
-      setError(err.message || 'A conexão falhou. Tente novamente em instantes.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'A conexão falhou. Tente novamente em instantes.'));
     } finally {
       setLoading(false);
     }

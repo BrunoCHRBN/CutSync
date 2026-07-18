@@ -92,7 +92,7 @@ export const AdminShell = ({
                 <View style={styles.selectWrapper}>
                   {React.createElement('select', {
                     value: profile?.establishment_id || '',
-                    onChange: (e: any) => handleSwitchShop(e.target.value),
+                    onChange: (event: React.ChangeEvent<HTMLSelectElement>) => handleSwitchShop(event.target.value),
                     style: {
                       backgroundColor: colors.surfaceRaised,
                       color: colors.text,

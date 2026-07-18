@@ -78,9 +78,16 @@ export const BookingExperience = () => {
         range_end: end.toISOString(),
       });
       if (queryError) throw queryError;
+<<<<<<< HEAD
       const segments = (data || []).map((slot: any) => {
         const start = new Date(slot.date_time).getTime();
         return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
+=======
+      const segments = (data || []).map((appointment) => {
+        const duration = Number(appointment.service?.duration_minutes || 30);
+        const segmentStart = new Date(appointment.date_time).getTime();
+        return { start: segmentStart, end: segmentStart + duration * 60 * 1000 };
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
       });
       setBookedSegments(segments);
     };

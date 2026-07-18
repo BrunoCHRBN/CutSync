@@ -163,7 +163,10 @@ export const AppointmentsExperience = () => {
       }
       return;
     }
-    router.push(`/${item.shopSlug}/booking?reschedule_id=${item.id}` as any);
+    router.push({
+      pathname: '/[slug]/booking',
+      params: { slug: item.shopSlug, reschedule_id: item.id },
+    });
   };
 
   return (

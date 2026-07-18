@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
+import { getErrorMessage } from '../../utils/errors';
 import { LoginExperience } from '../../components/screens/LoginExperience';
 
 export default LoginExperience;
@@ -39,8 +40,8 @@ function LegacyLoginScreen() {
       if (error) {
         displayAlert(t('login.error_fail'), error.message);
       }
-    } catch (error: any) {
-      displayAlert(t('common.error'), error.message || 'Error');
+    } catch (error: unknown) {
+      displayAlert(t('common.error'), getErrorMessage(error, 'Error'));
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   ArrowUpRight,
@@ -10,7 +10,6 @@ import {
   MessageSquare,
   Plus,
   RefreshCw,
-  Scissors,
   TrendingUp,
   UserRound,
   Users,
@@ -24,6 +23,11 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
+<<<<<<< HEAD
+=======
+import { supabase } from '../../services/supabase';
+import { TablesUpdate } from '../../types/supabase.generated';
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -31,10 +35,12 @@ import { AppCard } from '../ui/AppCard';
 import { SectionHeading } from '../ui/SectionHeading';
 import { StatusBadge } from '../ui/StatusBadge';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { ChoiceCard } from '../ui/ChoiceCard';
-import { AppInput } from '../ui/AppInput';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { AdminQuickBook } from '../admin/AdminQuickBook';
+import { AdminReschedule } from '../admin/AdminReschedule';
+import { DashboardAppointment } from '../../types/dashboard';
 
+<<<<<<< HEAD
 interface RichAppointment {
   id: string;
   dateTime: Date;
@@ -47,6 +53,9 @@ interface RichAppointment {
   cancellationReason?: string;
   rescheduleCount?: number;
 }
+=======
+type RichAppointment = DashboardAppointment;
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 
 const statusConfig: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
   pending: { label: 'Pendente', tone: 'warning' },
@@ -85,7 +94,7 @@ export const AdminDashboardExperience = () => {
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
 
   // Estados locais para Reagendamento
-  const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
+  const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
@@ -289,6 +298,7 @@ export const AdminDashboardExperience = () => {
         return;
       }
 
+<<<<<<< HEAD
       const rpcName = status === 'cancelled'
         ? 'cancel_appointment'
         : status === 'confirmed'
@@ -299,6 +309,11 @@ export const AdminDashboardExperience = () => {
         : { target_appointment_id: id };
       const { error } = await supabase.rpc(rpcName, params);
 
+=======
+      const payload: TablesUpdate<'appointments'> = { status };
+      if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'admin'; }
+      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
       if (error) throw error;
 
     } catch {
@@ -731,6 +746,7 @@ export const AdminDashboardExperience = () => {
         </AppCard>
       </View>
 
+<<<<<<< HEAD
       {/* Modal de Encaixe Rápido para o Administrador */}
       <Modal visible={quickOpen} transparent animationType="fade" onRequestClose={() => setQuickOpen(false)}>
         <View testID="admin-quick-booking-modal" style={styles.modalOverlay}>
@@ -931,6 +947,43 @@ export const AdminDashboardExperience = () => {
           </AppCard>
         </View>
       </Modal>
+=======
+      <AdminQuickBook
+        visible={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        clientName={quickName}
+        onClientNameChange={setQuickName}
+        barbers={barbers}
+        selectedBarber={quickBarber}
+        onBarberChange={(value) => { setQuickBarber(value); setQuickTime(null); }}
+        dates={dateOptions}
+        selectedDate={quickDate}
+        onDateChange={(value) => { setQuickDate(value); setQuickTime(null); }}
+        services={services}
+        selectedService={quickService}
+        onServiceChange={(value) => { setQuickService(value); setQuickTime(null); }}
+        times={quickTimes}
+        occupiedTimes={quickOccupiedTimes}
+        selectedTime={quickTime}
+        onTimeChange={setQuickTime}
+        currency={currency}
+        loading={quickLoading}
+        onSubmit={createQuickBooking}
+      />
+      <AdminReschedule
+        appointment={rescheduleItem}
+        onClose={() => setRescheduleItem(null)}
+        dates={dateOptions}
+        selectedDate={newRescheduleDate}
+        onDateChange={(value) => { setNewRescheduleDate(value); setNewRescheduleTime(null); }}
+        times={quickTimes}
+        occupiedTimes={occupiedTimes}
+        selectedTime={newRescheduleTime}
+        onTimeChange={setNewRescheduleTime}
+        loading={rescheduleLoading}
+        onSubmit={executeReschedule}
+      />
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     </AdminShell>
   );
 };

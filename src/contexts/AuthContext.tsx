@@ -55,8 +55,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
           setSession(null);
         }
+<<<<<<< HEAD
       } else if (isProfile(data)) {
         setProfile(data);
+=======
+      } else {
+        const role = data.role === 'professional' || data.role === 'admin' ? data.role : 'client';
+        setProfile({ ...data, role });
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
         const { data: superadminMarker } = await supabase
           .from('superadmins')
           .select('profile_id')

@@ -101,6 +101,7 @@ export const TeamExperience = () => {
   };
 
   const saveBarberInfo = async (barberId: string) => {
+    if (!profile?.establishment_id) return;
     const value = Number(commission.replace(',', '.'));
     if (!Number.isFinite(value) || value < 0 || value > 100) {
       setNotice({ tone: 'danger', message: 'Informe uma comissão entre 0% e 100%.' });
@@ -110,7 +111,7 @@ export const TeamExperience = () => {
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile?.establishment_id,
+        target_establishment_id: profile.establishment_id,
         updates: {
           commission_rate: value / 100,
           specialties: specialties.trim() || null,
@@ -129,11 +130,12 @@ export const TeamExperience = () => {
   };
 
   const saveWorkHours = async (barberId: string) => {
+    if (!profile?.establishment_id) return;
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile?.establishment_id,
+        target_establishment_id: profile.establishment_id,
         updates: { work_hours: JSON.stringify(workHoursSchedule) },
       });
       if (error) throw error;
@@ -147,16 +149,24 @@ export const TeamExperience = () => {
   };
 
   const removeBarber = async (barberId: string) => {
+<<<<<<< HEAD
     if (removalReason.trim().length < 5) {
       setNotice({ tone: 'danger', message: 'Informe o motivo da remoção com pelo menos 5 caracteres.' });
       return;
     }
+=======
+    if (!profile?.establishment_id) return;
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('remove_professional', {
         target_profile_id: barberId,
+<<<<<<< HEAD
         target_establishment_id: profile?.establishment_id,
         reason: removalReason.trim(),
+=======
+        target_establishment_id: profile.establishment_id,
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
       });
       if (error) throw error;
       setRemovingId(null);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform, Modal, TextInput, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, ScrollView, Platform, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Scissors, UserRound } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,13 +7,18 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { scheduleAppointmentNotification } from '../../services/notifications';
+import { getErrorMessage } from '../../utils/errors';
 import { supabase } from '../../services/supabase';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
+<<<<<<< HEAD
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
 import { PasswordInput } from '../../components/ui/PasswordInput';
 import { PasswordStrengthChecklist } from '../../components/ui/PasswordStrengthChecklist';
+=======
+import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -190,10 +195,11 @@ export default function BookingSlugScreen() {
   };
 
   const executeBooking = async (clientId: string) => {
+    if (!selectedBarber || !selectedService || !selectedDate || !selectedTime || !barbershop) return;
     setBookingLoading(true);
     try {
-      const appointmentDate = new Date(selectedDate!);
-      const [hours, minutes] = selectedTime!.split(':');
+      const appointmentDate = new Date(selectedDate);
+      const [hours, minutes] = selectedTime.split(':');
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       let targetAppointmentId = '';
@@ -207,6 +213,7 @@ export default function BookingSlugScreen() {
         if (error) throw error;
         targetAppointmentId = reschedule_id;
       } else {
+<<<<<<< HEAD
         const { data, error } = await supabase.rpc('create_appointment', {
           target_establishment_id: barbershop!.id,
           target_professional_id: selectedBarber,
@@ -215,6 +222,13 @@ export default function BookingSlugScreen() {
           target_client_name: null,
           target_client_id: clientId,
         });
+=======
+        const { data, error } = await supabase.from('appointments').insert({
+          establishment_id: barbershop.id, client_id: clientId,
+          professional_id: selectedBarber, service_id: selectedService,
+          date_time: appointmentDate.toISOString(), status: 'pending', reschedule_count: 0,
+        }).select('id').single();
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
         if (error) throw error;
         targetAppointmentId = data as string;
       }
@@ -226,11 +240,16 @@ export default function BookingSlugScreen() {
       tapSuccess();
       displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
       router.replace(`/salon/${slug}` as never);
+<<<<<<< HEAD
     } catch (error: any) {
       const conflict = error?.message?.includes('appointment_conflict') || error?.code === '23P01';
       displayAlert('Erro', conflict
         ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
         : 'Não foi possível salvar o agendamento.');
+=======
+    } catch {
+      displayAlert('Erro', 'Não foi possível salvar o agendamento.');
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     } finally {
       setBookingLoading(false);
     }
@@ -275,8 +294,8 @@ export default function BookingSlugScreen() {
 
       setMagicLinkSent(true);
       displayAlert('Link enviado', 'Verifique sua caixa de entrada para o acesso rápido!');
-    } catch (err: any) {
-      displayAlert('Erro de conexão', err.message || 'Erro ao enviar link.');
+    } catch (err: unknown) {
+      displayAlert('Erro de conexão', getErrorMessage(err, 'Erro ao enviar link.'));
     } finally {
       setAuthLoading(false);
     }
@@ -328,8 +347,8 @@ export default function BookingSlugScreen() {
         setIsAuthModalVisible(false);
         await executeBooking(data.user.id);
       }
-    } catch (err: any) {
-      displayAlert('Erro', err.message || 'Ocorreu um erro na autenticação.');
+    } catch (err: unknown) {
+      displayAlert('Erro', getErrorMessage(err, 'Ocorreu um erro na autenticação.'));
     } finally {
       setAuthLoading(false);
     }
@@ -617,6 +636,7 @@ export default function BookingSlugScreen() {
         </View>
       )}
 
+<<<<<<< HEAD
       {/* Modal: Autenticação Rápida de Atrito Zero (Magic Link e Cadastro Rápido) */}
       <Modal visible={isAuthModalVisible} transparent animationType="slide">
         <View testID="public-booking-auth-overlay" style={styles.modalOverlay}>
@@ -738,6 +758,27 @@ export default function BookingSlugScreen() {
           </View>
         </View>
       </Modal>
+=======
+      <PublicBookingAuthModal
+        visible={isAuthModalVisible}
+        magicLinkSent={magicLinkSent}
+        registerMode={isRegisterMode}
+        loading={authLoading}
+        email={authEmail}
+        name={authName}
+        password={authPassword}
+        primaryColor={primaryColor}
+        foregroundColor={primaryFg}
+        onEmailChange={setAuthEmail}
+        onNameChange={setAuthName}
+        onPasswordChange={setAuthPassword}
+        onModeChange={setIsRegisterMode}
+        onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
+        onMagicLinkSubmit={handleSendMagicLink}
+        onAuthSubmit={handleAuthSubmit}
+        onClose={() => setIsAuthModalVisible(false)}
+      />
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     </View>
   );
 }
@@ -1024,126 +1065,4 @@ const styles = StyleSheet.create({
   },
   loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   pressedScale: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  // Modal de Autenticação Atrito Zero
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(9,9,11,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: 24,
-    width: '100%',
-    maxWidth: 440,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    ...Platform.select({
-      web: { boxShadow: '0 24px 60px rgba(0,0,0,0.14)' } as any,
-      default: { elevation: 10, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-    }),
-  },
-  modalTitle: {
-    fontSize: 19,
-    color: colors.text,
-    fontFamily: typography.display,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
-  modalDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontFamily: typography.body,
-    textAlign: 'center',
-    marginTop: 6,
-    marginBottom: 20,
-  },
-  magicLinkState: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  magicSuccessTitle: {
-    fontSize: 15,
-    color: colors.success,
-    fontFamily: typography.bodyStrong,
-  },
-  magicSuccessDesc: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontFamily: typography.body,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 12,
-  },
-  authTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#ECEDEF',
-    borderRadius: radii.pill,
-    padding: 4,
-    gap: 4,
-    marginBottom: 12,
-  },
-  authTab: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: radii.pill,
-  },
-  authTabActive: {
-    backgroundColor: colors.surface,
-    ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } as any,
-      default: { elevation: 1, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-    }),
-  },
-  authTabText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontFamily: typography.bodyStrong,
-  },
-  authTabTextActive: {
-    color: colors.text,
-  },
-  magicLinkInfo: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontFamily: typography.body,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  modalInput: {
-    backgroundColor: colors.surface,
-    color: colors.text,
-    borderRadius: radii.md,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontFamily: typography.body,
-    borderWidth: 1,
-    borderColor: 'rgba(228,228,231,0.8)',
-    marginBottom: 12,
-  },
-  modalBtn: {
-    borderRadius: radii.pill,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  modalBtnText: {
-    fontFamily: typography.bodyStrong,
-    fontSize: 13,
-  },
-  modalCancelBtn: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  modalCancelText: {
-    color: colors.textSecondary,
-    fontFamily: typography.bodyStrong,
-    fontSize: 12,
-  },
 });

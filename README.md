@@ -54,3 +54,26 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Supabase schema types
+
+The generated database contract is versioned at `src/types/supabase.generated.ts`.
+
+Generate the latest types from the remote project:
+
+```bash
+SUPABASE_ACCESS_TOKEN=your-token SUPABASE_PROJECT_ID=your-project-ref yarn types:supabase
+```
+
+Check whether the remote schema differs from the versioned contract:
+
+```bash
+SUPABASE_ACCESS_TOKEN=your-token SUPABASE_PROJECT_ID=your-project-ref yarn check:supabase-schema
+```
+
+`SUPABASE_PROJECT_ID` may be omitted when `EXPO_PUBLIC_SUPABASE_URL` is exported. The check exits with code `1` and prints a unified diff when drift is detected.
+
+The GitHub Actions workflow `.github/workflows/supabase-schema-drift.yml` runs this check on pull requests, pushes to the main branch, daily schedules, and manual dispatches. Configure these repository secrets:
+
+- `SUPABASE_ACCESS_TOKEN`: Supabase personal access token with access to the project.
+- `SUPABASE_PROJECT_ID`: project reference from Supabase project settings.

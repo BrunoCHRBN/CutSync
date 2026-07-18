@@ -57,6 +57,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web",
+    "types:supabase": "bash scripts/generate-supabase-types.sh",
+    "check:supabase-schema": "bash scripts/check-supabase-schema.sh",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "lint": "expo lint"

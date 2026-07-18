@@ -11,8 +11,13 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { PasswordInput } from '../ui/PasswordInput';
 import { PasswordStrengthChecklist } from '../ui/PasswordStrengthChecklist';
 import { ScreenBackground } from '../ui/ScreenBackground';
+<<<<<<< HEAD
 import { colors, radii, typography } from '../../theme/tokens';
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
+=======
+import { colors, layout, radii, typography } from '../../theme/tokens';
+import { getErrorMessage } from '../../utils/errors';
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 
 export const RegisterExperience = () => {
   const router = useRouter();
@@ -52,8 +57,8 @@ export const RegisterExperience = () => {
       if (signUpError) throw new Error(signUpError.message.includes('registered') ? 'Este e-mail já possui uma conta.' : 'Não foi possível concluir o cadastro.');
       if (data.session && redirect?.startsWith('/')) router.replace(redirect as never);
       else router.replace({ pathname: '/(auth)/login', params: redirect ? { redirect } : undefined } as never);
-    } catch (registerError: any) {
-      setError(registerError.message || 'Não foi possível concluir o cadastro.');
+    } catch (registerError: unknown) {
+      setError(getErrorMessage(registerError, 'Não foi possível concluir o cadastro.'));
     } finally {
       setLoading(false);
     }

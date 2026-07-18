@@ -1,8 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+<<<<<<< HEAD
 import { Check, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
 import NetInfo from '@react-native-community/netinfo';
+=======
+import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, WalletCards, X } from 'lucide-react-native';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAppointments } from '../../hooks/useAppointments';
+import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServices } from '../../hooks/useServices';
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -11,16 +19,20 @@ import { useServices } from '../../hooks/useServices';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
-import { AppInput } from '../ui/AppInput';
-import { ChoiceCard } from '../ui/ChoiceCard';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { TablesUpdate } from '../../types/supabase.generated';
+import { parseSchedule } from '../../utils/schedule';
+import { DashboardAppointment } from '../../types/dashboard';
+import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
+import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
 
 type Tab = 'mine' | 'team';
 
+<<<<<<< HEAD
 interface RichAppointment {
   id: string;
   professionalId: string;
@@ -33,6 +45,9 @@ interface RichAppointment {
   cancellationReason?: string;
   rescheduleCount?: number;
 }
+=======
+type RichAppointment = DashboardAppointment & { barberName: string };
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
 
 const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
   pending: { label: 'Pendente', tone: 'warning' },
@@ -84,7 +99,12 @@ export const BarberDashboardExperience = () => {
   const [quickOccupiedTimes, setQuickOccupiedTimes] = useState<string[]>([]);
   const [quickReferenceTime, setQuickReferenceTime] = useState(0);
 
+<<<<<<< HEAD
   const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
+=======
+  // Estados locais para Reagendamento
+  const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
@@ -201,6 +221,18 @@ export const BarberDashboardExperience = () => {
       } catch (err) {
         console.error('Erro ao buscar próximo agendamento:', err);
       }
+<<<<<<< HEAD
+=======
+      setNextAppointment({
+        id: data.id, professionalId: data.professional_id,
+        barberName: data.professional?.name || 'Profissional',
+        clientName: data.client?.name || data.client_name || 'Cliente sem cadastro',
+        clientPhone: data.client?.phone || '',
+        serviceName: data.service?.name || 'Serviço indisponível',
+        price: Number(data.service?.price || 0), dateTime: new Date(data.date_time),
+        status: data.status, cancellationReason: data.cancellation_reason || '',
+      });
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     };
 
     fetchNext();
@@ -327,12 +359,18 @@ export const BarberDashboardExperience = () => {
   const timeSlots = useMemo(() => {
     const dayOfWeek = selectedDate.getDay();
     let schedule = defaultSchedule.find(s => s.day === dayOfWeek);
+<<<<<<< HEAD
     if (workHours) {
       try {
         const parsed = JSON.parse(workHours);
         const found = parsed.find((s: any) => s.day === dayOfWeek);
         if (found) schedule = found;
       } catch {}
+=======
+    if (profile?.work_hours) {
+      const found = parseSchedule(profile.work_hours).find((item) => item.day === dayOfWeek);
+      if (found) schedule = { ...schedule, ...found, name: found.name || schedule?.name || '' };
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     }
     
     const startStr = schedule?.isOpen ? schedule.open : '09:00';
@@ -428,6 +466,7 @@ export const BarberDashboardExperience = () => {
         return;
       }
 
+<<<<<<< HEAD
       const rpcName = status === 'cancelled'
         ? 'cancel_appointment'
         : status === 'confirmed'
@@ -438,6 +477,11 @@ export const BarberDashboardExperience = () => {
         : { target_appointment_id: id };
       const { error } = await supabase.rpc(rpcName, params);
 
+=======
+      const payload: TablesUpdate<'appointments'> = { status };
+      if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'professional'; }
+      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
       if (error) throw error;
 
       setCancelCandidateId(null);
@@ -769,6 +813,7 @@ export const BarberDashboardExperience = () => {
         )}
       </ScrollView>
 
+<<<<<<< HEAD
       <Modal visible={quickOpen} transparent animationType="fade" onRequestClose={() => setQuickOpen(false)}>
         <KeyboardAvoidingView testID="barber-quick-booking-modal" style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <AppCard testID="barber-quick-booking-card" style={styles.modalCard} elevated>
@@ -921,6 +966,45 @@ export const BarberDashboardExperience = () => {
           </AppCard>
         </View>
       </Modal>
+=======
+      <ProfessionalQuickBook
+        visible={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        clientName={quickName}
+        onClientNameChange={setQuickName}
+        dates={dateOptions}
+        selectedDate={quickDate}
+        onDateChange={(value) => { setQuickDate(value); setQuickTime(null); }}
+        services={services}
+        selectedService={quickService}
+        onServiceChange={(value) => { setQuickService(value); setQuickTime(null); }}
+        times={quickTimes}
+        occupiedTimes={quickOccupiedTimes}
+        referenceTime={quickReferenceTime}
+        selectedTime={quickTime}
+        onTimeChange={setQuickTime}
+        primaryColor={primaryColor}
+        foregroundColor={primaryForeground}
+        currency={currency}
+        loading={quickLoading}
+        onSubmit={createQuickBooking}
+      />
+      <ProfessionalReschedule
+        appointment={rescheduleItem}
+        onClose={() => setRescheduleItem(null)}
+        dates={dateOptions}
+        selectedDate={newRescheduleDate}
+        onDateChange={(value) => { setNewRescheduleDate(value); setNewRescheduleTime(null); }}
+        times={filteredRescheduleTimes}
+        occupiedTimes={occupiedTimes}
+        selectedTime={newRescheduleTime}
+        onTimeChange={setNewRescheduleTime}
+        primaryColor={primaryColor}
+        foregroundColor={primaryForeground}
+        loading={rescheduleLoading}
+        onSubmit={executeReschedule}
+      />
+>>>>>>> 0db30e48a38ddb3067d579076acfc5084504c7f9
     </ProfessionalShell>
   );
 };

@@ -14,6 +14,7 @@ import { FormSection } from '../ui/FormSection';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { getErrorMessage } from '../../utils/errors';
 
 interface DaySchedule {
   day: number; // 1 = Segunda, 2 = Terça, etc., 0 = Domingo
@@ -133,11 +134,11 @@ export const SettingsExperience = () => {
         .getPublicUrl(fileName);
 
       return publicUrl;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Image upload failed:', error);
       setNotice({
         tone: 'danger',
-        message: `Não foi possível carregar a imagem. Verifique se o bucket 'banners' está configurado no seu Supabase. Detalhe: ${error.message || error}`,
+        message: `Não foi possível carregar a imagem. Verifique se o bucket 'banners' está configurado no seu Supabase. Detalhe: ${getErrorMessage(error, 'erro desconhecido')}`,
       });
       return null;
     } finally {
