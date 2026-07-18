@@ -1,4 +1,20 @@
+import { Database, Tables } from './supabase.generated';
+
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type ProfileRole = 'client' | 'professional' | 'admin';
+
+type EstablishmentRow = Tables<'establishments'>;
+type ProfileRow = Tables<'profiles'>;
+type ServiceRow = Tables<'services'>;
+type TeamRow = Database['public']['Functions']['get_establishment_team']['Returns'][number];
+type PublicTeamRow = Database['public']['Functions']['get_public_team']['Returns'][number];
+
+export type AppointmentQueryRow = Tables<'appointments'> & {
+  client: Pick<ProfileRow, 'id' | 'name' | 'phone'> | null;
+  professional: Pick<ProfileRow, 'id' | 'name' | 'phone'> | null;
+  service: Pick<ServiceRow, 'id' | 'establishment_id' | 'name' | 'price' | 'duration_minutes' | 'is_active'> | null;
+  establishment: Pick<EstablishmentRow, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency'> | null;
+};
 
 export interface Establishment {
   id: string;
@@ -23,7 +39,7 @@ export interface ProfileRecord {
   id: string;
   establishmentId?: string | null;
   name: string;
-  role: 'client' | 'professional' | 'admin';
+  role: ProfileRole;
   email: string;
   phone?: string | null;
   avatarUrl?: string | null;
@@ -62,7 +78,17 @@ export interface AppointmentRecord {
   establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency'> | null;
 }
 
-export const mapEstablishment = (row: any): Establishment => ({
+const toProfileRole = (role: string): ProfileRole => {
+  if (role === 'professional' || role === 'admin') return role;
+  return 'client';
+};
+
+const toAppointmentStatus = (status: string): AppointmentStatus => {
+  if (status === 'confirmed' || status === 'cancelled' || status === 'completed') return status;
+  return 'pending';
+};
+
+export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   id: row.id,
   name: row.name,
   slug: row.slug,
@@ -81,11 +107,11 @@ export const mapEstablishment = (row: any): Establishment => ({
   galleryUrls: row.gallery_urls,
 });
 
-export const mapProfile = (row: any): ProfileRecord => ({
+export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({
   id: row.id,
   establishmentId: row.establishment_id,
   name: row.name,
-  role: row.role,
+  role: toProfileRole(row.role),
   email: row.email,
   phone: row.phone,
   avatarUrl: row.avatar_url,
@@ -96,7 +122,7 @@ export const mapProfile = (row: any): ProfileRecord => ({
   tituloProfissional: row.titulo_profissional,
 });
 
-export const mapService = (row: any): ServiceRecord => ({
+export const mapService = (row: ServiceRow): ServiceRecord => ({
   id: row.id,
   establishmentId: row.establishment_id,
   name: row.name,
@@ -105,7 +131,7 @@ export const mapService = (row: any): ServiceRecord => ({
   isActive: Boolean(row.is_active),
 });
 
-export const mapAppointment = (row: any): AppointmentRecord => ({
+export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => ({
   id: row.id,
   establishmentId: row.establishment_id,
   clientId: row.client_id,
@@ -113,13 +139,28 @@ export const mapAppointment = (row: any): AppointmentRecord => ({
   professionalId: row.professional_id,
   serviceId: row.service_id,
   dateTime: new Date(row.date_time),
-  status: row.status,
+  status: toAppointmentStatus(row.status),
   cancellationReason: row.cancellation_reason,
-  cancelledByRole: row.cancelled_by_role,
+  cancelledByRole: row.cancelled_by_role === 'client' || row.cancelled_by_role === 'professional' || row.cancelled_by_role === 'admin'
+    ? row.cancelled_by_role
+    : null,
   rescheduleCount: Number(row.reschedule_count || 0),
   originalDateTime: row.original_date_time ? new Date(row.original_date_time) : null,
-  client: row.client ? mapProfile(row.client) : null,
-  professional: row.professional ? mapProfile(row.professional) : null,
-  service: row.service ? mapService(row.service) : null,
-  establishment: row.establishment ? mapEstablishment(row.establishment) : null,
+  client: row.client,
+  professional: row.professional,
+  service: row.service ? {
+    id: row.service.id,
+    name: row.service.name,
+    price: Number(row.service.price),
+    durationMinutes: Number(row.service.duration_minutes),
+  } : null,
+  establishment: row.establishment ? {
+    id: row.establishment.id,
+    name: row.establishment.name,
+    slug: row.establishment.slug,
+    address: row.establishment.address,
+    phone: row.establishment.phone,
+    timezone: row.establishment.timezone,
+    currency: row.establishment.currency,
+  } : null,
 });

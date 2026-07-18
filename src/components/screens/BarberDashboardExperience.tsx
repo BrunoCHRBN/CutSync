@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, Scissors, UserRound, WalletCards, X } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,21 +18,15 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { TablesUpdate } from '../../types/supabase.generated';
+import { parseSchedule } from '../../utils/schedule';
+import { DashboardAppointment } from '../../types/dashboard';
+import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
+import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
 
 type Tab = 'mine' | 'team';
 
-interface RichAppointment {
-  id: string;
-  professionalId: string;
-  barberName: string;
-  clientName: string;
-  clientPhone: string;
-  serviceName: string;
-  price: number;
-  dateTime: Date;
-  status: string;
-  cancellationReason?: string;
-}
+type RichAppointment = DashboardAppointment & { barberName: string };
 
 const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
   pending: { label: 'Pendente', tone: 'warning' },
@@ -87,7 +81,7 @@ export const BarberDashboardExperience = () => {
   const [quickReferenceTime, setQuickReferenceTime] = useState(0);
 
   // Estados locais para Reagendamento
-  const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
+  const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
@@ -148,11 +142,11 @@ export const BarberDashboardExperience = () => {
       }
       setNextAppointment({
         id: data.id, professionalId: data.professional_id,
-        barberName: (data.professional as any)?.name || 'Profissional',
-        clientName: (data.client as any)?.name || data.client_name || 'Cliente sem cadastro',
-        clientPhone: (data.client as any)?.phone || '',
-        serviceName: (data.service as any)?.name || 'Serviço indisponível',
-        price: Number((data.service as any)?.price || 0), dateTime: new Date(data.date_time),
+        barberName: data.professional?.name || 'Profissional',
+        clientName: data.client?.name || data.client_name || 'Cliente sem cadastro',
+        clientPhone: data.client?.phone || '',
+        serviceName: data.service?.name || 'Serviço indisponível',
+        price: Number(data.service?.price || 0), dateTime: new Date(data.date_time),
         status: data.status, cancellationReason: data.cancellation_reason || '',
       });
     };
@@ -243,11 +237,8 @@ export const BarberDashboardExperience = () => {
     const dayOfWeek = selectedDate.getDay();
     let schedule = defaultSchedule.find(s => s.day === dayOfWeek);
     if (profile?.work_hours) {
-      try {
-        const parsed = JSON.parse(profile.work_hours);
-        const found = parsed.find((s: any) => s.day === dayOfWeek);
-        if (found) schedule = found;
-      } catch {}
+      const found = parseSchedule(profile.work_hours).find((item) => item.day === dayOfWeek);
+      if (found) schedule = { ...schedule, ...found, name: found.name || schedule?.name || '' };
     }
     
     const startStr = schedule?.isOpen ? schedule.open : '09:00';
@@ -343,7 +334,7 @@ export const BarberDashboardExperience = () => {
         return;
       }
 
-      const payload: Record<string, unknown> = { status };
+      const payload: TablesUpdate<'appointments'> = { status };
       if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'professional'; }
       const { error } = await supabase.from('appointments').update(payload).eq('id', id);
       if (error) throw error;
@@ -670,158 +661,43 @@ export const BarberDashboardExperience = () => {
         )}
       </ScrollView>
 
-      <Modal visible={quickOpen} transparent animationType="fade" onRequestClose={() => setQuickOpen(false)}>
-        <KeyboardAvoidingView testID="barber-quick-booking-modal" style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <AppCard testID="barber-quick-booking-card" style={styles.modalCard} elevated>
-            <View style={styles.modalHeader}><View><Text testID="barber-quick-booking-eyebrow" style={[styles.modalEyebrow, { color: primaryColor }]}>ENCAIXE RÁPIDO</Text><Text testID="barber-quick-booking-title" style={styles.modalTitle}>Reservar um horário</Text></View><Pressable hitSlop={hitSlop} testID="barber-quick-booking-close-button" onPress={() => setQuickOpen(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}><X color={colors.textSecondary} size={18} /></Pressable></View>
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <AppInput label="Nome do cliente" testID="barber-quick-client-input" icon={<UserRound color={colors.textMuted} size={17} />} value={quickName} onChangeText={setQuickName} placeholder="Cliente de balcão" />
-              <Text testID="barber-quick-date-label" style={styles.fieldLabel}>Selecione o dia</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-                {dateOptions.map((date) => {
-                  const id = date.toISOString().split('T')[0];
-                  const selected = quickDate.toDateString() === date.toDateString();
-                  return (
-                    <Pressable 
-                      key={id} 
-                      testID={`barber-quick-date-${id}`}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickDate(date); setQuickTime(null); }}
-                      style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}
-                    >
-                      <Text testID={`barber-quick-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
-                        {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                      </Text>
-                      <Text testID={`barber-quick-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
-                        {date.getDate()}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Text testID="barber-quick-service-label" style={styles.fieldLabel}>Serviço</Text>
-              <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.durationMinutes} min`} meta={currency(service.price)} selected={quickService === service.id} activeColor={primaryColor} activeForegroundColor={primaryForeground} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickService(service.id); setQuickTime(null); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
-              <Text testID="barber-quick-time-label" style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
-              <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => {
-                  const slotDate = new Date(quickDate);
-                  const [slotHour, slotMinute] = slot.split(':').map(Number);
-                  slotDate.setHours(slotHour, slotMinute, 0, 0);
-                  const isOccupied = quickOccupiedTimes.includes(slot) || slotDate.getTime() < quickReferenceTime;
-                  return (
-                    <Pressable 
-                      key={slot} 
-                      testID={`barber-quick-time-${slot.replace(':', '-')}`} 
-                      disabled={isOccupied}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuickTime(slot); }}
-                      style={({ pressed }) => [
-                        styles.timeSlot, 
-                        quickTime === slot && styles.timeSlotSelected,
-                        quickTime === slot && { backgroundColor: primaryColor, borderColor: primaryColor },
-                        isOccupied && styles.timeSlotOccupied,
-                        pressed && styles.pressed
-                      ]}
-                    >
-                      <Text testID={`barber-quick-time-${slot.replace(':', '-')}-label`} style={[
-                        styles.timeSlotText, 
-                        quickTime === slot && { color: primaryForeground },
-                        isOccupied && styles.timeSlotTextOccupied
-                      ]}>
-                        {slot}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <AppButton label="Criar encaixe" testID="barber-quick-submit-button" onPress={createQuickBooking} loading={quickLoading} fullWidth icon={<Plus color={primaryForeground} size={16} />} foregroundColor={primaryForeground} style={{ backgroundColor: primaryColor, borderColor: primaryColor }} />
-            </ScrollView>
-          </AppCard>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal visible={!!rescheduleItem} transparent animationType="fade" onRequestClose={() => setRescheduleItem(null)}>
-        <View testID="barber-reschedule-modal" style={styles.modalOverlay}>
-          <AppCard testID="barber-reschedule-card" style={styles.modalCard} elevated>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text testID="barber-reschedule-eyebrow" style={styles.modalEyebrow}>REAGENDAMENTO</Text>
-                <Text testID="barber-reschedule-title" style={styles.modalTitle}>Reagendar atendimento</Text>
-              </View>
-              <Pressable testID="barber-reschedule-close-button" hitSlop={hitSlop} onPress={() => setRescheduleItem(null)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
-                <X color={colors.textSecondary} size={18} />
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <Text testID="barber-reschedule-summary" style={{ color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 }}>
-                Reagendando o cliente <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.clientName}</Text> para o serviço <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.serviceName}</Text>.
-              </Text>
-              
-              <Text testID="barber-reschedule-date-label" style={styles.fieldLabel}>Selecione o novo dia</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-                {dateOptions.map((date) => {
-                  const id = date.toISOString().split('T')[0];
-                  const selected = newRescheduleDate.toDateString() === date.toDateString();
-                  return (
-                    <Pressable 
-                      key={id} 
-                      testID={`barber-reschedule-date-${id}`}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewRescheduleDate(date); setNewRescheduleTime(null); }}
-                      style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}
-                    >
-                      <Text testID={`barber-reschedule-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
-                        {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                      </Text>
-                      <Text testID={`barber-reschedule-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
-                        {date.getDate()}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Text testID="barber-reschedule-time-label" style={styles.fieldLabel}>Selecione o novo horário</Text>
-              <View style={styles.timeGrid}>
-                {filteredRescheduleTimes.map((slot) => {
-                  const isOccupied = occupiedTimes.includes(slot);
-                  return (
-                    <Pressable 
-                      key={slot} 
-                      testID={`barber-reschedule-time-${slot.replace(':', '-')}`}
-                      disabled={isOccupied}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewRescheduleTime(slot); }}
-                      style={({ pressed }) => [
-                        styles.timeSlot, 
-                        newRescheduleTime === slot && styles.timeSlotSelected,
-                        newRescheduleTime === slot && { backgroundColor: primaryColor, borderColor: primaryColor },
-                        isOccupied && styles.timeSlotOccupied,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text testID={`barber-reschedule-time-${slot.replace(':', '-')}-label`} style={[
-                        styles.timeSlotText, 
-                        newRescheduleTime === slot && { color: primaryForeground },
-                        isOccupied && styles.timeSlotTextOccupied
-                      ]}>
-                        {slot}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <AppButton 
-                label="Confirmar Reagendamento" 
-                testID="reschedule-submit-button" 
-                onPress={executeReschedule} 
-                loading={rescheduleLoading} 
-                disabled={!newRescheduleTime}
-                fullWidth 
-                icon={<RefreshCw color={colors.ink} size={16} />} 
-              />
-            </ScrollView>
-          </AppCard>
-        </View>
-      </Modal>
+      <ProfessionalQuickBook
+        visible={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        clientName={quickName}
+        onClientNameChange={setQuickName}
+        dates={dateOptions}
+        selectedDate={quickDate}
+        onDateChange={(value) => { setQuickDate(value); setQuickTime(null); }}
+        services={services}
+        selectedService={quickService}
+        onServiceChange={(value) => { setQuickService(value); setQuickTime(null); }}
+        times={quickTimes}
+        occupiedTimes={quickOccupiedTimes}
+        referenceTime={quickReferenceTime}
+        selectedTime={quickTime}
+        onTimeChange={setQuickTime}
+        primaryColor={primaryColor}
+        foregroundColor={primaryForeground}
+        currency={currency}
+        loading={quickLoading}
+        onSubmit={createQuickBooking}
+      />
+      <ProfessionalReschedule
+        appointment={rescheduleItem}
+        onClose={() => setRescheduleItem(null)}
+        dates={dateOptions}
+        selectedDate={newRescheduleDate}
+        onDateChange={(value) => { setNewRescheduleDate(value); setNewRescheduleTime(null); }}
+        times={filteredRescheduleTimes}
+        occupiedTimes={occupiedTimes}
+        selectedTime={newRescheduleTime}
+        onTimeChange={setNewRescheduleTime}
+        primaryColor={primaryColor}
+        foregroundColor={primaryForeground}
+        loading={rescheduleLoading}
+        onSubmit={executeReschedule}
+      />
     </ProfessionalShell>
   );
 };

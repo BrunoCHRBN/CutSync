@@ -10,6 +10,7 @@ import { BrandMark } from '../ui/BrandMark';
 import { InlineNotice } from '../ui/InlineNotice';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { getErrorMessage } from '../../utils/errors';
 
 export const RegisterExperience = () => {
   const router = useRouter();
@@ -40,8 +41,8 @@ export const RegisterExperience = () => {
       if (signUpError) throw new Error(signUpError.message.includes('registered') ? 'Este e-mail já possui uma conta.' : 'Não foi possível concluir o cadastro.');
       if (data.session && redirect?.startsWith('/')) router.replace(redirect as never);
       else router.replace({ pathname: '/(auth)/login', params: redirect ? { redirect } : undefined } as never);
-    } catch (registerError: any) {
-      setError(registerError.message || 'Não foi possível concluir o cadastro.');
+    } catch (registerError: unknown) {
+      setError(getErrorMessage(registerError, 'Não foi possível concluir o cadastro.'));
     } finally {
       setLoading(false);
     }

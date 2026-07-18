@@ -98,6 +98,7 @@ export const TeamExperience = () => {
   };
 
   const saveBarberInfo = async (barberId: string) => {
+    if (!profile?.establishment_id) return;
     const value = Number(commission.replace(',', '.'));
     if (!Number.isFinite(value) || value < 0 || value > 100) {
       setNotice({ tone: 'danger', message: 'Informe uma comissão entre 0% e 100%.' });
@@ -107,7 +108,7 @@ export const TeamExperience = () => {
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile?.establishment_id,
+        target_establishment_id: profile.establishment_id,
         updates: {
           commission_rate: value / 100,
           specialties: specialties.trim() || null,
@@ -126,11 +127,12 @@ export const TeamExperience = () => {
   };
 
   const saveWorkHours = async (barberId: string) => {
+    if (!profile?.establishment_id) return;
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile?.establishment_id,
+        target_establishment_id: profile.establishment_id,
         updates: { work_hours: JSON.stringify(workHoursSchedule) },
       });
       if (error) throw error;
@@ -144,11 +146,12 @@ export const TeamExperience = () => {
   };
 
   const removeBarber = async (barberId: string) => {
+    if (!profile?.establishment_id) return;
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('remove_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile?.establishment_id,
+        target_establishment_id: profile.establishment_id,
       });
       if (error) throw error;
       setRemovingId(null);

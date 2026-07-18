@@ -115,7 +115,7 @@ export const BookingExperience = () => {
         .eq('professional_id', selectedBarber).neq('status', 'cancelled')
         .gte('date_time', start.toISOString()).lte('date_time', end.toISOString());
       if (queryError) throw queryError;
-      const segments = (data || []).map((appointment: any) => {
+      const segments = (data || []).map((appointment) => {
         const duration = Number(appointment.service?.duration_minutes || 30);
         const segmentStart = new Date(appointment.date_time).getTime();
         return { start: segmentStart, end: segmentStart + duration * 60 * 1000 };

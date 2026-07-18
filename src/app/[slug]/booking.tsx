@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform, Modal, TextInput, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, ScrollView, Platform, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Scissors, UserRound } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,11 +7,13 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { scheduleAppointmentNotification } from '../../services/notifications';
+import { getErrorMessage } from '../../utils/errors';
 import { supabase } from '../../services/supabase';
 import { ProfileRecord, ServiceRecord } from '../../types/database';
 import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
 import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
+import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -187,10 +189,11 @@ export default function BookingSlugScreen() {
   };
 
   const executeBooking = async (clientId: string) => {
+    if (!selectedBarber || !selectedService || !selectedDate || !selectedTime || !barbershop) return;
     setBookingLoading(true);
     try {
-      const appointmentDate = new Date(selectedDate!);
-      const [hours, minutes] = selectedTime!.split(':');
+      const appointmentDate = new Date(selectedDate);
+      const [hours, minutes] = selectedTime.split(':');
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       let targetAppointmentId = '';
@@ -208,7 +211,7 @@ export default function BookingSlugScreen() {
         targetAppointmentId = reschedule_id;
       } else {
         const { data, error } = await supabase.from('appointments').insert({
-          establishment_id: barbershop!.id, client_id: clientId,
+          establishment_id: barbershop.id, client_id: clientId,
           professional_id: selectedBarber, service_id: selectedService,
           date_time: appointmentDate.toISOString(), status: 'pending', reschedule_count: 0,
         }).select('id').single();
@@ -269,8 +272,8 @@ export default function BookingSlugScreen() {
 
       setMagicLinkSent(true);
       displayAlert('Link enviado', 'Verifique sua caixa de entrada para o acesso rápido!');
-    } catch (err: any) {
-      displayAlert('Erro de conexão', err.message || 'Erro ao enviar link.');
+    } catch (err: unknown) {
+      displayAlert('Erro de conexão', getErrorMessage(err, 'Erro ao enviar link.'));
     } finally {
       setAuthLoading(false);
     }
@@ -316,8 +319,8 @@ export default function BookingSlugScreen() {
         setIsAuthModalVisible(false);
         await executeBooking(data.user.id);
       }
-    } catch (err: any) {
-      displayAlert('Erro', err.message || 'Ocorreu um erro na autenticação.');
+    } catch (err: unknown) {
+      displayAlert('Erro', getErrorMessage(err, 'Ocorreu um erro na autenticação.'));
     } finally {
       setAuthLoading(false);
     }
@@ -605,119 +608,25 @@ export default function BookingSlugScreen() {
         </View>
       )}
 
-      {/* Modal: Autenticação Rápida de Atrito Zero (Magic Link e Cadastro Rápido) */}
-      <Modal visible={isAuthModalVisible} transparent animationType="slide">
-        <View testID="public-booking-auth-overlay" style={styles.modalOverlay}>
-          <View testID="public-booking-auth-modal" style={styles.modalCard}>
-            <Text testID="public-booking-auth-title" style={styles.modalTitle}>Identifique-se</Text>
-            <Text testID="public-booking-auth-description" style={styles.modalDesc}>Você precisa de uma conta rápida para concluir seu agendamento.</Text>
-
-            {magicLinkSent ? (
-              <View style={styles.magicLinkState}>
-                <Text style={styles.magicSuccessTitle}>E-mail enviado!</Text>
-                <Text style={styles.magicSuccessDesc}>
-                  Enviamos um link de login rápido para {authEmail}. Abra o link e retorne aqui para finalizar o agendamento!
-                </Text>
-                <Pressable testID="public-booking-magic-link-dismiss-button"
-                  style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor, marginTop: 16 }, pressed && styles.pressedScale]}
-                  onPress={() => {
-                    setMagicLinkSent(false);
-                    setIsAuthModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.modalBtnText, { color: primaryFg }]}>Entendi</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={{ gap: 12 }}>
-                {/* Abas */}
-                <View style={styles.authTabs}>
-                  <TouchableOpacity testID="public-booking-magic-link-tab"
-                    style={[styles.authTab, !isRegisterMode && styles.authTabActive]}
-                    onPress={() => setIsRegisterMode(false)}
-                  >
-                    <Text style={[styles.authTabText, !isRegisterMode && styles.authTabTextActive]}>Sem senha</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity testID="public-booking-register-tab"
-                    style={[styles.authTab, isRegisterMode && styles.authTabActive]}
-                    onPress={() => setIsRegisterMode(true)}
-                  >
-                    <Text style={[styles.authTabText, isRegisterMode && styles.authTabTextActive]}>Criar conta</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Formulário */}
-                {isRegisterMode ? (
-                  <>
-                    <TextInput
-                      testID="public-booking-register-name-input"
-                      style={styles.modalInput}
-                      placeholder="Seu nome completo"
-                      placeholderTextColor={colors.textMuted}
-                      value={authName}
-                      onChangeText={setAuthName}
-                    />
-                    <TextInput
-                      testID="public-booking-register-email-input"
-                      style={styles.modalInput}
-                      placeholder="E-mail"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="email-address"
-                      value={authEmail}
-                      onChangeText={setAuthEmail}
-                    />
-                    <TextInput
-                      testID="public-booking-register-password-input"
-                      style={styles.modalInput}
-                      placeholder="Senha (mínimo 6 dígitos)"
-                      placeholderTextColor={colors.textMuted}
-                      secureTextEntry
-                      value={authPassword}
-                      onChangeText={setAuthPassword}
-                    />
-                    <Pressable testID="public-booking-register-submit-button"
-                      style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
-                      onPress={handleAuthSubmit}
-                      disabled={authLoading}
-                    >
-                      {authLoading ? <ActivityIndicator color={primaryFg} /> : <Text style={[styles.modalBtnText, { color: primaryFg }]}>Criar e reservar</Text>}
-                    </Pressable>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.magicLinkInfo}>
-                      Digite seu e-mail abaixo. Você receberá um link de login imediato, sem senhas.
-                    </Text>
-                    <TextInput
-                      testID="public-booking-magic-link-email-input"
-                      style={styles.modalInput}
-                      placeholder="Seu melhor e-mail"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="email-address"
-                      value={authEmail}
-                      onChangeText={setAuthEmail}
-                    />
-                    <Pressable testID="public-booking-magic-link-submit-button"
-                      style={({ pressed }) => [styles.modalBtn, { backgroundColor: primaryColor }, pressed && styles.pressedScale]}
-                      onPress={handleSendMagicLink}
-                      disabled={authLoading}
-                    >
-                      {authLoading ? <ActivityIndicator color={primaryFg} /> : <Text style={[styles.modalBtnText, { color: primaryFg }]}>Enviar link de acesso</Text>}
-                    </Pressable>
-                  </>
-                )}
-
-                <TouchableOpacity testID="public-booking-auth-cancel-button"
-                  style={styles.modalCancelBtn}
-                  onPress={() => setIsAuthModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <PublicBookingAuthModal
+        visible={isAuthModalVisible}
+        magicLinkSent={magicLinkSent}
+        registerMode={isRegisterMode}
+        loading={authLoading}
+        email={authEmail}
+        name={authName}
+        password={authPassword}
+        primaryColor={primaryColor}
+        foregroundColor={primaryFg}
+        onEmailChange={setAuthEmail}
+        onNameChange={setAuthName}
+        onPasswordChange={setAuthPassword}
+        onModeChange={setIsRegisterMode}
+        onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
+        onMagicLinkSubmit={handleSendMagicLink}
+        onAuthSubmit={handleAuthSubmit}
+        onClose={() => setIsAuthModalVisible(false)}
+      />
     </View>
   );
 }
@@ -1004,126 +913,4 @@ const styles = StyleSheet.create({
   },
   loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   pressedScale: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  // Modal de Autenticação Atrito Zero
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(9,9,11,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: 24,
-    width: '100%',
-    maxWidth: 440,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    ...Platform.select({
-      web: { boxShadow: '0 24px 60px rgba(0,0,0,0.14)' } as any,
-      default: { elevation: 10, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-    }),
-  },
-  modalTitle: {
-    fontSize: 19,
-    color: colors.text,
-    fontFamily: typography.display,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
-  modalDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontFamily: typography.body,
-    textAlign: 'center',
-    marginTop: 6,
-    marginBottom: 20,
-  },
-  magicLinkState: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  magicSuccessTitle: {
-    fontSize: 15,
-    color: colors.success,
-    fontFamily: typography.bodyStrong,
-  },
-  magicSuccessDesc: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontFamily: typography.body,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 12,
-  },
-  authTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#ECEDEF',
-    borderRadius: radii.pill,
-    padding: 4,
-    gap: 4,
-    marginBottom: 12,
-  },
-  authTab: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: radii.pill,
-  },
-  authTabActive: {
-    backgroundColor: colors.surface,
-    ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } as any,
-      default: { elevation: 1, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-    }),
-  },
-  authTabText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontFamily: typography.bodyStrong,
-  },
-  authTabTextActive: {
-    color: colors.text,
-  },
-  magicLinkInfo: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontFamily: typography.body,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  modalInput: {
-    backgroundColor: colors.surface,
-    color: colors.text,
-    borderRadius: radii.md,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontFamily: typography.body,
-    borderWidth: 1,
-    borderColor: 'rgba(228,228,231,0.8)',
-    marginBottom: 12,
-  },
-  modalBtn: {
-    borderRadius: radii.pill,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  modalBtnText: {
-    fontFamily: typography.bodyStrong,
-    fontSize: 13,
-  },
-  modalCancelBtn: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  modalCancelText: {
-    color: colors.textSecondary,
-    fontFamily: typography.bodyStrong,
-    fontSize: 12,
-  },
 });

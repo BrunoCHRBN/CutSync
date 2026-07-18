@@ -13,6 +13,7 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf, readableForeground } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
+import { getOpeningStatus } from '../../utils/schedule';
 
 function BarbershopProfileSkeleton() {
   return (
@@ -80,65 +81,7 @@ export const BarbershopProfileExperience = () => {
   };
 
   // Cálculo de Status em Tempo Real
-  const statusInfo = useMemo(() => {
-    if (!barbershop?.openingHours) return { isOpen: false, text: '' };
-    try {
-      const schedule = JSON.parse(barbershop.openingHours);
-      const now = new Date();
-      const day = now.getDay();
-      const todaySchedule = schedule.find((s: any) => s.day === day);
-
-      if (!todaySchedule || !todaySchedule.isOpen) {
-        let nextDay = (day + 1) % 7;
-        let nextSchedule = schedule.find((s: any) => s.day === nextDay);
-        let daysCount = 1;
-        while ((!nextSchedule || !nextSchedule.isOpen) && daysCount < 7) {
-          nextDay = (nextDay + 1) % 7;
-          nextSchedule = schedule.find((s: any) => s.day === nextDay);
-          daysCount++;
-        }
-        if (nextSchedule && nextSchedule.isOpen) {
-          const dayNames = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-          const dayLabel = daysCount === 1 ? 'amanhã' : `na ${dayNames[nextDay]}`;
-          return { isOpen: false, text: `Abre ${dayLabel} às ${nextSchedule.open}` };
-        }
-        return { isOpen: false, text: 'Fechado hoje' };
-      }
-
-      const [openH, openM] = todaySchedule.open.split(':').map(Number);
-      const [closeH, closeM] = todaySchedule.close.split(':').map(Number);
-
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const openMinutes = openH * 60 + openM;
-      const closeMinutes = closeH * 60 + closeM;
-
-      if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
-        return { isOpen: true, text: `Até às ${todaySchedule.close}` };
-      }
-      
-      if (currentMinutes < openMinutes) {
-        return { isOpen: false, text: `Abre hoje às ${todaySchedule.open}` };
-      }
-      
-      let nextDay = (day + 1) % 7;
-      let nextSchedule = schedule.find((s: any) => s.day === nextDay);
-      let daysCount = 1;
-      while ((!nextSchedule || !nextSchedule.isOpen) && daysCount < 7) {
-        nextDay = (nextDay + 1) % 7;
-        nextSchedule = schedule.find((s: any) => s.day === nextDay);
-        daysCount++;
-      }
-      if (nextSchedule && nextSchedule.isOpen) {
-        const dayNames = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-        const dayLabel = daysCount === 1 ? 'amanhã' : `na ${dayNames[nextDay]}`;
-        return { isOpen: false, text: `Abre ${dayLabel} às ${nextSchedule.open}` };
-      }
-
-      return { isOpen: false, text: '' };
-    } catch {
-      return { isOpen: false, text: '' };
-    }
-  }, [barbershop?.openingHours]);
+  const statusInfo = useMemo(() => getOpeningStatus(barbershop?.openingHours), [barbershop?.openingHours]);
 
   if (loading) {
     return <BarbershopProfileSkeleton />;

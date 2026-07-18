@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   ArrowUpRight,
@@ -10,7 +10,6 @@ import {
   MessageSquare,
   Plus,
   RefreshCw,
-  Scissors,
   TrendingUp,
   UserRound,
   Users,
@@ -25,6 +24,7 @@ import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
 import { supabase } from '../../services/supabase';
 import { ProfileRecord } from '../../types/database';
+import { TablesUpdate } from '../../types/supabase.generated';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -33,20 +33,12 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { StatusBadge } from '../ui/StatusBadge';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { ChoiceCard } from '../ui/ChoiceCard';
-import { AppInput } from '../ui/AppInput';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { AdminQuickBook } from '../admin/AdminQuickBook';
+import { AdminReschedule } from '../admin/AdminReschedule';
+import { DashboardAppointment } from '../../types/dashboard';
 
-interface RichAppointment {
-  id: string;
-  dateTime: Date;
-  status: string;
-  clientName: string;
-  clientPhone: string;
-  serviceName: string;
-  price: number;
-  professionalId: string;
-  cancellationReason?: string;
-}
+type RichAppointment = DashboardAppointment;
 
 const statusConfig: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
   pending: { label: 'Pendente', tone: 'warning' },
@@ -109,7 +101,7 @@ export const AdminDashboardExperience = () => {
   const syncError = appointmentError ? new Error(appointmentError) : null;
 
   // Estados locais para Reagendamento
-  const [rescheduleItem, setRescheduleItem] = useState<any | null>(null);
+  const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
@@ -224,7 +216,7 @@ export const AdminDashboardExperience = () => {
         return;
       }
 
-      const payload: Record<string, unknown> = { status };
+      const payload: TablesUpdate<'appointments'> = { status };
       if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'admin'; }
       const { error } = await supabase.from('appointments').update(payload).eq('id', id);
       if (error) throw error;
@@ -651,206 +643,41 @@ export const AdminDashboardExperience = () => {
         </AppCard>
       </View>
 
-      {/* Modal de Encaixe Rápido para o Administrador */}
-      <Modal visible={quickOpen} transparent animationType="fade" onRequestClose={() => setQuickOpen(false)}>
-        <View testID="admin-quick-booking-modal" style={styles.modalOverlay}>
-          <AppCard testID="admin-quick-booking-card" style={styles.modalCard} elevated>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalEyebrow}>ENCAIXE ADMINISTRATIVO</Text>
-                <Text testID="admin-quick-booking-title" style={styles.modalTitle}>Reservar um horário</Text>
-              </View>
-              <Pressable testID="admin-quick-booking-close-button" onPress={() => setQuickOpen(false)} style={styles.closeButton}>
-                <X color={colors.textSecondary} size={18} />
-              </Pressable>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <AppInput 
-                label="Nome do cliente" 
-                testID="admin-quick-client-input" 
-                icon={<UserRound color={colors.textMuted} size={17} />} 
-                value={quickName} 
-                onChangeText={setQuickName} 
-                placeholder="Cliente de balcão" 
-              />
-              
-              <Text style={styles.fieldLabel}>Profissional</Text>
-              <View style={styles.choiceGrid}>
-                {barbers.map((barber) => (
-                  <ChoiceCard 
-                    key={barber.id} 
-                    testID={`admin-quick-barber-${barber.id}`} 
-                    title={barber.name} 
-                    subtitle={barber.role === 'admin' ? 'Proprietário' : 'Barbeiro'} 
-                    selected={quickBarber === barber.id} 
-                    onPress={() => { setQuickBarber(barber.id); setQuickTime(null); }} 
-                    icon={<UserRound color={colors.textSecondary} size={15} />} 
-                    style={styles.choiceCard} 
-                  />
-                ))}
-              </View>
-
-               <Text style={styles.fieldLabel}>Selecione o Dia</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector}>
-                {dateOptions.map((opt) => {
-                  const selected = quickDate.toDateString() === opt.date.toDateString();
-                  return (
-                    <Pressable 
-                      key={opt.id} 
-                      onPress={() => { setQuickDate(opt.date); setQuickTime(null); }} 
-                      style={[styles.dateItem, selected && styles.dateItemSelected]}
-                    >
-                      <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>
-                        {opt.weekDay}
-                      </Text>
-                      <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>
-                        {opt.day}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>Serviço</Text>
-              <View style={styles.choiceGrid}>
-                {services.map((service) => (
-                  <ChoiceCard 
-                    key={service.id} 
-                    testID={`admin-quick-service-${service.id}`} 
-                    title={service.name} 
-                    subtitle={`${service.durationMinutes} min`} 
-                    meta={currency(service.price)} 
-                    selected={quickService === service.id} 
-                    onPress={() => { setQuickService(service.id); setQuickTime(null); }} 
-                    icon={<Scissors color={colors.textSecondary} size={15} />} 
-                    style={styles.choiceCard} 
-                  />
-                ))}
-              </View>
-
-              <Text style={styles.fieldLabel}>Horário em {quickDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
-              <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => {
-                  const isOccupied = quickOccupiedTimes.includes(slot);
-                  return (
-                    <Pressable 
-                      key={slot} 
-                      testID={`admin-quick-time-${slot.replace(':', '-')}`} 
-                      disabled={isOccupied}
-                      onPress={() => setQuickTime(slot)} 
-                      style={({ pressed }) => [
-                        styles.timeSlot, 
-                        quickTime === slot && styles.timeSlotSelected, 
-                        isOccupied && styles.timeSlotOccupied,
-                        pressed && styles.pressed
-                      ]}
-                    >
-                      <Text style={[
-                        styles.timeSlotText, 
-                        quickTime === slot && styles.dateTextSelected,
-                        isOccupied && styles.timeSlotTextOccupied
-                      ]}>
-                        {slot}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <AppButton 
-                label="Criar agendamento" 
-                testID="admin-quick-submit-button" 
-                onPress={createQuickBooking} 
-                loading={quickLoading} 
-                fullWidth 
-                variant="admin"
-                icon={<Plus color={colors.white} size={16} />}
-              />
-            </ScrollView>
-          </AppCard>
-        </View>
-      </Modal>
-
-      <Modal visible={!!rescheduleItem} transparent animationType="fade" onRequestClose={() => setRescheduleItem(null)}>
-        <View style={styles.modalOverlay}>
-          <AppCard testID="admin-reschedule-card" style={styles.modalCard} elevated>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalEyebrow}>REAGENDAMENTO</Text>
-                <Text style={styles.modalTitle}>Reagendar Atendimento</Text>
-              </View>
-              <Pressable onPress={() => setRescheduleItem(null)} style={styles.closeButton}>
-                <X color={colors.textSecondary} size={18} />
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <Text style={{ color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 }}>
-                Reagendando o cliente <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.clientName}</Text> para o serviço <Text style={{ fontFamily: typography.bodyStrong, color: colors.text }}>{rescheduleItem?.serviceName}</Text>.
-              </Text>
-              
-              <Text style={styles.fieldLabel}>Selecione o novo dia</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateSelector}>
-                {dateOptions.map((opt) => {
-                  const selected = newRescheduleDate.toDateString() === opt.date.toDateString();
-                  return (
-                    <Pressable 
-                      key={opt.id} 
-                      onPress={() => { setNewRescheduleDate(opt.date); setNewRescheduleTime(null); }} 
-                      style={[styles.dateItem, selected && styles.dateItemSelected]}
-                    >
-                      <Text style={[styles.dateWeek, selected && styles.dateTextSelected]}>
-                        {opt.weekDay}
-                      </Text>
-                      <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>
-                        {opt.day}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>Selecione o novo horário</Text>
-              <View style={styles.timeGrid}>
-                {quickTimes.map((slot) => {
-                  const isOccupied = occupiedTimes.includes(slot);
-                  return (
-                    <Pressable 
-                      key={slot} 
-                      disabled={isOccupied}
-                      onPress={() => setNewRescheduleTime(slot)} 
-                      style={[
-                        styles.timeSlot, 
-                        newRescheduleTime === slot && styles.timeSlotSelected,
-                        isOccupied && styles.timeSlotOccupied
-                      ]}
-                    >
-                      <Text style={[
-                        styles.timeSlotText, 
-                        newRescheduleTime === slot && styles.dateTextSelected,
-                        isOccupied && styles.timeSlotTextOccupied
-                      ]}>
-                        {slot}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <AppButton 
-                label="Confirmar Reagendamento" 
-                testID="reschedule-submit-button" 
-                onPress={executeReschedule} 
-                loading={rescheduleLoading} 
-                disabled={!newRescheduleTime}
-                fullWidth 
-                variant="admin"
-                icon={<RefreshCw color={colors.white} size={16} />}
-              />
-            </ScrollView>
-          </AppCard>
-        </View>
-      </Modal>
+      <AdminQuickBook
+        visible={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        clientName={quickName}
+        onClientNameChange={setQuickName}
+        barbers={barbers}
+        selectedBarber={quickBarber}
+        onBarberChange={(value) => { setQuickBarber(value); setQuickTime(null); }}
+        dates={dateOptions}
+        selectedDate={quickDate}
+        onDateChange={(value) => { setQuickDate(value); setQuickTime(null); }}
+        services={services}
+        selectedService={quickService}
+        onServiceChange={(value) => { setQuickService(value); setQuickTime(null); }}
+        times={quickTimes}
+        occupiedTimes={quickOccupiedTimes}
+        selectedTime={quickTime}
+        onTimeChange={setQuickTime}
+        currency={currency}
+        loading={quickLoading}
+        onSubmit={createQuickBooking}
+      />
+      <AdminReschedule
+        appointment={rescheduleItem}
+        onClose={() => setRescheduleItem(null)}
+        dates={dateOptions}
+        selectedDate={newRescheduleDate}
+        onDateChange={(value) => { setNewRescheduleDate(value); setNewRescheduleTime(null); }}
+        times={quickTimes}
+        occupiedTimes={occupiedTimes}
+        selectedTime={newRescheduleTime}
+        onTimeChange={setNewRescheduleTime}
+        loading={rescheduleLoading}
+        onSubmit={executeReschedule}
+      />
     </AdminShell>
   );
 };

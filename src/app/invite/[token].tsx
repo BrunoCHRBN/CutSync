@@ -72,7 +72,7 @@ export default function InviteAcceptancePage() {
 
             {loading ? <ActivityIndicator testID="invite-acceptance-loading" color={colors.brand} style={styles.loader} /> : !user ? (
               <View style={styles.actions}>
-                <InlineNotice testID="invite-login-required-notice" tone="warning" message="Entre ou crie uma conta usando o mesmo e-mail que recebeu o convite." />
+                <InlineNotice testID="invite-login-required-notice" tone="info" message="Entre ou crie uma conta usando o mesmo e-mail que recebeu o convite." />
                 <AppButton label="Entrar e continuar" testID="invite-login-button" onPress={() => router.push({ pathname: '/(auth)/login', params: { redirect: redirectPath } } as never)} fullWidth />
                 <AppButton label="Criar conta cliente" testID="invite-register-button" onPress={() => router.push({ pathname: '/(auth)/register', params: { redirect: redirectPath } } as never)} variant="secondary" fullWidth />
               </View>

@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../services/supabase';
+import { getErrorMessage } from '../../utils/errors';
 import { RegisterExperience } from '../../components/screens/RegisterExperience';
 
 export default RegisterExperience;
@@ -102,8 +103,8 @@ function LegacyRegisterScreen() {
 
       displayAlert(t('common.success'), 'Cadastro realizado com sucesso! Faça login.');
       router.replace('/(auth)/login');
-    } catch (error: any) {
-      displayAlert(t('common.error'), error.message || 'Ocorreu um erro.');
+    } catch (error: unknown) {
+      displayAlert(t('common.error'), getErrorMessage(error, 'Ocorreu um erro.'));
     } finally {
       setLoading(false);
     }
