@@ -262,6 +262,258 @@ Produzir, sem alterar o código funcional nesta etapa, um plano de correção pa
 4. Corrigir encaixe rápido e preservação do slot clicado.
 5. Corrigir próximo atendimento.
 
+## Plano de execução detalhado — Sprint 1
+
+### Objetivo da Sprint
+
+Restabelecer a confiabilidade ponta a ponta da agenda: os dados exibidos devem acompanhar a data e o período selecionados, clientes devem encontrar horários realmente disponíveis, encaixes devem preservar o slot escolhido e o próximo atendimento deve refletir o banco em tempo real.
+
+### Prioridade definida por impacto
+
+1. **S1-01 — Contrato temporal da agenda:** desbloqueia Admin, profissional, desempenho e “Ritmo do dia”.
+2. **S1-02 — Separação entre agenda diária e analytics:** impede que filtros de comissão alterem a agenda operacional.
+3. **S1-03 — Disponibilidade centralizada:** recupera o fluxo de conversão do cliente.
+4. **S1-04 — Encaixe rápido e slot selecionado:** recupera a operação manual do profissional.
+5. **S1-05 — Próximo atendimento:** corrige informação operacional de destaque.
+6. **S1-06 — Feedback mínimo da Sprint:** mensagens específicas de erro/sucesso para os fluxos alterados; o sistema transversal completo continua na Sprint 3.
+
+O calendário desktop permanece na Sprint 2, conforme decisão do usuário.
+
+### S1-01 — Corrigir o contrato temporal de `useAppointments`
+
+**Arquivos principais**
+
+- `src/hooks/useAppointments.ts`
+- `src/components/screens/AdminDashboardExperience.tsx`
+- `src/components/screens/BarberDashboardExperience.tsx`
+
+**Tarefas**
+
+1. Definir `dateFrom` e `dateTo` como contrato oficial do hook, recebendo strings ISO.
+2. Substituir as chamadas incorretas com `start`/`end` nas duas dashboards.
+3. Criar utilitário compartilhado para início/fim do dia, semana e mês no fuso do estabelecimento.
+4. Evitar dependências instáveis no `useCallback`; gerar chaves determinísticas para filtros de status.
+5. Manter a inscrição Realtime filtrada por estabelecimento/profissional e refazer a consulta com o intervalo vigente.
+6. Tratar intervalo inválido (`dateTo < dateFrom`) antes de consultar.
+
+**Critérios de aceite**
+
+- Selecionar outro dia dispara consulta com início e fim daquele dia.
+- A resposta não contém registros fora do intervalo.
+- Realtime mantém o intervalo atual após inserção/atualização.
+- TypeScript impede novas chamadas com `start`/`end` desconhecidos.
+
+**Testes previstos**
+
+- Hook com dia atual, dia futuro e virada de mês.
+- Hook desabilitado e sem estabelecimento.
+- Atualização Realtime dentro e fora do intervalo.
+
+### S1-02 — Separar agenda diária de desempenho/comissão
+
+**Arquivo principal**
+
+- `src/components/screens/AdminDashboardExperience.tsx`
+
+**Tarefas**
+
+1. Criar uma consulta diária fixa baseada em `selectedDate` para o painel “Próximos atendimentos”.
+2. Criar uma segunda consulta baseada em `period` para faturamento, ocupação e desempenho da equipe.
+3. Renomear estados para evitar ambiguidade, por exemplo `dailyAppointments` e `periodAppointments`.
+4. Calcular comissão somente sobre atendimentos concluídos no período analítico.
+5. Obter a taxa de comissão do vínculo ativo da unidade, sem fallback silencioso quando a informação estiver ausente.
+6. Definir semana operacional de forma explícita e manter a mesma regra em UI e testes.
+7. Evitar que a troca de hoje/semana/mês mude `selectedDate` ou a lista diária.
+
+**Critérios de aceite**
+
+- Alternar hoje/semana/mês altera valores e repasses corretamente.
+- A lista da agenda continua mostrando somente a data selecionada.
+- Profissionais sem atendimentos concluídos aparecem com zero, não com dados de outro período.
+- Cancelados não entram em faturamento ou comissão.
+
+**Testes previstos**
+
+- Mesmo profissional com atendimentos concluídos em três períodos diferentes.
+- Atendimento pendente, confirmado, concluído e cancelado.
+- Taxas de comissão distintas entre profissionais.
+- Troca de estabelecimento pelo Admin sem reutilizar dados anteriores.
+
+### S1-03 — Centralizar disponibilidade do cliente
+
+**Arquivos principais**
+
+- Nova migration Supabase para `get_available_slots`.
+- `src/components/screens/BookingExperience.tsx`
+- `src/app/[slug]/booking.tsx`
+- `src/utils/schedule.ts`
+- `src/types/supabase.generated.ts` após regeneração do contrato.
+
+**Contrato proposto da RPC**
+
+Entrada:
+
+- `target_establishment_id`
+- `target_professional_id`
+- `target_service_id`
+- `target_local_date`
+
+Saída por slot:
+
+- `starts_at` em timestamptz
+- `local_time` para exibição
+- `duration_minutes`
+- `available`
+- `unavailable_reason` apenas quando necessário
+
+**Regras da RPC**
+
+1. Validar estabelecimento, vínculo ativo e serviço ativo.
+2. Resolver duração e preço personalizados em `professional_services`, com fallback para o serviço global.
+3. Intersectar `opening_hours` da unidade com `work_hours` do profissional.
+4. Gerar slots em intervalos consistentes, inicialmente 30 minutos.
+5. Remover slots passados no fuso da unidade.
+6. Remover sobreposições com agendamentos `pending` e `confirmed`.
+7. Retornar lista vazia válida para dia fechado, sem mascarar erro técnico.
+
+**Mudanças de frontend planejadas**
+
+1. Remover listas fixas de horários dos dois fluxos.
+2. Consultar slots após selecionar serviço, profissional e data.
+3. Invalidar seleção de horário quando qualquer uma dessas três escolhas mudar.
+4. Exibir estados específicos: carregando, dia fechado, agenda lotada e erro.
+5. Confirmar novamente pela RPC transacional `create_appointment`; disponibilidade é informativa, a constraint continua sendo a proteção final.
+
+**Critérios de aceite**
+
+- O mesmo profissional/serviço/data retorna horários iguais nos dois fluxos de agendamento.
+- Horários passados não aparecem no dia atual.
+- Duração de 60 minutos bloqueia toda sobreposição, mesmo entre slots de 30 minutos.
+- Um slot reservado por outro cliente deixa de ser confirmável e produz conflito tratado.
+- Dia sem expediente possui mensagem própria.
+
+**Testes previstos**
+
+- Dia atual antes e depois do expediente.
+- Profissional com jornada menor que a unidade.
+- Serviço de 30, 60 e 90 minutos.
+- Serviço personalizado para profissional.
+- Dois clientes tentando reservar o mesmo slot.
+- Fuso do estabelecimento diferente do dispositivo.
+
+### S1-04 — Corrigir encaixe rápido do profissional
+
+**Arquivos principais**
+
+- `src/components/screens/BarberDashboardExperience.tsx`
+- `src/components/professional/ProfessionalQuickBook.tsx`
+- Utilitário compartilhado de tradução de erros RPC.
+
+**Tarefas**
+
+1. Adicionar estado `quickBookSource: 'header' | 'timeline'`.
+2. Ao abrir pelo cabeçalho, iniciar em hoje e no próximo slot válido.
+3. Ao abrir pela timeline, preservar `selectedDate` e o slot clicado.
+4. Remover o efeito que sempre redefine data/hora ao abrir o modal.
+5. Consumir a mesma disponibilidade criada em S1-03.
+6. Validar que o serviço está ativo para o profissional antes do envio.
+7. Mapear erros conhecidos:
+   - `appointment_must_be_in_future`;
+   - `appointment_conflict`;
+   - `professional_unavailable`;
+   - `service_unavailable`;
+   - `service_unavailable_for_professional`;
+   - `client_name_required`;
+   - `forbidden`.
+8. Após sucesso, fechar modal, limpar formulário, atualizar agenda diária e próximo atendimento.
+
+**Critérios de aceite**
+
+- Slot clicado não é substituído ao abrir o modal.
+- Encaixe válido é criado como confirmado.
+- Erros de regra exibem mensagem específica.
+- Duplo clique não cria dois registros.
+
+**Testes previstos**
+
+- Abertura pelo cabeçalho e pela timeline.
+- Slot de hoje, futuro e passado.
+- Serviço permitido e desabilitado.
+- Concorrência durante a confirmação.
+
+### S1-05 — Corrigir “Próximo atendimento”
+
+**Arquivos principais**
+
+- Novo hook/seletor compartilhado, sugerido: `src/hooks/useNextAppointment.ts`.
+- `src/components/screens/BarberDashboardExperience.tsx`
+- `src/components/screens/AdminDashboardExperience.tsx`
+
+**Tarefas**
+
+1. Consultar apenas `pending` e `confirmed` com `date_time >= agora`.
+2. Para profissional, filtrar também por `professional_id`.
+3. Para Admin, filtrar por estabelecimento e retornar o próximo da unidade.
+4. Reutilizar os nomes de participantes obtidos pelas RPCs seguras existentes.
+5. Remover a consulta direta que ignora erros no dashboard profissional.
+6. Atualizar o card via Realtime e após mutações locais.
+7. Separar os estados “carregando”, “erro” e “agenda livre”.
+
+**Critérios de aceite**
+
+- O atendimento futuro mais próximo aparece para cada role.
+- Cancelar/concluir promove o próximo imediatamente.
+- Atendimento de outro profissional não aparece no card pessoal.
+- Falha de consulta não é apresentada como agenda livre.
+
+**Testes previstos**
+
+- Sem agendamentos futuros.
+- Vários agendamentos no mesmo dia e em dias diferentes.
+- Primeiro registro cancelado durante a sessão.
+- Admin alternando estabelecimento.
+
+### S1-06 — Feedback mínimo dos fluxos alterados
+
+**Escopo nesta Sprint**
+
+- Agendamento criado.
+- Encaixe criado.
+- Conflito de horário.
+- Falha ao carregar disponibilidade.
+- Falha ao carregar próximo atendimento.
+
+**Regra**
+
+Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substituição completa de `window.alert`, `Alert.alert` e avisos inline por um sistema global permanece na Sprint 3.
+
+### Dependências entre tarefas
+
+- S1-01 deve ser concluída antes de S1-02 e S1-05.
+- S1-03 deve ser concluída antes de finalizar S1-04.
+- S1-06 acompanha cada entrega, sem bloquear a lógica principal.
+
+### Ordem de implementação recomendada
+
+1. S1-01 — contrato temporal.
+2. S1-02 — consultas separadas do Admin.
+3. S1-03 backend — RPC de disponibilidade e testes SQL.
+4. S1-03 frontend — unificação dos dois fluxos.
+5. S1-04 — encaixe rápido.
+6. S1-05 — próximo atendimento.
+7. Regressão conjunta e fechamento da Sprint.
+
+### Definition of Done da Sprint 1
+
+- TypeScript e lint sem novos erros nos arquivos alterados.
+- Testes SQL de disponibilidade, conflito e autorização aprovados.
+- Fluxos E2E de cliente, profissional e Admin aprovados no web.
+- Smoke tests em Android e iOS para seleção de data/horário.
+- Nenhuma mensagem de agenda livre causada por erro silencioso.
+- Nenhuma lista fixa de horários remanescente nos fluxos de cliente alterados.
+- Nenhuma divergência conhecida entre disponibilidade exibida e criação transacional.
+- Documentação e tipos Supabase atualizados junto da migration.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.
