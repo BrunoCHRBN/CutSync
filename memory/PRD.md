@@ -687,6 +687,22 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 - Nenhuma correção funcional foi implementada, conforme solicitado.
 - Nenhuma API ou fluxo novo foi simulado.
 
+## Correção de pipeline — sincronização do lockfile
+
+**Problema:** a instalação da Vercel com `npm ci` falhava porque `package.json` declarava `lucide-react-native@1.25.0`, enquanto `package-lock.json` ainda registrava `0.468.0` e dependências antigas já removidas do manifesto.
+
+**Correção aplicada:** o `package-lock.json` foi regenerado a partir do `package.json`, preservando as versões declaradas e removendo referências obsoletas do lock.
+
+**Validação:**
+
+- `npm ci`: aprovado;
+- `lucide-react-native`: resolvido exatamente como `1.25.0`;
+- `npm run build:web`: aprovado, com exportação para `dist`;
+- regressão do pipeline: 8 testes aprovados;
+- `vercel.json`: confirmado com `npm ci`, `npm run build:web` e saída `dist`.
+
+**Observação:** o ambiente local utiliza Node 20 e apresenta avisos de engine; o projeto e a configuração externa exigem Node 22. Esses avisos não bloquearam a instalação ou o build local.
+
 ---
 
 # Planejamento complementar — Landing Page Interativa
