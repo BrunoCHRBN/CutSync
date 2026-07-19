@@ -44,8 +44,12 @@ export function useAvailableSlots({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState('');
+  const [resolvedQueryKey, setResolvedQueryKey] = useState<string | null>(null);
   const requestId = useRef(0);
   const localDate = date ? formatCalendarDate(date) : null;
+  const queryKey = establishmentId && professionalId && serviceId && localDate
+    ? `${establishmentId}:${professionalId}:${serviceId}:${localDate}:${appointmentId || ''}`
+    : null;
 
   const refresh = useCallback(async (appointmentIdOverride?: string | null): Promise<AvailableSlot[] | null> => {
     const currentRequest = ++requestId.current;
@@ -53,6 +57,7 @@ export function useAvailableSlots({
       setSlots([]);
       setError(null);
       setEmptyMessage('');
+      setResolvedQueryKey(null);
       setLoading(false);
       return [];
     }
@@ -73,6 +78,7 @@ export function useAvailableSlots({
         setSlots([]);
         setError(availabilityErrorMessage(queryError.message));
         setEmptyMessage('');
+        setResolvedQueryKey(queryKey);
         setLoading(false);
       }
       return null;
@@ -103,10 +109,11 @@ export function useAvailableSlots({
           ? ''
           : computedEmptyMessage,
       );
+      setResolvedQueryKey(queryKey);
       setLoading(false);
     }
     return mapped;
-  }, [appointmentId, establishmentId, localDate, professionalId, serviceId]);
+  }, [appointmentId, establishmentId, localDate, professionalId, queryKey, serviceId]);
 
   useEffect(() => {
     void refresh();
@@ -120,12 +127,15 @@ export function useAvailableSlots({
     };
   }, [establishmentId, localDate, professionalId, refresh, serviceId]);
 
+  const hasCurrentResult = Boolean(queryKey && resolvedQueryKey === queryKey);
+  const currentSlots = hasCurrentResult ? slots : [];
+
   return {
-    slots,
-    availableSlots: slots.filter((slot) => slot.available),
-    loading,
-    error,
-    emptyMessage,
+    slots: currentSlots,
+    availableSlots: currentSlots.filter((slot) => slot.available),
+    loading: loading || Boolean(queryKey && !hasCurrentResult),
+    error: hasCurrentResult ? error : null,
+    emptyMessage: hasCurrentResult ? emptyMessage : '',
     refresh,
   };
 }

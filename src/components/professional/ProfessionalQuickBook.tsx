@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Plus, Scissors, UserRound, X } from 'lucide-react-native';
 import { ServiceRecord } from '../../types/database';
@@ -8,6 +8,8 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { ChoiceCard } from '../ui/ChoiceCard';
+import { InlineNotice } from '../ui/InlineNotice';
+import { formatCalendarDate } from '../../utils/dateTime';
 
 interface ProfessionalQuickBookProps {
   visible: boolean;
@@ -21,18 +23,20 @@ interface ProfessionalQuickBookProps {
   selectedService: string | null;
   onServiceChange: (value: string) => void;
   times: string[];
-  occupiedTimes: string[];
-  referenceTime: number;
+  availabilityLoading: boolean;
+  availabilityError: string | null;
+  availabilityEmptyMessage: string;
   selectedTime: string | null;
   onTimeChange: (value: string) => void;
   primaryColor: string;
   foregroundColor: string;
   currency: (value: number) => string;
   loading: boolean;
+  submitDisabled: boolean;
   onSubmit: () => void;
 }
 
-export const ProfessionalQuickBook = ({ visible, onClose, clientName, onClientNameChange, dates, selectedDate, onDateChange, services, selectedService, onServiceChange, times, occupiedTimes, referenceTime, selectedTime, onTimeChange, primaryColor, foregroundColor, currency, loading, onSubmit }: ProfessionalQuickBookProps) => (
+export const ProfessionalQuickBook = ({ visible, onClose, clientName, onClientNameChange, dates, selectedDate, onDateChange, services, selectedService, onServiceChange, times, availabilityLoading, availabilityError, availabilityEmptyMessage, selectedTime, onTimeChange, primaryColor, foregroundColor, currency, loading, submitDisabled, onSubmit }: ProfessionalQuickBookProps) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <KeyboardAvoidingView testID="barber-quick-booking-modal" style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <AppCard testID="barber-quick-booking-card" style={styles.card} elevated>
@@ -44,20 +48,18 @@ export const ProfessionalQuickBook = ({ visible, onClose, clientName, onClientNa
           <AppInput label="Nome do cliente" testID="barber-quick-client-input" icon={<UserRound color={colors.textMuted} size={17} />} value={clientName} onChangeText={onClientNameChange} placeholder="Cliente de balcão" />
           <Text testID="barber-quick-date-label" style={styles.label}>Selecione o dia</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>{dates.map((date) => {
-            const id = date.toISOString().split('T')[0];
+            const id = formatCalendarDate(date);
             const selected = selectedDate.toDateString() === date.toDateString();
             return <Pressable key={id} testID={`barber-quick-date-${id}`} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onDateChange(date); }} style={({ pressed }) => [styles.dateCard, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}><Text testID={`barber-quick-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: foregroundColor }]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text><Text testID={`barber-quick-date-${id}-day`} style={[styles.dateDay, selected && { color: foregroundColor }]}>{date.getDate()}</Text></Pressable>;
           })}</ScrollView>
           <Text testID="barber-quick-service-label" style={styles.label}>Serviço</Text>
           <View style={styles.choiceGrid}>{services.map((service) => <ChoiceCard key={service.id} testID={`barber-quick-service-${service.id}`} title={service.name} subtitle={`${service.durationMinutes} min`} meta={currency(service.price)} selected={selectedService === service.id} activeColor={primaryColor} activeForegroundColor={foregroundColor} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onServiceChange(service.id); }} icon={<Scissors color={colors.textSecondary} size={15} />} style={styles.choiceCard} />)}</View>
           <Text testID="barber-quick-time-label" style={styles.label}>Horário em {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
-          <View style={styles.timeGrid}>{times.map((slot) => {
-            const slotDate = new Date(selectedDate); const [hour, minute] = slot.split(':').map(Number); slotDate.setHours(hour, minute, 0, 0);
-            const occupied = occupiedTimes.includes(slot) || slotDate.getTime() < referenceTime;
+          {!selectedService ? <InlineNotice testID="barber-quick-availability-empty" tone="info" message="Selecione um serviço para consultar os horários." /> : availabilityLoading ? <View testID="barber-quick-availability-loading" style={styles.loadingState}><ActivityIndicator color={primaryColor} /><Text testID="barber-quick-availability-loading-label" style={styles.loadingText}>Consultando horários disponíveis...</Text></View> : availabilityError ? <InlineNotice testID="barber-quick-availability-error" tone="danger" message={availabilityError} /> : times.length === 0 ? <InlineNotice testID="barber-quick-availability-empty" tone="info" message={availabilityEmptyMessage || 'Nenhum horário disponível nesta data.'} /> : <><>{selectedTime && !times.includes(selectedTime) ? <InlineNotice testID="barber-quick-selected-time-unavailable" tone="danger" message={`O horário ${selectedTime} não está disponível para este serviço.`} /> : null}</><View testID="barber-quick-time-grid" style={styles.timeGrid}>{times.map((slot) => {
             const selected = selectedTime === slot;
-            return <Pressable key={slot} testID={`barber-quick-time-${slot.replace(':', '-')}`} disabled={occupied} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onTimeChange(slot); }} style={({ pressed }) => [styles.timeSlot, selected && { backgroundColor: primaryColor, borderColor: primaryColor }, occupied && styles.occupied, pressed && styles.pressed]}><Text testID={`barber-quick-time-${slot.replace(':', '-')}-label`} style={[styles.timeText, selected && { color: foregroundColor }, occupied && styles.occupiedText]}>{slot}</Text></Pressable>;
-          })}</View>
-          <AppButton label="Criar encaixe" testID="barber-quick-submit-button" onPress={onSubmit} loading={loading} fullWidth icon={<Plus color={foregroundColor} size={16} />} foregroundColor={foregroundColor} style={{ backgroundColor: primaryColor, borderColor: primaryColor }} />
+            return <Pressable key={slot} testID={`barber-quick-time-${slot.replace(':', '-')}`} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onTimeChange(slot); }} style={({ pressed }) => [styles.timeSlot, selected && { backgroundColor: primaryColor, borderColor: primaryColor }, pressed && styles.pressed]}><Text testID={`barber-quick-time-${slot.replace(':', '-')}-label`} style={[styles.timeText, selected && { color: foregroundColor }]}>{slot}</Text></Pressable>;
+          })}</View></>}
+          <AppButton label="Criar encaixe" testID="barber-quick-submit-button" onPress={onSubmit} loading={loading} disabled={submitDisabled} fullWidth icon={<Plus color={foregroundColor} size={16} />} foregroundColor={foregroundColor} style={{ backgroundColor: primaryColor, borderColor: primaryColor }} />
         </ScrollView>
       </AppCard>
     </KeyboardAvoidingView>
@@ -82,7 +84,7 @@ const styles = StyleSheet.create({
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   timeSlot: { width: '23%', height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   timeText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
-  occupied: { opacity: 0.3, borderColor: 'transparent' },
-  occupiedText: { color: colors.textMuted, textDecorationLine: 'line-through' },
+  loadingState: { minHeight: 70, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   pressed: { transform: [{ scale: 0.97 }] },
 });

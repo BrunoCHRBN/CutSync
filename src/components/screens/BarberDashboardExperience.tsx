@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, WalletCards, X } from 'lucide-react-native';
@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
+import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { supabase } from '../../services/supabase';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
@@ -20,8 +21,11 @@ import { parseSchedule } from '../../utils/schedule';
 import { DashboardAppointment } from '../../types/dashboard';
 import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
 import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
+import { getTodayInTimeZone } from '../../utils/dateTime';
+import { translateAppointmentError } from '../../utils/appointmentErrors';
 
 type Tab = 'mine' | 'team';
+type QuickBookSource = 'header' | 'timeline';
 
 type RichAppointment = DashboardAppointment & { barberName: string };
 
@@ -32,7 +36,7 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
   cancelled: { label: 'Cancelado', tone: 'danger' },
 };
 
-const quickTimes = [
+const rescheduleTimes = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
@@ -69,13 +73,13 @@ export const BarberDashboardExperience = () => {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [cancelCandidateId, setCancelCandidateId] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [quickBookSource, setQuickBookSource] = useState<QuickBookSource>('header');
   const [quickName, setQuickName] = useState('');
   const [quickService, setQuickService] = useState<string | null>(null);
   const [quickTime, setQuickTime] = useState<string | null>(null);
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickDate, setQuickDate] = useState<Date>(new Date());
-  const [quickOccupiedTimes, setQuickOccupiedTimes] = useState<string[]>([]);
-  const [quickReferenceTime, setQuickReferenceTime] = useState(0);
+  const quickSubmissionLocked = useRef(false);
 
   // Estados locais para Reagendamento
   const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
@@ -98,6 +102,18 @@ export const BarberDashboardExperience = () => {
     enabled: Boolean(profile?.establishment_id),
   });
   const syncError = appointmentError ? new Error(appointmentError) : null;
+  const {
+    availableSlots: quickAvailableSlots,
+    loading: quickAvailabilityLoading,
+    error: quickAvailabilityError,
+    emptyMessage: quickAvailabilityEmptyMessage,
+    refresh: refreshQuickAvailability,
+  } = useAvailableSlots({
+    establishmentId: profile?.establishment_id,
+    professionalId: profile?.id,
+    serviceId: quickService,
+    date: quickOpen ? quickDate : null,
+  });
 
   const weekOffset = useMemo(() => {
     const today = new Date();
@@ -115,6 +131,12 @@ export const BarberDashboardExperience = () => {
     date.setDate(date.getDate() + offset);
     return date;
   }), [weekOffset]);
+
+  const quickDateOptions = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(quickDate);
+    date.setDate(date.getDate() + index - 3);
+    return date;
+  }), [quickDate]);
 
   useEffect(() => {
     setAppointments(appointmentRecords.map((appointment) => ({
@@ -172,38 +194,9 @@ export const BarberDashboardExperience = () => {
   }, [rescheduleItem, newRescheduleDate]);
 
   useEffect(() => {
-    if (quickOpen) {
-      const today = new Date();
-      setQuickDate(today);
-      
-      const currentHour = today.getHours();
-      const currentMin = today.getMinutes();
-      const todaySlots = quickTimes.filter(slot => {
-        const [h, m] = slot.split(':').map(Number);
-        return h > currentHour || (h === currentHour && m >= currentMin);
-      });
-      
-      const nearest = todaySlots.length > 0 ? todaySlots[0] : null;
-      setQuickTime(nearest);
-    }
-  }, [quickOpen]);
-
-  useEffect(() => {
-    if (!quickOpen || !profile?.id || !quickDate) {
-      setQuickOccupiedTimes([]);
-      return;
-    }
-    const startOfDay = new Date(quickDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(quickDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    void (async () => {
-      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', profile.id)
-        .neq('status', 'cancelled').gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
-      setQuickOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
-    })();
-  }, [quickOpen, profile, quickDate]);
+    if (!quickOpen || quickBookSource !== 'header' || quickTime || quickAvailabilityLoading) return;
+    setQuickTime(quickAvailableSlots[0]?.localTime || null);
+  }, [quickAvailabilityLoading, quickAvailableSlots, quickBookSource, quickOpen, quickTime]);
 
   const visibleAppointments = tab === 'mine' ? appointments.filter((item) => item.professionalId === profile?.id) : appointments;
   const completed = visibleAppointments.filter((item) => item.status === 'completed');
@@ -295,11 +288,11 @@ export const BarberDashboardExperience = () => {
 
   const filteredRescheduleTimes = useMemo(() => {
     const isToday = newRescheduleDate.toDateString() === new Date().toDateString();
-    if (!isToday) return quickTimes;
+    if (!isToday) return rescheduleTimes;
     const now = new Date();
     const currentHour = now.getHours();
     const currentMin = now.getMinutes();
-    return quickTimes.filter(slot => {
+    return rescheduleTimes.filter(slot => {
       const [h, m] = slot.split(':').map(Number);
       return h > currentHour || (h === currentHour && m >= currentMin);
     });
@@ -387,33 +380,30 @@ export const BarberDashboardExperience = () => {
   };
 
   const createQuickBooking = async () => {
+    if (quickSubmissionLocked.current || quickLoading) return;
     if (!quickName.trim() || !quickService || !quickTime || !profile?.establishment_id || !profile?.id) {
       setNotice({ tone: 'danger', message: 'Informe cliente, serviço e horário para criar o encaixe.' });
       return;
     }
-    const dateTime = new Date(quickDate);
-    const [hours, minutes] = quickTime.split(':').map(Number);
-    dateTime.setHours(hours, minutes, 0, 0);
     const service = services.find((item) => item.id === quickService);
-    const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
-    const conflict = appointments.some((item) => {
-      if (item.professionalId !== profile.id || item.status === 'cancelled') return false;
-      const itemService = services.find((candidate) => candidate.name === item.serviceName);
-      const itemEnd = item.dateTime.getTime() + (itemService?.durationMinutes || 30) * 60 * 1000;
-      return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
-    });
-    if (conflict) {
-      setNotice({ tone: 'danger', message: 'Esse horário conflita com outro atendimento.' });
+    if (!service?.isActive) {
+      setNotice({ tone: 'danger', message: 'Este serviço não está habilitado para o seu perfil profissional.' });
       return;
     }
 
+    quickSubmissionLocked.current = true;
     setQuickLoading(true);
     try {
+      const latestSlots = await refreshQuickAvailability();
+      if (!latestSlots) throw new Error('availability_check_failed');
+      const confirmedSlot = latestSlots.find((slot) => slot.available && slot.localTime === quickTime);
+      if (!confirmedSlot) throw new Error('appointment_conflict');
+
       const { error } = await supabase.rpc('create_appointment', {
         target_establishment_id: profile.establishment_id,
         target_professional_id: profile.id,
         target_service_id: quickService,
-        target_date_time: dateTime.toISOString(),
+        target_date_time: confirmedSlot.startsAt,
         target_client_name: quickName.trim(),
         target_client_id: null,
       });
@@ -424,12 +414,9 @@ export const BarberDashboardExperience = () => {
       await refresh();
     } catch (err) {
       console.error('[BarberDashboard] create_appointment falhou:', err);
-      const message = err instanceof Error ? err.message : String(err);
-      const msg = message.includes('appointment_conflict')
-        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
-        : 'Não foi possível criar o encaixe.';
-      setNotice({ tone: 'danger', message: msg });
+      setNotice({ tone: 'danger', message: translateAppointmentError(err, 'Não foi possível criar o encaixe.') });
     } finally {
+      quickSubmissionLocked.current = false;
       setQuickLoading(false);
     }
   };
@@ -449,10 +436,13 @@ export const BarberDashboardExperience = () => {
               label="Encaixe rápido" 
               testID="barber-quick-booking-button" 
               onPress={() => {
+                const today = barbershop?.timezone ? getTodayInTimeZone(barbershop.timezone) : new Date();
+                setQuickBookSource('header');
                 setQuickOpen(true);
                 setQuickName('');
-                setQuickService(null);
-                setQuickReferenceTime(Date.now());
+                setQuickDate(today);
+                setQuickService(services[0]?.id || null);
+                setQuickTime(null);
               }} 
               icon={<Plus color={primaryForeground} size={17} />}
               style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
@@ -635,12 +625,14 @@ export const BarberDashboardExperience = () => {
                     key={`free-${slot}`}
                     testID={`barber-free-slot-${slot.replace(':', '-')}`}
                     onPress={() => {
+                      setQuickBookSource('timeline');
                       setQuickTime(slot);
                       const newDate = new Date(selectedDate);
                       const [h, m] = slot.split(':').map(Number);
                       newDate.setHours(h, m, 0, 0);
                       setQuickDate(newDate);
-                      setQuickReferenceTime(Date.now());
+                      setQuickName('');
+                      setQuickService(services[0]?.id || null);
                       setQuickOpen(true);
                     }}
                     style={({ pressed }) => [styles.freeSlotCard, pressed && styles.pressed]}
@@ -688,21 +680,23 @@ export const BarberDashboardExperience = () => {
         onClose={() => setQuickOpen(false)}
         clientName={quickName}
         onClientNameChange={setQuickName}
-        dates={dateOptions}
+        dates={quickDateOptions}
         selectedDate={quickDate}
         onDateChange={(value) => { setQuickDate(value); setQuickTime(null); }}
         services={services}
         selectedService={quickService}
         onServiceChange={(value) => { setQuickService(value); setQuickTime(null); }}
-        times={quickTimes}
-        occupiedTimes={quickOccupiedTimes}
-        referenceTime={quickReferenceTime}
+        times={quickAvailableSlots.map((slot) => slot.localTime)}
+        availabilityLoading={quickAvailabilityLoading}
+        availabilityError={quickAvailabilityError}
+        availabilityEmptyMessage={quickAvailabilityEmptyMessage}
         selectedTime={quickTime}
         onTimeChange={setQuickTime}
         primaryColor={primaryColor}
         foregroundColor={primaryForeground}
         currency={currency}
         loading={quickLoading}
+        submitDisabled={!quickName.trim() || !quickService || !quickTime || quickAvailabilityLoading || !quickAvailableSlots.some((slot) => slot.localTime === quickTime)}
         onSubmit={createQuickBooking}
       />
       <ProfessionalReschedule
