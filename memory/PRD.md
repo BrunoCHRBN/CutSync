@@ -545,6 +545,41 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 - Separação entre consulta diária e consulta analítica continua em S1-02.
 - Centralização de fuso por estabelecimento continua em S1-03, conforme decisão registrada.
 
+## Implementação concluída — S1-02
+
+**Estado:** concluída no código-fonte em 19/07/2026.
+
+### Decisões aplicadas
+
+- O período “Semana” usa segunda-feira a domingo.
+- Comissão ausente não recebe fallback financeiro: usa 0% e exibe “Comissão não configurada”.
+- O filtro analítico é relativo ao período atual; trocar a data operacional não desloca hoje/semana/mês.
+
+### Alterações aplicadas
+
+- A agenda diária do Admin possui consulta própria, limitada por `selectedDate`.
+- Métricas, faturamento e desempenho possuem segunda consulta independente, limitada por `period`.
+- Trocar hoje/semana/mês não altera a data nem os registros do painel operacional.
+- Mutações e atualização manual recarregam as consultas diária e analítica em paralelo.
+- Faturamento e repasse consideram somente atendimentos concluídos do período.
+- Cancelados ficam fora da ocupação; a capacidade usa a quantidade real de dias do intervalo.
+- O mapeamento de registros para a dashboard foi centralizado em uma única função.
+- Instâncias simultâneas de `useAppointments` agora possuem canais Realtime únicos por intervalo e instância.
+- Valores de produção, bruto e comissão receberam identificadores próprios para regressão automatizada.
+
+### Validação executada
+
+- ESLint direcionado: aprovado.
+- Export web Expo: aprovado.
+- Regressões S1-01, S1-02 e fluxo de booking: 21 testes aprovados.
+- Carregamento visual local: aprovado no estado seguro de configuração.
+- Teste externo confirmou que os controles não alteram a data selecionada; a versão externa observada ainda utiliza bundle anterior sem filtros temporais.
+
+### Próximos itens
+
+- S1-03: disponibilidade centralizada do cliente e fuso do estabelecimento.
+- Modularização mais ampla da dashboard Admin permanece como melhoria de manutenção, sem bloquear a correção funcional entregue.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.

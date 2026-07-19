@@ -50,6 +50,14 @@ def test_metrics_and_commissions_use_period_records_only() -> None:
     assert "barber.commissionRate ?? 0.5" not in content
 
 
+def test_daily_and_period_records_share_the_same_mapper() -> None:
+    content = _source()
+
+    assert "const toRichAppointment = (item: AppointmentRecord): RichAppointment" in content
+    assert "appointmentRecords.map(toRichAppointment)" in content
+    assert "periodAppointmentRecords.map(toRichAppointment)" in content
+
+
 def test_mutations_refresh_daily_and_period_queries() -> None:
     content = _source()
 

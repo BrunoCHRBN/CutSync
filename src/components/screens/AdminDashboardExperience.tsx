@@ -34,8 +34,21 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 import { AdminQuickBook } from '../admin/AdminQuickBook';
 import { AdminReschedule } from '../admin/AdminReschedule';
 import { DashboardAppointment } from '../../types/dashboard';
+import { AppointmentRecord } from '../../types/database';
 
 type RichAppointment = DashboardAppointment;
+
+const toRichAppointment = (item: AppointmentRecord): RichAppointment => ({
+  id: item.id,
+  dateTime: item.dateTime,
+  status: item.status,
+  clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
+  clientPhone: item.client?.phone || '',
+  serviceName: item.service?.name || 'Serviço indisponível',
+  price: item.service?.price || 0,
+  professionalId: item.professionalId,
+  cancellationReason: item.cancellationReason || '',
+});
 
 const statusConfig: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
   pending: { label: 'Pendente', tone: 'warning' },
@@ -154,23 +167,14 @@ export const AdminDashboardExperience = () => {
   }), [weekOffset]);
 
   useEffect(() => {
-    setAppointments(appointmentRecords.map((item) => ({
-      id: item.id, dateTime: item.dateTime, status: item.status,
-      clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
-      clientPhone: item.client?.phone || '', serviceName: item.service?.name || 'Serviço indisponível',
-      price: item.service?.price || 0, professionalId: item.professionalId,
-      cancellationReason: item.cancellationReason || '',
-    })));
+    setAppointments(appointmentRecords.map(toRichAppointment));
     setLoading(dailyLoading);
   }, [appointmentRecords, dailyLoading]);
 
-  const periodAppointments = useMemo<RichAppointment[]>(() => periodAppointmentRecords.map((item) => ({
-    id: item.id, dateTime: item.dateTime, status: item.status,
-    clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
-    clientPhone: item.client?.phone || '', serviceName: item.service?.name || 'Serviço indisponível',
-    price: item.service?.price || 0, professionalId: item.professionalId,
-    cancellationReason: item.cancellationReason || '',
-  })), [periodAppointmentRecords]);
+  const periodAppointments = useMemo<RichAppointment[]>(
+    () => periodAppointmentRecords.map(toRichAppointment),
+    [periodAppointmentRecords],
+  );
 
   useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
