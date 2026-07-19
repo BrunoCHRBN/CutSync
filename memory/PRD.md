@@ -686,3 +686,130 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 - Diagnóstico estático e plano técnico concluídos.
 - Nenhuma correção funcional foi implementada, conforme solicitado.
 - Nenhuma API ou fluxo novo foi simulado.
+
+---
+
+# Planejamento complementar — Landing Page Interativa
+
+## Solicitação original
+
+Planejar, sem alteração de código, uma landing page da CutSync que equilibre a conversão de clientes e donos de estabelecimentos. A página deve combinar estabelecimentos reais para clientes, demonstrações com dados mockados para donos e profissionais, segmentação estilo Typeform e um caminho livre para visitantes que desejam apenas observar.
+
+## Decisões validadas
+
+- Equilibrar aquisição de clientes e de donos de estabelecimentos.
+- Exibir a segmentação após uma apresentação curta da CutSync.
+- Misturar estabelecimentos reais no caminho do cliente e ambiente demonstrativo no caminho de negócios.
+- Incluir “Estou apenas observando” como terceira opção.
+- Definir a precificação com base em recomendação estratégica.
+
+## Arquitetura recomendada
+
+### 1. Hero curto
+
+Apresentar a promessa central em poucos segundos: descoberta e agendamento para clientes; controle e crescimento para negócios. O CTA principal abre a segmentação.
+
+### 2. Segmentação estilo Typeform
+
+Pergunta: “O que você quer fazer hoje?”
+
+1. **Quero agendar um serviço** — leva à experiência de cliente.
+2. **Quero gerenciar meu negócio** — leva à experiência de dono/profissional.
+3. **Estou apenas observando** — libera toda a página e uma navegação entre Cliente, Gestão e Planos.
+
+A escolha muda a ordem do conteúdo e os CTAs, mas o visitante pode trocar de caminho a qualquer momento.
+
+### 3. Experiência do cliente
+
+- Grade editorial de estabelecimentos reais em destaque.
+- Filtros leves por localização, serviço e disponibilidade.
+- Detalhes do estabelecimento e experiência navegável do sistema.
+- Fluxo demonstrável: serviço → profissional → data → horário.
+- Login ou cadastro somente ao selecionar “Confirmar agendamento”.
+- Preservar as escolhas do usuário depois da autenticação.
+
+### 4. Experiência do dono e profissional
+
+- Painel interativo identificado como **“Demonstração — dados mockados”**.
+- Alternância entre “Visão do dono” e “Visão do profissional”.
+- Dono: agenda geral, faturamento estimado, ocupação, equipe e recorrência.
+- Profissional: agenda individual, próximos atendimentos, comissão e desempenho.
+- Interações guiadas e notificações simuladas para transmitir a sensação de operação real.
+- CTA contextual para criar ou cadastrar um estabelecimento.
+
+### 5. Caminho do observador
+
+- Exibe as experiências de cliente, gestão e planos em sequência.
+- Navegação fixa permite alternar entre as três áreas.
+- Mantém CTAs próprios em cada seção, sem forçar uma escolha antecipada.
+
+## Estratégia de precificação
+
+A precificação deve ficar em uma seção única e comparável, mas aparecer somente nos caminhos de **dono** e **observador**. Exibir preço B2B no caminho exclusivo do cliente criaria ruído.
+
+Modelo recomendado:
+
+1. **Profissional Solo** — preço fixo, agenda, clientes, serviços, lembretes e indicadores individuais.
+2. **Estabelecimento** — valor-base escalonado por faixas de profissionais, com gestão de equipe, agenda consolidada, permissões e indicadores.
+3. **Rede/Personalizado** — proposta para múltiplas unidades e necessidades avançadas.
+
+Complementos:
+
+- Alternância mensal/anual.
+- Comparação objetiva de recursos.
+- Simulador de retorno usando profissionais, agendamentos e faltas mensais.
+- CTA diferente por plano, sem esconder regras ou cobrar por funções essenciais de forma confusa.
+
+## Ordem sugerida da página
+
+1. Hero e proposta central.
+2. Segmentação do visitante.
+3. Experiência personalizada conforme a escolha.
+4. Estabelecimentos reais e simulação de agendamento.
+5. Demonstração das visões de dono e profissional.
+6. Diferenciais e prova social.
+7. Precificação para donos e observadores.
+8. Perguntas frequentes adaptadas ao perfil.
+9. CTA final contextual.
+
+## Métricas essenciais
+
+- Distribuição das escolhas do formulário.
+- Cliques em estabelecimentos e início do fluxo de agendamento.
+- Conversão do bloqueio de login/cadastro.
+- Interações com as telas demonstrativas.
+- Uso do simulador de retorno.
+- Cliques em plano e início do cadastro de estabelecimento.
+- Troca entre perfis no modo observador.
+
+## Backlog desta iniciativa
+
+### P0
+
+- Validar mensagens e opções da segmentação.
+- Selecionar estabelecimentos reais autorizados.
+- Definir ações demonstráveis e ponto exato de autenticação.
+- Fechar hipóteses de preço e faixas por número de profissionais.
+
+### P1
+
+- Criar wireframes responsivos.
+- Preparar conjunto coerente de dados mockados.
+- Definir eventos de analytics.
+- Preparar imagens, depoimentos e resultados reais.
+- Realizar testes rápidos com clientes e donos.
+
+### P2
+
+- Personalização por localização e segmento.
+- Testes A/B de mensagens e CTAs.
+- Calculadora avançada de retorno.
+- Tour guiado com progresso salvo.
+
+## Próximas tarefas
+
+1. Aprovar a arquitetura dos três caminhos.
+2. Definir conteúdo dos estabelecimentos em destaque.
+3. Validar o modelo comercial sugerido.
+4. Produzir wireframes das telas e estados principais.
+5. Implementar somente após aprovação do planejamento.
