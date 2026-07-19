@@ -1,36 +1,35 @@
 # PRD — CutSync
 
-## Estado atual — correção de deploy CI/CD (18/01/2026)
+## Estado atual — 3 problemas de deploy + bug de login (18/01/2026)
 
-### Problema original desta etapa
+### Problema #1: Vercel — "Invalid vercel.json file provided"
+- **Causa raiz**: `vercel.json` foi commitado com marcadores de merge Git não resolvidos (`<<<<<<< HEAD`, `=======`, `>>>>>>>`).
+- **Correção**: Marcadores removidos, JSON válido restaurado. Trocado `installCommand` de `npm ci` para `npm install --legacy-peer-deps --no-audit --no-fund --no-progress` para tolerar dessincronização eventual do lock file. **Já em produção**.
 
-> Erros no deploy Vercel ("Invalid vercel.json file provided"), no workflow "Install and Build" (`npm ci` — Missing from lock file) e no workflow "Supabase Schema Drift" ("Invalid project ref format").
+### Problema #2: GitHub Actions "Install and Build" — `npm ci` fail
+- **Causa raiz**: `package-lock.json` fora de sincronia com `package.json` (versão de `lucide-react-native` divergente).
+- **Correção**: Workflow atualizado — passo `Instalação` tenta `npm ci` primeiro e cai para `npm install --legacy-peer-deps` se o lock estiver fora de sincronia. `package-lock.json` regenerado local. **Já em produção**.
 
-### Diagnóstico
+### Problema #3: GitHub Actions "Supabase Schema Drift" — `Invalid project ref format`
+- **Causa raiz**: Script exige ref de 20 letras minúsculas, mas secret podia estar como URL completa.
+- **Correção**: `scripts/generate-supabase-types.sh` agora normaliza `SUPABASE_PROJECT_ID` (aceita URL completa `https://xxxx.supabase.co` ou ref direto), valida formato com mensagem clara de erro. **Já em produção**.
 
-O commit `4f75f5a` (merge de `d8da387` + `7148324`) foi enviado ao GitHub com **34+ marcadores de conflito Git NÃO resolvidos** espalhados por `vercel.json` e 15 arquivos TS/TSX (booking, auth, dashboards, screens, database types).
+### Problema #4: Bug crítico de login em produção — `TypeError: Failed to execute 'fetch' on 'Window': Invalid value`
+- **Sintoma**: Login mostra "Não foi possível entrar. Confira seus dados e tente novamente." com qualquer conta válida em `cut-sync.vercel.app`.
+- **Causa raiz**: A env var `EXPO_PUBLIC_SUPABASE_ANON_KEY` no Vercel foi salva com **3 cópias do anon key separadas por `\n`** (628 caracteres em vez de 208). Quando o supabase-js monta o header `Authorization: Bearer <valor>` ou `apikey: <valor>`, o browser rejeita porque headers HTTP não permitem newlines. Nenhuma request para Supabase saía do browser.
+- **Diagnóstico**: Confirmado via Playwright interceptando `fetch` — os headers vinham com `Bearer eyJ...uMs\neyJ...uMs\neyJ...uMs`.
+- **Correção aplicada (defesa preventiva)**: `src/services/supabase.ts` agora sanitiza `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` — remove whitespace/CR/LF/tabs; se detectar múltiplas cópias separadas por newline, mantém apenas a primeira. Isso torna o app resiliente a essa má configuração.
+- **Ação obrigatória do usuário**: No Vercel → Project Settings → Environment Variables, editar `EXPO_PUBLIC_SUPABASE_ANON_KEY` deixando **APENAS UMA CÓPIA** do anon key (sem quebras de linha):
+  ```
+  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4b2VuZm5zenJyZ2FxeHBsem1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NjA1MjIsImV4cCI6MjA5OTUzNjUyMn0.lIz_j07aPorngzmlcCs4syo4Y0nlwGlMBu0v6yJ7uMs
+  ```
+  Aplicar em Production + Preview + Development. Redeployar.
 
-### Correções aplicadas em /app
-
-1. **`vercel.json`** — Removidos marcadores `<<<<<<< HEAD` / `=======` / `>>>>>>>` que quebravam o JSON. Preservado `installCommand`, `buildCommand`, `outputDirectory` e `rewrites`.
-2. **Conflitos de merge em 15 arquivos** — Resolvidos preferindo o lado `7148324` (branch com CI/CD, autenticação de booking, RPCs transacionais), conforme escolha do usuário (opção C). Arquivos: `src/app/[slug]/booking.tsx`, `src/app/[slug]/index.tsx`, `src/contexts/AuthContext.tsx`, `src/types/database.ts`, `src/components/screens/*Experience.tsx`, migration transacional e alguns test_reports.
-3. **`package-lock.json`** — Regenerado com Node 22 (versão do `.nvmrc` e `engines`) em sincronia com `package.json`. `npm ci --legacy-peer-deps` agora funciona.
-4. **`scripts/generate-supabase-types.sh`** — Normaliza o `SUPABASE_PROJECT_ID` (aceita URL completa `https://xxxx.supabase.co` ou ref direto de 20 letras). Valida o formato antes de chamar o CLI, com mensagem de erro clara.
-
-### Validação local
-
-- `node -e "JSON.parse(require('fs').readFileSync('vercel.json'))"` — OK
-- `npm ci --legacy-peer-deps` — sem erros
-- `npm run build:web` — exportou `dist/` com sucesso
-- `npm run lint` — 2 erros pré-existentes em `useAppointments.ts` e `useTeam.ts` (React Compiler dep list), NÃO relacionados aos fixes de deploy. Vercel roda `build:web`, não `lint`, então não bloqueia.
-
-### Próximas ações do usuário
-
-1. **Save to Github** — enviar os fixes para o `origin/master`.
-2. **No Vercel** — redeployar (deve funcionar automaticamente após o push).
-3. **No GitHub Secrets** — confirmar `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID`. O script agora tolera tanto URL completa quanto ref puro.
-4. **P1:** Corrigir os 2 erros de lint em `useAppointments.ts:100` e `useTeam.ts:38` (dependency list — trocar por expressões simples).
+### Validação
+- Login testado diretamente contra o Supabase (curl) para as 3 contas — todos retornam `access_token` com sucesso ✅
+- RPC `get_my_profile` retorna perfil correto ✅
+- CORS Supabase → `cut-sync.vercel.app` funcionando ✅
+- Build web local `npm run build:web` — OK ✅
 
 ### Backlog anterior preservado
-
 Os PRDs históricos (migração Supabase, auditoria de segurança P0, tipagem, modularização, redesign visual) permanecem válidos e são retomados após este fix.
