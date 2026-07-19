@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Check, ChevronLeft, ChevronRight, Clock3, MessageSquare, Plus, RefreshCw, WalletCards, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, MessageSquare, Plus, RefreshCw, WalletCards, X } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { useAvailableSlots } from '../../hooks/useAvailableSlots';
+import { useNextAppointment } from '../../hooks/useNextAppointment';
 import { supabase } from '../../services/supabase';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
@@ -23,6 +24,7 @@ import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
 import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
 import { getTodayInTimeZone } from '../../utils/dateTime';
 import { translateAppointmentError } from '../../utils/appointmentErrors';
+import { NextAppointmentCard } from '../booking/NextAppointmentCard';
 
 type Tab = 'mine' | 'team';
 type QuickBookSource = 'header' | 'timeline';
@@ -88,20 +90,34 @@ export const BarberDashboardExperience = () => {
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [occupiedTimes, setOccupiedTimes] = useState<string[]>([]);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
-  const [nextAppointment, setNextAppointment] = useState<RichAppointment | null>(null);
-
   const selectedRange = useMemo(() => {
     const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
     const end = new Date(selectedDate); end.setHours(23, 59, 59, 999);
     return { start, end };
   }, [selectedDate]);
-  const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh } = useAppointments({
+  const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh: refreshAppointments } = useAppointments({
     establishmentId: profile?.establishment_id,
     dateFrom: selectedRange.start.toISOString(),
     dateTo: selectedRange.end.toISOString(),
     enabled: Boolean(profile?.establishment_id),
   });
-  const syncError = appointmentError ? new Error(appointmentError) : null;
+  const {
+    appointment: nextAppointment,
+    loading: nextAppointmentLoading,
+    error: nextAppointmentError,
+    refresh: refreshNextAppointment,
+  } = useNextAppointment({
+    establishmentId: profile?.establishment_id,
+    professionalId: profile?.id,
+    enabled: Boolean(profile?.establishment_id && profile?.id),
+  });
+  const refresh = async () => {
+    await Promise.all([refreshAppointments(), refreshNextAppointment()]);
+  };
+  const syncError = appointmentError || nextAppointmentError
+    ? new Error(appointmentError || nextAppointmentError || '')
+    : null;
+  const isDashboardSyncing = isSyncing || nextAppointmentLoading;
   const {
     availableSlots: quickAvailableSlots,
     loading: quickAvailabilityLoading,
@@ -152,30 +168,6 @@ export const BarberDashboardExperience = () => {
   }, [appointmentRecords, isSyncing]);
 
   useEffect(() => {
-    if (!profile?.id) return;
-    const loadNext = async () => {
-      const { data } = await supabase.from('appointments')
-        .select('*, client:profiles!appointments_client_id_fkey(name,phone), professional:profiles!appointments_barber_id_fkey(name), service:services!appointments_service_id_fkey(name,price)')
-        .eq('professional_id', profile.id).in('status', ['pending', 'confirmed'])
-        .gte('date_time', new Date().toISOString()).order('date_time').limit(1).maybeSingle();
-      if (!data) {
-        setNextAppointment(null);
-        return;
-      }
-      setNextAppointment({
-        id: data.id, professionalId: data.professional_id,
-        barberName: data.professional?.name || 'Profissional',
-        clientName: data.client?.name || data.client_name || 'Cliente sem cadastro',
-        clientPhone: data.client?.phone || '',
-        serviceName: data.service?.name || 'Serviço indisponível',
-        price: Number(data.service?.price || 0), dateTime: new Date(data.date_time),
-        status: data.status, cancellationReason: data.cancellation_reason || '',
-      });
-    };
-    void loadNext();
-  }, [profile, appointmentRecords]);
-
-  useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
       setOccupiedTimes([]);
       return;
@@ -206,26 +198,6 @@ export const BarberDashboardExperience = () => {
   const primaryColor = barbershop?.primaryColor || colors.brand;
   const primaryForeground = readableForeground(primaryColor);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const formatNextAppointmentValue = (date: Date) => {
-    const today = new Date();
-    const target = new Date(date);
-    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const targetZero = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-    const diffTime = targetZero.getTime() - todayZero.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    const timeStr = target.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (diffDays === 0) {
-      return `Hoje, ${timeStr}`;
-    } else if (diffDays === 1) {
-      return `Amanhã, ${timeStr}`;
-    } else {
-      const day = String(target.getDate()).padStart(2, '0');
-      const month = String(target.getMonth() + 1).padStart(2, '0');
-      return `${day}/${month}, ${timeStr}`;
-    }
-  };
-
-
   const timeSlots = useMemo(() => {
     const dayOfWeek = selectedDate.getDay();
     let schedule = defaultSchedule.find(s => s.day === dayOfWeek);
@@ -431,7 +403,7 @@ export const BarberDashboardExperience = () => {
         <View style={styles.pageHeader}>
           <SectionHeading testID="barber-dashboard-heading" eyebrow="Minha operação" title={`Olá, ${saudacaoProfissional}.`} description="Seu dia organizado para você manter o ritmo entre um cliente e outro." />
           <View style={styles.headerActions}>
-            <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao atualizar' : isSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
+            <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao atualizar' : isDashboardSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isDashboardSyncing ? 'warning' : 'success'} />
             <AppButton 
               label="Encaixe rápido" 
               testID="barber-quick-booking-button" 
@@ -453,15 +425,22 @@ export const BarberDashboardExperience = () => {
 
         {!!notice && <InlineNotice testID="barber-action-notice" tone={notice.tone} message={notice.message} />}
 
+        <NextAppointmentCard
+          appointment={nextAppointment}
+          loading={nextAppointmentLoading}
+          error={nextAppointmentError}
+          accentColor={primaryColor}
+          style={styles.nextAppointmentCard}
+        />
+
         <View style={[styles.metrics, !isWide && styles.metricsStack]}>
-          <Metric testID="barber-next-metric" icon={<Clock3 color={primaryColor} size={18} />} label="Próximo atendimento" value={nextAppointment ? formatNextAppointmentValue(nextAppointment.dateTime) : 'Agenda livre'} note={nextAppointment?.clientName || 'Nenhum cliente aguardando'} />
           <Metric testID="barber-completed-metric" icon={<Check color={colors.success} size={18} />} label="Concluídos" value={String(completed.length)} note={`${visibleAppointments.length} horários na agenda`} />
           <Metric testID="barber-commission-metric" icon={<WalletCards color={colors.info} size={18} />} label="Meu ganho no dia" value={currency(commission)} note={`${Math.round((profile?.commission_rate ?? 0.5) * 100)}% de comissão`} />
         </View>
 
         <View style={styles.agendaHeader}>
           <SectionHeading testID="barber-agenda-heading" eyebrow="Agenda" title="Ritmo do dia" description="Alterne entre seus horários e a visão de toda a equipe." />
-          <AppButton label="Atualizar" testID="barber-sync-button" variant="secondary" onPress={() => { void refresh(); }} loading={isSyncing} icon={<RefreshCw color={colors.text} size={15} />} style={styles.syncButton} />
+          <AppButton label="Atualizar" testID="barber-sync-button" variant="secondary" onPress={() => { void refresh(); }} loading={isDashboardSyncing} icon={<RefreshCw color={colors.text} size={15} />} style={styles.syncButton} />
         </View>
 
         <SegmentedControl<Tab> testID="barber-agenda-tabs" value={tab} activeColor={primaryColor} onChange={setTab} options={[{ value: 'mine', label: 'Minha agenda' }, { value: 'team', label: 'Agenda da equipe' }]} />
@@ -724,7 +703,8 @@ const styles = StyleSheet.create({
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 30, paddingBottom: 70 },
   pageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 18 },
   headerActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 9 },
-  metrics: { flexDirection: 'row', gap: 12, marginTop: 28 },
+  nextAppointmentCard: { marginTop: 28 },
+  metrics: { flexDirection: 'row', gap: 12, marginTop: 12 },
   metricsStack: { flexDirection: 'column' },
   metric: { flex: 1, minWidth: 190, borderWidth: 0.5, borderColor: '#E5E7EB66', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.025, shadowRadius: 22, elevation: 1 },
   metricTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -22,6 +22,7 @@ import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
+import { useNextAppointment } from '../../hooks/useNextAppointment';
 import { supabase } from '../../services/supabase';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
@@ -35,6 +36,7 @@ import { AdminQuickBook } from '../admin/AdminQuickBook';
 import { AdminReschedule } from '../admin/AdminReschedule';
 import { DashboardAppointment } from '../../types/dashboard';
 import { AppointmentRecord } from '../../types/database';
+import { GlobalNextAppointmentCard } from '../admin/GlobalNextAppointmentCard';
 
 type RichAppointment = DashboardAppointment;
 
@@ -126,11 +128,23 @@ export const AdminDashboardExperience = () => {
     dateTo: periodRange.end.toISOString(),
     enabled: Boolean(profile?.establishment_id),
   });
-  const isSyncing = dailyLoading || periodLoading;
-  const appointmentError = dailyError || periodError;
+  const {
+    appointment: nextAppointment,
+    loading: nextAppointmentLoading,
+    error: nextAppointmentError,
+    refresh: refreshNextAppointment,
+  } = useNextAppointment({
+    establishmentId: profile?.establishment_id,
+    enabled: Boolean(profile?.establishment_id),
+  });
+  const isSyncing = dailyLoading || periodLoading || nextAppointmentLoading;
+  const appointmentError = dailyError || periodError || nextAppointmentError;
   const syncError = appointmentError ? new Error(appointmentError) : null;
-  const refresh = async () => {
+  const refreshAgenda = async () => {
     await Promise.all([refreshDaily(), refreshPeriod()]);
+  };
+  const refresh = async () => {
+    await Promise.all([refreshAgenda(), refreshNextAppointment()]);
   };
 
   // Estados locais para Reagendamento
@@ -518,6 +532,13 @@ export const AdminDashboardExperience = () => {
         </View>
       </View>
 
+      <GlobalNextAppointmentCard
+        appointment={nextAppointment}
+        loading={nextAppointmentLoading}
+        error={nextAppointmentError}
+        style={styles.nextAppointmentCard}
+      />
+
       <View testID="admin-metrics-grid" style={[styles.metrics, !isTablet && styles.metricsMobile]}>
         {metrics.map(({ key, label, value, note, Icon, actionLabel, action }) => (
           <AppCard key={key} testID={`admin-metric-${key}`} style={styles.metricCard}>
@@ -741,7 +762,8 @@ export const AdminDashboardExperience = () => {
 const styles = StyleSheet.create({
   pageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 },
   headerActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
-  metrics: { flexDirection: 'row', gap: 14, marginTop: 30 },
+  nextAppointmentCard: { marginTop: 30 },
+  metrics: { flexDirection: 'row', gap: 14, marginTop: 14 },
   metricsMobile: { flexDirection: 'column' },
   metricCard: { flex: 1, minWidth: 190 },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
