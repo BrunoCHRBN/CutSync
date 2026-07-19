@@ -580,6 +580,67 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 - S1-03: disponibilidade centralizada do cliente e fuso do estabelecimento.
 - Modularização mais ampla da dashboard Admin permanece como melhoria de manutenção, sem bloquear a correção funcional entregue.
 
+## Implementação concluída — S1-03
+
+**Estado:** concluída no código-fonte em 19/07/2026.
+
+### Decisões aplicadas
+
+- Grade de horários em intervalos de 30 minutos.
+- Se estabelecimento e profissional possuem jornada, vale a interseção das duas.
+- Se somente um possui jornada, vale a jornada configurada.
+- Se nenhum possui jornada, nenhum slot é oferecido e a interface informa “Jornada não configurada”.
+- Um serviço pode terminar exatamente no fechamento.
+- Datas e horários são resolvidos pelo `timezone` do estabelecimento.
+
+### Backend implementado
+
+- Migration `20260719000000_centralized_availability.sql` cria a RPC pública `get_available_slots` e a função interna `compute_available_slots`.
+- A disponibilidade valida unidade, vínculo ativo, serviço ativo e personalização do serviço por profissional.
+- Duração personalizada prevalece sobre a duração global.
+- Slots passados, dias fechados, intervalos fora da jornada e sobreposições com `pending`/`confirmed` são bloqueados.
+- `create_appointment` e `reschedule_appointment` agora validam exatamente a mesma regra da disponibilidade antes de gravar.
+- Conflitos continuam protegidos pela exclusion constraint transacional.
+- Reagendamento ignora somente o próprio compromisso e somente após autorização do cliente, Admin ou profissional responsável.
+- Foram adicionados testes SQL para interseção de jornada, duração personalizada e disponibilidade.
+
+### Frontend implementado
+
+- Novo hook compartilhado `useAvailableSlots` consome `get_available_slots` nos dois fluxos de agendamento.
+- Listas fixas de horários e leituras diretas de agendamentos ocupados foram removidas.
+- O horário confirmado usa `starts_at` retornado pelo banco, eliminando conversão pelo fuso do dispositivo.
+- A seleção é invalidada quando serviço, profissional, data ou disponibilidade mudam.
+- O slot é revalidado imediatamente antes de criar ou reagendar.
+- Disponibilidade é atualizada automaticamente a cada 15 segundos enquanto a seleção está completa.
+- A interface diferencia carregamento, erro, jornada inválida, dia fechado, expediente encerrado, agenda lotada e ausência de horários.
+- Datas do calendário são formatadas localmente sem `toISOString().split('T')[0]`, evitando deslocamento de dia.
+- Tipos Supabase foram atualizados com o contrato da nova RPC.
+
+### Pipeline corrigido durante a validação
+
+- `package-lock.json` foi sincronizado com `package.json` e `lucide-react-native` 1.25.0.
+- Instalação de Vercel e CI passou a usar `npm ci` sem fallback inseguro.
+- Instalação limpa foi validada com sucesso.
+
+### Validação executada
+
+- ESLint direcionado: aprovado.
+- Export web Expo: aprovado.
+- Instalação limpa por lock file: aprovada.
+- Regressões S1-01, S1-02, S1-03, booking e pipeline: 37 testes aprovados.
+- Verificações estruturais e de autorização do SQL: aprovadas.
+- Aplicação web local: carregamento aprovado no estado seguro de configuração.
+
+### Limitações conhecidas
+
+- Os testes SQL foram criados, mas não puderam ser executados contra PostgreSQL neste container porque `psql` e Supabase CLI não estão disponíveis.
+- A versão externa observada pelo agente ainda servia o fluxo anterior e não chamou `get_available_slots`; portanto, a integração real da nova RPC ainda não foi validada nesse ambiente externo.
+- Modularização da tela pública de agendamento permanece como melhoria de manutenção e não bloqueia a funcionalidade implementada.
+
+### Próximo item
+
+- S1-04: corrigir encaixe rápido e preservar data/horário clicados no “Ritmo do dia”, consumindo a disponibilidade centralizada criada nesta etapa.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.

@@ -47,7 +47,7 @@ export function useAvailableSlots({
   const requestId = useRef(0);
   const localDate = date ? formatCalendarDate(date) : null;
 
-  const refresh = useCallback(async (): Promise<AvailableSlot[] | null> => {
+  const refresh = useCallback(async (appointmentIdOverride?: string | null): Promise<AvailableSlot[] | null> => {
     const currentRequest = ++requestId.current;
     if (!establishmentId || !professionalId || !serviceId || !localDate) {
       setSlots([]);
@@ -64,7 +64,7 @@ export function useAvailableSlots({
       target_professional_id: professionalId,
       target_service_id: serviceId,
       target_local_date: localDate,
-      target_appointment_id: appointmentId || null,
+      target_appointment_id: appointmentIdOverride ?? appointmentId ?? null,
     });
 
     if (queryError) {

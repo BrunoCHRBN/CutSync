@@ -66,6 +66,7 @@ def test_shared_hook_calls_new_rpc_and_exposes_distinct_states() -> None:
     assert "Nenhum horário disponível nesta data." in content
     assert "setInterval(() => { void refresh(); }, 15_000)" in content
     assert "if (currentRequest === requestId.current)" in content
+    assert "appointmentIdOverride ?? appointmentId ?? null" in content
 
 
 def test_both_booking_flows_use_shared_available_slots() -> None:
@@ -77,6 +78,8 @@ def test_both_booking_flows_use_shared_available_slots() -> None:
         assert "booking-availability-error" in content
         assert "booking-availability-empty" in content
         assert "get_public_busy_slots" not in content
+
+    assert "refreshAvailability(reschedule_id || null)" in _read(PUBLIC_BOOKING)
 
 
 def test_fixed_time_lists_and_direct_appointment_reads_are_removed() -> None:

@@ -23,13 +23,7 @@ jobs:
           cache: npm
 
       - name: Instalação de dependências
-        run: |
-          if npm ci --legacy-peer-deps 2>/dev/null; then
-            echo "npm ci concluído com o lock file existente."
-          else
-            echo "Lock file fora de sincronia; realizando 'npm install' para regenerar." >&2
-            npm install --legacy-peer-deps --no-audit --no-fund --no-progress
-          fi
+        run: npm ci
 
       - name: Verificar lint
         run: npm run lint

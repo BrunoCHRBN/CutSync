@@ -178,7 +178,7 @@ export default function BookingSlugScreen() {
     if (!selectedBarber || !selectedService || !selectedDate || !selectedTime || !barbershop) return;
     setBookingLoading(true);
     try {
-      const freshSlots = await refreshAvailability();
+      const freshSlots = await refreshAvailability(reschedule_id || null);
       if (!freshSlots) throw new Error('availability_check_failed');
       const confirmedSlot = freshSlots.find((slot) => slot.available && slot.localTime === selectedTime);
       if (!confirmedSlot) throw new Error('appointment_conflict');
