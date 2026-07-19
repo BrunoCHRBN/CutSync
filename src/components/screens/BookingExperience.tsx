@@ -182,17 +182,28 @@ export const BookingExperience = () => {
       const appointmentDate = new Date(selectedDate);
       const [hours, minutes] = selectedTime.split(':').map(Number);
       appointmentDate.setHours(hours, minutes, 0, 0);
-      const { data, error: insertError } = await supabase.from('appointments').insert({
-        establishment_id: barbershopId, client_id: user.id, client_name: profile?.name || 'Cliente',
-        professional_id: selectedBarber, service_id: selectedService,
-        date_time: appointmentDate.toISOString(), status: 'pending',
-      }).select('id').single();
-      if (insertError) throw insertError;
-      const appointmentId = data.id;
-      if (barbershop?.name) await scheduleAppointmentNotification(appointmentId, barbershop.name, appointmentDate);
+      const { data: appointmentId, error: rpcError } = await supabase.rpc('create_appointment', {
+        target_establishment_id: barbershopId,
+        target_professional_id: selectedBarber,
+        target_service_id: selectedService,
+        target_date_time: appointmentDate.toISOString(),
+        target_client_name: profile?.name ?? null,
+        target_client_id: user.id,
+      });
+      if (rpcError) throw rpcError;
+      if (barbershop?.name && appointmentId) {
+        await scheduleAppointmentNotification(appointmentId as string, barbershop.name, appointmentDate);
+      }
       router.replace('/(client)');
-    } catch {
-      setError('Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');
+    } catch (err) {
+      console.error('[BookingExperience] create_appointment falhou:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('appointment_conflict')) {
+        setSelectedTime(null);
+        setError('Esse horário acabou de ser reservado. Escolha outro horário.');
+      } else {
+        setError('Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');
+      }
     } finally {
       setBookingLoading(false);
     }
