@@ -1,91 +1,140 @@
 {
-  "theme_archetype": "ARCHETYPE 4: SWISS & HIGH-CONTRAST (Modified for CutSync)",
-  "design_philosophy": "Functional beauty. CutSync is a precision tool. The UI must reflect technical accuracy, sharp edges, and zero clutter. The password flow is treated as a secure, tactical operation.",
-  "typography": {
-    "headings": "Cabinet Grotesk or Outfit (Radical weight contrast: Black vs Light). DO NOT use Inter.",
-    "body": "IBM Plex Sans (Clean, sterile body text for maximum legibility).",
-    "inputs": "JetBrains Mono (Used exclusively for password and email inputs to signal technical accuracy and precise keystrokes).",
-    "hierarchy": {
-      "H1": "text-3xl sm:text-4xl font-black tracking-tight",
-      "H2": "text-2xl sm:text-3xl font-bold tracking-tight",
-      "Labels": "uppercase text-xs font-bold tracking-[0.2em] text-neutral-500",
-      "Body": "text-base font-light leading-relaxed"
+  "strategic_blueprint": {
+    "core_strategy": "Dual-funnel architecture. The landing page acts as a cinematic hook that quickly segments traffic into three distinct interactive paths: Client, Owner, and Observer. This eliminates friction and delivers highly relevant, conversion-focused content.",
+    "segmentation_flow": {
+      "trigger": "After a brief, high-impact emotional hero section ('Sua Beleza. Seu Negócio. Sincronizados.'), a cinematic full-screen glassmorphism overlay activates.",
+      "typeform_style_cards": [
+        {
+          "title": "Quero agendar um serviço",
+          "subtitle": "Para clientes",
+          "action": "Routes to the Client Experience interactive grid."
+        },
+        {
+          "title": "Quero gerenciar meu negócio",
+          "subtitle": "Para donos de estabelecimentos e profissionais",
+          "action": "Routes to the Owner Dashboard and ROI simulator."
+        },
+        {
+          "title": "Estou apenas observando",
+          "subtitle": "Explorar tudo",
+          "action": "Unlocks the full linear scroll, revealing both paths with a sticky side-nav to jump between sections."
+        }
+      ]
+    },
+    "client_experience_path": {
+      "concept": "Show, don't tell.",
+      "execution": "Display a Bento Grid of 'Featured Establishments'. When a user clicks one, an interactive split-screen or modal opens, simulating the actual CutSync mobile app experience.",
+      "conversion_hook": "Users can navigate the mocked service menu, choose a professional, and pick a time. The moment they click 'Confirmar Agendamento' (Confirm Booking), a polished Login/Signup gate interrupts: 'Para confirmar seu agendamento, faça parte do CutSync.' (To confirm your booking, join CutSync)."
+    },
+    "owner_experience_path": {
+      "concept": "Data as art and operational control.",
+      "execution": "An interactive, scroll-triggered dashboard mockup section. Data must be clearly marked as MOCKADOS. Includes a toggle to switch between 'Visão do Dono' (Owner - aggregate metrics, revenue, overall calendar) and 'Visão do Profissional' (Professional - individual agenda, commissions).",
+      "interaction": "Charts highlight on hover; mock notifications of 'New Booking' pop up dynamically to simulate an active system."
+    },
+    "pricing_strategy": {
+      "placement": "Keep pricing strictly isolated to the 'Owner' and 'Observer' paths. Showing B2B SaaS pricing to a B2C end-client causes confusion and friction.",
+      "recommendation": "Adopt a 2-Tier + Custom model: 'Profissional Solo' (Flat affordable rate) and 'Salão/Barbearia' (Scalable rate based on number of professionals). Include an interactive ROI Slider: 'Quantos agendamentos você perde por faltas mensais?' showing how CutSync pays for itself."
     }
+  },
+  "typography": {
+    "strategy": "Editorial Future (Premium SaaS)",
+    "headings": {
+      "font": "Cabinet Grotesk (or Plus Jakarta Sans)",
+      "weights": ["800", "900"],
+      "styling": "tracking-tight, leading-none, never centered for long text, aggressive contrast."
+    },
+    "body": {
+      "font": "Satoshi (or Inter if Satoshi unavailable, but Satoshi preferred)",
+      "weights": ["400", "500"],
+      "styling": "leading-relaxed, tracking-normal"
+    },
+    "hierarchy_rules": "H1 up to text-6xl. Massive size jumps between H1 and body text to create tension and artful balance."
   },
   "colors": {
-    "background": "#050505 (Deep Obsidian, Tinted Black. NEVER pure #000000)",
-    "surface": "#121212 (Elevated Card/Section)",
-    "border": "#262626 (1px stark stroke, precision grid look)",
-    "primary": "#007AFF (Volt Blue - Kinetic trigger for CTAs)",
-    "primary_hover": "#3B82F6 (Lighter hue for active states)",
-    "text_primary": "#FFFFFF (Pure White for high APCA contrast)",
-    "text_secondary": "#A3A3A3 (Neutral 400 for descriptions)",
-    "success": "#22C55E (Signal Green for password rules met)",
-    "error": "#EF4444 (Signal Red for mismatch/errors)",
-    "rules": [
-      "No full-screen gradients. Color is function only.",
-      "Hover states must explicitly set text color to maintain contrast.",
-      "Do NOT use transparent backgrounds for text-bearing surfaces."
-    ]
-  },
-  "visual_enhancers": {
-    "borders": "Grid Borders (Technical Look). 1px crisp borders on inputs and cards. No soft muddy shadows.",
-    "corners": "Max 4px border-radius for slightly softened brutalism. Inputs can have 0px radius (sharp) to feel more precise.",
-    "textures": "Subtle digital noise overlay (opacity 2-3%) on the main background to break flatness."
-  },
-  "components": {
-    "password_input": {
-      "style": "bg-transparent border-b-2 border-neutral-800 focus:border-primary px-0 py-3 rounded-none font-mono text-lg transition-colors",
-      "features": "Must include an inline eye icon (lucide-react) to toggle visibility. Use 'autocomplete=\"new-password\"' where appropriate.",
-      "interaction": "Focus states must be highly visible (e.g., border color shift to Volt Blue, ring-0 to avoid blurry shadows)."
+    "archetype": "ARCHETYPE 5: LUXURY (Premium, Depth, Mystery)",
+    "theme": "Dark Mode Default",
+    "backgrounds": {
+      "primary": "#050505",
+      "secondary": "#111111",
+      "glass": "rgba(20, 20, 20, 0.7)"
     },
-    "strength_checklist": {
-      "style": "grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 mt-6 p-6 border border-neutral-800 rounded-md bg-[#0A0A0A]",
-      "logic": "Real-time updates. Default state: gray text + circle icon. Success state: Signal Green text + checkmark icon. Shared component across Signup/Reset/Change.",
-      "rules": "Must include: 8+ characters, 1 uppercase, 1 number, 1 special symbol."
+    "accents": {
+      "primary": "#D4AF37",
+      "primary_hover": "#F3E5AB",
+      "interactive": "#FFFFFF"
     },
-    "buttons": {
-      "primary": "w-full bg-primary text-white font-bold tracking-wider py-4 hover:bg-primary_hover transition-colors rounded-sm flex justify-center items-center gap-2",
-      "secondary": "w-full bg-transparent text-neutral-400 hover:text-white transition-colors text-sm font-medium",
-      "disabled": "opacity-50 cursor-not-allowed bg-neutral-800 text-neutral-500"
-    },
-    "alerts_toasts": {
-      "style": "Use Sonner for toasts. Stark black cards with 1px border. Icon + minimal text.",
-      "usage": "Used for 'Email Sent' confirmation, Deep-link token expiration/error, and Password Change Success."
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A0A0A0",
+      "muted": "#555555"
     }
   },
+  "visual_enhancers": {
+    "surfaces": [
+      {
+        "name": "Crystal Glassmorphism",
+        "usage": "For the segmentation form overlay and client booking modals.",
+        "classes": "backdrop-blur-2xl bg-black/60 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      },
+      {
+        "name": "Tracing Beam Edge",
+        "usage": "For Owner Dashboard mockups to signify cutting-edge tech.",
+        "classes": "border border-white/5 relative overflow-hidden"
+      }
+    ],
+    "textures": "Subtle noise overlay globally to remove digital flatness."
+  },
   "layouts": {
-    "container": "Mobile-first layout constraint. All standalone auth screens (Login, Forgot Request, Reset) must be constrained to 'max-w-md mx-auto'. For desktop, center vertically/horizontally.",
-    "settings_integration": "For 'Change Password' in settings, embed the flow within the existing account settings grid layout. Use a dedicated 'Security' section.",
-    "spacing": "Generous spacing. Use 'gap-8' between form blocks. Padding inside auth cards should be 'p-8' or 'p-12'."
+    "hero": "Full viewport height (100vh) with dramatic typography and slow-zooming premium imagery. Heavy vignette overlay (bg-black/40).",
+    "bento_grid": "For featured establishments: grid-cols-1 md:grid-cols-12 gap-8. Mix col-span-8 and col-span-4 to create asymmetry.",
+    "dashboard_preview": "Dense, tech-focused grid (grid-cols-3) with tight gaps (gap-4) for the owner metrics."
   },
   "motion": {
-    "page_transitions": "Staggered vertical fade (Framer Motion). translateY from 10px to 0, opacity 0 to 1. Duration: 0.3s ease-out.",
-    "interaction": "Haptic-like active states on buttons (scale down to 0.98). Password checklist items animate color change smoothly.",
-    "status": "When all rules match, subtle flash or scale-up on the submit button to signal readiness."
+    "philosophy": "Momentum and weight.",
+    "hero": "Slow, cinematic scale-up of background image.",
+    "segmentation": "Staggered fade-up (Framer Motion) of the 3 choice cards.",
+    "booking_modal": "Slide up from bottom with scale-down of background page (iOS style app open)."
   },
   "accessibility": {
-    "forms": "Use 'aria-invalid', 'aria-describedby' for error states. Label everything.",
-    "checklist": "Real-time checklist MUST be read to screen readers using 'aria-live=\"polite\"' and 'role=\"status\"'.",
-    "contrast": "Text contrast must meet APCA minimums.",
-    "motion": "Respect 'prefers-reduced-motion'."
+    "contrast": "Ensure #D4AF37 against #050505 passes APCA standards.",
+    "testing": "All interactive buttons (Agendar, Gerenciar, Observar) MUST have data-testid attributes (e.g., data-testid='segment-client-btn')."
   },
   "media": {
-    "icons": "Use 'lucide-react' for UI icons (eye, eye-off, check, x, alert-circle, mail). Minimalist, clean strokes."
+    "image_urls": {
+      "hero_background": {
+        "url": "https://images.pexels.com/photos/18702143/pexels-photo-18702143.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Stylish leather chair in a contemporary barbershop, used for the main cinematic hero."
+      },
+      "establishment_1": {
+        "url": "https://images.pexels.com/photos/4969838/pexels-photo-4969838.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Cozy interior design of modern hairdressing studio."
+      },
+      "establishment_2": {
+        "url": "https://images.pexels.com/photos/14615063/pexels-photo-14615063.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Stylist blow-drying a woman's hair in a premium salon."
+      },
+      "establishment_3": {
+        "url": "https://images.pexels.com/photos/23349912/pexels-photo-23349912.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Hairdresser styling hair."
+      }
+    }
+  },
+  "3d_libraries": {
+    "recommendation": "Not explicitly required unless simulating a 3D salon space. Stick to Framer Motion for high-fidelity 2D UI interactions to keep performance high for booking flows."
   },
   "instructions_to_main_agent": {
-    "flow_1_request_reset": "Add 'Forgot password?' link on Login Screen (above or below password input). Link leads to Recovery Request Screen: Single email input. Submit triggers 'Email Sent' state.",
-    "flow_2_deep_link_reset": "Create 'Reset Password Screen' deep-linked via URL (e.g., /reset-password?token=...). Handle 'Invalid/Expired Token' error state gracefully. Show New Password and Confirm fields. Block submission until match and checklist are 100%.",
-    "flow_3_change_password": "In authenticated Account Settings, add 'Change Password' section. Requires 'Current Password', 'New Password', and 'Confirm New'. Uses the same shared checklist component.",
-    "shared_architecture": "Build ONE reusable '<PasswordStrengthChecklist />' and ONE '<PasswordInput />' component to be used across all 3 flows (Signup, Reset, Change).",
-    "testing": "All interactive and key informational elements MUST include a 'data-testid' attribute (e.g., 'data-testid=\"forgot-password-link\"', 'data-testid=\"password-checklist-item-length\"')."
+    "phase_1": "Implement the hero section with a 'Get Started' button that triggers the full-screen Typeform-style segmentation overlay.",
+    "phase_2": "Build the 3 path states: Client View (Bento grid of salons + booking modal), Owner View (Mock dashboard + Pricing), Observer View (Both stacked).",
+    "phase_3": "In the Client View booking modal, ensure the final 'Confirm' click triggers a login gate.",
+    "phase_4": "In the Owner View, create a toggle switch to alternate between Owner stats (revenue, total appointments) and Professional stats (individual agenda)."
   },
-  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
-    "You MUST NOT apply universal transition (transition: all). Add specific transition targets.",
-    "You MUST NOT center align the app container (.App { text-align: center; }). Preserve natural left alignment.",
-    "DO NOT use generic centralized layouts with AI slop gradients. Stick to the stark, technical Swiss Brutalism defined here.",
-    "Use 2-3x more spacing than usual. Cramped designs look cheap.",
-    "NEVER use placeholder text for missing logos or images. Do not use AI emojis (🤖🧠).",
-    "Only use Shadcn components as a base, heavily strip their default styles to match the crisp, border-heavy aesthetic."
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Do not apply `transition: all` globally.",
+    "Never center align long paragraphs of text.",
+    "Use 2-3x more padding than usual (e.g., p-12 or p-16 for main sections).",
+    "Ensure all interactive components have micro-animations (hover states).",
+    "Do not use generic blue colors; adhere strictly to the Luxury Dark theme provided.",
+    "DO NOT use complete transparent backgrounds for overlays; always use the specified Crystal Glassmorphism.",
+    "Include data-testid on every clickable element."
   ]
 }
