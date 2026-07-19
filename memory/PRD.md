@@ -641,6 +641,44 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 
 - S1-04: corrigir encaixe rápido e preservar data/horário clicados no “Ritmo do dia”, consumindo a disponibilidade centralizada criada nesta etapa.
 
+## Implementação concluída — S1-04
+
+**Estado:** concluída no código-fonte em 19/07/2026.
+
+### Alterações aplicadas
+
+- O encaixe rápido agora registra explicitamente a origem de abertura: cabeçalho ou timeline.
+- Abertura pelo cabeçalho inicia no dia atual do fuso do estabelecimento e seleciona o primeiro horário válido retornado pelo banco.
+- Abertura pela timeline preserva a data selecionada e o horário clicado; o efeito que sobrescrevia esses valores foi removido.
+- O modal profissional passou a consumir `useAvailableSlots`/`get_available_slots`, removendo a lista fixa e a leitura direta de horários ocupados desse fluxo.
+- Horários são enviados para `create_appointment` usando o `starts_at` retornado pela RPC, sem conversão pelo fuso do dispositivo.
+- A disponibilidade é revalidada imediatamente antes da confirmação para tratar concorrência.
+- Resultados antigos de disponibilidade não aparecem durante troca de serviço ou data; o hook vincula cada resultado à consulta que o originou.
+- O modal diferencia carregamento, erro, ausência de horários e slot clicado indisponível para o serviço selecionado.
+- Serviço inativo é bloqueado antes do envio e erros conhecidos da RPC possuem mensagens específicas.
+- Um bloqueio síncrono por referência, além do estado de carregamento, impede submissões duplicadas.
+- Após sucesso, o modal fecha, o formulário é limpo, o feedback é exibido e a agenda diária é atualizada.
+
+### Validação executada
+
+- ESLint direcionado aos quatro arquivos TypeScript alterados: aprovado.
+- Export web Expo: aprovado.
+- Regressões S1-01, S1-02, S1-03, S1-04 e booking: 36 testes aprovados.
+- Suíte completa do backend: 48 testes aprovados; 4 falhas preexistentes permanecem nos testes do validador de schema Supabase, fora do S1-04.
+- O bundle gerado contém `get_available_slots`, proteção contra resultados antigos, estados do modal e tradução de erros.
+- A RPC auxiliar `get_appointment_participant_names`, observada com 403 transitório pelo teste externo, foi chamada diretamente com a sessão profissional e respondeu 200.
+- O agente de testes confirmou criação real de encaixe e feedback de sucesso na versão pública.
+
+### Limitações conhecidas
+
+- A versão pública inspecionada ainda contém a implementação anterior do modal profissional: possui `get_available_slots` nos fluxos de cliente, mas não as assinaturas `quickBookSource` e `barber-quick-selected-time-unavailable` do S1-04. Por isso, a chamada de disponibilidade do novo encaixe não pôde ser observada nessa versão.
+- A checagem TypeScript global continua com erros preexistentes de tipos Supabase e módulos fora do S1-04; os arquivos alterados passaram no ESLint e no export web.
+- O ambiente local usa Node 20, enquanto o projeto exige Node 22; instalação e comandos foram executados sem alterar as versões declaradas.
+
+### Próximo item
+
+- S1-05: corrigir o card “Próximo atendimento” com uma fonte compartilhada, estados de carregamento/erro e atualização em tempo real.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.
