@@ -23,7 +23,6 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
 import { supabase } from '../../services/supabase';
-import { TablesUpdate } from '../../types/supabase.generated';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
@@ -94,7 +93,10 @@ export const AdminDashboardExperience = () => {
     return { start, end };
   }, [period, selectedDate]);
   const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh } = useAppointments({
-    establishmentId: profile?.establishment_id, start: periodRange.start, end: periodRange.end,
+    establishmentId: profile?.establishment_id,
+    dateFrom: periodRange.start.toISOString(),
+    dateTo: periodRange.end.toISOString(),
+    enabled: Boolean(profile?.establishment_id),
   });
   const syncError = appointmentError ? new Error(appointmentError) : null;
 

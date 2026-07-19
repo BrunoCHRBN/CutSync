@@ -16,7 +16,6 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
-import { TablesUpdate } from '../../types/supabase.generated';
 import { parseSchedule } from '../../utils/schedule';
 import { DashboardAppointment } from '../../types/dashboard';
 import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
@@ -93,7 +92,10 @@ export const BarberDashboardExperience = () => {
     return { start, end };
   }, [selectedDate]);
   const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh } = useAppointments({
-    establishmentId: profile?.establishment_id, start: selectedRange.start, end: selectedRange.end,
+    establishmentId: profile?.establishment_id,
+    dateFrom: selectedRange.start.toISOString(),
+    dateTo: selectedRange.end.toISOString(),
+    enabled: Boolean(profile?.establishment_id),
   });
   const syncError = appointmentError ? new Error(appointmentError) : null;
 

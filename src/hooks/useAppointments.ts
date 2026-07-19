@@ -45,10 +45,21 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const statusFilter = statuses?.join(',') ?? '';
 
   const fetch = useCallback(async () => {
     if (!enabled) { setAppointments([]); setLoading(false); return; }
     try {
+      if (dateFrom && Number.isNaN(Date.parse(dateFrom))) {
+        throw new Error('Intervalo inicial de agendamentos inválido.');
+      }
+      if (dateTo && Number.isNaN(Date.parse(dateTo))) {
+        throw new Error('Intervalo final de agendamentos inválido.');
+      }
+      if (dateFrom && dateTo && Date.parse(dateTo) < Date.parse(dateFrom)) {
+        throw new Error('O fim do intervalo não pode ser anterior ao início.');
+      }
+
       let query = supabase.from('appointments').select(`
         *,
         service:services(id,name,price,duration_minutes),
@@ -57,7 +68,10 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
       if (establishmentId) query = query.eq('establishment_id', establishmentId);
       if (professionalId) query = query.eq('professional_id', professionalId);
       if (clientId) query = query.eq('client_id', clientId);
-      if (statuses && statuses.length > 0) query = query.in('status', statuses);
+      const requestedStatuses = statusFilter
+        ? statusFilter.split(',') as AppointmentRecord['status'][]
+        : [];
+      if (requestedStatuses.length > 0) query = query.in('status', requestedStatuses);
       if (dateFrom) query = query.gte('date_time', dateFrom);
       if (dateTo) query = query.lte('date_time', dateTo);
       query = query.order(orderBy, { ascending });
@@ -97,7 +111,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [establishmentId, professionalId, clientId, JSON.stringify(statuses), dateFrom, dateTo, orderBy, ascending, enabled, includeClientContacts]);
+  }, [establishmentId, professionalId, clientId, statusFilter, dateFrom, dateTo, orderBy, ascending, enabled, includeClientContacts]);
 
   useEffect(() => {
     setLoading(true);
@@ -131,7 +145,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [fetch, enabled]);
+  }, [fetch, enabled, establishmentId, professionalId, clientId]);
 
   return { appointments, loading, error, refresh: fetch };
 }

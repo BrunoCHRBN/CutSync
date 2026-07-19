@@ -1,0 +1,63 @@
+{
+  "summary": "Validated S1-01 temporal contract across source code, targeted pytest regression, lint/build checks, and production UI integration. Source code for useAppointments/Admin/Professional is correct for dateFrom/dateTo, but live production requests still miss date_time gte/lte in dashboard fetches, indicating deployment/runtime mismatch for this scope.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin dashboard period filter (Hoje/Semana/Mês) -> useAppointments request",
+        "issue": "On production (https://cut-sync.vercel.app), captured appointments request used only establishment_id + order and did not include date_time gte/lte filters expected from dateFrom/dateTo; period toggles did not produce expected filtered appointments query.",
+        "affected_selectors": [
+          "text=Hoje",
+          "text=Semana",
+          "text=Mês"
+        ]
+      },
+      {
+        "flow": "S1-01 end-to-end verification against deployed app",
+        "issue": "Source files already use dateFrom/dateTo, but deployed behavior still reflects old temporal contract. Likely stale deployment artifact or environment serving an older bundle.",
+        "affected_selectors": [
+          "[data-testid=login-submit-button]"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_s1_01_useappointments_contract_regression.py",
+    "/app/backend/tests/test_booking_merge_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration_12.xml",
+    "/app/test_reports/pytest/pytest_results_iteration_12_s101.xml",
+    "/app/src/hooks/useAppointments.ts",
+    "/app/src/components/screens/AdminDashboardExperience.tsx",
+    "/app/src/components/screens/BarberDashboardExperience.tsx"
+  ],
+  "action_items": [
+    "Redeploy the latest commit containing S1-01 changes and re-validate production network requests for /rest/v1/appointments include date_time=gte and date_time=lte on Admin/Professional dashboards.",
+    "After redeploy, run an e2e check toggling Hoje/Semana/Mês and changing professional day to confirm realtime + interval-scoped refetches use active range.",
+    "Keep timezone centralization deferred to S1-03 as planned; only verify local-time ISO behavior in S1-01 retest."
+  ],
+  "critical_code_review_comments": [
+    "Code review confirms hook contract uses dateFrom/dateTo and validates invalid ISO/inverted intervals before querying.",
+    "Hook correctly avoids querying when enabled=false, and both dashboards pass enabled: Boolean(profile?.establishment_id), satisfying 'no establishment_id -> no query'.",
+    "Realtime callback reuses fetch closure, so interval filters should stay current when dependency values change; no code-level regression found in targeted files.",
+    "Requested lint/build passed only with --ignore-engines in this container because runtime Node is 20 while project engine requires Node 22; CI/deploy should keep Node 22.x."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_s1_01_useappointments_contract_regression.py",
+    "/app/test_reports/iteration_12.json"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 targeted pytest: 9 existing + 5 new)",
+    "frontend": "70% (login and dashboard access passed; S1-01 production interval filtering failed)"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use production URL and capture network requests to Supabase /rest/v1/appointments while toggling Admin period filters. Current deployed app still issues unbounded appointments fetch for dashboard despite source updates.",
+  "rca of the issue": "Reproduction: login as admin on production, open dashboard, toggle Hoje/Semana/Mês, inspect requests. Observed request: /rest/v1/appointments?...&establishment_id=eq...&order=date_time.asc (without date_time gte/lte). Source code in AdminDashboardExperience and useAppointments clearly sends dateFrom/dateTo -> gte/lte. Root cause is most likely deployment/runtime mismatch (older bundle served) rather than current repository code.",
+  "test_credentials": "Read from /app/memory/test_credentials.md and used admin/professional credentials during live production verification."
+}
