@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.cutsync.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.cutsync.app",
@@ -39,6 +42,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0dd9c679-1998-454e-9989-862d465b9ae3"
+      }
+    },
+    "owner": "chernobrunos-organization"
   }
 }
