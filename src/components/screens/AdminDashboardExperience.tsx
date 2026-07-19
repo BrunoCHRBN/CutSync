@@ -214,12 +214,18 @@ export const AdminDashboardExperience = () => {
         return;
       }
 
-      const payload: TablesUpdate<'appointments'> = { status };
-      if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'admin'; }
-      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+      const rpcParams: { target_appointment_id: string; new_status: string; new_cancellation_reason?: string } = {
+        target_appointment_id: id,
+        new_status: status,
+      };
+      if (status === 'cancelled') {
+        rpcParams.new_cancellation_reason = reason;
+      }
+      const { error } = await supabase.rpc('update_appointment_status', rpcParams);
       if (error) throw error;
       await refresh();
-    } catch {
+    } catch (err) {
+      console.error('[AdminDashboard] update_appointment_status falhou:', err);
       const msg = 'Não foi possível atualizar este atendimento.';
       if (Platform.OS === 'web') {
         window.alert(msg);
@@ -240,17 +246,24 @@ export const AdminDashboardExperience = () => {
       newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       const current = appointmentRecords.find((item) => item.id === rescheduleItem.id);
-      const { error } = await supabase.from('appointments').update({
-        original_date_time: current?.originalDateTime?.toISOString() || current?.dateTime.toISOString(),
-        date_time: newDate.toISOString(), reschedule_count: (current?.rescheduleCount || 0) + 1, status: 'confirmed',
-      }).eq('id', rescheduleItem.id);
+      if (!current) throw new Error('appointment_not_found');
+      const { error } = await supabase.rpc('reschedule_appointment', {
+        target_appointment_id: rescheduleItem.id,
+        requested_date_time: newDate.toISOString(),
+        requested_professional_id: current.professionalId,
+        requested_service_id: current.serviceId,
+      });
       if (error) throw error;
       setRescheduleItem(null);
       if (Platform.OS === 'web') window.alert('Atendimento reagendado com sucesso!');
       else Alert.alert('Sucesso', 'Atendimento reagendado com sucesso!');
       await refresh();
-    } catch {
-      const msg = 'Não foi possível reagendar este atendimento.';
+    } catch (err) {
+      console.error('[AdminDashboard] reschedule_appointment falhou:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      const msg = message.includes('appointment_conflict')
+        ? 'Esse horário conflita com outro atendimento. Escolha outro horário.'
+        : 'Não foi possível reagendar este atendimento.';
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Erro', msg);
     } finally {
@@ -293,10 +306,13 @@ export const AdminDashboardExperience = () => {
 
     setQuickLoading(true);
     try {
-      const { error } = await supabase.from('appointments').insert({
-        establishment_id: barbershop.id, professional_id: quickBarber,
-        client_name: quickName.trim(), service_id: quickService,
-        date_time: dateTime.toISOString(), status: 'confirmed',
+      const { error } = await supabase.rpc('create_appointment', {
+        target_establishment_id: barbershop.id,
+        target_professional_id: quickBarber,
+        target_service_id: quickService,
+        target_date_time: dateTime.toISOString(),
+        target_client_name: quickName.trim(),
+        target_client_id: null,
       });
       if (error) throw error;
       setQuickOpen(false); 
@@ -305,8 +321,12 @@ export const AdminDashboardExperience = () => {
       setQuickBarber(null); 
       setQuickTime(null);
       await refresh();
-    } catch {
-      const msg = 'Não foi possível criar o encaixe.';
+    } catch (err) {
+      console.error('[AdminDashboard] create_appointment falhou:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      const msg = message.includes('appointment_conflict')
+        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
+        : 'Não foi possível criar o encaixe.';
       if (Platform.OS === 'web') {
         window.alert(msg);
       } else {

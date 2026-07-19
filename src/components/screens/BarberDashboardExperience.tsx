@@ -332,14 +332,20 @@ export const BarberDashboardExperience = () => {
         return;
       }
 
-      const payload: TablesUpdate<'appointments'> = { status };
-      if (status === 'cancelled') { payload.cancellation_reason = reason; payload.cancelled_by_role = 'professional'; }
-      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+      const rpcParams: { target_appointment_id: string; new_status: string; new_cancellation_reason?: string } = {
+        target_appointment_id: id,
+        new_status: status,
+      };
+      if (status === 'cancelled') {
+        rpcParams.new_cancellation_reason = reason;
+      }
+      const { error } = await supabase.rpc('update_appointment_status', rpcParams);
       if (error) throw error;
       setCancelCandidateId(null);
       setNotice({ tone: 'success', message: 'Status do atendimento atualizado.' });
       await refresh();
-    } catch {
+    } catch (err) {
+      console.error('[BarberDashboard] update_appointment_status falhou:', err);
       setNotice({ tone: 'danger', message: 'Não foi possível atualizar este atendimento.' });
     } finally {
       setActionLoadingId(null);
@@ -355,16 +361,24 @@ export const BarberDashboardExperience = () => {
       newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
       const current = appointmentRecords.find((item) => item.id === rescheduleItem.id);
-      const { error } = await supabase.from('appointments').update({
-        original_date_time: current?.originalDateTime?.toISOString() || current?.dateTime.toISOString(),
-        date_time: newDate.toISOString(), reschedule_count: (current?.rescheduleCount || 0) + 1, status: 'confirmed',
-      }).eq('id', rescheduleItem.id);
+      if (!current) throw new Error('appointment_not_found');
+      const { error } = await supabase.rpc('reschedule_appointment', {
+        target_appointment_id: rescheduleItem.id,
+        requested_date_time: newDate.toISOString(),
+        requested_professional_id: current.professionalId,
+        requested_service_id: current.serviceId,
+      });
       if (error) throw error;
       setRescheduleItem(null);
       setNotice({ tone: 'success', message: 'Atendimento reagendado com sucesso!' });
       await refresh();
-    } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível reagendar este atendimento.' });
+    } catch (err) {
+      console.error('[BarberDashboard] reschedule_appointment falhou:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      const msg = message.includes('appointment_conflict')
+        ? 'Esse horário conflita com outro atendimento. Escolha outro horário.'
+        : 'Não foi possível reagendar este atendimento.';
+      setNotice({ tone: 'danger', message: msg });
     } finally {
       setRescheduleLoading(false);
     }
@@ -393,18 +407,26 @@ export const BarberDashboardExperience = () => {
 
     setQuickLoading(true);
     try {
-      const { error } = await supabase.from('appointments').insert({
-        establishment_id: profile.establishment_id, professional_id: profile.id,
-        client_name: quickName.trim(), service_id: quickService,
-        date_time: dateTime.toISOString(), status: 'confirmed',
+      const { error } = await supabase.rpc('create_appointment', {
+        target_establishment_id: profile.establishment_id,
+        target_professional_id: profile.id,
+        target_service_id: quickService,
+        target_date_time: dateTime.toISOString(),
+        target_client_name: quickName.trim(),
+        target_client_id: null,
       });
       if (error) throw error;
       setQuickOpen(false); setQuickName(''); setQuickService(null); setQuickTime(null);
       setNotice({ tone: 'success', message: 'Encaixe criado e reservado na sua agenda.' });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refresh();
-    } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível criar o encaixe.' });
+    } catch (err) {
+      console.error('[BarberDashboard] create_appointment falhou:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      const msg = message.includes('appointment_conflict')
+        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
+        : 'Não foi possível criar o encaixe.';
+      setNotice({ tone: 'danger', message: msg });
     } finally {
       setQuickLoading(false);
     }
