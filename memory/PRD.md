@@ -514,6 +514,37 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 - Nenhuma divergência conhecida entre disponibilidade exibida e criação transacional.
 - Documentação e tipos Supabase atualizados junto da migration.
 
+## Implementação concluída — S1-01
+
+**Estado:** concluída no código-fonte em 19/07/2026.
+
+### Alterações aplicadas
+
+- `AdminDashboardExperience.tsx` passou a enviar `dateFrom` e `dateTo` em ISO para o intervalo de hoje/semana/mês.
+- `BarberDashboardExperience.tsx` passou a enviar `dateFrom` e `dateTo` em ISO para o dia selecionado.
+- As duas dashboards desabilitam a consulta enquanto o estabelecimento ainda não está disponível.
+- `useAppointments.ts` agora valida data inicial, data final e intervalo invertido antes de consultar.
+- O filtro de status foi estabilizado para não usar expressão complexa na lista de dependências React.
+- O efeito Realtime acompanha explicitamente os identificadores usados no canal e reutiliza a consulta com o intervalo vigente.
+- Imports obsoletos nas duas dashboards foram removidos.
+
+### Validação executada
+
+- ESLint direcionado aos três arquivos alterados: aprovado sem erros ou avisos.
+- Export web Expo: aprovado.
+- Regressões existentes: 9 testes aprovados.
+- Nova suíte S1-01: 5 testes aprovados.
+- Total direcionado: 14 testes aprovados.
+- Aplicação web exportada carrega corretamente; sem variáveis Supabase locais, exibe o estado seguro de configuração esperado.
+
+### Limitações conhecidas fora da S1-01
+
+- A checagem TypeScript completa ainda possui erros preexistentes de tipos Supabase e outros módulos fora do escopo; o build web foi aprovado.
+- O ambiente de execução local usa Node 20, enquanto o projeto declara Node 22; validações foram executadas pelos binários instalados diretamente.
+- A versão externa verificada pelo agente de testes ainda servia um bundle anterior sem os filtros temporais. O código-fonte atual e as regressões confirmam a correção; a validação externa deve ser repetida quando essa versão estiver publicada.
+- Separação entre consulta diária e consulta analítica continua em S1-02.
+- Centralização de fuso por estabelecimento continua em S1-03, conforme decisão registrada.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.
