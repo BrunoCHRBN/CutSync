@@ -41,7 +41,7 @@ export function useEstablishment(identifier: string | null | undefined, by: 'id'
     const filterValue = by === 'id' ? identifier : undefined;
 
     const channel = supabase
-      .channel(`establishment-${identifier}`)
+      .channel(`establishment-${identifier}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         {

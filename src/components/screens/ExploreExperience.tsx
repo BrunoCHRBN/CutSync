@@ -29,7 +29,7 @@ export const ExploreExperience = () => {
       setLoading(false);
     };
     void refresh();
-    const channel = supabase.channel('explore-establishments')
+    const channel = supabase.channel(`explore-establishments-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'establishments' }, refresh)
       .subscribe();
     return () => { void supabase.removeChannel(channel); };

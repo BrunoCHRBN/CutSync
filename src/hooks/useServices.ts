@@ -42,7 +42,7 @@ export function useServices(establishmentId: string | null | undefined, activeOn
     if (!establishmentId) return;
 
     const channel = supabase
-      .channel(`services-${establishmentId}`)
+      .channel(`services-${establishmentId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         {

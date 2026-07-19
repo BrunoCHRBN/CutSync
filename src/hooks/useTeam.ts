@@ -44,7 +44,7 @@ export function useTeam(establishmentId?: string | null, rolesOrIncludeAdmin: Pr
     if (!establishmentId) return;
 
     const channel = supabase
-      .channel(`team-${establishmentId}`)
+      .channel(`team-${establishmentId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         {
