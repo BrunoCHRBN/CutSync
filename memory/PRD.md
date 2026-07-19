@@ -679,6 +679,46 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 
 - S1-05: corrigir o card “Próximo atendimento” com uma fonte compartilhada, estados de carregamento/erro e atualização em tempo real.
 
+## Implementação concluída — S1-05
+
+**Estado:** concluída no código-fonte em 19/07/2026.
+
+### Alterações aplicadas
+
+- Novo hook compartilhado `useNextAppointment` consulta somente atendimentos `pending` e `confirmed` com `date_time >= agora`, em ordem crescente e limitado ao primeiro registro.
+- A consulta do profissional filtra simultaneamente por estabelecimento e `professional_id`; a consulta do Admin retorna o próximo atendimento global da unidade.
+- Nomes de cliente e profissional são resolvidos pela RPC segura `get_appointment_participant_names`.
+- O dashboard profissional não possui mais a consulta paralela que ignorava erros.
+- Novo `NextAppointmentCard` substitui a métrica antiga do profissional e diferencia carregamento, erro, agenda livre e atendimento ativo.
+- Novo `GlobalNextAppointmentCard` foi adicionado ao Admin acima das métricas e permanece independente da agenda da data selecionada.
+- O card global do Admin mostra cliente, serviço, profissional, data, hora e status.
+- O hook possui canal Realtime próprio para inserção, atualização e exclusão de agendamentos.
+- Criar, cancelar, concluir e reagendar atualizam o próximo atendimento junto das consultas operacionais existentes.
+- Atualização manual das dashboards também inclui o próximo atendimento e seus estados no indicador de sincronização.
+- A troca de estabelecimento/profissional invalida imediatamente o resultado anterior e exibe carregamento até a nova consulta terminar.
+- As dependências do `useTeam` foram estabilizadas, removendo o erro de lint legado encontrado durante a validação.
+
+### Validação executada
+
+- ESLint direcionado aos arquivos S1-05 e `useTeam`: aprovado sem erros ou avisos.
+- Lint completo do projeto: aprovado sem erros; permanecem 16 avisos preexistentes fora do escopo.
+- Export web Expo: aprovado.
+- Regressões S1-01 a S1-05 e booking: 46 testes aprovados.
+- Nenhum erro TypeScript novo nos três módulos criados para S1-05.
+- Consultas equivalentes às do hook foram executadas com sessões reais de profissional e Admin: agendamentos e RPC de participantes responderam 200 para as duas roles.
+- O bundle gerado contém `useNextAppointment`, `next-appointment-card` e `global-next-appointment-card`.
+
+### Limitações conhecidas
+
+- A versão pública inspecionada ainda serve uma dashboard anterior, sem os identificadores e componentes do S1-05; por isso, os estados visuais novos não puderam ser verificados nessa versão.
+- O teste externo registrou respostas 403 durante a sincronização da dashboard, mas as consultas de agendamento futuro e `get_appointment_participant_names` foram repetidas diretamente com as duas sessões e responderam 200; nenhuma falha do fluxo S1-05 foi reproduzida no backend.
+- A suíte completa do backend mantém 4 falhas preexistentes nos testes do validador de schema Supabase, que usam referências deliberadamente inválidas incompatíveis com a validação atual dos scripts.
+- A checagem TypeScript global continua com erros preexistentes de contratos Supabase e módulos fora do S1-05.
+
+### Próximo item
+
+- S1-06: consolidar o feedback mínimo dos fluxos alterados, com mensagens consistentes para criação, conflito, disponibilidade e próximo atendimento.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.

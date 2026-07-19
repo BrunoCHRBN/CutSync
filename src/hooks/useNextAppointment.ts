@@ -27,14 +27,19 @@ export function useNextAppointment({
   const [appointment, setAppointment] = useState<AppointmentRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolvedQueryKey, setResolvedQueryKey] = useState<string | null>(null);
   const requestId = useRef(0);
   const channelInstanceId = useId().replace(/:/g, '');
+  const queryKey = establishmentId
+    ? `${establishmentId}:${professionalId || 'all'}`
+    : null;
 
   const refresh = useCallback(async () => {
     const currentRequest = ++requestId.current;
     if (!enabled || !establishmentId) {
       setAppointment(null);
       setError(null);
+      setResolvedQueryKey(null);
       setLoading(false);
       return;
     }
@@ -64,12 +69,13 @@ export function useNextAppointment({
         if (currentRequest === requestId.current) {
           setAppointment(null);
           setError(null);
+          setResolvedQueryKey(queryKey);
         }
         return;
       }
 
-      const callParticipantNames = supabase.rpc as unknown as ParticipantNamesRpc;
-      const { data: participantNames, error: participantError } = await callParticipantNames(
+      const typedSupabase = supabase as unknown as { rpc: ParticipantNamesRpc };
+      const { data: participantNames, error: participantError } = await typedSupabase.rpc(
         'get_appointment_participant_names',
         { target_appointment_ids: [data.id] },
       );
@@ -93,17 +99,19 @@ export function useNextAppointment({
       if (currentRequest === requestId.current) {
         setAppointment(mapped);
         setError(null);
+        setResolvedQueryKey(queryKey);
       }
     } catch (queryError) {
       console.error('[useNextAppointment] Falha ao consultar próximo atendimento:', queryError);
       if (currentRequest === requestId.current) {
         setAppointment(null);
         setError('Não foi possível consultar o próximo atendimento.');
+        setResolvedQueryKey(queryKey);
       }
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
-  }, [enabled, establishmentId, professionalId]);
+  }, [enabled, establishmentId, professionalId, queryKey]);
 
   useEffect(() => {
     void refresh();
@@ -127,5 +135,12 @@ export function useNextAppointment({
     };
   }, [channelInstanceId, enabled, establishmentId, professionalId, refresh]);
 
-  return { appointment, loading, error, refresh };
+  const hasCurrentResult = Boolean(queryKey && resolvedQueryKey === queryKey);
+
+  return {
+    appointment: hasCurrentResult ? appointment : null,
+    loading: loading || Boolean(queryKey && !hasCurrentResult),
+    error: hasCurrentResult ? error : null,
+    refresh,
+  };
 }

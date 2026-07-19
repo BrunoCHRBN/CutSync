@@ -54,6 +54,16 @@ def test_hook_has_realtime_refresh_and_request_race_protection() -> None:
     assert "void supabase.removeChannel(channel);" in content
 
 
+def test_switching_establishment_never_reuses_previous_result() -> None:
+    content = _read(HOOK)
+
+    assert "const queryKey = establishmentId" in content
+    assert "resolvedQueryKey === queryKey" in content
+    assert "appointment: hasCurrentResult ? appointment : null" in content
+    assert "Boolean(queryKey && !hasCurrentResult)" in content
+    assert "error: hasCurrentResult ? error : null" in content
+
+
 def test_shared_card_has_loading_error_free_and_active_states() -> None:
     content = _read(CARD)
 

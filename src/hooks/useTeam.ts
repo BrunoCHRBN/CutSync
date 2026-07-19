@@ -12,19 +12,24 @@ export function useTeam(establishmentId?: string | null, rolesOrIncludeAdmin: Pr
   const [team, setTeam] = useState<ProfileRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const includeAdministrators = Array.isArray(rolesOrIncludeAdmin)
+    ? rolesOrIncludeAdmin.includes('admin')
+    : rolesOrIncludeAdmin;
+  const requestedRolesKey = Array.isArray(rolesOrIncludeAdmin)
+    ? rolesOrIncludeAdmin.join(',')
+    : null;
 
   const fetch = useCallback(async () => {
     if (!establishmentId) { setTeam([]); setLoading(false); return; }
     try {
-      const includeAdministrators = Array.isArray(rolesOrIncludeAdmin)
-        ? rolesOrIncludeAdmin.includes('admin')
-        : rolesOrIncludeAdmin;
       const { data, error: err } = await supabase.rpc('get_establishment_team', {
         target_establishment_id: establishmentId,
         include_administrators: includeAdministrators,
       });
       if (err) throw err;
-      const requestedRoles = Array.isArray(rolesOrIncludeAdmin) ? rolesOrIncludeAdmin : null;
+      const requestedRoles = requestedRolesKey === null
+        ? null
+        : requestedRolesKey.split(',') as ProfileRecord['role'][];
       const mapped: ProfileRecord[] = (data ?? []).map(mapProfile)
         .filter((member: ProfileRecord) => !requestedRoles || requestedRoles.includes(member.role));
       setTeam(mapped);
@@ -35,7 +40,7 @@ export function useTeam(establishmentId?: string | null, rolesOrIncludeAdmin: Pr
     } finally {
       setLoading(false);
     }
-  }, [establishmentId, JSON.stringify(rolesOrIncludeAdmin)]);
+  }, [establishmentId, includeAdministrators, requestedRolesKey]);
 
   useEffect(() => {
     setLoading(true);
