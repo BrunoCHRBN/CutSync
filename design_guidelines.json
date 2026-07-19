@@ -1,140 +1,54 @@
 {
-  "strategic_blueprint": {
-    "core_strategy": "Dual-funnel architecture. The landing page acts as a cinematic hook that quickly segments traffic into three distinct interactive paths: Client, Owner, and Observer. This eliminates friction and delivers highly relevant, conversion-focused content.",
-    "segmentation_flow": {
-      "trigger": "After a brief, high-impact emotional hero section ('Sua Beleza. Seu Negócio. Sincronizados.'), a cinematic full-screen glassmorphism overlay activates.",
-      "typeform_style_cards": [
-        {
-          "title": "Quero agendar um serviço",
-          "subtitle": "Para clientes",
-          "action": "Routes to the Client Experience interactive grid."
-        },
-        {
-          "title": "Quero gerenciar meu negócio",
-          "subtitle": "Para donos de estabelecimentos e profissionais",
-          "action": "Routes to the Owner Dashboard and ROI simulator."
-        },
-        {
-          "title": "Estou apenas observando",
-          "subtitle": "Explorar tudo",
-          "action": "Unlocks the full linear scroll, revealing both paths with a sticky side-nav to jump between sections."
-        }
-      ]
-    },
-    "client_experience_path": {
-      "concept": "Show, don't tell.",
-      "execution": "Display a Bento Grid of 'Featured Establishments'. When a user clicks one, an interactive split-screen or modal opens, simulating the actual CutSync mobile app experience.",
-      "conversion_hook": "Users can navigate the mocked service menu, choose a professional, and pick a time. The moment they click 'Confirmar Agendamento' (Confirm Booking), a polished Login/Signup gate interrupts: 'Para confirmar seu agendamento, faça parte do CutSync.' (To confirm your booking, join CutSync)."
-    },
-    "owner_experience_path": {
-      "concept": "Data as art and operational control.",
-      "execution": "An interactive, scroll-triggered dashboard mockup section. Data must be clearly marked as MOCKADOS. Includes a toggle to switch between 'Visão do Dono' (Owner - aggregate metrics, revenue, overall calendar) and 'Visão do Profissional' (Professional - individual agenda, commissions).",
-      "interaction": "Charts highlight on hover; mock notifications of 'New Booking' pop up dynamically to simulate an active system."
-    },
-    "pricing_strategy": {
-      "placement": "Keep pricing strictly isolated to the 'Owner' and 'Observer' paths. Showing B2B SaaS pricing to a B2C end-client causes confusion and friction.",
-      "recommendation": "Adopt a 2-Tier + Custom model: 'Profissional Solo' (Flat affordable rate) and 'Salão/Barbearia' (Scalable rate based on number of professionals). Include an interactive ROI Slider: 'Quantos agendamentos você perde por faltas mensais?' showing how CutSync pays for itself."
-    }
-  },
   "typography": {
-    "strategy": "Editorial Future (Premium SaaS)",
-    "headings": {
-      "font": "Cabinet Grotesk (or Plus Jakarta Sans)",
-      "weights": ["800", "900"],
-      "styling": "tracking-tight, leading-none, never centered for long text, aggressive contrast."
-    },
-    "body": {
-      "font": "Satoshi (or Inter if Satoshi unavailable, but Satoshi preferred)",
-      "weights": ["400", "500"],
-      "styling": "leading-relaxed, tracking-normal"
-    },
-    "hierarchy_rules": "H1 up to text-6xl. Massive size jumps between H1 and body text to create tension and artful balance."
+    "headings": "Montserrat_700Bold",
+    "body": "Inter_400Regular",
+    "bodyStrong": "Inter_600SemiBold",
+    "hierarchy_rules": "Use large prominent text (text-xl to text-2xl) for the Next Appointment time to create a 'Next Best Action' focal point. Ensure high-contrast. Never default to generic sans for large focal numbers if a display font is available."
   },
   "colors": {
-    "archetype": "ARCHETYPE 5: LUXURY (Premium, Depth, Mystery)",
-    "theme": "Dark Mode Default",
-    "backgrounds": {
-      "primary": "#050505",
-      "secondary": "#111111",
-      "glass": "rgba(20, 20, 20, 0.7)"
+    "primary": "Use existing CutSync colors.brand (#F5A524) for the active accent on the Next Appointment Card.",
+    "background": "colors.surface (#FFFFFF) or colors.surfaceRaised (#F9FAFB) based on tokens.",
+    "states": {
+      "loading": "Use colors.canvasSoft or a skeleton pulse with colors.border",
+      "free": "colors.canvasSoft with colors.textMuted to indicate empty state. Vibe: approachable, calm.",
+      "error": "colors.dangerSoft for background, colors.danger for text"
     },
-    "accents": {
-      "primary": "#D4AF37",
-      "primary_hover": "#F3E5AB",
-      "interactive": "#FFFFFF"
-    },
-    "text": {
-      "primary": "#FFFFFF",
-      "secondary": "#A0A0A0",
-      "muted": "#555555"
-    }
+    "rules": "Avoid generic SaaS Blue. Apply the 'Tinted Grey' rule implicitly by using existing theme tokens."
   },
-  "visual_enhancers": {
-    "surfaces": [
-      {
-        "name": "Crystal Glassmorphism",
-        "usage": "For the segmentation form overlay and client booking modals.",
-        "classes": "backdrop-blur-2xl bg-black/60 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-      },
-      {
-        "name": "Tracing Beam Edge",
-        "usage": "For Owner Dashboard mockups to signify cutting-edge tech.",
-        "classes": "border border-white/5 relative overflow-hidden"
-      }
-    ],
-    "textures": "Subtle noise overlay globally to remove digital flatness."
+  "visual enhancers": {
+    "shadows": "Use atmosphericShadow and elevated shadow styles for the Next Appointment Card. Mix soft shadows with crisp inner borders.",
+    "borders": "1px hairline border (colors.hairline) with radii.lg for structural clarity.",
+    "empty_states": "Do not leave a blank space. If there is no appointment, show a clear 'Agenda Livre' state with a friendly icon. Empty spaces feel like a bug; make them feel intentional."
+  },
+  "component name": "NextAppointmentCard, GlobalNextAppointmentCard, useNextAppointment",
+  "grids": {
+    "layout_mode": "High Density Grid (For Dashboards / Analytics) modified for Mobile-First.",
+    "rules": "Grid items must be direct children. The Next Appointment Card spans full width at the top of the dashboard to serve as the 'Hero' widget."
   },
   "layouts": {
-    "hero": "Full viewport height (100vh) with dramatic typography and slow-zooming premium imagery. Heavy vignette overlay (bg-black/40).",
-    "bento_grid": "For featured establishments: grid-cols-1 md:grid-cols-12 gap-8. Mix col-span-8 and col-span-4 to create asymmetry.",
-    "dashboard_preview": "Dense, tech-focused grid (grid-cols-3) with tight gaps (gap-4) for the owner metrics."
+    "spacing": "Generous Spacing Philosophy. Use p-4 to p-6 (padding 16 to 24) inside the card. Ensure distinct visual separation between the Admin's Daily Panel and the Global Next Appointment Card (Admin).",
+    "alignment": "Optical alignment over geometrical alignment. Left-align text, but ensure icon spacing feels balanced. Asymmetry creates tension and interest."
   },
   "motion": {
-    "philosophy": "Momentum and weight.",
-    "hero": "Slow, cinematic scale-up of background image.",
-    "segmentation": "Staggered fade-up (Framer Motion) of the 3 choice cards.",
-    "booking_modal": "Slide up from bottom with scale-down of background page (iOS style app open)."
+    "transitions": "Add smooth opacity transitions when the Realtime update swaps the appointment data.",
+    "micro_interactions": "Subtle scale-down on press (if the card is actionable). Avoid default 'all' transitions.",
+    "accessibility": "Respect prefers-reduced-motion."
   },
   "accessibility": {
-    "contrast": "Ensure #D4AF37 against #050505 passes APCA standards.",
-    "testing": "All interactive buttons (Agendar, Gerenciar, Observar) MUST have data-testid attributes (e.g., data-testid='segment-client-btn')."
+    "contrast": "Ensure minimum 4.5:1 ratio. Text colors from tokens should be strictly used.",
+    "test_ids": "MUST include data-testid='next-appointment-card', data-testid='global-next-appointment-card', data-testid='next-appointment-time', data-testid='next-appointment-free', data-testid='next-appointment-error'"
   },
-  "media": {
-    "image_urls": {
-      "hero_background": {
-        "url": "https://images.pexels.com/photos/18702143/pexels-photo-18702143.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Stylish leather chair in a contemporary barbershop, used for the main cinematic hero."
-      },
-      "establishment_1": {
-        "url": "https://images.pexels.com/photos/4969838/pexels-photo-4969838.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Cozy interior design of modern hairdressing studio."
-      },
-      "establishment_2": {
-        "url": "https://images.pexels.com/photos/14615063/pexels-photo-14615063.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Stylist blow-drying a woman's hair in a premium salon."
-      },
-      "establishment_3": {
-        "url": "https://images.pexels.com/photos/23349912/pexels-photo-23349912.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Hairdresser styling hair."
-      }
-    }
-  },
-  "3d_libraries": {
-    "recommendation": "Not explicitly required unless simulating a 3D salon space. Stick to Framer Motion for high-fidelity 2D UI interactions to keep performance high for booking flows."
-  },
-  "instructions_to_main_agent": {
-    "phase_1": "Implement the hero section with a 'Get Started' button that triggers the full-screen Typeform-style segmentation overlay.",
-    "phase_2": "Build the 3 path states: Client View (Bento grid of salons + booking modal), Owner View (Mock dashboard + Pricing), Observer View (Both stacked).",
-    "phase_3": "In the Client View booking modal, ensure the final 'Confirm' click triggers a login gate.",
-    "phase_4": "In the Owner View, create a toggle switch to alternate between Owner stats (revenue, total appointments) and Professional stats (individual agenda)."
-  },
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Do not apply `transition: all` globally.",
-    "Never center align long paragraphs of text.",
-    "Use 2-3x more padding than usual (e.g., p-12 or p-16 for main sections).",
-    "Ensure all interactive components have micro-animations (hover states).",
-    "Do not use generic blue colors; adhere strictly to the Luxury Dark theme provided.",
-    "DO NOT use complete transparent backgrounds for overlays; always use the specified Crystal Glassmorphism.",
-    "Include data-testid on every clickable element."
-  ]
+  "media": "Not applicable for this specific feature.",
+  "3d libraries": "Not required.",
+  "image_urls": {},
+  "component_path": "/app/src/components/booking/NextAppointmentCard.js, /app/src/components/admin/GlobalNextAppointmentCard.js, /app/src/hooks/useNextAppointment.js",
+  "instructions_to_main_agent": [
+    "Create a shared hook `useNextAppointment.js` in `/app/src/hooks/` using Supabase Realtime to subscribe to 'appointments' table changes (INSERT, UPDATE, DELETE). This ensures updates are immediate after any action.",
+    "Implement `NextAppointmentCard.js` for the professional dashboard. It must show distinct states: Loading (skeleton/spinner), Free Schedule (Agenda livre), Error, and Active Appointment.",
+    "Implement `GlobalNextAppointmentCard.js` for the Admin dashboard. This must show the very next appointment across the entire unit, remaining completely independent from the admin daily panel.",
+    "Integrate the professional card into the Barber/Professional dashboard. Replace the existing static 'Próximo atendimento' metric with this new robust, real-time component.",
+    "Integrate the admin global card into the Admin dashboard.",
+    "Preserve the strict visual system of CutSync, utilizing AppCard, StatusBadge, and tokens."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "GENERAL UI UX DESIGN GUIDELINES: You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight. Create depth through layered design elements with z-index hierarchy. Every interaction needs micro-animations - hover states, transitions. Use 2-3x more spacing than feels comfortable. Subtle grain textures or custom cursors separate good from extraordinary. ALWAYS add data-testid attributes to interactive and informational elements to facilitate robust automated testing."
 }
