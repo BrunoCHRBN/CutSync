@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useId } from 'react';
 import { supabase } from '../services/supabase';
 import { AppointmentRecord, mapAppointment } from '../types/database';
 
@@ -45,6 +45,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelInstanceId = useId().replace(/:/g, '');
   const statusFilter = statuses?.join(',') ?? '';
 
   const fetch = useCallback(async () => {
@@ -128,7 +129,8 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
           ? `client_id=eq.${clientId}`
           : undefined;
 
-    const channelName = `appointments-${establishmentId || professionalId || clientId || 'all'}-${Date.now()}`;
+    const rangeKey = `${dateFrom ? Date.parse(dateFrom) : 'open'}-${dateTo ? Date.parse(dateTo) : 'open'}`;
+    const channelName = `appointments-${establishmentId || professionalId || clientId || 'all'}-${rangeKey}-${channelInstanceId}`;
 
     const channel = supabase
       .channel(channelName)
@@ -145,7 +147,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [fetch, enabled, establishmentId, professionalId, clientId]);
+  }, [fetch, enabled, establishmentId, professionalId, clientId, dateFrom, dateTo, channelInstanceId]);
 
   return { appointments, loading, error, refresh: fetch };
 }

@@ -1,0 +1,53 @@
+{
+  "summary": "Executed S1-02 validation across source regressions, build/lint gates, and production UI integration. Source-level S1-02 behavior is implemented and regression tests pass, but live production network calls still fetch appointments without date_time gte/lte filters, indicating deployed bundle/runtime mismatch.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin dashboard analytics/daily separation (today/week/month)",
+        "issue": "On production https://cut-sync.vercel.app, Supabase /rest/v1/appointments requests were captured without date_time gte/lte parameters, even after period toggles and manual refresh; expected S1-02 interval-scoped queries were not observed.",
+        "affected_selectors": [
+          "admin-performance-period-today",
+          "admin-performance-period-week",
+          "admin-performance-period-month",
+          "admin-sync-button"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_s1_01_useappointments_contract_regression.py",
+    "/app/backend/tests/test_s1_02_admin_analytics_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration_13.xml",
+    "/app/src/components/screens/AdminDashboardExperience.tsx",
+    "/app/src/hooks/useAppointments.ts"
+  ],
+  "action_items": [
+    "Redeploy the latest source commit for AdminDashboardExperience/useAppointments and revalidate production network traces for /rest/v1/appointments include date_time=gte and date_time=lte for daily + period queries.",
+    "After redeploy, rerun live admin flow: period toggles + sync button and confirm two independent range-bound query streams are active.",
+    "Keep Node runtime in CI/deploy at 22.x (package engines) to avoid tooling inconsistencies seen in this container."
+  ],
+  "critical_code_review_comments": [
+    "AdminDashboardExperience.tsx is 850+ lines and exceeds maintainability threshold; split into focused modules/hooks (metrics, calendar, appointment actions, performance panel).",
+    "Daily and period mapping logic to RichAppointment is duplicated; extract shared mapper to reduce drift risk.",
+    "Source implementation correctly separates dailyRange (selectedDate) and periodRange (period), and period toggles do not mutate selectedDate in observed UI behavior."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_13.json"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 targeted regressions passed)",
+    "frontend": "65% (core admin UI reachable and period/date behavior visible, but production query integration mismatch persists)"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Production still appears stale versus source. Use admin credentials, open dashboard, toggle Hoje/Semana/Mês, press Atualizar, and capture Supabase appointments requests to verify date_time gte/lte presence.",
+  "rca of the issue": "Reproduction: login admin on production, open dashboard, toggle analytics period, inspect /rest/v1/appointments requests. Observed requests contained establishment_id + order only, no date_time gte/lte. Source code and local regressions confirm dateFrom/dateTo logic exists, so most likely RCA is deployment/runtime mismatch (older web bundle served) rather than current repository code.",
+  "test_credentials": "Read from /app/memory/test_credentials.md and used admin account for production UI validation."
+}

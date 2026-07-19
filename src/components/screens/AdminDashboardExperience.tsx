@@ -77,28 +77,48 @@ export const AdminDashboardExperience = () => {
   // Filtro de Caixa do Painel de Desempenho e Faturamento
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
 
-  const periodRange = useMemo(() => {
+  const dailyRange = useMemo(() => {
     const start = new Date(selectedDate);
+    start.setHours(0, 0, 0, 0);
     const end = new Date(selectedDate);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }, [selectedDate]);
+
+  const periodRange = useMemo(() => {
+    const start = new Date();
+    const end = new Date();
     if (period === 'today') {
       start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999);
     } else if (period === 'week') {
       const day = start.getDay();
-      start.setDate(start.getDate() - day); start.setHours(0, 0, 0, 0);
-      end.setDate(end.getDate() + (6 - day)); end.setHours(23, 59, 59, 999);
+      const daysSinceMonday = day === 0 ? 6 : day - 1;
+      start.setDate(start.getDate() - daysSinceMonday); start.setHours(0, 0, 0, 0);
+      end.setTime(start.getTime()); end.setDate(end.getDate() + 6); end.setHours(23, 59, 59, 999);
     } else {
       start.setDate(1); start.setHours(0, 0, 0, 0);
       end.setMonth(end.getMonth() + 1); end.setDate(0); end.setHours(23, 59, 59, 999);
     }
     return { start, end };
-  }, [period, selectedDate]);
-  const { appointments: appointmentRecords, loading: isSyncing, error: appointmentError, refresh } = useAppointments({
+  }, [period]);
+  const { appointments: appointmentRecords, loading: dailyLoading, error: dailyError, refresh: refreshDaily } = useAppointments({
+    establishmentId: profile?.establishment_id,
+    dateFrom: dailyRange.start.toISOString(),
+    dateTo: dailyRange.end.toISOString(),
+    enabled: Boolean(profile?.establishment_id),
+  });
+  const { appointments: periodAppointmentRecords, loading: periodLoading, error: periodError, refresh: refreshPeriod } = useAppointments({
     establishmentId: profile?.establishment_id,
     dateFrom: periodRange.start.toISOString(),
     dateTo: periodRange.end.toISOString(),
     enabled: Boolean(profile?.establishment_id),
   });
+  const isSyncing = dailyLoading || periodLoading;
+  const appointmentError = dailyError || periodError;
   const syncError = appointmentError ? new Error(appointmentError) : null;
+  const refresh = async () => {
+    await Promise.all([refreshDaily(), refreshPeriod()]);
+  };
 
   // Estados locais para Reagendamento
   const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
@@ -141,8 +161,16 @@ export const AdminDashboardExperience = () => {
       price: item.service?.price || 0, professionalId: item.professionalId,
       cancellationReason: item.cancellationReason || '',
     })));
-    setLoading(isSyncing);
-  }, [appointmentRecords, isSyncing]);
+    setLoading(dailyLoading);
+  }, [appointmentRecords, dailyLoading]);
+
+  const periodAppointments = useMemo<RichAppointment[]>(() => periodAppointmentRecords.map((item) => ({
+    id: item.id, dateTime: item.dateTime, status: item.status,
+    clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
+    clientPhone: item.client?.phone || '', serviceName: item.service?.name || 'Serviço indisponível',
+    price: item.service?.price || 0, professionalId: item.professionalId,
+    cancellationReason: item.cancellationReason || '',
+  })), [periodAppointmentRecords]);
 
   useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
@@ -350,10 +378,11 @@ export const AdminDashboardExperience = () => {
   );
 
   // Cálculos do período selecionado (Hoje, Semana ou Mês) para métricas e repasses
-  const periodActive = appointments.filter((item) => item.status !== 'cancelled');
-  const periodCompleted = appointments.filter((item) => item.status === 'completed');
+  const periodActive = periodAppointments.filter((item) => item.status !== 'cancelled');
+  const periodCompleted = periodAppointments.filter((item) => item.status === 'completed');
   const revenue = periodCompleted.reduce((total, item) => total + item.price, 0);
-  const occupancy = Math.min(100, Math.round((periodActive.length / (Math.max(barbers.length, 1) * 12 * (period === 'today' ? 1 : period === 'week' ? 6 : 26))) * 100));
+  const periodDayCount = Math.round((periodRange.end.getTime() - periodRange.start.getTime()) / 86_400_000) + 1;
+  const occupancy = Math.min(100, Math.round((periodActive.length / (Math.max(barbers.length, 1) * 12 * periodDayCount)) * 100));
   
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const time = (value: Date) => value.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -643,17 +672,20 @@ export const AdminDashboardExperience = () => {
             {barbers.map((barber) => {
               const barberAppointments = periodCompleted.filter((item) => item.professionalId === barber.id);
               const gross = barberAppointments.reduce((total, item) => total + item.price, 0);
-              const rate = barber.commissionRate ?? 0.5;
+              const rate = barber.commissionRate ?? 0;
+              const commissionLabel = barber.commissionRate == null
+                ? 'Comissão não configurada'
+                : `${Math.round(rate * 100)}% comissão`;
               return (
                 <View key={barber.id} testID={`admin-team-performance-${barber.id}`} style={styles.teamRow}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                   <View style={styles.teamCopy}>
                     <Text style={styles.teamName}>{barber.name}</Text>
-                    <Text style={styles.teamMeta}>{barberAppointments.length} atend. · {Math.round(rate * 100)}% comissão</Text>
+                    <Text testID={`admin-team-performance-${barber.id}-summary`} style={styles.teamMeta}>{barberAppointments.length} atend. · {commissionLabel}</Text>
                   </View>
                   <View style={styles.teamValue}>
-                    <Text style={styles.teamGross}>{currency(gross)}</Text>
-                    <Text style={styles.teamCommission}>{currency(gross * rate)} repasse</Text>
+                    <Text testID={`admin-team-performance-${barber.id}-gross`} style={styles.teamGross}>{currency(gross)}</Text>
+                    <Text testID={`admin-team-performance-${barber.id}-commission`} style={styles.teamCommission}>{currency(gross * rate)} repasse</Text>
                   </View>
                 </View>
               );

@@ -39,7 +39,8 @@ def test_useappointments_realtime_refresh_keeps_current_fetch_context() -> None:
     assert ") => fetch()," in content
     assert "const channelName = `appointments-" in content
     assert "useEffect(() => {" in content
-    assert "}, [fetch, enabled, establishmentId, professionalId, clientId]);" in content
+    assert "channelInstanceId" in content
+    assert "}, [fetch, enabled, establishmentId, professionalId, clientId, dateFrom, dateTo, channelInstanceId]);" in content
 
 
 # Module: dashboard temporal contract callers
