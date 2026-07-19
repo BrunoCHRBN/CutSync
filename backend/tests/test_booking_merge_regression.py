@@ -93,15 +93,18 @@ def test_password_components_preserve_visibility_toggle_and_checklist_rules() ->
 def test_booking_uses_expected_rpcs() -> None:
     content = _read(BOOKING_FILE)
 
-    for rpc_name in ["create_appointment", "get_public_busy_slots", "reschedule_appointment"]:
+    for rpc_name in ["create_appointment", "reschedule_appointment"]:
         assert f"rpc('{rpc_name}'" in content
+
+    availability_hook = _read(Path("/app/src/hooks/useAvailableSlots.ts"))
+    assert "rpc('get_available_slots'" in availability_hook
 
 
 def test_generated_types_include_expected_rpc_signatures() -> None:
     content = _read(SUPABASE_TYPES_FILE)
 
     assert "create_appointment" in content
-    assert "get_public_busy_slots" in content
+    assert "get_available_slots" in content
     assert "reschedule_appointment" in content
 
 

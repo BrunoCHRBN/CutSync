@@ -26,8 +26,13 @@ VALUES
   ('71000000-0000-0000-0000-000000000001', 'booking-client@example.test', '{"name":"Cliente Booking"}'::jsonb, now(), now(), now()),
   ('71000000-0000-0000-0000-000000000002', 'booking-prof@example.test', '{"name":"Profissional Booking"}'::jsonb, now(), now(), now());
 
-INSERT INTO public.establishments (id, name, slug)
-VALUES ('72000000-0000-0000-0000-000000000001', 'Booking Tenant', 'booking-tenant');
+INSERT INTO public.establishments (id, name, slug, opening_hours)
+VALUES (
+  '72000000-0000-0000-0000-000000000001',
+  'Booking Tenant',
+  'booking-tenant',
+  '[{"day":0,"isOpen":true,"open":"00:00","close":"23:59"},{"day":1,"isOpen":true,"open":"00:00","close":"23:59"},{"day":2,"isOpen":true,"open":"00:00","close":"23:59"},{"day":3,"isOpen":true,"open":"00:00","close":"23:59"},{"day":4,"isOpen":true,"open":"00:00","close":"23:59"},{"day":5,"isOpen":true,"open":"00:00","close":"23:59"},{"day":6,"isOpen":true,"open":"00:00","close":"23:59"}]'
+);
 
 INSERT INTO public.memberships (profile_id, establishment_id, role, created_by)
 VALUES ('71000000-0000-0000-0000-000000000002', '72000000-0000-0000-0000-000000000001', 'professional', '71000000-0000-0000-0000-000000000002');
@@ -41,14 +46,14 @@ SELECT pg_temp.set_actor('71000000-0000-0000-0000-000000000001');
 SELECT public.create_appointment(
   '72000000-0000-0000-0000-000000000001',
   '71000000-0000-0000-0000-000000000002',
-  'booking-service', now() + interval '2 days', NULL, NULL
+  'booking-service', date_trunc('hour', now() + interval '2 days') + interval '1 hour', NULL, NULL
 );
 
 SELECT pg_temp.expect_error(
   $$SELECT public.create_appointment(
     '72000000-0000-0000-0000-000000000001',
     '71000000-0000-0000-0000-000000000002',
-    'booking-service', now() + interval '2 days 30 minutes', NULL, NULL
+    'booking-service', date_trunc('hour', now() + interval '2 days') + interval '1 hour 30 minutes', NULL, NULL
   )$$,
   'appointment_conflict'
 );

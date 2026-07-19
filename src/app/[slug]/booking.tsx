@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
+import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { getErrorMessage } from '../../utils/errors';
 import { supabase } from '../../services/supabase';
@@ -14,6 +15,7 @@ import { readableForeground } from '../../theme/color';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
+import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -47,7 +49,19 @@ export default function BookingSlugScreen() {
   
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
+  const {
+    availableSlots,
+    loading: availabilityLoading,
+    error: availabilityError,
+    emptyMessage,
+    refresh: refreshAvailability,
+  } = useAvailableSlots({
+    establishmentId: barbershop?.id,
+    professionalId: selectedBarber,
+    serviceId: selectedService,
+    date: selectedDate,
+    appointmentId: user ? reschedule_id : null,
+  });
 
   // Estados de Autenticação Atrito Zero (Modal)
   const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
@@ -85,46 +99,19 @@ export default function BookingSlugScreen() {
     return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
   };
 
-  // 1. Monitorar slots de tempo ocupados
   useEffect(() => {
-    if (!selectedBarber || !selectedDate) {
-      setBookedSegments([]);
-      return;
+    if (barbershop?.timezone) {
+      const today = getTodayInTimeZone(barbershop.timezone);
+      setSelectedDate(today);
+      setViewDate(today);
     }
+  }, [barbershop?.timezone]);
 
-    const fetchBookedSegments = async () => {
-      try {
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const { data: list, error } = await supabase.rpc('get_public_busy_slots', {
-          target_professional_id: selectedBarber,
-          range_start: startOfDay.toISOString(),
-          range_end: endOfDay.toISOString(),
-        });
-        if (error) throw error;
-        const segments = (list || []).map((slot) => {
-          const start = new Date(slot.date_time).getTime();
-          return { start, end: start + Number(slot.duration_minutes) * 60 * 1000 };
-        });
-
-        setBookedSegments(segments);
-      } catch (err) {
-        console.error('Erro ao buscar horários ocupados:', err);
-      }
-    };
-
-    fetchBookedSegments();
-  }, [selectedBarber, selectedDate, services, barberServices]);
-
-  const availableTimes = [
-    '08:00', '09:00', '10:00', '11:00', 
-    '13:00', '14:00', '15:00', '16:00', 
-    '17:00', '18:00', '19:00', '20:00'
-  ];
+  useEffect(() => {
+    if (selectedTime && !availabilityLoading && !availableSlots.some((slot) => slot.localTime === selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [availabilityLoading, availableSlots, selectedTime]);
 
   // Lógica de geração de dias do mês da grade
   const generateMonthGrid = (year: number, month: number) => {
@@ -147,9 +134,9 @@ export default function BookingSlugScreen() {
 
   const isDateSelectable = (date: Date | null) => {
     if (!date) return false;
-    const today = new Date();
+    const today = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
     today.setHours(0, 0, 0, 0);
-    const maxDate = new Date();
+    const maxDate = new Date(today);
     maxDate.setDate(maxDate.getDate() + 30);
     maxDate.setHours(23, 59, 59, 999);
     return date >= today && date <= maxDate;
@@ -175,7 +162,6 @@ export default function BookingSlugScreen() {
         professionalId: item.professional_id, serviceId: item.service_id,
         price: Number(item.price), durationMinutes: Number(item.duration_minutes), isActive: Boolean(item.is_active),
       })));
-      setSelectedDate((current) => current || new Date());
     };
     void fetchProfessionalServices();
   }, [barbershop?.id]);
@@ -192,9 +178,11 @@ export default function BookingSlugScreen() {
     if (!selectedBarber || !selectedService || !selectedDate || !selectedTime || !barbershop) return;
     setBookingLoading(true);
     try {
-      const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':');
-      appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      const freshSlots = await refreshAvailability();
+      if (!freshSlots) throw new Error('availability_check_failed');
+      const confirmedSlot = freshSlots.find((slot) => slot.available && slot.localTime === selectedTime);
+      if (!confirmedSlot) throw new Error('appointment_conflict');
+      const appointmentDate = new Date(confirmedSlot.startsAt);
 
       let targetAppointmentId = '';
       if (reschedule_id) {
@@ -229,9 +217,12 @@ export default function BookingSlugScreen() {
     } catch (error: unknown) {
       const message = getErrorMessage(error, '');
       const conflict = message.includes('appointment_conflict');
+      const outsideAvailability = message.includes('appointment_outside_availability');
       displayAlert('Erro', conflict
         ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
-        : 'Não foi possível salvar o agendamento.');
+        : outsideAvailability
+          ? 'Esse horário não está mais dentro da jornada disponível.'
+          : 'Não foi possível salvar o agendamento.');
     } finally {
       setBookingLoading(false);
     }
@@ -368,7 +359,9 @@ export default function BookingSlugScreen() {
     return isActive;
   });
 
-  const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
+  const isToday = (date: Date) => formatCalendarDate(date) === formatCalendarDate(
+    getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo'),
+  );
   const summaryReady = !!(selectedService && selectedBarber && selectedDate && selectedTime);
   const { price: summaryPrice } = getServicePriceAndDuration(selectedService, selectedBarber);
 
@@ -485,11 +478,11 @@ export default function BookingSlugScreen() {
             <View style={styles.calendarHeader}>
               <Text style={styles.sectionTitle}>Escolha o dia</Text>
               <View style={styles.monthSelector}>
-                <Pressable onPress={handlePrevMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
+                <Pressable testID="booking-previous-month-button" onPress={handlePrevMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
                   <ChevronLeft color={colors.textSecondary} size={16} strokeWidth={1.8} />
                 </Pressable>
                 <Text style={styles.monthLabel}>{formattedMonthYearLabel}</Text>
-                <Pressable onPress={handleNextMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
+                <Pressable testID="booking-next-month-button" onPress={handleNextMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
                   <ChevronRight color={colors.textSecondary} size={16} strokeWidth={1.8} />
                 </Pressable>
               </View>
@@ -514,8 +507,8 @@ export default function BookingSlugScreen() {
 
                   return (
                     <Pressable
-                      key={date.toISOString()}
-                      testID={`booking-day-${date.toISOString().split('T')[0]}`}
+                      key={formatCalendarDate(date)}
+                      testID={`booking-day-${formatCalendarDate(date)}`}
                       style={({ pressed }) => [styles.dayCell, pressed && selectable && styles.pressedScale]}
                       onPress={() => { if (selectable) { tapLight(); setSelectedDate(date); setSelectedTime(null); } }}
                       disabled={!selectable}
@@ -546,40 +539,30 @@ export default function BookingSlugScreen() {
               <Text style={styles.sectionEyebrow}>Etapa 04</Text>
               <Text style={styles.sectionTitle}>Escolha o horário</Text>
               <View style={styles.timeGrid}>
-                {availableTimes.map((time) => {
-                  const { duration: durationMinutes } = getServicePriceAndDuration(selectedService, selectedBarber);
-
-                  const slotDate = new Date(selectedDate);
-                  const [hours, minutes] = time.split(':');
-                  slotDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                  
-                  const slotStart = slotDate.getTime();
-                  const slotEnd = slotStart + durationMinutes * 60 * 1000;
-
-                  const isBooked = bookedSegments.some(
-                    (seg) => slotStart < seg.end && slotEnd > seg.start
-                  );
-                  const isSelected = selectedTime === time;
-
+                {availabilityLoading ? (
+                  <ActivityIndicator testID="booking-availability-loading" color={primaryColor} />
+                ) : availabilityError ? (
+                  <Text testID="booking-availability-error" style={styles.emptyText}>{availabilityError}</Text>
+                ) : availableSlots.length === 0 ? (
+                  <Text testID="booking-availability-empty" style={styles.emptyText}>{emptyMessage}</Text>
+                ) : availableSlots.map((slot) => {
+                  const isSelected = selectedTime === slot.localTime;
                   return (
                     <Pressable
-                      key={time}
-                      testID={`booking-time-${time.replace(':', '-')}`}
+                      key={slot.startsAt}
+                      testID={`booking-time-${slot.localTime.replace(':', '-')}`}
                       style={({ pressed }) => [
                         styles.timeCard,
                         isSelected && { backgroundColor: primaryColor, borderColor: primaryColor },
-                        isBooked && styles.timeCardDisabled,
-                        pressed && !isBooked && styles.pressedScale,
+                        pressed && styles.pressedScale,
                       ]}
-                      onPress={() => { if (!isBooked) { tapLight(); setSelectedTime(time); } }}
-                      disabled={isBooked}
+                      onPress={() => { tapLight(); setSelectedTime(slot.localTime); }}
                     >
-                      <Text style={[
+                      <Text testID={`booking-time-${slot.localTime.replace(':', '-')}-label`} style={[
                         styles.timeText,
                         isSelected && { color: primaryFg },
-                        isBooked && styles.timeTextDisabled
                       ]}>
-                        {time}
+                        {slot.localTime}
                       </Text>
                     </Pressable>
                   );

@@ -13,11 +13,12 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CalendarDays, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
+import { ArrowLeft, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
+import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { supabase } from '../../services/supabase';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { AppButton } from '../ui/AppButton';
@@ -27,10 +28,9 @@ import { ChoiceCard } from '../ui/ChoiceCard';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
 
 const toolsImage = 'https://images.unsplash.com/photo-1596362601603-b74f6ef166e4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxoYWlyY3V0JTIwdG9vbHMlMjBzY2lzc29ycyUyMGNsaXBwZXJ8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85';
-
-const availableTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 
 export const BookingExperience = () => {
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
@@ -45,7 +45,18 @@ export const BookingExperience = () => {
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [bookedSegments, setBookedSegments] = useState<{ start: number; end: number }[]>([]);
+  const {
+    availableSlots,
+    loading: availabilityLoading,
+    error: availabilityError,
+    emptyMessage,
+    refresh: refreshAvailability,
+  } = useAvailableSlots({
+    establishmentId: barbershopId,
+    professionalId: selectedBarber,
+    serviceId: selectedService,
+    date: selectedDate,
+  });
 
   const triggerHaptic = () => {
     if (Platform.OS !== 'web') {
@@ -72,7 +83,7 @@ export const BookingExperience = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [selectedService]);
+  }, [barberOpacity, barberTranslateY, selectedService]);
 
   useEffect(() => {
     Animated.parallel([
@@ -87,59 +98,33 @@ export const BookingExperience = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [selectedBarber]);
+  }, [dateTimeOpacity, dateTimeTranslateY, selectedBarber]);
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
   const [error, setError] = useState('');
 
   const dateOptions = useMemo(() => Array.from({ length: 14 }, (_, index) => {
-    const date = new Date();
+    const date = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
     date.setDate(date.getDate() + index);
     return date;
-  }), []);
-
-  useEffect(() => { if (barbershopId) setSelectedDate(new Date()); }, [barbershopId]);
+  }), [barbershop?.timezone]);
 
   useEffect(() => {
-    if (!selectedBarber || !selectedDate) {
-      setBookedSegments([]);
-      return;
+    if (barbershopId && barbershop?.timezone) {
+      setSelectedDate(getTodayInTimeZone(barbershop.timezone));
     }
-    const loadAvailability = async () => {
-      const start = new Date(selectedDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(selectedDate);
-      end.setHours(23, 59, 59, 999);
-      const { data, error: queryError } = await supabase.from('appointments')
-        .select('date_time, service:services!appointments_service_id_fkey(duration_minutes)')
-        .eq('professional_id', selectedBarber).neq('status', 'cancelled')
-        .gte('date_time', start.toISOString()).lte('date_time', end.toISOString());
-      if (queryError) throw queryError;
-      const segments = (data || []).map((appointment) => {
-        const duration = Number(appointment.service?.duration_minutes || 30);
-        const segmentStart = new Date(appointment.date_time).getTime();
-        return { start: segmentStart, end: segmentStart + duration * 60 * 1000 };
-      });
-      setBookedSegments(segments);
-    };
-    loadAvailability();
-  }, [selectedBarber, selectedDate]);
+  }, [barbershop?.timezone, barbershopId]);
+
+  useEffect(() => {
+    if (selectedTime && !availabilityLoading && !availableSlots.some((slot) => slot.localTime === selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [availabilityLoading, availableSlots, selectedTime]);
 
   const currentService = services.find((service) => service.id === selectedService);
   const currentBarber = barbers.find((barber) => barber.id === selectedBarber);
   const activeStep = !selectedService ? 1 : !selectedBarber ? 2 : !selectedDate || !selectedTime ? 3 : 4;
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
-
-  const isTimeUnavailable = (time: string) => {
-    if (!selectedDate) return true;
-    const slot = new Date(selectedDate);
-    const [hours, minutes] = time.split(':').map(Number);
-    slot.setHours(hours, minutes, 0, 0);
-    const start = slot.getTime();
-    const end = start + (currentService?.durationMinutes || 30) * 60 * 1000;
-    const isPast = start < Date.now();
-    return isPast || bookedSegments.some((segment) => start < segment.end && end > segment.start);
-  };
 
   const chooseService = (id: string) => {
     triggerHaptic();
@@ -167,11 +152,6 @@ export const BookingExperience = () => {
       setError('Complete serviço, profissional, data e horário antes de confirmar.');
       return;
     }
-    if (isTimeUnavailable(selectedTime)) {
-      setSelectedTime(null);
-      setError('Esse horário acabou de ficar indisponível. Escolha outro horário.');
-      return;
-    }
     if (!user) {
       setError('Sua sessão expirou. Entre novamente para concluir o agendamento.');
       return;
@@ -179,9 +159,11 @@ export const BookingExperience = () => {
 
     setBookingLoading(true);
     try {
-      const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      appointmentDate.setHours(hours, minutes, 0, 0);
+      const freshSlots = await refreshAvailability();
+      if (!freshSlots) throw new Error('availability_check_failed');
+      const confirmedSlot = freshSlots.find((slot) => slot.available && slot.localTime === selectedTime);
+      if (!confirmedSlot) throw new Error('appointment_conflict');
+      const appointmentDate = new Date(confirmedSlot.startsAt);
       const { data: appointmentId, error: rpcError } = await supabase.rpc('create_appointment', {
         target_establishment_id: barbershopId,
         target_professional_id: selectedBarber,
@@ -201,6 +183,11 @@ export const BookingExperience = () => {
       if (message.includes('appointment_conflict')) {
         setSelectedTime(null);
         setError('Esse horário acabou de ser reservado. Escolha outro horário.');
+      } else if (message.includes('appointment_outside_availability')) {
+        setSelectedTime(null);
+        setError('Esse horário não está mais dentro da jornada disponível. Escolha outro horário.');
+      } else if (message.includes('availability_check_failed')) {
+        setError('Não foi possível revalidar os horários. Tente novamente.');
       } else {
         setError('Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');
       }
@@ -293,7 +280,7 @@ export const BookingExperience = () => {
                 <Text style={styles.subsectionLabel}>Próximos 14 dias</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
                   {dateOptions.map((date) => {
-                    const id = date.toISOString().split('T')[0];
+                    const id = formatCalendarDate(date);
                     const selected = selectedDate?.toDateString() === date.toDateString();
                     return (
                       <Pressable
@@ -313,24 +300,27 @@ export const BookingExperience = () => {
 
                 <Text style={[styles.subsectionLabel, styles.timeLabel]}>Horários disponíveis</Text>
                 <View style={styles.timeGrid}>
-                  {availableTimes.map((time) => {
-                    const unavailable = !selectedBarber || isTimeUnavailable(time);
-                    const selected = selectedTime === time;
+                  {availabilityLoading ? (
+                    <ActivityIndicator testID="booking-availability-loading" color={colors.brand} />
+                  ) : availabilityError ? (
+                    <Text testID="booking-availability-error" style={styles.errorText}>{availabilityError}</Text>
+                  ) : availableSlots.length === 0 ? (
+                    <Text testID="booking-availability-empty" style={styles.emptyText}>{emptyMessage}</Text>
+                  ) : availableSlots.map((slot) => {
+                    const selected = selectedTime === slot.localTime;
                     return (
                       <Pressable
-                        key={time}
-                        testID={`booking-time-${time.replace(':', '-')}`}
-                        disabled={unavailable}
-                        onPress={() => { setSelectedTime(time); setError(''); }}
+                        key={slot.startsAt}
+                        testID={`booking-time-${slot.localTime.replace(':', '-')}`}
+                        onPress={() => { setSelectedTime(slot.localTime); setError(''); }}
                         style={({ pressed }) => [
                           styles.timeCard,
                           selected && styles.timeCardSelected,
-                          unavailable && styles.timeCardDisabled,
                           pressed && styles.pressed,
                         ]}
                       >
                         <Clock3 color={selected ? colors.ink : colors.textMuted} size={14} />
-                        <Text style={[styles.timeText, selected && styles.selectedInk]}>{time}</Text>
+                        <Text testID={`booking-time-${slot.localTime.replace(':', '-')}-label`} style={[styles.timeText, selected && styles.selectedInk]}>{slot.localTime}</Text>
                       </Pressable>
                     );
                   })}
