@@ -24,6 +24,7 @@ interface AuthContextData {
   session: Session | null;
   loading: boolean;
   isSuperadmin: boolean;
+  governanceRole: 'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner' | null;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -36,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [governanceRole, setGovernanceRole] = useState<'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner' | null>(null);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -59,7 +61,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('profile_id')
           .eq('profile_id', userId)
           .maybeSingle();
-        setIsSuperadmin(Boolean(superadminMarker));
+
+        const { data: govUser } = await supabase
+          .from('governance_users')
+          .select('role')
+          .eq('profile_id', userId)
+          .maybeSingle();
+
+        setGovernanceRole(govUser?.role ?? null);
+        setIsSuperadmin(Boolean(superadminMarker) || govUser?.role === 'SaaS_Owner');
 
         // Registrar Push Token assincronamente e atualizar se mudou
         registerForPushNotificationsAsync().then(async (token) => {
@@ -93,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
     setSession(null);
     setIsSuperadmin(false);
+    setGovernanceRole(null);
     setLoading(false);
   };
 
@@ -119,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setProfile(null);
         setIsSuperadmin(false);
+        setGovernanceRole(null);
         setLoading(false);
       }
     });
@@ -129,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, isSuperadmin, refreshProfile, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isSuperadmin, governanceRole, refreshProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

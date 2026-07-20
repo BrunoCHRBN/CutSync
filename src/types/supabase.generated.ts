@@ -34,9 +34,9 @@ export type Database = {
         Relationships: [];
       };
       establishments: {
-        Row: { address: string | null; banner_url: string | null; created_at: string; currency: string; description: string | null; gallery_urls: string | null; id: string; instagram: string | null; logo_url: string | null; name: string; opening_hours: string | null; phone: string | null; primary_color: string | null; share_agendas: boolean; slogan: string | null; slug: string; timezone: string; updated_at: string };
-        Insert: { address?: string | null; banner_url?: string | null; created_at?: string; currency?: string; description?: string | null; gallery_urls?: string | null; id?: string; instagram?: string | null; logo_url?: string | null; name: string; opening_hours?: string | null; phone?: string | null; primary_color?: string | null; share_agendas?: boolean; slogan?: string | null; slug: string; timezone?: string; updated_at?: string };
-        Update: { address?: string | null; banner_url?: string | null; created_at?: string; currency?: string; description?: string | null; gallery_urls?: string | null; id?: string; instagram?: string | null; logo_url?: string | null; name?: string; opening_hours?: string | null; phone?: string | null; primary_color?: string | null; share_agendas?: boolean; slogan?: string | null; slug?: string; timezone?: string; updated_at?: string };
+        Row: { address: string | null; banner_url: string | null; created_at: string; currency: string; description: string | null; gallery_urls: string | null; id: string; instagram: string | null; logo_url: string | null; name: string; opening_hours: string | null; phone: string | null; primary_color: string | null; share_agendas: boolean; slogan: string | null; slug: string; timezone: string; updated_at: string; document_number: string | null; document_type: 'CPF' | 'CNPJ' | null; verification_level: number; account_status: 'pending_verification' | 'active' | 'delinquent' | 'blocked'; whatsapp_verified: boolean; email_verified: boolean; kyc_status: 'unsubmitted' | 'pending' | 'approved' | 'rejected'; kyc_document_url: string | null };
+        Insert: { address?: string | null; banner_url?: string | null; created_at?: string; currency?: string; description?: string | null; gallery_urls?: string | null; id?: string; instagram?: string | null; logo_url?: string | null; name: string; opening_hours?: string | null; phone?: string | null; primary_color?: string | null; share_agendas?: boolean; slogan?: string | null; slug: string; timezone?: string; updated_at?: string; document_number?: string | null; document_type?: 'CPF' | 'CNPJ' | null; verification_level?: number; account_status?: 'pending_verification' | 'active' | 'delinquent' | 'blocked'; whatsapp_verified?: boolean; email_verified?: boolean; kyc_status?: 'unsubmitted' | 'pending' | 'approved' | 'rejected'; kyc_document_url?: string | null };
+        Update: { address?: string | null; banner_url?: string | null; created_at?: string; currency?: string; description?: string | null; gallery_urls?: string | null; id?: string; instagram?: string | null; logo_url?: string | null; name?: string; opening_hours?: string | null; phone?: string | null; primary_color?: string | null; share_agendas?: boolean; slogan?: string | null; slug?: string; timezone?: string; updated_at?: string; document_number?: string | null; document_type?: 'CPF' | 'CNPJ' | null; verification_level?: number; account_status?: 'pending_verification' | 'active' | 'delinquent' | 'blocked'; whatsapp_verified?: boolean; email_verified?: boolean; kyc_status?: 'unsubmitted' | 'pending' | 'approved' | 'rejected'; kyc_document_url?: string | null };
         Relationships: [];
       };
       invitations: {
@@ -64,9 +64,9 @@ export type Database = {
         Relationships: [];
       };
       profiles: {
-        Row: { avatar_url: string | null; commission_rate: number; created_at: string; deleted_at: string | null; email: string; establishment_id: string | null; id: string; instagram: string | null; name: string; phone: string | null; push_token: string | null; role: string; specialties: string | null; titulo_profissional: string | null; updated_at: string; work_hours: string | null };
-        Insert: { avatar_url?: string | null; commission_rate?: number; created_at?: string; deleted_at?: string | null; email: string; establishment_id?: string | null; id: string; instagram?: string | null; name: string; phone?: string | null; push_token?: string | null; role: string; specialties?: string | null; titulo_profissional?: string | null; updated_at?: string; work_hours?: string | null };
-        Update: { avatar_url?: string | null; commission_rate?: number; created_at?: string; deleted_at?: string | null; email?: string; establishment_id?: string | null; id?: string; instagram?: string | null; name?: string; phone?: string | null; push_token?: string | null; role?: string; specialties?: string | null; titulo_profissional?: string | null; updated_at?: string; work_hours?: string | null };
+        Row: { avatar_url: string | null; commission_rate: number; created_at: string; deleted_at: string | null; email: string; establishment_id: string | null; id: string; instagram: string | null; name: string; phone: string | null; push_token: string | null; role: string; specialties: string | null; titulo_profissional: string | null; updated_at: string; work_hours: string | null; lgpd_terms_accepted: boolean; lgpd_marketing_accepted: boolean; lgpd_accepted_at: string | null };
+        Insert: { avatar_url?: string | null; commission_rate?: number; created_at?: string; deleted_at?: string | null; email: string; establishment_id?: string | null; id: string; instagram?: string | null; name: string; phone?: string | null; push_token?: string | null; role: string; specialties?: string | null; titulo_profissional?: string | null; updated_at?: string; work_hours?: string | null; lgpd_terms_accepted?: boolean; lgpd_marketing_accepted?: boolean; lgpd_accepted_at?: string | null };
+        Update: { avatar_url?: string | null; commission_rate?: number; created_at?: string; deleted_at?: string | null; email?: string; establishment_id?: string | null; id?: string; instagram?: string | null; name?: string; phone?: string | null; push_token?: string | null; role?: string; specialties?: string | null; titulo_profissional?: string | null; updated_at?: string; work_hours?: string | null; lgpd_terms_accepted?: boolean; lgpd_marketing_accepted?: boolean; lgpd_accepted_at?: string | null };
         Relationships: [{ foreignKeyName: 'profiles_establishment_id_fkey'; columns: ['establishment_id']; isOneToOne: false; referencedRelation: 'establishments'; referencedColumns: ['id'] }];
       };
       services: {
@@ -79,6 +79,24 @@ export type Database = {
         Row: { granted_at: string; granted_by: string | null; profile_id: string };
         Insert: { granted_at?: string; granted_by?: string | null; profile_id: string };
         Update: { granted_at?: string; granted_by?: string | null; profile_id?: string };
+        Relationships: [];
+      };
+      governance_users: {
+        Row: { profile_id: string; role: 'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner'; granted_by: string | null; granted_at: string; updated_at: string };
+        Insert: { profile_id: string; role: 'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner'; granted_by?: string | null; granted_at?: string; updated_at?: string };
+        Update: { profile_id?: string; role?: 'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner'; granted_by?: string | null; granted_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      security_audit_logs: {
+        Row: { id: number; actor_id: string | null; action: string; target_id: string; target_type: string; changes: Json; client_ip: string; created_at: string };
+        Insert: { id?: never; actor_id?: string | null; action: string; target_id: string; target_type: string; changes?: Json; client_ip?: string; created_at?: string };
+        Update: { id?: never; actor_id?: string | null; action?: string; target_id?: string; target_type?: string; changes?: Json; client_ip?: string; created_at?: string };
+        Relationships: [];
+      };
+      establishment_invites: {
+        Row: { id: string; establishment_id: string; target_contact: string; role: 'admin' | 'professional'; token_hash: string; status: 'pending' | 'accepted' | 'revoked' | 'expired'; created_by: string; created_at: string; expires_at: string; accepted_by: string | null; accepted_at: string | null; revoked_at: string | null; lgpd_accepted: boolean };
+        Insert: { id?: string; establishment_id: string; target_contact: string; role: 'admin' | 'professional'; token_hash: string; status?: 'pending' | 'accepted' | 'revoked' | 'expired'; created_by: string; created_at?: string; expires_at: string; accepted_by?: string | null; accepted_at?: string | null; revoked_at?: string | null; lgpd_accepted?: boolean };
+        Update: { id?: string; establishment_id?: string; target_contact?: string; role?: 'admin' | 'professional'; token_hash?: string; status?: 'pending' | 'accepted' | 'revoked' | 'expired'; created_by?: string; created_at?: string; expires_at?: string; accepted_by?: string | null; accepted_at?: string | null; revoked_at?: string | null; lgpd_accepted?: boolean };
         Relationships: [];
       };
     };
@@ -104,6 +122,15 @@ export type Database = {
       reschedule_appointment: { Args: { requested_date_time: string; requested_professional_id: string; requested_service_id: string; target_appointment_id: string }; Returns: string };
       request_establishment: { Args: { requested_address?: string | null; requested_name: string; requested_phone?: string | null; requested_primary_color?: string; requested_slug: string }; Returns: string };
       switch_active_establishment: { Args: { target_establishment_id: string }; Returns: string };
+      is_governance_user: { Args: { allowed_roles?: ('SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner')[] | null }; Returns: boolean };
+      is_establishment_active: { Args: { target_establishment_id: string }; Returns: boolean };
+      anonymize_user_profile: { Args: { target_user_id: string }; Returns: undefined };
+      list_establishment_invites_v2: { Args: { target_establishment_id: string }; Returns: { id: string; target_contact: string; role: string; status: string; created_at: string; expires_at: string }[] };
+      create_establishment_invite_v2: { Args: { target_establishment_id: string; target_contact: string; target_role: string }; Returns: { expires_at: string; invitation_id: string; raw_token: string }[] };
+      inspect_invitation_v2: { Args: { invitation_token: string }; Returns: { establishment_name: string; expiration: string; invitation_status: string; invited_contact: string; invited_role: string }[] };
+      accept_invitation_v2: { Args: { invitation_token: string }; Returns: { accepted_establishment_id: string; accepted_role: string }[] };
+      create_establishment_and_promote_owner: { Args: { target_user_id: string; target_cnpj: string; requested_name: string; requested_slug: string; requested_address: string; requested_phone: string; requested_primary_color: string }; Returns: string };
+      create_establishment_cpf: { Args: { target_user_id: string; target_cpf: string; requested_name: string; requested_slug: string; requested_address: string; requested_phone: string; requested_primary_color: string }; Returns: string };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };

@@ -13,7 +13,8 @@ import '../i18n';
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNavigation() {
-  const { user, profile, loading, isSuperadmin } = useAuth();
+  const buildTarget = process.env.EXPO_PUBLIC_BUILD_TARGET;
+  const { user, profile, loading, isSuperadmin, governanceRole } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -30,6 +31,13 @@ function RootLayoutNavigation() {
     const isProfessionalProfileEditor = firstSegment === 'professional-profile';
     const isSecurity = firstSegment === 'security';
     const isPasswordReset = inAuthGroup && secondSegment === 'reset-password';
+    const isGovernance = firstSegment === 'governance';
+
+    // 1. Isolamento Absoluto em Produção (Redirecionamento/Bloqueio físico de rotas restritas)
+    if (buildTarget === 'production' && (isGovernance || firstSegment === 'superadmin')) {
+      router.replace('/(client)');
+      return;
+    }
 
     if (!user) {
       // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
@@ -38,7 +46,7 @@ function RootLayoutNavigation() {
       }
     } else if (profile) {
       if (isPasswordReset || isSecurity) return;
-      // Se estiver logado e perfil carregado, direciona para o respectivo fluxo
+      
       const inAdminGroup = firstSegment === '(admin)' || firstSegment === 'admin';
       const inClientGroup = 
         firstSegment === '(client)' || 
@@ -48,8 +56,21 @@ function RootLayoutNavigation() {
         isPublicSalon || isPublicProfessionalProfile || isProfessionalProfileEditor;
       const inProfessionalGroup = firstSegment === '(professional)' || firstSegment === 'professional';
       const inSuperadminGroup = firstSegment === 'superadmin';
+      const inGovernanceGroup = firstSegment === 'governance';
 
       if (isInvite) return;
+
+      // 2. Redirecionamento da Central de Governança
+      if (governanceRole && inAuthGroup) {
+        router.replace('/governance');
+        return;
+      }
+      if (inGovernanceGroup) {
+        if (!governanceRole) router.replace('/(client)');
+        return;
+      }
+
+      // 3. Superadmin legado
       if (isSuperadmin && inAuthGroup) {
         router.replace('/superadmin');
         return;
@@ -73,7 +94,7 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [user, profile, loading, isSuperadmin, segments, router]);
+  }, [user, profile, loading, isSuperadmin, governanceRole, segments, router]);
 
   if (loading) {
     return (
