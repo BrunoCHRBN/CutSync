@@ -36,6 +36,7 @@ DECLARE
   day_ends_at timestamptz;
   raw_minutes numeric;
   blocked_minutes numeric;
+  schedule_blocks_available boolean := false;
   total_minutes bigint := 0;
 BEGIN
   IF target_range_end < target_range_start OR target_range_end > target_range_start + 366 THEN
@@ -51,6 +52,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_timezone_names timezone_name WHERE timezone_name.name = target_timezone) THEN
     RAISE EXCEPTION 'invalid_establishment_timezone';
   END IF;
+  schedule_blocks_available := to_regclass('public.schedule_blocks') IS NOT NULL;
 
   BEGIN
     IF NULLIF(trim(establishment_hours_text), '') IS NOT NULL THEN
@@ -156,19 +158,25 @@ BEGIN
         day_ends_at := (current_local_date + effective_close) AT TIME ZONE target_timezone;
         raw_minutes := extract(epoch FROM (day_ends_at - day_starts_at)) / 60;
 
-        SELECT COALESCE(sum(
-          extract(epoch FROM (
-            LEAST(schedule_block.ends_at, day_ends_at)
-            - GREATEST(schedule_block.starts_at, day_starts_at)
-          )) / 60
-        ), 0)
-        INTO blocked_minutes
-        FROM public.schedule_blocks schedule_block
-        WHERE schedule_block.establishment_id = target_establishment_id
-          AND schedule_block.professional_id = professional_record.id
-          AND schedule_block.deleted_at IS NULL
-          AND schedule_block.starts_at < day_ends_at
-          AND schedule_block.ends_at > day_starts_at;
+        blocked_minutes := 0;
+        IF schedule_blocks_available THEN
+          EXECUTE $query$
+            SELECT COALESCE(sum(
+              extract(epoch FROM (
+                LEAST(schedule_block.ends_at, $3)
+                - GREATEST(schedule_block.starts_at, $4)
+              )) / 60
+            ), 0)
+            FROM public.schedule_blocks schedule_block
+            WHERE schedule_block.establishment_id = $1
+              AND schedule_block.professional_id = $2
+              AND schedule_block.deleted_at IS NULL
+              AND schedule_block.starts_at < $3
+              AND schedule_block.ends_at > $4
+          $query$
+          INTO blocked_minutes
+          USING target_establishment_id, professional_record.id, day_ends_at, day_starts_at;
+        END IF;
 
         total_minutes := total_minutes + GREATEST(round(raw_minutes - LEAST(blocked_minutes, raw_minutes)), 0)::bigint;
       END IF;

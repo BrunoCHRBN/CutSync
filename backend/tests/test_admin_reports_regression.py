@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 REPORT_SQL = ROOT / "supabase/migrations/20260720004000_admin_reports.sql"
 CATALOG_SQL = ROOT / "supabase/migrations/20260720004100_service_catalog_management.sql"
+REPORT_COMPAT_SQL = ROOT / "supabase/migrations/20260720004200_admin_reports_optional_schedule_blocks.sql"
 REPORT_SCREEN = ROOT / "src/components/screens/AdminReportsExperience.tsx"
 REPORT_HOOK = ROOT / "src/hooks/use-admin-report.ts"
 SERVICES_SCREEN = ROOT / "src/components/screens/ServicesExperience.tsx"
@@ -31,6 +32,15 @@ def test_occupancy_uses_minutes_journeys_and_blocks() -> None:
     assert "public.schedule_blocks" in sql
     assert "appointment.duration_minutes" in sql
     assert "12 *" not in sql
+
+
+def test_reports_tolerate_database_without_schedule_blocks_feature() -> None:
+    sql = REPORT_COMPAT_SQL.read_text(encoding="utf-8")
+
+    assert "to_regclass('public.schedule_blocks') IS NOT NULL" in sql
+    assert "IF schedule_blocks_available THEN" in sql
+    assert "EXECUTE $query$" in sql
+    assert "FROM public.schedule_blocks" in sql
 
 
 def test_report_contract_covers_growth_fronts() -> None:

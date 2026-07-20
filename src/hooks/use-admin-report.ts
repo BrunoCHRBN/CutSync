@@ -13,6 +13,7 @@ const reportErrorMessage = (message: string) => {
   if (message.includes('forbidden')) return 'Você não tem permissão para consultar os relatórios desta unidade.';
   if (message.includes('invalid_report_range')) return 'O período selecionado é inválido ou maior que um ano.';
   if (message.includes('invalid_schedule_configuration')) return 'Revise os horários da unidade ou da equipe para calcular a ocupação.';
+  if (message.includes('schedule_blocks') && message.includes('does not exist')) return 'A atualização de compatibilidade dos relatórios ainda não foi aplicada no banco.';
   if (message.includes('get_admin_report') && message.includes('schema cache')) return 'Os relatórios ainda não foram habilitados no banco de dados.';
   return 'Não foi possível carregar os relatórios agora.';
 };
