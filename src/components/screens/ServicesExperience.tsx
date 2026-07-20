@@ -190,19 +190,21 @@ export const ServicesExperience = () => {
           ) : (
             <View style={styles.serviceList}>
               {services.map((service, index) => (
-                <AppCard key={service.id} testID={`service-card-${service.id}`} style={[styles.serviceCard, !service.isActive && styles.serviceCardInactive]}>
-                  <View style={[styles.serviceIcon, !service.isActive && styles.serviceIconInactive]}><Scissors color={service.isActive ? colors.text : colors.textMuted} size={18} /></View>
-                  <View style={styles.serviceCopy}>
-                    <Text testID={`service-card-${service.id}-name`} style={styles.serviceName}>{service.name}</Text>
-                    <View style={styles.serviceMeta}>
-                      <Text style={styles.servicePrice}>{currency(service.price)}</Text>
-                      <Text style={styles.metaDivider}>·</Text>
-                      <Clock3 color={colors.textMuted} size={12} />
-                      <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
+                <AppCard key={service.id} testID={`service-card-${service.id}`} style={[styles.serviceCard, !isWide && styles.serviceCardMobile, !service.isActive && styles.serviceCardInactive]}>
+                  <View style={styles.serviceHeader}>
+                    <View style={[styles.serviceIcon, !service.isActive && styles.serviceIconInactive]}><Scissors color={service.isActive ? colors.text : colors.textMuted} size={18} /></View>
+                    <View style={styles.serviceCopy}>
+                      <Text testID={`service-card-${service.id}-name`} style={styles.serviceName}>{service.name}</Text>
+                      <View style={styles.serviceMeta}>
+                        <Text style={styles.servicePrice}>{currency(service.price)}</Text>
+                        <Text style={styles.metaDivider}>·</Text>
+                        <Clock3 color={colors.textMuted} size={12} />
+                        <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
+                      </View>
                     </View>
+                    <StatusBadge testID={`service-card-${service.id}-status`} label={service.isActive ? 'Ativo' : 'Pausado'} tone={service.isActive ? 'success' : 'neutral'} />
                   </View>
-                  <StatusBadge testID={`service-card-${service.id}-status`} label={service.isActive ? 'Ativo' : 'Pausado'} tone={service.isActive ? 'success' : 'neutral'} />
-                  <View style={styles.serviceActions}>
+                  <View style={[styles.serviceActions, !isWide && styles.serviceActionsMobile]}>
                     <Pressable testID={`service-card-${service.id}-edit-button`} accessibilityRole="button" accessibilityLabel={`Editar ${service.name}`} disabled={!!actionLoadingId} onPress={() => startEditing(service)} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><Pencil color={colors.textSecondary} size={16} /></Pressable>
                     <Pressable testID={`service-card-${service.id}-duplicate-button`} accessibilityRole="button" accessibilityLabel={`Duplicar ${service.name}`} disabled={!!actionLoadingId} onPress={() => { void duplicateService(service); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><Copy color={colors.textSecondary} size={16} /></Pressable>
                     <Pressable testID={`service-card-${service.id}-move-up-button`} accessibilityRole="button" accessibilityLabel={`Mover ${service.name} para cima`} disabled={!!actionLoadingId || index === 0} onPress={() => { void reorderService(service, 'up'); }} style={({ pressed }) => [styles.iconButton, index === 0 && styles.disabledAction, pressed && styles.pressed]}><ArrowUp color={colors.textSecondary} size={16} /></Pressable>
@@ -245,6 +247,8 @@ const styles = StyleSheet.create({
   loader: { margin: 50 },
   serviceList: { gap: 9 },
   serviceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15 },
+  serviceCardMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
+  serviceHeader: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
   serviceCardInactive: { opacity: 0.64 },
   serviceIcon: { width: 42, height: 42, borderRadius: radii.md, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   serviceIconInactive: { backgroundColor: colors.surfacePressed },
@@ -255,6 +259,7 @@ const styles = StyleSheet.create({
   metaDivider: { color: colors.textMuted },
   serviceDuration: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   serviceActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  serviceActionsMobile: { borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: 10, marginTop: 4, width: '100%' },
   iconButton: { width: 36, height: 36, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle },
   disabledAction: { opacity: 0.3 },
   toggleButton: { width: 38, height: 38, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
