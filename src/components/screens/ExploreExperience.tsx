@@ -16,6 +16,19 @@ import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 import { getOpeningStatus } from '../../utils/schedule';
 
+const ShopCardSkeleton = () => {
+  return (
+    <View style={styles.shopCard}>
+      <View style={[styles.visual, { backgroundColor: '#EBEBEB' }]} />
+      <View style={styles.shopBody}>
+        <View style={{ height: 16, backgroundColor: '#E5E5E5', borderRadius: 4, width: '60%' }} />
+        <View style={{ height: 12, backgroundColor: '#F0F0F0', borderRadius: 4, width: '85%', marginTop: 12 }} />
+        <View style={{ height: 12, backgroundColor: '#F0F0F0', borderRadius: 4, width: '45%', marginTop: 8 }} />
+      </View>
+    </View>
+  );
+};
+
 export const ExploreExperience = () => {
   const { width } = useWindowDimensions();
   const columns = width >= 1280 ? 3 : width >= layout.mobileBreakpoint ? 2 : 1;
@@ -69,7 +82,7 @@ export const ExploreExperience = () => {
   };
 
   return (
-    <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} isSyncing={loading} syncError={error} onSync={() => { void refresh(); }} onSignOut={signOut}>
+    <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
@@ -122,9 +135,13 @@ export const ExploreExperience = () => {
         />}
 
         {loading ? (
-          <ActivityIndicator testID="client-shops-loading" color={colors.accent} size="large" style={styles.loader} />
+          <View testID="client-shops-loading-skeleton" style={styles.grid}>
+            <View style={{ width: columns === 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%' }}><ShopCardSkeleton /></View>
+            <View style={{ width: columns === 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%' }}><ShopCardSkeleton /></View>
+            <View style={{ width: columns === 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%' }}><ShopCardSkeleton /></View>
+          </View>
         ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
-          <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Sincronize novamente para verificar novos parceiros.'} icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
+          <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Fique de olho, novos parceiros estarão disponíveis em breve!'} icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
         ) : (
           <View testID="client-shops-grid" style={styles.grid}>
             {filtered.map((shop) => {

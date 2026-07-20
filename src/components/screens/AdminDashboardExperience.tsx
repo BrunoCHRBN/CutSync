@@ -9,7 +9,6 @@ import {
   CircleAlert,
   Clock3,
   Plus,
-  RefreshCw,
   TrendingUp,
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -572,19 +571,6 @@ export const AdminDashboardExperience = () => {
         title={`Bom dia, ${profile?.name?.split(' ')[0] || 'gestor'}.`}
         description="Acompanhe o ritmo da unidade e mantenha a agenda no centro da operação."
         actions={<View style={styles.headerActions}>
-          <StatusBadge
-            testID="admin-sync-status"
-            label={syncError ? 'Falha ao atualizar' : isSyncing ? 'Atualizando' : 'Tempo real'}
-            tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'}
-          />
-          <AppButton
-            label={isSyncing ? 'Atualizando' : 'Atualizar'}
-            testID="admin-sync-button"
-            variant="secondary"
-            loading={isSyncing}
-            onPress={() => { void refresh(); }}
-            icon={!isSyncing ? <RefreshCw color={colors.text} size={16} /> : undefined}
-          />
           <AppButton
             label="+ Novo Agendamento"
             testID="admin-new-booking-button"
@@ -600,6 +586,15 @@ export const AdminDashboardExperience = () => {
           />
         </View>}
       />
+
+      <AppCard style={styles.statusInfoCard} testID="admin-status-updated-card">
+        <View style={styles.statusInfoRow}>
+          <Check color={colors.success} size={18} />
+          <Text style={styles.statusInfoText}>
+            Tudo atualizado por aqui, você está visualizando os dados mais recentes!
+          </Text>
+        </View>
+      </AppCard>
 
       <GlobalNextAppointmentCard
         appointment={nextAppointment}
@@ -965,5 +960,25 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyStrong,
     fontSize: 11,
     textTransform: 'uppercase',
+  },
+  statusInfoCard: {
+    padding: 12,
+    backgroundColor: colors.successSoft,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success,
+    borderRadius: radii.md,
+    marginBottom: 12,
+  },
+  statusInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  statusInfoText: {
+    color: colors.textSecondary,
+    fontFamily: typography.bodyStrong,
+    fontSize: 13,
+    flexShrink: 1,
   },
 });

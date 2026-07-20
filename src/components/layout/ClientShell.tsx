@@ -1,9 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CalendarDays, Compass, LogOut, RefreshCw, Settings2 } from 'lucide-react-native';
+import { CalendarDays, Compass, LogOut, Settings2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
-import { StatusBadge } from '../ui/StatusBadge';
 import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,24 +13,56 @@ interface ClientShellProps {
   children: ReactNode;
   activeRoute: ClientRoute;
   userName?: string;
-  isSyncing: boolean;
-  syncError: Error | null;
-  onSync: () => void;
   onSignOut: () => void;
   testID: string;
 }
 
 const navItems = [
-  { key: 'explore', label: 'Explorar', path: '/(client)', Icon: Compass },
-  { key: 'appointments', label: 'Agendamentos', path: '/(client)/appointments', Icon: CalendarDays },
-  { key: 'settings', label: 'Configurações', path: '/(client)/preferences', Icon: Settings2 },
+  { key: 'explore', label: 'Explorar', shortcut: '1', path: '/(client)', Icon: Compass },
+  { key: 'appointments', label: 'Agendamentos', shortcut: '2', path: '/(client)/appointments', Icon: CalendarDays },
+  { key: 'settings', label: 'Configurações', shortcut: '3', path: '/(client)/preferences', Icon: Settings2 },
 ] as const;
 
-export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncError, onSync, onSignOut, testID }: ClientShellProps) => {
+export const ClientShell = ({ children, activeRoute, userName, onSignOut, testID }: ClientShellProps) => {
   const { width } = useWindowDimensions();
   const isDesktop = width >= layout.mobileBreakpoint;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || Platform.OS !== 'web') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('[testID="client-search-input"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+        return;
+      }
+
+      if (isTyping) return;
+
+      if (e.key === '1') {
+        router.replace('/(client)');
+      } else if (e.key === '2') {
+        router.replace('/(client)/appointments');
+      } else if (e.key === '3') {
+        router.replace('/(client)/preferences');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
 
   return (
     <View testID={testID} style={styles.root}>
@@ -39,12 +70,14 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
         <BrandMark compact testID="client-shell-brand" />
         {isDesktop && (
           <View testID="client-desktop-navigation" style={styles.desktopNav}>
-            {navItems.map(({ key, label, path, Icon }) => {
+            {navItems.map(({ key, label, shortcut, path, Icon }) => {
               const active = activeRoute === key;
               return (
                 <Pressable key={key} testID={`client-nav-${key}`} accessibilityRole="tab" accessibilityState={{ selected: active }} aria-selected={active} onPress={() => { tapLight(); router.replace(path as never); }} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}>
                   <Icon color={active ? colors.ink : colors.textSecondary} size={15} strokeWidth={1.8} />
-                  <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
+                  <Text style={[styles.navLabel, active && styles.navLabelActive]}>
+                    {label} <Text style={active ? styles.shortcutHintActive : styles.shortcutHint}>[{shortcut}]</Text>
+                  </Text>
                 </Pressable>
               );
             })}
@@ -55,8 +88,6 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
           <Text style={styles.identityLabel}>Conta do cliente</Text>
           <Text testID="client-shell-user-name" numberOfLines={1} style={styles.identityName}>{userName || 'Cliente'}</Text>
         </View>}
-        {isDesktop && (syncError || isSyncing) && <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha ao atualizar' : 'Atualizando'} tone={syncError ? 'danger' : 'warning'} />}
-        <Pressable accessibilityLabel="Atualizar" testID="client-sync-button" disabled={isSyncing} onPress={() => { tapLight(); onSync(); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={18} strokeWidth={1.8} /></Pressable>
         <Pressable accessibilityLabel="Sair da conta" testID="client-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><LogOut color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
       </View>
 
@@ -97,6 +128,8 @@ const styles = StyleSheet.create({
   navItemActive: { backgroundColor: colors.accent },
   navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   navLabelActive: { color: colors.ink },
+  shortcutHint: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body },
+  shortcutHintActive: { color: colors.brandSecondary, fontSize: 11, fontFamily: typography.bodyStrong },
   headerSpacer: { flex: 1 },
   identity: { flex: 1, alignItems: 'flex-end', minWidth: 0 },
   identityLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },

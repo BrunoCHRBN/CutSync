@@ -2,10 +2,10 @@
   "common": {
     "welcome": "Hello,",
     "logout": "Logout",
-    "syncing": "Syncing data...",
-    "offline_active": "Offline-First Mode Active",
-    "sync_error": "Auto-sync error",
-    "sync_button": "Sync Now",
+    "syncing": "Updating data...",
+    "offline_active": "Data updated",
+    "sync_error": "Update failed",
+    "sync_button": "Update Now",
     "back": "Back",
     "save": "Save",
     "cancel": "Cancel",
@@ -57,13 +57,13 @@
     "date_subinfo": "(In a real production flow, we would load the professional's available schedule).",
     "button": "Confirm Booking",
     "error_select": "Please select a service and a professional.",
-    "success_message": "Booking registered offline! Syncing with server..."
+    "success_message": "Booking registered successfully!"
   },
   "admin": {
     "title": "Professional Panel",
     "manage_services": "Manage Services",
     "agenda_title": "Today's Agenda",
-    "no_appointments": "No appointments registered locally.",
+    "no_appointments": "No appointments registered.",
     "status_completed": "COMPLETED",
     "status_cancelled": "CANCELLED",
     "status_pending": "PENDING",

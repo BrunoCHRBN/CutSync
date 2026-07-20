@@ -2,10 +2,10 @@
   "common": {
     "welcome": "Olá,",
     "logout": "Sair",
-    "syncing": "Sincronizando dados...",
-    "offline_active": "Modo Offline-First Ativo",
-    "sync_error": "Erro no sync automático",
-    "sync_button": "Sincronizar",
+    "syncing": "Atualizando dados...",
+    "offline_active": "Dados atualizados",
+    "sync_error": "Falha na atualização",
+    "sync_button": "Atualizar",
     "back": "Voltar",
     "save": "Salvar",
     "cancel": "Cancelar",
@@ -57,13 +57,13 @@
     "date_subinfo": "(Em um fluxo de produção real, carregaríamos a grade de horários disponíveis livres do profissional).",
     "button": "Confirmar Agendamento",
     "error_select": "Selecione um serviço e um profissional.",
-    "success_message": "Agendamento registrado offline! Sincronizando com o servidor..."
+    "success_message": "Agendamento registrado com sucesso!"
   },
   "admin": {
     "title": "Painel do Profissional",
     "manage_services": "Gerenciar Serviços",
     "agenda_title": "Agenda de Hoje",
-    "no_appointments": "Sem agendamentos registrados localmente.",
+    "no_appointments": "Sem agendamentos registrados.",
     "status_completed": "CONCLUÍDO",
     "status_cancelled": "CANCELADO",
     "status_pending": "PENDENTE",

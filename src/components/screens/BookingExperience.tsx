@@ -212,7 +212,7 @@ export const BookingExperience = () => {
   if (isInactive) {
     return (
       <ScreenBackground testID="booking-inactive-screen" style={styles.center}>
-        <AppCard style={styles.inactiveCard} elevated>
+        <AppCard testID="booking-inactive-card" style={styles.inactiveCard} elevated>
           <Text style={styles.inactiveTitle}>Estabelecimento Indisponível</Text>
           <Text style={styles.inactiveDesc}>
             O estabelecimento {"\""}{barbershop?.name}{"\""} está temporariamente indisponível para agendamentos online.
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   selectedInk: { color: colors.ink },
   timeLabel: { marginTop: 4 },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  timeCard: { width: '23%', minWidth: 76, flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 43, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  timeCard: { width: '23%', minWidth: 76, flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 44, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   timeCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   timeCardDisabled: { opacity: 0.25 },
   timeText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },

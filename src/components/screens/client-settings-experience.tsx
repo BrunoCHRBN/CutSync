@@ -112,9 +112,6 @@ export const ClientSettingsExperience = () => {
       testID="client-settings-screen"
       activeRoute="settings"
       userName={profile?.name}
-      isSyncing={saving || refreshing}
-      syncError={null}
-      onSync={() => { void refresh(); }}
       onSignOut={signOut}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

@@ -222,9 +222,6 @@ export const OperationalCalendar = ({
         </Pressable>
         <View style={styles.dateCopy}>
           <Text style={styles.dateLabel}>{formatDate(date, timezone)}</Text>
-          <Text style={styles.syncLabel}>
-            {syncState === 'live' ? 'Sincronizado em tempo real' : syncState === 'syncing' ? 'Atualizando agenda' : 'Sem conexão em tempo real'}
-          </Text>
         </View>
         <Pressable
           accessibilityLabel="Próximo dia"
@@ -602,7 +599,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
   dateCopy: { minWidth: 180 },
   dateLabel: { ...typeScale.bodyStrong, color: colors.textPrimary, textTransform: 'capitalize' },
-  syncLabel: { ...typeScale.small, color: colors.textMuted },
   toolbarActions: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   segmentedWrap: { minWidth: 240 },
   singleViewLabel: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },

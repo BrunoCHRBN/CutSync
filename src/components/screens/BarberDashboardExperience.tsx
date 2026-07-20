@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Check, Plus, WalletCards } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,9 +11,9 @@ import { useNextAppointment } from '../../hooks/useNextAppointment';
 import { supabase } from '../../services/supabase';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
+import { AppCard } from '../ui/AppCard';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
-import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { parseSchedule } from '../../utils/schedule';
 import { DashboardAppointment } from '../../types/dashboard';
@@ -451,14 +451,6 @@ export const BarberDashboardExperience = () => {
           title={`Olá, ${saudacaoProfissional}.`}
           description="Seu dia organizado para manter o ritmo entre um cliente e outro."
           actions={<View style={styles.headerActions}>
-            <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao atualizar' : isDashboardSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isDashboardSyncing ? 'warning' : 'success'} />
-            <AppButton
-              label="Atualizar"
-              testID="barber-sync-button"
-              onPress={() => { void refreshAppointments(); }}
-              variant="secondary"
-              loading={isDashboardSyncing}
-            />
             <AppButton 
               label="Encaixe rápido" 
               testID="barber-quick-booking-button" 
@@ -477,6 +469,15 @@ export const BarberDashboardExperience = () => {
             />
           </View>}
         />
+
+        <AppCard style={styles.statusInfoCard} testID="barber-status-updated-card">
+          <View style={styles.statusInfoRow}>
+            <Check color={colors.success} size={18} />
+            <Text style={styles.statusInfoText}>
+              Tudo atualizado por aqui, você está visualizando os dados mais recentes!
+            </Text>
+          </View>
+        </AppCard>
 
         {!!notice && <InlineNotice testID="barber-action-notice" tone={notice.tone} message={notice.message} />}
 
@@ -770,4 +771,24 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   historyRow: { flexDirection: 'row', gap: 14, paddingVertical: 17, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: '#F1F1F2' },
+  statusInfoCard: {
+    padding: 12,
+    backgroundColor: colors.successSoft,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success,
+    borderRadius: radii.md,
+    marginBottom: 12,
+  },
+  statusInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  statusInfoText: {
+    color: colors.textSecondary,
+    fontFamily: typography.bodyStrong,
+    fontSize: 13,
+    flexShrink: 1,
+  },
 });

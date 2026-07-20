@@ -187,7 +187,7 @@ export const AppointmentsExperience = () => {
   };
 
   return (
-    <ClientShell testID="client-appointments-screen" activeRoute="appointments" userName={profile?.name} isSyncing={loading} syncError={syncError ? new Error(syncError) : null} onSync={() => { void refresh(); }} onSignOut={signOut}>
+    <ClientShell testID="client-appointments-screen" activeRoute="appointments" userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SectionHeading testID="client-appointments-heading" eyebrow="Sua agenda" title="Meus agendamentos" description="Acompanhe confirmações, próximos horários e seu histórico em um só lugar." />
         {!!notice && <InlineNotice testID="client-appointments-notice" tone={notice.tone} message={notice.message} />}

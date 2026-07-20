@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, Wifi } from 'lucide-react-native';
+import { LogOut } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '../ui/BrandMark';
 import { colors, layout, radii, typeScale } from '../../theme/tokens';
@@ -97,10 +97,6 @@ export const OperationalShell = ({
             })}
           </View>
           <View style={styles.footer}>
-            <View style={styles.connectionRow}>
-              <Wifi color={isOffline ? colors.danger : colors.success} size={15} />
-              <Text style={[styles.connectionText, isOffline && styles.offlineText]}>{isOffline ? 'Sem internet' : 'Atualizações em tempo real'}</Text>
-            </View>
             <Text testID={`${prefix}-sidebar-user-name`} style={styles.userName} numberOfLines={1}>{userName || roleLabel}</Text>
             <Pressable testID={`${prefix}-sign-out-button`} accessibilityRole="button" accessibilityLabel="Sair da conta" onPress={onSignOut} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
               <LogOut color={colors.danger} size={17} />
@@ -115,7 +111,6 @@ export const OperationalShell = ({
             <Text testID={`${prefix}-shell-shop-name`} style={styles.mobileShop} numberOfLines={1}>{shopName}</Text>
             <Text testID={`${prefix}-shell-user-name`} style={styles.mobileUser} numberOfLines={1}>{userName || roleLabel}</Text>
           </View>
-          <View style={[styles.connectionDot, { backgroundColor: isOffline ? colors.danger : colors.success }]} />
           <Pressable testID={`${prefix}-sign-out-button`} accessibilityRole="button" accessibilityLabel="Sair da conta" onPress={onSignOut} style={({ pressed }) => [styles.mobileSignOut, pressed && styles.pressed]}>
             <LogOut color={colors.danger} size={18} />
           </Pressable>
@@ -167,9 +162,6 @@ const styles = StyleSheet.create({
   navLabel: { ...typeScale.body, color: colors.textSecondary },
   navLabelActive: { fontFamily: typeScale.bodyStrong.fontFamily, color: colors.brandPrimary },
   footer: { gap: 12, paddingTop: 18, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
-  connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  connectionText: { ...typeScale.small, color: colors.textMuted },
-  offlineText: { color: colors.danger },
   userName: { ...typeScale.small, color: colors.textSecondary },
   signOut: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9 },
   signOutText: { ...typeScale.small, fontFamily: typeScale.bodyStrong.fontFamily, color: colors.danger },
@@ -182,7 +174,6 @@ const styles = StyleSheet.create({
   mobileIdentity: { flex: 1, minWidth: 0 },
   mobileShop: { ...typeScale.label, color: colors.textMuted, textTransform: 'uppercase' },
   mobileUser: { ...typeScale.small, fontFamily: typeScale.bodyStrong.fontFamily, color: colors.text, marginTop: 2 },
-  connectionDot: { width: 8, height: 8, borderRadius: 4 },
   mobileSignOut: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSubtle },
   bottomNav: { position: 'absolute', left: 10, right: 10, bottom: 8, minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingTop: 7, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radii.xl, backgroundColor: 'rgba(255,255,255,0.97)', boxShadow: '0 12px 32px rgba(24,32,27,0.12)' },
   bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
