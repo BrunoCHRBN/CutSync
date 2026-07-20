@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
@@ -29,6 +29,16 @@ const ShopCardSkeleton = () => {
   );
 };
 
+const extractBairro = (address?: string | null) => {
+  if (!address) return 'Outros';
+  const parts = address.split(',');
+  if (parts.length >= 3) {
+    const candidate = parts[2].trim();
+    return candidate.split('-')[0].trim();
+  }
+  return 'Geral';
+};
+
 export const ExploreExperience = () => {
   const { width } = useWindowDimensions();
   const columns = width >= 1280 ? 3 : width >= layout.mobileBreakpoint ? 2 : 1;
@@ -40,6 +50,24 @@ export const ExploreExperience = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [openOnly, setOpenOnly] = useState(false);
+
+  const [selectedBairro, setSelectedBairro] = useState('Todos');
+  const [selectedPriceLevel, setSelectedPriceLevel] = useState<number | null>(null);
+  const [minRating, setMinRating] = useState<number | null>(null);
+
+  const [bairroModalVisible, setBairroModalVisible] = useState(false);
+  const [priceModalVisible, setPriceModalVisible] = useState(false);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+
+  const availableBairros = useMemo(() => {
+    const set = new Set<string>();
+    barbershops.forEach(shop => {
+      if (shop.address) {
+        set.add(extractBairro(shop.address));
+      }
+    });
+    return ['Todos', ...Array.from(set).sort()];
+  }, [barbershops]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -72,9 +100,16 @@ export const ExploreExperience = () => {
     return barbershops.filter((shop) => {
       const matchesTerm = !term || [shop.name, shop.address, shop.slug].some((value) => value?.toLowerCase().includes(term));
       const matchesOpen = !openOnly || getOpeningStatus(shop.openingHours, shop.timezone).isOpen;
-      return matchesTerm && matchesOpen;
+      
+      const shopBairro = extractBairro(shop.address);
+      const matchesBairro = selectedBairro === 'Todos' || shopBairro === selectedBairro;
+      
+      const matchesPrice = !selectedPriceLevel || shop.priceLevel === selectedPriceLevel;
+      const matchesRating = !minRating || (shop.averageRating || 0) >= minRating;
+
+      return matchesTerm && matchesOpen && matchesBairro && matchesPrice && matchesRating;
     });
-  }, [barbershops, openOnly, search]);
+  }, [barbershops, openOnly, search, selectedBairro, selectedPriceLevel, minRating]);
 
   const openShop = (id: string) => {
     tapLight();
@@ -108,8 +143,7 @@ export const ExploreExperience = () => {
                 style={styles.searchInput}
               />
             </View>
-            <View style={styles.searchMeta}>
-              <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento encontrado' : 'estabelecimentos encontrados'}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll} style={styles.filterContainer}>
               <Pressable
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: openOnly }}
@@ -120,6 +154,40 @@ export const ExploreExperience = () => {
                 <View style={[styles.openDot, !openOnly && styles.openDotMuted]} />
                 <Text style={[styles.filterText, openOnly && styles.filterTextSelected]}>Aberto agora</Text>
               </Pressable>
+
+              <Pressable
+                onPress={() => setBairroModalVisible(true)}
+                style={[styles.filterChip, selectedBairro !== 'Todos' && styles.filterChipSelected]}
+                testID="client-filter-bairro"
+              >
+                <Text style={[styles.filterText, selectedBairro !== 'Todos' && styles.filterTextSelected]}>
+                  {selectedBairro === 'Todos' ? 'Bairro' : `Bairro: ${selectedBairro}`}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setPriceModalVisible(true)}
+                style={[styles.filterChip, selectedPriceLevel !== null && styles.filterChipSelected]}
+                testID="client-filter-price"
+              >
+                <Text style={[styles.filterText, selectedPriceLevel !== null && styles.filterTextSelected]}>
+                  {selectedPriceLevel === null ? 'Preço' : `Preço: ${'$'.repeat(selectedPriceLevel)}`}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setRatingModalVisible(true)}
+                style={[styles.filterChip, minRating !== null && styles.filterChipSelected]}
+                testID="client-filter-rating"
+              >
+                <Text style={[styles.filterText, minRating !== null && styles.filterTextSelected]}>
+                  {minRating === null ? 'Avaliação' : `★ ${minRating.toFixed(1)}+`}
+                </Text>
+              </Pressable>
+            </ScrollView>
+
+            <View style={styles.searchMeta}>
+              <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento encontrado' : 'estabelecimentos encontrados'}</Text>
             </View>
           </View>
         </View>
@@ -151,18 +219,34 @@ export const ExploreExperience = () => {
               return (
                 <Pressable key={shop.id} testID={`client-shop-card-${shop.id}`} accessibilityRole="button" accessibilityLabel={`Ver ${shop.name}`} onPress={() => openShop(shop.id)} style={({ pressed }) => [styles.shopCard, { width: cardWidth }, pressed && styles.pressed]}>
                   <View style={styles.visual}>
-                    {shop.logoUrl ? (
-                      <Image source={{ uri: shop.logoUrl }} style={styles.logoImage} contentFit="contain" transition={160} />
-                    ) : (
-                      <>
-                        <Text style={styles.monogram}>{initialsOf(shop.name)}</Text>
-                        <Text style={styles.monogramCaption}>Est. CutSync</Text>
-                      </>
-                    )}
+                    <Image 
+                      source={{ uri: shop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=600' }} 
+                      style={styles.bannerVisualImage} 
+                      contentFit="cover" 
+                      transition={160} 
+                    />
                     <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
                   </View>
                   <View style={styles.shopBody}>
-                    <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
+                    <View style={styles.shopHeaderRow}>
+                      <View style={styles.shopLogoCircle}>
+                        {shop.logoUrl ? (
+                          <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" />
+                        ) : (
+                          <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
+                        <View style={styles.ratingPriceRow}>
+                          <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
+                          {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
+                          <Text style={styles.metaDivider}>·</Text>
+                          <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
+                        </View>
+                      </View>
+                    </View>
+
                     <View style={styles.shopMeta}>
                       <MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />
                       <Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text>
@@ -183,6 +267,71 @@ export const ExploreExperience = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* Modal Selecionar Bairro */}
+      <Modal visible={bairroModalVisible} transparent animationType="fade" onRequestClose={() => setBairroModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setBairroModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Filtrar por Bairro</Text>
+            <ScrollView style={styles.modalScroll}>
+              {availableBairros.map((b) => (
+                <Pressable
+                  key={b}
+                  onPress={() => { setSelectedBairro(b); setBairroModalVisible(false); }}
+                  style={styles.modalItem}
+                >
+                  <Text style={[styles.modalItemText, selectedBairro === b && styles.modalItemTextActive]}>{b}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal Selecionar Preço */}
+      <Modal visible={priceModalVisible} transparent animationType="fade" onRequestClose={() => setPriceModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setPriceModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Filtrar por Preço</Text>
+            {[
+              { label: 'Qualquer valor', value: null },
+              { label: '$ (Até R$ 40,00)', value: 1 },
+              { label: '$$ (R$ 40,00 - R$ 80,00)', value: 2 },
+              { label: '$$$ (Acima de R$ 80,00)', value: 3 },
+            ].map((item) => (
+              <Pressable
+                key={item.label}
+                onPress={() => { setSelectedPriceLevel(item.value); setPriceModalVisible(false); }}
+                style={styles.modalItem}
+              >
+                <Text style={[styles.modalItemText, selectedPriceLevel === item.value && styles.modalItemTextActive]}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Modal Selecionar Avaliação */}
+      <Modal visible={ratingModalVisible} transparent animationType="fade" onRequestClose={() => setRatingModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setRatingModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Filtrar por Avaliação</Text>
+            {[
+              { label: 'Qualquer avaliação', value: null },
+              { label: '★ 4.5+ Excelente', value: 4.5 },
+              { label: '★ 4.0+ Muito bom', value: 4.0 },
+            ].map((item) => (
+              <Pressable
+                key={item.label}
+                onPress={() => { setMinRating(item.value); setRatingModalVisible(false); }}
+                style={styles.modalItem}
+              >
+                <Text style={[styles.modalItemText, minRating === item.value && styles.modalItemTextActive]}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </ClientShell>
   );
 };
@@ -239,10 +388,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...atmosphericShadow,
   },
-  visual: { aspectRatio: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
-  logoImage: { width: '82%', height: '82%' },
-  monogram: { fontFamily: typography.serif, fontSize: 38, color: colors.textSecondary, letterSpacing: 2 },
-  monogramCaption: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 6 },
+  visual: { aspectRatio: 1.8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  bannerVisualImage: { width: '100%', height: '100%' },
+  shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  shopLogoCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  shopLogoImage: { width: '100%', height: '100%' },
+  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 16, color: colors.textSecondary },
+  ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  ratingText: { color: '#EAB308', fontFamily: typography.bodyStrong, fontSize: 12 },
+  reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  metaDivider: { color: colors.textMuted },
+  priceLevelText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
   visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
   shopBody: { padding: 18 },
   shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.5 },
@@ -252,4 +408,13 @@ const styles = StyleSheet.create({
   footerHint: { flex: 1, color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
   openButton: { width: 44, height: 44, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSecondarySoft, borderWidth: hairlineW, borderColor: colors.brandSecondary },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  filterContainer: { marginTop: 12, marginBottom: 4 },
+  filterScroll: { gap: 8, paddingBottom: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: 20, width: '100%', maxWidth: 320, ...atmosphericShadow },
+  modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16, marginBottom: 16 },
+  modalScroll: { maxHeight: 240 },
+  modalItem: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
+  modalItemText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14 },
+  modalItemTextActive: { color: colors.brandPrimary, fontFamily: typography.bodyStrong },
 });

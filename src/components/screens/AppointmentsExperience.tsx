@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, Alert, Pressable, Linking, TextInput, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarDays, MapPin, Scissors, UserRound, X, RefreshCw } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,13 +7,14 @@ import { useAppointments } from '../../hooks/useAppointments';
 import { supabase } from '../../services/supabase';
 import { ClientShell } from '../layout/ClientShell';
 import { AppButton } from '../ui/AppButton';
+
 import { AppCard } from '../ui/AppCard';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
-import { colors, radii, typography } from '../../theme/tokens';
+import { colors, radii, typography, atmosphericShadow } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
 import { appointmentFeedbackMessages } from '../../utils/appointmentErrors';
 
@@ -23,6 +24,7 @@ interface AppointmentDetail {
   id: string;
   dateTime: Date;
   status: string;
+  shopId: string;
   shopName: string;
   shopAddress?: string;
   serviceName: string;
@@ -59,6 +61,52 @@ export const AppointmentsExperience = () => {
   const [reschedulePromptId, setReschedulePromptId] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState<string>('');
   const [targetTime, setTargetTime] = useState<string>('');
+  const [reviewsMap, setReviewsMap] = useState<Map<string, { rating: number; comment?: string }>>(new Map());
+  const [reviewingAppointment, setReviewingAppointment] = useState<AppointmentDetail | null>(null);
+  const [selectedRating, setSelectedRating] = useState<number>(5);
+  const [commentText, setCommentText] = useState<string>('');
+  const [submittingReview, setSubmittingReview] = useState<boolean>(false);
+
+  const loadReviews = useCallback(async () => {
+    if (!profile?.id) return;
+    const { data } = await supabase
+      .from('establishment_reviews')
+      .select('appointment_id, rating, comment')
+      .eq('client_id', profile.id);
+    if (data) {
+      setReviewsMap(new Map(data.map(r => [r.appointment_id, { rating: r.rating, comment: r.comment || undefined }])));
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    void loadReviews();
+  }, [loadReviews, records]);
+
+  const submitReview = async () => {
+    if (!reviewingAppointment || !profile?.id) return;
+    setSubmittingReview(true);
+    try {
+      const { error } = await supabase.from('establishment_reviews').insert({
+        establishment_id: reviewingAppointment.shopId,
+        client_id: profile.id,
+        appointment_id: reviewingAppointment.id,
+        rating: selectedRating,
+        comment: commentText.trim() || null
+      });
+
+      if (error) throw error;
+
+      await loadReviews();
+      setReviewingAppointment(null);
+      setSelectedRating(5);
+      setCommentText('');
+      setNotice({ tone: 'success', message: 'Sua avaliação foi enviada com sucesso! Obrigado pelo feedback.' });
+    } catch (err) {
+      setNotice({ tone: 'danger', message: 'Não foi possível enviar sua avaliação no momento.' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   useEffect(() => {
     if (feedback === 'appointment_created') {
@@ -72,6 +120,7 @@ export const AppointmentsExperience = () => {
       id: item.id,
       dateTime: item.dateTime,
       status: item.status,
+      shopId: item.establishment?.id || '',
       shopName: item.establishment?.name || 'Barbearia',
       shopAddress: item.establishment?.address || undefined,
       serviceName: item.service?.name || 'Serviço',
@@ -209,7 +258,6 @@ export const AppointmentsExperience = () => {
               const isUpcoming = item.dateTime.getTime() > referenceTime;
               const cancellable = isUpcoming && (item.status === 'pending' || item.status === 'confirmed');
               
-              // Diferença de horas para limite de cancelamento/reagendamento tardio (2 horas)
               const timeDiff = item.dateTime.getTime() - referenceTime;
               const hoursDiff = timeDiff / (1000 * 60 * 60);
               const isLateCancellation = hoursDiff > 0 && hoursDiff < 2;
@@ -375,6 +423,27 @@ export const AppointmentsExperience = () => {
                         </View>
                       )
                     ) : null}
+
+                    {tab === 'history' && item.status !== 'cancelled' ? (
+                      reviewsMap.has(item.id) ? (
+                        <View style={styles.reviewedBadge}>
+                          <Text style={styles.reviewedBadgeText}>★ {reviewsMap.get(item.id)?.rating} · Avaliado</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.historyActionsRow}>
+                          <AppButton
+                            label="Avaliar Atendimento"
+                            testID={`client-appointment-${item.id}-review-button`}
+                            onPress={() => {
+                              tapLight();
+                              setReviewingAppointment(item);
+                            }}
+                            variant="secondary"
+                            style={styles.reviewBtn}
+                          />
+                        </View>
+                      )
+                    ) : null}
                   </View>
                 </AppCard>
               );
@@ -382,6 +451,55 @@ export const AppointmentsExperience = () => {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={!!reviewingAppointment} transparent animationType="slide" onRequestClose={() => setReviewingAppointment(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setReviewingAppointment(null)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Avalie seu atendimento</Text>
+              <Pressable onPress={() => setReviewingAppointment(null)} style={styles.closeBtn}>
+                <X color={colors.textSecondary} size={18} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.modalSubtitle}>Como foi sua experiência na {reviewingAppointment?.shopName}?</Text>
+
+            <View style={styles.starsContainer}>
+               {[1, 2, 3, 4, 5].map((star) => (
+                 <Pressable
+                   key={star}
+                   onPress={() => { tapLight(); setSelectedRating(star); }}
+                   style={styles.starPressable}
+                 >
+                   <Text style={[styles.starIcon, selectedRating >= star ? styles.starIconActive : styles.starIconInactive]}>★</Text>
+                 </Pressable>
+               ))}
+            </View>
+
+            <Text style={styles.commentLabel}>Comentário opcional</Text>
+            <TextInput
+              style={styles.commentInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Conte como foi o serviço, o atendimento ou o ambiente..."
+              placeholderTextColor={colors.textMuted}
+              value={commentText}
+              onChangeText={setCommentText}
+              maxLength={200}
+            />
+
+            <View style={styles.modalActions}>
+              <AppButton
+                label="Enviar Avaliação"
+                onPress={submitReview}
+                loading={submittingReview}
+                variant="primary"
+                fullWidth
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ClientShell>
   );
 };
@@ -550,4 +668,34 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   pressedScale: { transform: [{ scale: 0.98 }] },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: 20, width: '100%', maxWidth: 320, ...atmosphericShadow },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16 },
+  closeBtn: { padding: 4 },
+  modalSubtitle: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 13, marginBottom: 16 },
+  starsContainer: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 20 },
+  starPressable: { padding: 4 },
+  starIcon: { fontSize: 32 },
+  starIconActive: { color: '#EAB308' },
+  starIconInactive: { color: colors.borderStrong },
+  commentLabel: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginBottom: 6 },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: radii.md,
+    padding: 12,
+    color: colors.text,
+    fontFamily: typography.body,
+    fontSize: 13,
+    backgroundColor: colors.canvasSoft,
+    textAlignVertical: 'top',
+    height: 90,
+    marginBottom: 20,
+  },
+  modalActions: { width: '100%' },
+  reviewedBadge: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.brandSecondarySoft, borderWidth: 1, borderColor: colors.brandSecondary },
+  reviewedBadgeText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  historyActionsRow: { marginTop: 12, width: '100%' },
+  reviewBtn: { alignSelf: 'flex-start', minWidth: 140 },
 });

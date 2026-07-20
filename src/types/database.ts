@@ -34,6 +34,10 @@ export interface Establishment {
   shareAgendas?: boolean;
   galleryUrls?: string | null;
   accountStatus?: 'pending_verification' | 'active' | 'delinquent' | 'blocked';
+  averageRating?: number;
+  reviewCount?: number;
+  averagePrice?: number;
+  priceLevel?: number;
 }
 
 export interface ProfileRecord {
@@ -127,6 +131,10 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   shareAgendas: row.share_agendas !== false,
   galleryUrls: row.gallery_urls,
   accountStatus: row.account_status as any,
+  averageRating: 'average_rating' in row ? Number((row as any).average_rating || 0) : 0,
+  reviewCount: 'review_count' in row ? Number((row as any).review_count || 0) : 0,
+  averagePrice: 'average_price' in row ? Number((row as any).average_price || 0) : 0,
+  priceLevel: 'price_level' in row ? Number((row as any).price_level || 1) : 1,
 });
 
 export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({

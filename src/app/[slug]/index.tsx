@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -63,6 +63,23 @@ export default function BarbershopSlugScreen() {
   const { services } = useServices(barbershop?.id, true);
   const { team: barbers } = usePublicTeam(barbershop?.id);
   const [selectedTeamMember, setSelectedTeamMember] = useState<ProfileRecord | null>(null);
+  const [mapUrl, setMapUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!barbershop?.address) return;
+    let active = true;
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(barbershop.address)}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'CutSync-App/1.0' }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!active || !data || !data[0]) return;
+        const { lat, lon } = data[0];
+        setMapUrl(`https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=16&size=600x200&maptype=mapnik&markers=${lat},${lon},red-pushpin`);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [barbershop?.address]);
 
   // Parse da galeria personalizada cadastrada pelo dono
   const galleryPhotos = useMemo(() => {
@@ -145,7 +162,7 @@ export default function BarbershopSlugScreen() {
           <View style={styles.brandContainer}>
             <View style={styles.logoCircle}>
               {barbershop.logoUrl ? (
-                <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} />
+                <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} resizeMode="contain" />
               ) : (
                 <Text style={styles.logoLetter}>{initialsOf(barbershop.name)}</Text>
               )}
@@ -218,11 +235,24 @@ export default function BarbershopSlugScreen() {
                   title: 'Mapa do Estabelecimento'
                 })
               ) : (
-                <Image 
-                  source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600' }} 
-                  style={styles.mapThumbnail} 
-                  resizeMode="cover"
-                />
+                <Pressable
+                  onPress={() => {
+                    const address = barbershop.address || '';
+                    const url = Platform.select({
+                      ios: `maps:0,0?q=${encodeURIComponent(address)}`,
+                      android: `geo:0,0?q=${encodeURIComponent(address)}`,
+                      default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+                    });
+                    Linking.openURL(url);
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <Image 
+                    source={{ uri: mapUrl || 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600' }} 
+                    style={styles.mapThumbnail} 
+                    resizeMode="cover"
+                  />
+                </Pressable>
               )}
             </View>
             <View style={styles.mapInfoBar}>
