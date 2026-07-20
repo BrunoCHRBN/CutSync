@@ -133,6 +133,7 @@ export default function GovernanceDashboard() {
       const session = await supabaseGovernance.auth.getSession();
       const uid = session.data.session?.user?.id;
       if (uid) {
+        setUser(session.data.session.user);
         await loadGovernanceProfile(uid);
       }
     } else {
