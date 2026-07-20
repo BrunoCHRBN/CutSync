@@ -45,5 +45,5 @@ const styles = StyleSheet.create({
   },
   copy: { flex: 1 },
   title: { fontFamily: typography.bodyStrong, fontSize: 11, marginBottom: 3 },
-  message: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 10, lineHeight: 16 },
+  message: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
 });

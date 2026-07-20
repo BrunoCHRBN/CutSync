@@ -1,4 +1,4 @@
-import { Database, Tables } from './supabase.generated';
+import { Database, Json, Tables } from './supabase.generated';
 
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 export type ProfileRole = 'client' | 'professional' | 'admin';
@@ -59,6 +59,25 @@ export interface ServiceRecord {
   isActive: boolean;
 }
 
+export interface ProfessionalGalleryItem {
+  [key: string]: Json | undefined;
+  url: string;
+  alt: string;
+}
+
+export interface ProfessionalPublicProfile {
+  id: string;
+  slug: string;
+  name: string;
+  avatarUrl?: string | null;
+  tituloProfissional?: string | null;
+  specialties?: string | null;
+  bio?: string | null;
+  portfolioUrl?: string | null;
+  instagramUrl?: string | null;
+  gallery: ProfessionalGalleryItem[];
+}
+
 export interface AppointmentRecord {
   id: string;
   establishmentId: string;
@@ -109,16 +128,16 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
 
 export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({
   id: row.id,
-  establishmentId: row.establishment_id,
+  establishmentId: 'establishment_id' in row ? row.establishment_id : null,
   name: row.name,
-  role: toProfileRole(row.role),
-  email: row.email,
-  phone: row.phone,
+  role: 'role' in row ? toProfileRole(row.role) : 'professional',
+  email: 'email' in row ? row.email : '',
+  phone: 'phone' in row ? row.phone : null,
   avatarUrl: row.avatar_url,
-  commissionRate: row.commission_rate == null ? null : Number(row.commission_rate),
-  workHours: row.work_hours,
+  commissionRate: 'commission_rate' in row && row.commission_rate != null ? Number(row.commission_rate) : null,
+  workHours: 'work_hours' in row ? row.work_hours : null,
   specialties: row.specialties,
-  instagram: row.instagram,
+  instagram: 'instagram' in row ? row.instagram : null,
   tituloProfissional: row.titulo_profissional,
 });
 

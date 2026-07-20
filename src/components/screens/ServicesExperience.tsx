@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Clock3, Plus, Power, Scissors, WalletCards } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -74,6 +74,7 @@ export const ServicesExperience = () => {
 
   return (
     <AdminShell testID="services-screen" activeRoute="services" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <SectionHeading testID="services-heading" eyebrow="Catálogo" title="Serviços e preços" description="Defina o que sua equipe oferece e controle o que aparece para os clientes." />
       {!!notice && <InlineNotice testID="services-action-notice" tone={notice.tone} message={notice.message} />}
 
@@ -129,11 +130,13 @@ export const ServicesExperience = () => {
           )}
         </View>
       </View>
+      </ScrollView>
     </AdminShell>
   );
 };
 
 const styles = StyleSheet.create({
+  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 24, paddingTop: 30, paddingBottom: 110, gap: 20 },
   workspace: { gap: 18, marginTop: 28 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
   formSection: { flex: 0.8, minWidth: 300 },
@@ -142,7 +145,7 @@ const styles = StyleSheet.create({
   listColumn: { flex: 1.3 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },
-  listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, marginTop: 3 },
+  listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   loader: { margin: 50 },
   serviceList: { gap: 9 },
   serviceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15 },
@@ -152,9 +155,9 @@ const styles = StyleSheet.create({
   serviceCopy: { flex: 1, minWidth: 0 },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   serviceMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
-  servicePrice: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
+  servicePrice: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
   metaDivider: { color: colors.textMuted },
-  serviceDuration: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9 },
+  serviceDuration: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   toggleButton: { width: 38, height: 38, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
   toggleButtonActive: { backgroundColor: colors.successSoft, borderColor: '#34D39944' },
   pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },

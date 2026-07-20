@@ -25,6 +25,7 @@ interface UseAvailableSlotsOptions {
 
 const reasonMessages: Record<string, string> = {
   closed: 'Sem expediente nesta data.',
+  blocked: 'Os horários desta data estão bloqueados.',
   schedule_not_configured: 'Jornada não configurada para esta data.',
   service_exceeds_workday: 'O serviço não cabe no expediente desta data.',
 };

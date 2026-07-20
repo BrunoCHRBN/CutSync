@@ -6,17 +6,22 @@ import { colors, radii, typography } from '../../theme/tokens';
 interface BrandMarkProps {
   compact?: boolean;
   monochrome?: boolean;
+  variant?: 'default' | 'inverse' | 'monochrome';
   testID?: string;
 }
 
-export const BrandMark = ({ compact = false, monochrome = false, testID = 'cutsync-brand' }: BrandMarkProps) => (
-  <View testID={testID} style={styles.container}>
-    <View style={[styles.iconBox, monochrome && styles.iconBoxMonochrome, compact && styles.iconBoxCompact]}>
-      <Scissors color={colors.ink} size={compact ? 18 : 22} strokeWidth={2.4} />
+export const BrandMark = ({ compact = false, monochrome = false, variant = 'default', testID = 'cutsync-brand' }: BrandMarkProps) => {
+  const resolvedVariant = monochrome ? 'monochrome' : variant;
+
+  return (
+    <View testID={testID} style={styles.container}>
+      <View style={[styles.iconBox, resolvedVariant === 'inverse' && styles.iconBoxInverse, compact && styles.iconBoxCompact]}>
+        <Scissors color={resolvedVariant === 'inverse' ? colors.brandPrimary : colors.brandSecondary} size={compact ? 18 : 22} strokeWidth={2.4} />
+      </View>
+      <Text style={[styles.wordmark, resolvedVariant === 'inverse' && styles.wordmarkInverse, compact && styles.wordmarkCompact]}>CutSync</Text>
     </View>
-    <Text style={[styles.wordmark, compact && styles.wordmarkCompact]}>CutSync</Text>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -26,16 +31,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand,
-    transform: [{ rotate: '-8deg' }],
+    backgroundColor: colors.brandPrimary,
   },
   iconBoxCompact: { width: 34, height: 34, borderRadius: radii.sm },
-  iconBoxMonochrome: { backgroundColor: colors.accent, transform: [{ rotate: '0deg' }] },
+  iconBoxInverse: { backgroundColor: colors.brandSecondary },
   wordmark: {
-    color: colors.text,
+    color: colors.brandPrimary,
     fontFamily: typography.display,
     fontSize: 26,
     letterSpacing: -1.1,
   },
+  wordmarkInverse: { color: colors.white },
   wordmarkCompact: { fontSize: 21 },
 });

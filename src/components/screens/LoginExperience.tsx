@@ -14,20 +14,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from 'lucide-react-native';
 import { supabase } from '../../services/supabase';
 import { AppButton } from '../ui/AppButton';
-import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { BrandMark } from '../ui/BrandMark';
 import { ScreenBackground } from '../ui/ScreenBackground';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+import { colors, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
 
-const heroImage = 'https://images.unsplash.com/photo-1759134198561-e2041049419c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBiYXJiZXJzaG9wJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85';
+const heroImage = require('../../../assets/images/login-hero.jpg');
 
 export const LoginExperience = () => {
   const router = useRouter();
   const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { width } = useWindowDimensions();
-  const isWide = width >= 920;
+  const isWide = width >= 940;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +90,7 @@ export const LoginExperience = () => {
                 </Text>
               </View>
 
-              <AppCard testID="login-form-card" style={styles.formCard} elevated>
+              <View testID="login-form-card" style={styles.formCard}>
                 {magicLinkSent ? (
                   <View style={{ gap: 12, alignItems: 'center', paddingVertical: 12 }}>
                     <Text style={{ fontSize: 16, color: colors.success, fontWeight: 'bold' }}>📬 E-mail Enviado!</Text>
@@ -193,7 +192,7 @@ export const LoginExperience = () => {
                     </View>
                   </>
                 )}
-              </AppCard>
+              </View>
 
               <View testID="login-security-note" style={styles.securityNote}>
                 <ShieldCheck color={colors.success} size={16} />
@@ -204,7 +203,7 @@ export const LoginExperience = () => {
             {isWide && (
               <ImageBackground
                 testID="login-hero-image"
-                source={{ uri: heroImage }}
+                source={heroImage}
                 resizeMode="cover"
                 imageStyle={styles.heroImage}
                 style={styles.hero}
@@ -245,10 +244,10 @@ const styles = StyleSheet.create({
   formPane: { width: '100%', padding: 10 },
   formPaneWide: { width: '48%', padding: 46, justifyContent: 'center' },
   intro: { marginTop: 48, marginBottom: 28 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10, letterSpacing: 2 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 38, letterSpacing: -1.7, marginTop: 12 },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 22, maxWidth: 410, marginTop: 10 },
-  formCard: { gap: 20, padding: 22 },
+  formCard: { gap: 20 },
   fields: { gap: 18 },
   eyeButton: { position: 'absolute', right: 12, bottom: 15, padding: 4 },
   eyeButtonPressed: { opacity: 0.5 },
@@ -259,12 +258,12 @@ const styles = StyleSheet.create({
   registerAccent: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12 },
   linkPressed: { opacity: 0.55 },
   securityNote: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, justifyContent: 'center' },
-  securityText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10 },
+  securityText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   hero: { flex: 1, minHeight: 690, justifyContent: 'space-between', padding: 38 },
   heroImage: { borderTopRightRadius: radii.xl, borderBottomRightRadius: radii.xl },
   heroOverlay: { position: 'absolute', inset: 0, backgroundColor: '#05050576' } as any,
   heroTopline: { flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 1 },
-  heroToplineText: { color: colors.white, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.8 },
+  heroToplineText: { color: colors.white, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4 },
   heroCopy: { zIndex: 1, maxWidth: 470 },
   heroStat: { color: colors.white, fontFamily: typography.display, fontSize: 44, lineHeight: 49, letterSpacing: -2 },
   heroDescription: { color: '#E4E4E7', fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: 16, maxWidth: 390 },

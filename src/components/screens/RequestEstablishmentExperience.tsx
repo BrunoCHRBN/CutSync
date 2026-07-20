@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Building2, Clock3, Link2, MapPin, Phone, ShieldCheck, UserCheck, CheckSquare, Square, Check, X } from 'lucide-react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Building2, Clock3, Link2, MapPin, Phone, ShieldCheck, CheckSquare, Square, X } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { ClientShell } from '../layout/ClientShell';
@@ -161,7 +161,7 @@ export const RequestEstablishmentExperience = () => {
             lgpd_terms_accepted: lgpdTermsAccepted,
             lgpd_marketing_accepted: lgpdMarketingAccepted,
             lgpd_accepted_at: new Date().toISOString()
-          }).eq('id', profile?.id);
+          }).eq('id', profile?.id || '');
 
           setNotice({ tone: 'success', message: 'Estabelecimento cadastrado! Você foi promovido a Administrador (Nível 1).' });
           await refreshProfile();
@@ -188,13 +188,13 @@ export const RequestEstablishmentExperience = () => {
       }
 
       try {
-        const { data: estId, error } = await supabase.rpc('create_establishment_cpf', {
+        const { error } = await supabase.rpc('create_establishment_cpf', {
           target_user_id: profile?.id || '',
           target_cpf: cleanCpf,
           requested_name: name.trim(),
           requested_slug: cleanSlug,
-          requested_address: address.trim() || null,
-          requested_phone: phone.trim() || null,
+          requested_address: address.trim(),
+          requested_phone: phone.trim(),
           requested_primary_color: primaryColor,
         });
 
@@ -211,7 +211,7 @@ export const RequestEstablishmentExperience = () => {
             lgpd_terms_accepted: lgpdTermsAccepted,
             lgpd_marketing_accepted: lgpdMarketingAccepted,
             lgpd_accepted_at: new Date().toISOString()
-          }).eq('id', profile?.id);
+          }).eq('id', profile?.id || '');
 
           setNotice({ tone: 'success', message: 'Cadastro concluído! Acesso administrativo Nível 1 liberado.' });
           await refreshProfile();
@@ -301,6 +301,7 @@ export const RequestEstablishmentExperience = () => {
                 {onboardingType === 'CPF' && (
                   <View style={styles.whatsappVerificationContainer}>
                     <AppInput 
+                      testID="request-establishment-whatsapp-input"
                       containerStyle={{ flex: 1 }}
                       label="WhatsApp para validação OTP" 
                       value={whatsapp} 
@@ -309,6 +310,7 @@ export const RequestEstablishmentExperience = () => {
                       editable={!whatsappVerified}
                     />
                     <AppButton 
+                      testID="request-establishment-whatsapp-button"
                       label={whatsappVerified ? "Validado" : "Validar"} 
                       onPress={sendOtpMessage} 
                       loading={sendingOtp} 
@@ -355,13 +357,14 @@ export const RequestEstablishmentExperience = () => {
       {/* Modal para verificação WhatsApp OTP */}
       <Modal visible={otpModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <AppCard style={styles.modalCard}>
+          <AppCard testID="request-establishment-otp-card" style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Validação OTP WhatsApp</Text>
               <Pressable onPress={() => setOtpModalVisible(false)}><X size={18} color={colors.text} /></Pressable>
             </View>
             <Text style={styles.modalDesc}>Enviamos um código de verificação para o número {whatsapp}.</Text>
             <AppInput 
+              testID="request-establishment-otp-input"
               label="Código OTP de 6 dígitos" 
               value={otpInput} 
               onChangeText={setOtpInput} 
@@ -369,7 +372,7 @@ export const RequestEstablishmentExperience = () => {
               keyboardType="number-pad" 
             />
             {!!otpError && <Text style={styles.otpError}>{otpError}</Text>}
-            <AppButton label="Confirmar Código" onPress={confirmOtpCode} fullWidth />
+            <AppButton testID="request-establishment-otp-button" label="Confirmar Código" onPress={confirmOtpCode} fullWidth />
           </AppCard>
         </View>
       </Modal>

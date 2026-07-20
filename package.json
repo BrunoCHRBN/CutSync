@@ -41,6 +41,7 @@
     "react-native-worklets": "0.10.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tauri-apps/cli": "^2.11.4",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
@@ -57,6 +58,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web",
+    "serve:test": "npm run build:web && node scripts/serve-web-build.js",
+    "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test --update-snapshots",
     "types:supabase": "bash scripts/generate-supabase-types.sh",
     "check:supabase-schema": "bash scripts/check-supabase-schema.sh",
     "tauri:dev": "tauri dev",

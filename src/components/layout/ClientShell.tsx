@@ -6,6 +6,7 @@ import { BrandMark } from '../ui/BrandMark';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ClientRoute = 'explore' | 'appointments' | 'request' | 'security';
 
@@ -31,10 +32,11 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
   const { width } = useWindowDimensions();
   const isDesktop = width >= layout.mobileBreakpoint;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <View testID={testID} style={styles.root}>
-      <View testID="client-shell-header" style={styles.header}>
+      <View testID="client-shell-header" style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
         <BrandMark compact testID="client-shell-brand" />
         {isDesktop && (
           <View testID="client-desktop-navigation" style={styles.desktopNav}>
@@ -54,14 +56,14 @@ export const ClientShell = ({ children, activeRoute, userName, isSyncing, syncEr
           <Text testID="client-shell-user-name" numberOfLines={1} style={styles.identityName}>{userName || 'Cliente'}</Text>
         </View>
         <StatusBadge testID="client-shell-sync-status" label={syncError ? 'Falha' : isSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isSyncing ? 'warning' : 'success'} />
-        <Pressable testID="client-sync-button" disabled={isSyncing} onPress={() => { tapLight(); onSync(); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
+        <Pressable accessibilityLabel="Atualizar" testID="client-sync-button" disabled={isSyncing} onPress={() => { tapLight(); onSync(); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><RefreshCw color={colors.textSecondary} size={18} strokeWidth={1.8} /></Pressable>
         <Pressable testID="client-sign-out-button" onPress={onSignOut} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><LogOut color={colors.textSecondary} size={16} strokeWidth={1.8} /></Pressable>
       </View>
 
       <View style={styles.content}>{children}</View>
 
       {!isDesktop && (
-        <View testID="client-bottom-navigation" style={styles.bottomNav}>
+        <View testID="client-bottom-navigation" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 7) }]}>
           {navItems.map(({ key, label, path, Icon }) => {
             const active = activeRoute === key;
             return (
@@ -93,14 +95,14 @@ const styles = StyleSheet.create({
   desktopNav: { flexDirection: 'row', gap: 5, marginLeft: 22 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 14, borderRadius: radii.pill },
   navItemActive: { backgroundColor: colors.accent },
-  navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
+  navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   navLabelActive: { color: colors.ink },
   identity: { flex: 1, alignItems: 'flex-end', minWidth: 0 },
-  identityLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.4 },
-  identityName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 },
+  identityLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
+  identityName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 2 },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
     }),
   },
   bottomItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 0.3 },
+  bottomLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 0.2 },
   bottomLabelActive: { color: colors.text },
   pressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
 });

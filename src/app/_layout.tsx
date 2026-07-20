@@ -4,6 +4,9 @@ import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { WebAutofillStyles } from '../components/ui/web-autofill-styles';
+import { CommandPaletteProvider } from '../components/command/command-palette-provider';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { colors, radii, typography } from '../theme/tokens';
@@ -94,7 +97,7 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [user, profile, loading, isSuperadmin, governanceRole, segments, router]);
+  }, [buildTarget, user, profile, loading, isSuperadmin, governanceRole, segments, router]);
 
   if (loading) {
     return (
@@ -141,16 +144,21 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <RootLayoutNavigation />
-    </AuthProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <WebAutofillStyles />
+        <AuthProvider>
+          <CommandPaletteProvider>
+            <RootLayoutNavigation />
+          </CommandPaletteProvider>
+        </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.brandPrimary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -180,7 +188,7 @@ const styles = StyleSheet.create({
   configurationEyebrow: {
     color: colors.textMuted,
     fontFamily: typography.bodyStrong,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.6,
   },
   configurationTitle: {

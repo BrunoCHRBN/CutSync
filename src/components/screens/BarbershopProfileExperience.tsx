@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -60,6 +60,7 @@ export const BarbershopProfileExperience = () => {
   const { establishment: barbershop, loading } = useEstablishment(barbershopId);
   const { services } = useServices(barbershopId, true);
   const { team: barbers } = usePublicTeam(barbershopId);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const galleryPhotos = useMemo(() => {
     if (!barbershop?.galleryUrls) return [];
@@ -81,7 +82,7 @@ export const BarbershopProfileExperience = () => {
   };
 
   // Cálculo de Status em Tempo Real
-  const statusInfo = useMemo(() => getOpeningStatus(barbershop?.openingHours), [barbershop?.openingHours]);
+  const statusInfo = useMemo(() => getOpeningStatus(barbershop?.openingHours, barbershop?.timezone), [barbershop?.openingHours, barbershop?.timezone]);
 
   if (loading) {
     return <BarbershopProfileSkeleton />;
@@ -131,7 +132,7 @@ export const BarbershopProfileExperience = () => {
             resizeMode="cover"
           />
           <LinearGradient
-            colors={['rgba(244,244,245,0)', 'rgba(244,244,245,0.55)', '#F4F4F5']}
+            colors={['rgba(245,245,242,0)', 'rgba(245,245,242,0.2)', colors.canvas]}
             locations={[0, 0.62, 1]}
             style={styles.bannerFade}
             pointerEvents="none"
@@ -206,7 +207,7 @@ export const BarbershopProfileExperience = () => {
         {!!barbershop.address && (
           <View style={styles.mapCard}>
             <View style={{ flex: 1, height: 180 }}>
-              {Platform.OS === 'web' ? (
+              {mapLoaded && Platform.OS === 'web' ? (
                 React.createElement('iframe', {
                   src: `https://maps.google.com/maps?q=${encodeURIComponent(barbershop.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`,
                   width: '100%',
@@ -215,12 +216,19 @@ export const BarbershopProfileExperience = () => {
                   loading: 'lazy',
                   title: 'Mapa do Estabelecimento'
                 })
-              ) : (
+              ) : mapLoaded ? (
                 <Image 
                   source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=600' }} 
                   style={styles.mapThumbnail} 
                   resizeMode="cover"
                 />
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <MapPin color={colors.brandPrimary} size={26} />
+                  <Text style={styles.mapPlaceholderTitle}>Veja a localização no mapa</Text>
+                  <Text style={styles.mapPlaceholderText}>O mapa é carregado somente quando solicitado.</Text>
+                  <AppButton label="Carregar mapa" onPress={() => setMapLoaded(true)} testID="barbershop-profile-load-map-button" variant="secondary" />
+                </View>
               )}
             </View>
             <View style={styles.mapInfoBar}>
@@ -270,25 +278,6 @@ export const BarbershopProfileExperience = () => {
           )}
         </View>
 
-        {/* Galeria */}
-        <View style={styles.section}>
-          <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
-          {galleryPhotos.length === 0 ? (
-            <EmptyState testID="barbershop-gallery-empty" title="Galeria" description="As fotos do estabelecimento aparecerão aqui em breve." icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
-          ) : (
-            <FlatList
-              data={galleryPhotos}
-              keyExtractor={(url, idx) => `${url}-${idx}`}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
-              renderItem={({ item }) => (
-                <Image source={{ uri: item }} style={styles.galleryImage} />
-              )}
-            />
-          )}
-        </View>
-
         {/* Equipe (LGPD Safe) */}
         <View style={styles.section}>
           <SectionHeading testID="barbershop-team-heading" eyebrow="Profissionais" title="Nossa equipe" description="" />
@@ -327,6 +316,25 @@ export const BarbershopProfileExperience = () => {
             />
           )}
         </View>
+
+        {/* Galeria */}
+        <View style={styles.section}>
+          <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
+          {galleryPhotos.length === 0 ? (
+            <EmptyState testID="barbershop-gallery-empty" title="Galeria" description="As fotos do estabelecimento aparecerão aqui em breve." icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
+          ) : (
+            <FlatList
+              data={galleryPhotos}
+              keyExtractor={(url, idx) => `${url}-${idx}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12 }}
+              renderItem={({ item }) => (
+                <Image source={{ uri: item }} style={styles.galleryImage} />
+              )}
+            />
+          )}
+        </View>
       </ScrollView>
 
       {/* Barra de ação flutuante (glassmorphism) */}
@@ -355,15 +363,15 @@ const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineW
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: 20 },
   topbar: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, borderBottomWidth: hairlineW, borderBottomColor: colors.hairline, zIndex: 3, ...glassSurface },
-  backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.pill },
+  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.pill },
   topbarTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   topbarStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+  topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', paddingBottom: 150 },
-  heroContainer: { width: '100%', height: 220, position: 'relative' },
+  heroContainer: { width: '100%', aspectRatio: 3.2, minHeight: 180, maxHeight: 300, position: 'relative', overflow: 'hidden' },
   bannerImage: { width: '100%', height: '100%' },
-  bannerFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 },
-  heroCopy: { paddingHorizontal: 20, marginTop: -48, zIndex: 2 },
+  bannerFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 48 },
+  heroCopy: { paddingHorizontal: 20, marginTop: 18, zIndex: 2 },
   heroCopyWide: { paddingHorizontal: 40 },
   brandContainer: { flexDirection: 'row', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' },
   logoCircle: { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: colors.surface, backgroundColor: '#FAFAF8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...atmosphericShadow },
@@ -374,38 +382,41 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1 },
   slogan: { color: colors.textSecondary, fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
   instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surface, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: hairlineW, borderColor: colors.border },
-  instagramBadgeText: { fontSize: 10, fontFamily: typography.bodyStrong, color: colors.textSecondary },
-  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: 8 },
+  instagramBadgeText: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textSecondary },
+  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginTop: 8 },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 24 },
   infoItem: { flex: 1, minWidth: 200, flexDirection: 'row', gap: 11, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 15, ...atmosphericShadow },
   infoIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.pill },
   infoCopyText: { flex: 1 },
-  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.6 },
+  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
   infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusLabelText: { fontSize: 11, fontFamily: typography.bodyStrong },
   mapCard: { marginHorizontal: 20, marginTop: 24, borderRadius: radii.xl, borderWidth: hairlineW, borderColor: colors.hairline, overflow: 'hidden', backgroundColor: colors.surface, ...atmosphericShadow },
   mapThumbnail: { width: '100%', height: '100%' },
+  mapPlaceholder: { alignItems: 'center', backgroundColor: colors.surfaceMuted, flex: 1, gap: 8, justifyContent: 'center', padding: 20 },
+  mapPlaceholderTitle: { color: colors.textPrimary, fontFamily: typography.bodyStrong, fontSize: 14 },
+  mapPlaceholderText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, textAlign: 'center' },
   mapInfoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: colors.surface, borderTopWidth: hairlineW, borderTopColor: colors.hairline },
   mapInfoAddress: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   routeBtn: { minHeight: 34, paddingVertical: 6, paddingHorizontal: 12 },
   section: { marginTop: 44, paddingHorizontal: 20, gap: 16 },
-  cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  serviceCard: { flex: 1, minWidth: 160, maxWidth: 260, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 18, ...atmosphericShadow },
+  cardsGrid: { borderColor: colors.borderSubtle, borderRadius: radii.lg, borderWidth: 1, overflow: 'hidden' },
+  serviceCard: { alignItems: 'center', backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle, borderBottomWidth: hairlineW, flexDirection: 'row', gap: 12, minHeight: 68, paddingHorizontal: 16, paddingVertical: 12 },
   cardIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
-  serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 16 },
-  servicePrice: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 8 },
-  serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
+  serviceName: { color: colors.text, flex: 1, fontFamily: typography.bodyStrong, fontSize: 14 },
+  servicePrice: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14 },
+  serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
   professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 18, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, ...atmosphericShadow },
   avatarCircleSmall: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.canvas },
   avatarImage: { width: '100%', height: '100%' },
   avatarInitials: { fontFamily: typography.serif, fontSize: 20, color: '#52525B', letterSpacing: 1 },
   professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 6 },
-  professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.4 },
-  professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 9, textAlign: 'center', marginTop: 2 },
+  professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
+  professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, textAlign: 'center', marginTop: 2 },
   barberInstaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
-  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 9 },
+  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover' },
   floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
   floatingBar: {
@@ -426,7 +437,7 @@ const styles = StyleSheet.create({
     }),
   },
   floatingCopy: { flex: 1, minWidth: 0 },
-  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.8, textTransform: 'uppercase' },
+  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
   floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 13, letterSpacing: -0.3, marginTop: 3 },
   floatingButton: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 18, borderRadius: radii.pill },
   floatingButtonText: { fontFamily: typography.bodyStrong, fontSize: 12 },

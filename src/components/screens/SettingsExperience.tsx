@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Copy, ExternalLink, KeyRound, Link2, MapPin, Palette, Phone, Save, Store, X } from 'lucide-react-native';
+import { Clock3, Copy, ExternalLink, ImageIcon, KeyRound, Link2, MapPin, Palette, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,6 +15,23 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
+import { StickyActionBar } from '../ui/sticky-action-bar';
+
+type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'security';
+
+interface SettingsSnapshot {
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  schedule: DaySchedule[];
+  primaryColor: string;
+  logoUrl: string | null;
+  galleryUrls: string[];
+  slogan: string;
+  bannerUrl: string;
+  instagram: string;
+}
 
 interface DaySchedule {
   day: number; // 1 = Segunda, 2 = Terça, etc., 0 = Domingo
@@ -32,6 +49,14 @@ const defaultSchedule: DaySchedule[] = [
   { day: 5, name: 'Sexta-feira', isOpen: true, open: '09:00', close: '20:00' },
   { day: 6, name: 'Sábado', isOpen: true, open: '09:00', close: '20:00' },
   { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
+];
+
+const settingsSections: { key: SettingsSection; label: string; Icon: typeof Store }[] = [
+  { key: 'brand', label: 'Marca', Icon: Store },
+  { key: 'contact', label: 'Contato', Icon: Phone },
+  { key: 'images', label: 'Imagens', Icon: ImageIcon },
+  { key: 'schedule', label: 'Funcionamento', Icon: Clock3 },
+  { key: 'security', label: 'Segurança', Icon: ShieldCheck },
 ];
 
 export const SettingsExperience = () => {
@@ -57,6 +82,31 @@ export const SettingsExperience = () => {
 
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [activeSection, setActiveSection] = useState<SettingsSection>('brand');
+  const [savedSnapshot, setSavedSnapshot] = useState('');
+
+  const currentSnapshot = useMemo(() => JSON.stringify({
+    name,
+    slug,
+    address,
+    phone,
+    schedule,
+    primaryColor,
+    logoUrl,
+    galleryUrls,
+    slogan,
+    bannerUrl,
+    instagram,
+  }), [address, bannerUrl, galleryUrls, instagram, logoUrl, name, phone, primaryColor, schedule, slogan, slug]);
+  const isDirty = Boolean(savedSnapshot && currentSnapshot !== savedSnapshot);
+  const invalidSchedule = schedule.some((day) => day.isOpen && (!/^\d{2}:\d{2}$/.test(day.open) || !/^\d{2}:\d{2}$/.test(day.close) || day.open >= day.close));
+  const formError = !name.trim() || !slug.trim()
+    ? 'Nome e endereço digital são obrigatórios.'
+    : !/^#[0-9A-Fa-f]{6}$/.test(primaryColor)
+      ? 'Informe uma cor hexadecimal válida.'
+      : invalidSchedule
+        ? 'Revise o funcionamento: a abertura deve ser anterior ao fechamento.'
+        : null;
 
   const fetchAddressByCep = async (rawCep: string) => {
     const cleanCep = rawCep.replace(/\D/g, '');
@@ -166,16 +216,10 @@ export const SettingsExperience = () => {
 
   const handleAddGalleryPhoto = async () => {
     const url = await pickImage([4, 5]);
-    if (!url || !barbershop) return;
+    if (!url) return;
     const nextGallery = [...galleryUrls, url];
     setGalleryUrls(nextGallery);
-    try {
-      const { error } = await supabase.from('establishments').update({ gallery_urls: JSON.stringify(nextGallery) }).eq('id', barbershop.id);
-      if (error) throw error;
-      setNotice({ tone: 'success', message: 'Foto adicionada à vitrine.' });
-    } catch {
-      setNotice({ tone: 'danger', message: 'A imagem foi enviada, mas não foi possível salvar a galeria.' });
-    }
+    setNotice({ tone: 'success', message: 'Foto adicionada ao preview. Salve para publicar.' });
   };
 
   useEffect(() => {
@@ -189,6 +233,7 @@ export const SettingsExperience = () => {
         setPrimaryColor(shop.primaryColor || '#F5A524');
         setLogoUrl(shop.logoUrl || null);
         setSlogan(shop.slogan || '');
+        setBannerUrl(shop.bannerUrl || '');
         setInstagram(shop.instagram || '');
 
         let parsedGallery: string[] = [];
@@ -211,6 +256,19 @@ export const SettingsExperience = () => {
           }
         }
         setSchedule(parsedHours);
+        setSavedSnapshot(JSON.stringify({
+          name: shop.name || '',
+          slug: shop.slug || '',
+          address: shop.address || '',
+          phone: shop.phone || '',
+          schedule: parsedHours,
+          primaryColor: shop.primaryColor || '#F5A524',
+          logoUrl: shop.logoUrl || null,
+          galleryUrls: parsedGallery,
+          slogan: shop.slogan || '',
+          bannerUrl: shop.bannerUrl || '',
+          instagram: shop.instagram || '',
+        }));
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -219,12 +277,8 @@ export const SettingsExperience = () => {
   const saveSettings = async () => {
     setNotice(null);
     const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '');
-    if (!name.trim() || !cleanSlug) {
-      setNotice({ tone: 'danger', message: 'Nome e endereço digital são obrigatórios.' });
-      return;
-    }
-    if (!/^#[0-9A-Fa-f]{6}$/.test(primaryColor)) {
-      setNotice({ tone: 'danger', message: 'Use uma cor hexadecimal válida, como #F5A524.' });
+    if (formError || !cleanSlug) {
+      setNotice({ tone: 'danger', message: formError || 'Nome e endereço digital são obrigatórios.' });
       return;
     }
     if (!barbershop) return;
@@ -240,6 +294,12 @@ export const SettingsExperience = () => {
       }).eq('id', barbershop.id);
       if (error) throw error;
       setSlug(cleanSlug);
+      setSavedSnapshot(JSON.stringify({
+        ...JSON.parse(currentSnapshot),
+        name: name.trim(),
+        slug: cleanSlug,
+        primaryColor: primaryColor.toUpperCase(),
+      }));
       setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível salvar todas as alterações.' });
@@ -258,19 +318,58 @@ export const SettingsExperience = () => {
     }
   };
 
+  const discardChanges = () => {
+    if (!savedSnapshot) return;
+    const snapshot = JSON.parse(savedSnapshot) as SettingsSnapshot;
+    setName(snapshot.name);
+    setSlug(snapshot.slug);
+    setAddress(snapshot.address);
+    setPhone(snapshot.phone);
+    setSchedule(snapshot.schedule);
+    setPrimaryColor(snapshot.primaryColor);
+    setLogoUrl(snapshot.logoUrl);
+    setGalleryUrls(snapshot.galleryUrls);
+    setSlogan(snapshot.slogan);
+    setBannerUrl(snapshot.bannerUrl);
+    setInstagram(snapshot.instagram);
+    setNotice(null);
+  };
+
   if (loading) {
     return <View testID="settings-loading-screen" style={styles.loading}><ActivityIndicator color={colors.accent} size="large" /></View>;
   }
 
   return (
-    <AdminShell testID="settings-screen" activeRoute="settings" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut}>
-      <SectionHeading testID="settings-heading" eyebrow="Preferências" title="Identidade e funcionamento" description="Mantenha as informações que seus clientes veem e a marca que sua equipe usa todos os dias." />
-      {!!notice && <InlineNotice testID="settings-action-notice" tone={notice.tone} message={notice.message} />}
+    <AdminShell testID="settings-screen" activeRoute="settings" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut} contentMode="fixed" scroll={false}>
+      <View style={styles.screen}>
+        <View style={styles.screenHeader}>
+          <SectionHeading testID="settings-heading" eyebrow="Preferências" title="Identidade e funcionamento" description="Mantenha as informações que seus clientes veem e a marca que sua equipe usa todos os dias." />
+          {!!notice && <InlineNotice testID="settings-action-notice" tone={notice.tone} message={notice.message} />}
+          {!!formError && isDirty && <InlineNotice testID="settings-form-error" tone="warning" message={formError} />}
+        </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.settingsScroll} style={styles.settingsViewport} showsVerticalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sectionNavigation}>
+            {settingsSections.map(({ key, label, Icon }) => {
+              const selected = activeSection === key;
+              return (
+                <Pressable
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  key={key}
+                  onPress={() => setActiveSection(key)}
+                  style={[styles.sectionNavigationItem, selected && styles.sectionNavigationItemSelected]}
+                  testID={`settings-section-${key}`}
+                >
+                  <Icon color={selected ? colors.brandPrimary : colors.textMuted} size={17} />
+                  <Text style={[styles.sectionNavigationLabel, selected && styles.sectionNavigationLabelSelected]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         <View style={[styles.workspace, isWide && styles.workspaceWide]}>
           <View style={styles.formColumn}>
-            <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
+            {activeSection === 'brand' ? <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
               <View style={styles.logoRow}>
                 <View testID="settings-logo-preview" style={styles.logoPreview}>
                   {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={colors.textSecondary} size={30} />}
@@ -308,9 +407,9 @@ export const SettingsExperience = () => {
                   />
                 </View>
               </View>
-            </FormSection>
+            </FormSection> : null}
 
-            <FormSection testID="settings-account-security-section" title="Segurança da conta" description="Atualize sua senha pessoal sem alterar dados ou permissões do estabelecimento.">
+            {activeSection === 'security' ? <FormSection testID="settings-account-security-section" title="Segurança da conta" description="Atualize sua senha pessoal sem alterar dados ou permissões do estabelecimento.">
               <View style={styles.securityRow}>
                 <View style={styles.securityIcon}><KeyRound color={colors.info} size={20} /></View>
                 <View style={styles.securityCopy}>
@@ -319,9 +418,10 @@ export const SettingsExperience = () => {
                 </View>
                 <AppButton label="Alterar senha" testID="settings-change-password-button" onPress={() => router.push('/security' as never)} variant="secondary" />
               </View>
-            </FormSection>
+            </FormSection> : null}
 
-            <FormSection testID="settings-contact-section" title="Contato, localização e redes" description="Esses dados aparecem no perfil público e ajudam o cliente antes da visita.">
+            {activeSection === 'contact' || activeSection === 'images' ? <FormSection testID="settings-contact-section" title={activeSection === 'contact' ? 'Contato, localização e redes' : 'Imagens da vitrine'} description={activeSection === 'contact' ? 'Esses dados aparecem no perfil público e ajudam o cliente antes da visita.' : 'Atualize o banner e a galeria antes de publicar as alterações.'}>
+              {activeSection === 'contact' ? <>
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="CEP (Preenchimento automático)" testID="settings-cep-input" icon={<MapPin color={colors.textMuted} size={17} />} value={cep} onChangeText={handleCepChange} keyboardType="numeric" placeholder="01001-000" />
                 <AppInput containerStyle={styles.flexField} label="Endereço completo" testID="settings-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
@@ -330,6 +430,7 @@ export const SettingsExperience = () => {
                 <AppInput containerStyle={styles.flexField} label="Telefone" testID="settings-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
                 <AppInput containerStyle={styles.flexField} label="Instagram (sem @)" testID="settings-instagram-input" value={instagram} onChangeText={setInstagram} placeholder="ex: barbeariadobruno" />
               </View>
+              </> : <>
               <View style={{ gap: 8 }}>
                 <AppInput label="Capa do perfil (URL do Banner)" testID="settings-banner-input" value={bannerUrl} onChangeText={setBannerUrl} placeholder="ex: https://images.unsplash.com/photo-..." />
                 <AppButton
@@ -378,9 +479,10 @@ export const SettingsExperience = () => {
                   style={styles.uploadButton}
                 />
               </View>
-            </FormSection>
+              </>}
+            </FormSection> : null}
 
-            <FormSection title="Grade de Funcionamento Estruturada" testID="settings-schedule-section" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
+            {activeSection === 'schedule' ? <FormSection title="Grade de funcionamento" testID="settings-schedule-section" description="Informe as horas exatas de atendimento para que os horários livres coincidam perfeitamente.">
               <View style={styles.scheduleGrid}>
                 {schedule.map((dayItem, idx) => (
                   <View key={dayItem.day} style={styles.scheduleRow}>
@@ -410,7 +512,7 @@ export const SettingsExperience = () => {
                           placeholder="09:00"
                           placeholderTextColor="#666"
                         />
-                        <Text style={{ color: colors.textMuted, fontSize: 10 }}>às</Text>
+                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>às</Text>
                         <TextInput
                           testID={`settings-schedule-close-${dayItem.day}`}
                           style={styles.timeInput}
@@ -430,7 +532,7 @@ export const SettingsExperience = () => {
                   </View>
                 ))}
               </View>
-            </FormSection>
+            </FormSection> : null}
           </View>
 
           <View style={styles.previewColumn}>
@@ -441,7 +543,7 @@ export const SettingsExperience = () => {
                 {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
               </View>
               <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
-              {!!slogan && <Text testID="settings-preview-slogan" style={{ color: primaryColor, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 4, textAlign: 'center' }}>“{slogan}”</Text>}
+              {!!slogan && <Text testID="settings-preview-slogan" style={{ color: primaryColor, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4, textAlign: 'center' }}>“{slogan}”</Text>}
               <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>
               <Text testID="settings-preview-phone" style={styles.previewMeta}>{phone || 'Adicione seu telefone'}</Text>
               <View style={[styles.linkBox, { backgroundColor: `${primaryColor}14` }]}>
@@ -451,26 +553,43 @@ export const SettingsExperience = () => {
               </View>
               <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
             </AppCard>
-            <AppButton label="Salvar configurações" testID="settings-save-button" onPress={saveSettings} loading={saving} fullWidth variant="admin" icon={<Save color={colors.white} size={17} />} />
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+        <StickyActionBar
+          actions={<>
+            <AppButton disabled={!isDirty || saving} label="Descartar" onPress={discardChanges} testID="settings-discard-button" variant="secondary" />
+            <AppButton disabled={!isDirty || Boolean(formError)} icon={<Save color={colors.white} size={17} />} label="Salvar" loading={saving} onPress={saveSettings} testID="settings-save-button" variant="admin" />
+          </>}
+          message={isDirty ? 'Alterações não salvas' : 'Configurações atualizadas'}
+          testID="settings-sticky-actions"
+        />
+      </View>
     </AdminShell>
   );
 };
 
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas },
-  workspace: { gap: 18, marginTop: 28 },
+  screen: { flex: 1, minHeight: 0 },
+  screenHeader: { gap: 12, paddingHorizontal: 24, paddingTop: 28 },
+  settingsViewport: { flex: 1 },
+  settingsScroll: { padding: 24, paddingBottom: 48 },
+  sectionNavigation: { gap: 8, paddingBottom: 4 },
+  sectionNavigationItem: { alignItems: 'center', borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: 8, minHeight: 44, paddingHorizontal: 14 },
+  sectionNavigationItemSelected: { backgroundColor: colors.brandSecondarySoft, borderColor: colors.brandSecondary },
+  sectionNavigationLabel: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
+  sectionNavigationLabelSelected: { color: colors.brandPrimary, fontFamily: typography.bodyStrong },
+  workspace: { gap: 18, marginTop: 18 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
   formColumn: { flex: 1.35, gap: 14 },
-  previewColumn: { flex: 0.75, minWidth: 300, gap: 12 },
+  previewColumn: { flex: 0.75, minWidth: 300, gap: 12, ...Platform.select({ web: { position: 'sticky', top: 16 } as any, default: {} }) },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   logoPreview: { width: 78, height: 78, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImage: { width: '100%', height: '100%' },
   logoCopy: { flex: 1 },
   logoTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
-  logoHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 4, marginBottom: 10 },
+  logoHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 4, marginBottom: 10 },
   compactButton: { alignSelf: 'flex-start', minHeight: 38, paddingVertical: 7 },
   fieldsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   flexField: { flex: 1, minWidth: 210 },
@@ -479,13 +598,13 @@ const styles = StyleSheet.create({
   colorSwatch: { width: 40, height: 40, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, marginBottom: 5 },
   previewCard: { position: 'relative', alignItems: 'center', padding: 24, overflow: 'hidden' },
   previewAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  previewEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.8, alignSelf: 'flex-start' },
+  previewEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, alignSelf: 'flex-start' },
   previewLogo: { width: 74, height: 74, borderRadius: radii.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 28, overflow: 'hidden' },
   previewLogoImage: { width: '100%', height: '100%' },
   previewName: { color: colors.text, fontFamily: typography.display, fontSize: 21, letterSpacing: -0.7, marginTop: 15, textAlign: 'center' },
-  previewMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, marginTop: 5, textAlign: 'center' },
+  previewMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 5, textAlign: 'center' },
   linkBox: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radii.md, padding: 9, marginTop: 22, marginBottom: 16 },
-  linkText: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 10 },
+  linkText: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 11 },
   copyButton: { width: 30, height: 30, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
   scheduleGrid: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, paddingHorizontal: 18, paddingVertical: 8 },
@@ -496,7 +615,7 @@ const styles = StyleSheet.create({
   closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' },
   compactUploadButton: { minHeight: 32, paddingVertical: 5, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 },
   uploadButton: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
-  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
   emptyGalleryText: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic', marginVertical: 4 },
   galleryPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 8 },
   galleryItemContainer: { width: 80, height: 100, borderRadius: radii.md, overflow: 'hidden', position: 'relative' },
@@ -504,7 +623,7 @@ const styles = StyleSheet.create({
   securityIcon: { width: 42, height: 42, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.infoSoft },
   securityCopy: { flex: 1, minWidth: 210 },
   securityTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  securityDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, lineHeight: 16, marginTop: 3 },
+  securityDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, lineHeight: 17, marginTop: 3 },
   galleryItemImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }
 });

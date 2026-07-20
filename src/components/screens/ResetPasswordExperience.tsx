@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 20, paddingVertical: 36 },
   shell: { width: '100%', maxWidth: layout.formMax, alignSelf: 'center' },
   intro: { marginTop: 42, marginBottom: 24 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10, letterSpacing: 2 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 2 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 37, lineHeight: 42, letterSpacing: -1.6, marginTop: 12 },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: 12 },
   card: { gap: 18, padding: 24 },
@@ -137,5 +137,5 @@ const styles = StyleSheet.create({
   stateTitle: { color: colors.text, fontFamily: typography.display, fontSize: 21 },
   stateText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 19, textAlign: 'center' },
   securityNote: { marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  securityText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10 },
+  securityText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
 });

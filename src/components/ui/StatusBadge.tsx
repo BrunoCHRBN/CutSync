@@ -8,6 +8,7 @@ interface StatusBadgeProps {
   label: string;
   tone?: StatusTone;
   testID: string;
+  showDot?: boolean;
 }
 
 const toneMap = {
@@ -18,8 +19,9 @@ const toneMap = {
   neutral: { backgroundColor: colors.surfacePressed, color: colors.textSecondary },
 };
 
-export const StatusBadge = ({ label, tone = 'neutral', testID }: StatusBadgeProps) => (
+export const StatusBadge = ({ label, tone = 'neutral', testID, showDot = false }: StatusBadgeProps) => (
   <View testID={testID} style={[styles.badge, { backgroundColor: toneMap[tone].backgroundColor }]}>
+    {showDot && <View style={[styles.dot, { backgroundColor: toneMap[tone].color }]} />}
     <Text testID={`${testID}-label`} style={[styles.label, { color: toneMap[tone].color }]}>{label}</Text>
   </View>
 );
@@ -35,8 +37,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: typography.bodyStrong,
-    fontSize: 9,
-    letterSpacing: 0.6,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
+  dot: { width: 6, height: 6, borderRadius: 3 },
 });

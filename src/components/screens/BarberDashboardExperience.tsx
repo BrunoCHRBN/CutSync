@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Check, ChevronLeft, ChevronRight, MessageSquare, Plus, RefreshCw, WalletCards, X } from 'lucide-react-native';
+import { Check, Plus, WalletCards } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -9,13 +9,10 @@ import { useServices } from '../../hooks/useServices';
 import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { useNextAppointment } from '../../hooks/useNextAppointment';
 import { supabase } from '../../services/supabase';
-import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
 import { AppButton } from '../ui/AppButton';
-import { AppCard } from '../ui/AppCard';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
-import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { parseSchedule } from '../../utils/schedule';
@@ -25,20 +22,21 @@ import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
 import { getTodayInTimeZone } from '../../utils/dateTime';
 import { appointmentFeedbackMessages, translateAppointmentError } from '../../utils/appointmentErrors';
 import { NextAppointmentCard } from '../booking/NextAppointmentCard';
+import { useTeam } from '../../hooks/useTeam';
+import { CalendarAppointment, CalendarSlotSelection, OperationalCalendar } from '../calendar/operational-calendar';
+import { AppointmentDetailSheet } from '../calendar/appointment-detail-sheet';
+import { PageHeader } from '../ui/page-header';
+import { MetricStrip } from '../ui/metric-strip';
+import { useScheduleBlocks } from '../../hooks/use-schedule-blocks';
+import { SlotActionSheet } from '../calendar/slot-action-sheet';
+import { ScheduleBlockDraft, ScheduleBlockModal } from '../calendar/schedule-block-modal';
+import { AppCommand, useCommandPalette, useCommandRegistration } from '../command/command-palette-provider';
 
 type Tab = 'mine' | 'team';
 type QuickBookSource = 'header' | 'timeline';
 
 type RichAppointment = DashboardAppointment & { barberName: string };
 
-const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
-  pending: { label: 'Pendente', tone: 'warning' },
-  confirmed: { label: 'Confirmado', tone: 'info' },
-  completed: { label: 'Concluído', tone: 'success' },
-  cancelled: { label: 'Cancelado', tone: 'danger' },
-};
-
-const hitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
 const defaultSchedule = [
   { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
   { day: 2, name: 'Terça-feira', isOpen: true, open: '09:00', close: '20:00' },
@@ -57,17 +55,22 @@ const readableForeground = (hex: string) => {
 };
 
 export const BarberDashboardExperience = () => {
-  const { width } = useWindowDimensions();
-  const isWide = width >= layout.desktopBreakpoint;
+  const { open: openCommandPalette } = useCommandPalette();
   const { profile, signOut } = useAuth();
   const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
   const { services } = useServices(profile?.establishment_id, true);
+  const { team } = useTeam(profile?.establishment_id, Boolean(profile?.establishment_id));
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tab, setTab] = useState<Tab>('mine');
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [cancelCandidateId, setCancelCandidateId] = useState<string | null>(null);
+  const [showFinished, setShowFinished] = useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [slotSelection, setSlotSelection] = useState<CalendarSlotSelection | null>(null);
+  const [blockSelection, setBlockSelection] = useState<CalendarSlotSelection | null>(null);
+  const [blockLoading, setBlockLoading] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickBookSource, setQuickBookSource] = useState<QuickBookSource>('header');
   const [quickName, setQuickName] = useState('');
@@ -104,9 +107,9 @@ export const BarberDashboardExperience = () => {
     professionalId: profile?.id,
     enabled: Boolean(profile?.establishment_id && profile?.id),
   });
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     await Promise.all([refreshAppointments(), refreshNextAppointment()]);
-  };
+  }, [refreshAppointments, refreshNextAppointment]);
   const syncError = appointmentError || nextAppointmentError
     ? new Error(appointmentError || nextAppointmentError || '')
     : null;
@@ -122,6 +125,19 @@ export const BarberDashboardExperience = () => {
     professionalId: profile?.id,
     serviceId: quickService,
     date: quickOpen ? quickDate : null,
+  });
+  const {
+    blocks: scheduleBlocks,
+    loading: scheduleBlocksLoading,
+    error: scheduleBlocksError,
+    supported: scheduleBlocksSupported,
+    refresh: refreshScheduleBlocks,
+  } = useScheduleBlocks({
+    establishmentId: profile?.establishment_id,
+    professionalId: tab === 'team' && barbershop?.shareAgendas ? null : profile?.id,
+    rangeStart: selectedRange.start,
+    rangeEnd: selectedRange.end,
+    enabled: Boolean(profile?.establishment_id && profile?.id),
   });
   const rescheduleRecord = appointmentRecords.find((appointment) => appointment.id === rescheduleItem?.id);
   const {
@@ -186,65 +202,39 @@ export const BarberDashboardExperience = () => {
   const primaryColor = barbershop?.primaryColor || colors.brand;
   const primaryForeground = readableForeground(primaryColor);
   const time = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const timeSlots = useMemo(() => {
-    const dayOfWeek = selectedDate.getDay();
-    let schedule = defaultSchedule.find(s => s.day === dayOfWeek);
-    if (profile?.work_hours) {
-      const found = parseSchedule(profile.work_hours).find((item) => item.day === dayOfWeek);
-      if (found) schedule = { ...schedule, ...found, name: found.name || schedule?.name || '' };
-    }
-    
-    const startStr = schedule?.isOpen ? schedule.open : '09:00';
-    const endStr = schedule?.isOpen ? schedule.close : '18:00';
-    
-    const [startHour, startMin] = startStr.split(':').map(Number);
-    const [endHour, endMin] = endStr.split(':').map(Number);
-    
-    const slots: string[] = [];
-    let current = new Date();
-    current.setHours(startHour, startMin, 0, 0);
-    
-    const end = new Date();
-    end.setHours(endHour, endMin, 0, 0);
-    
-    while (current <= end) {
-      const timeString = current.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      slots.push(timeString);
-      current.setMinutes(current.getMinutes() + 30);
-    }
-    return slots;
-  }, [selectedDate, profile?.work_hours]);
+  const calendarResources = useMemo(() => {
+    const ownResource = profile?.id ? [{ id: profile.id, name: profile.name || 'Minha agenda', avatarUrl: profile.avatar_url }] : [];
+    if (tab === 'mine' || !barbershop?.shareAgendas) return ownResource;
+    const resources = team.map((member) => ({ id: member.id, name: member.name, avatarUrl: member.avatarUrl }));
+    return [
+      ...ownResource,
+      ...resources.filter((resource) => resource.id !== profile?.id),
+    ];
+  }, [barbershop?.shareAgendas, profile?.avatar_url, profile?.id, profile?.name, tab, team]);
 
-  const activeAppointments = useMemo(() => {
-    return visibleAppointments.filter(app => app.status === 'pending' || app.status === 'confirmed');
-  }, [visibleAppointments]);
-  
-  const inactiveAppointments = useMemo(() => {
-    return visibleAppointments.filter(app => app.status === 'completed' || app.status === 'cancelled');
-  }, [visibleAppointments]);
+  const calendarAppointments = useMemo<CalendarAppointment[]>(
+    () => appointmentRecords.map((item) => ({
+      id: item.id,
+      professionalId: item.professionalId,
+      clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
+      serviceName: item.service?.name || 'Serviço indisponível',
+      startsAt: item.dateTime,
+      endsAt: new Date(item.dateTime.getTime() + (item.service?.durationMinutes || 30) * 60_000),
+      status: item.status,
+      price: item.service?.price,
+    })),
+    [appointmentRecords],
+  );
 
-  const activeAppointmentsBySlot = useMemo(() => {
-    const map: Record<string, RichAppointment[]> = {};
-    activeAppointments.forEach(app => {
-      const tStr = app.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      if (!map[tStr]) map[tStr] = [];
-      map[tStr].push(app);
-    });
-    return map;
-  }, [activeAppointments]);
-
-  const timelineSlots = useMemo(() => {
-    const slotsSet = new Set(timeSlots);
-    activeAppointments.forEach(app => {
-      const tStr = app.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      slotsSet.add(tStr);
-    });
-    return Array.from(slotsSet).sort((a, b) => {
-      const [ha, ma] = a.split(':').map(Number);
-      const [hb, mb] = b.split(':').map(Number);
-      return (ha * 60 + ma) - (hb * 60 + mb);
-    });
-  }, [timeSlots, activeAppointments]);
+  const selectedCalendarAppointment = calendarAppointments.find((item) => item.id === selectedAppointmentId) || null;
+  const professionalSchedule = useMemo(() => profile?.work_hours ? parseSchedule(profile.work_hours) : [], [profile?.work_hours]);
+  const establishmentSchedule = useMemo(() => parseSchedule(barbershop?.openingHours), [barbershop?.openingHours]);
+  const selectedWorkingDay = useMemo(
+    () => professionalSchedule.find((day) => day.day === selectedDate.getDay())
+      || establishmentSchedule.find((day) => day.day === selectedDate.getDay())
+      || defaultSchedule.find((day) => day.day === selectedDate.getDay()),
+    [establishmentSchedule, professionalSchedule, selectedDate],
+  );
 
   const updateStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled', reason?: string) => {
     if (status === 'cancelled' && !reason) {
@@ -284,7 +274,6 @@ export const BarberDashboardExperience = () => {
       }
       const { error } = await supabase.rpc('update_appointment_status', rpcParams);
       if (error) throw error;
-      setCancelCandidateId(null);
       setNotice({ tone: 'success', message: 'Status do atendimento atualizado.' });
       await refresh();
     } catch (err) {
@@ -369,6 +358,86 @@ export const BarberDashboardExperience = () => {
     }
   };
 
+  const createBlock = async (draft: ScheduleBlockDraft) => {
+    if (!profile?.establishment_id || !profile.id) return;
+    setBlockLoading(true);
+    setBlockError(null);
+    const { error } = await supabase.rpc('create_schedule_block', {
+      target_establishment_id: profile.establishment_id,
+      target_professional_id: profile.id,
+      requested_start: draft.startsAt.toISOString(),
+      requested_end: draft.endsAt.toISOString(),
+      requested_kind: draft.kind,
+      requested_reason: draft.reason,
+    });
+    setBlockLoading(false);
+    if (error) {
+      const message = error.message.includes('schedule_block_conflict')
+        ? 'Já existe um atendimento ativo neste período.'
+        : error.message.includes('schedule_block_overlap')
+          ? 'Este período já possui outro bloqueio.'
+          : 'Não foi possível bloquear este horário.';
+      setBlockError(message);
+      return;
+    }
+    await refreshScheduleBlocks();
+    setBlockSelection(null);
+    setNotice({ tone: 'success', message: 'Horário bloqueado na agenda.' });
+  };
+
+  const deleteBlock = async (blockId: string) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Remover este bloqueio da agenda?')
+      : await new Promise<boolean>((resolve) => Alert.alert('Remover bloqueio', 'Deseja liberar este horário?', [
+        { text: 'Voltar', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Remover', style: 'destructive', onPress: () => resolve(true) },
+      ], { cancelable: true, onDismiss: () => resolve(false) }));
+    if (!confirmed) return;
+    const { error } = await supabase.rpc('delete_schedule_block', { target_block_id: blockId });
+    if (error) {
+      setNotice({ tone: 'danger', message: 'Não foi possível remover este bloqueio.' });
+      return;
+    }
+    await refreshScheduleBlocks();
+    setNotice({ tone: 'success', message: 'Horário liberado.' });
+  };
+
+  const dashboardCommands = useMemo<AppCommand[]>(() => {
+    const professionalId = profile?.id;
+    const commandSlot = new Date(selectedDate);
+    if (commandSlot.toDateString() === new Date().toDateString()) {
+      const now = new Date();
+      commandSlot.setHours(now.getHours(), Math.ceil(now.getMinutes() / 30) * 30, 0, 0);
+    } else {
+      const [hour, minute] = (selectedWorkingDay?.isOpen ? selectedWorkingDay.open : '09:00').split(':').map(Number);
+      commandSlot.setHours(hour, minute, 0, 0);
+    }
+    const openQuickBook = () => {
+      setQuickBookSource('timeline');
+      setQuickTime(commandSlot.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      setQuickDate(commandSlot);
+      setQuickName('');
+      setQuickService(services[0]?.id || null);
+      setQuickOpen(true);
+    };
+    const moveDay = (delta: number) => {
+      const next = new Date(selectedDate);
+      next.setDate(next.getDate() + delta);
+      setSelectedDate(next);
+    };
+    return [
+      { id: 'new-appointment', label: 'Novo agendamento', keywords: ['horario', 'cliente'], shortcut: 'N', roles: ['professional'], disabled: !professionalId, run: openQuickBook },
+      { id: 'quick-booking', label: 'Novo encaixe', keywords: ['rapido'], shortcut: 'E', roles: ['professional'], disabled: !professionalId, run: openQuickBook },
+      { id: 'block-time', label: 'Bloquear horário', keywords: ['pausa', 'ausencia'], shortcut: 'B', roles: ['professional'], disabled: !professionalId || !scheduleBlocksSupported, run: () => professionalId && setBlockSelection({ professionalId, startsAt: commandSlot }) },
+      { id: 'calendar-today', label: 'Ir para hoje', keywords: ['data'], shortcut: 'T', roles: ['professional'], run: () => setSelectedDate(new Date()) },
+      { id: 'calendar-previous-day', label: 'Dia anterior', keywords: ['data'], shortcut: '[', roles: ['professional'], run: () => moveDay(-1) },
+      { id: 'calendar-next-day', label: 'Próximo dia', keywords: ['data'], shortcut: ']', roles: ['professional'], run: () => moveDay(1) },
+      { id: 'calendar-refresh', label: 'Atualizar agenda', keywords: ['sincronizar'], roles: ['professional'], run: () => { void refresh(); } },
+      { id: 'search-appointment', label: 'Buscar atendimento pelo cliente', keywords: ['nome', 'busca'], shortcut: '/', roles: ['professional'], run: openCommandPalette },
+    ];
+  }, [openCommandPalette, profile?.id, refresh, scheduleBlocksSupported, selectedDate, selectedWorkingDay, services]);
+  useCommandRegistration('professional-dashboard', dashboardCommands);
+
   const saudacaoProfissional = profile?.titulo_profissional
     ? profile.titulo_profissional.toLowerCase()
     : 'especialista';
@@ -376,10 +445,20 @@ export const BarberDashboardExperience = () => {
   return (
     <ProfessionalShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.pageHeader}>
-          <SectionHeading testID="barber-dashboard-heading" eyebrow="Minha operação" title={`Olá, ${saudacaoProfissional}.`} description="Seu dia organizado para você manter o ritmo entre um cliente e outro." />
-          <View style={styles.headerActions}>
+        <PageHeader
+          testID="barber-dashboard-heading"
+          eyebrow="Minha operação"
+          title={`Olá, ${saudacaoProfissional}.`}
+          description="Seu dia organizado para manter o ritmo entre um cliente e outro."
+          actions={<View style={styles.headerActions}>
             <StatusBadge testID="barber-sync-status" label={syncError ? 'Falha ao atualizar' : isDashboardSyncing ? 'Atualizando' : 'Tempo real'} tone={syncError ? 'danger' : isDashboardSyncing ? 'warning' : 'success'} />
+            <AppButton
+              label="Atualizar"
+              testID="barber-sync-button"
+              onPress={() => { void refreshAppointments(); }}
+              variant="secondary"
+              loading={isDashboardSyncing}
+            />
             <AppButton 
               label="Encaixe rápido" 
               testID="barber-quick-booking-button" 
@@ -396,8 +475,8 @@ export const BarberDashboardExperience = () => {
               style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
               foregroundColor={primaryForeground}
             />
-          </View>
-        </View>
+          </View>}
+        />
 
         {!!notice && <InlineNotice testID="barber-action-notice" tone={notice.tone} message={notice.message} />}
 
@@ -409,226 +488,121 @@ export const BarberDashboardExperience = () => {
           style={styles.nextAppointmentCard}
         />
 
-        <View style={[styles.metrics, !isWide && styles.metricsStack]}>
-          <Metric testID="barber-completed-metric" icon={<Check color={colors.success} size={18} />} label="Concluídos" value={String(completed.length)} note={`${visibleAppointments.length} horários na agenda`} />
-          <Metric testID="barber-commission-metric" icon={<WalletCards color={colors.info} size={18} />} label="Meu ganho no dia" value={currency(commission)} note={`${Math.round((profile?.commission_rate ?? 0.5) * 100)}% de comissão`} />
-        </View>
+        <MetricStrip
+          testID="barber-metrics"
+          items={[
+            { key: 'completed', testID: 'barber-completed-metric', label: 'Concluídos', value: String(completed.length), note: `${visibleAppointments.length} horários na agenda`, icon: <Check color={colors.success} size={18} /> },
+            { key: 'commission', testID: 'barber-commission-metric', label: 'Meu ganho no dia', value: currency(commission), note: `${Math.round((profile?.commission_rate ?? 0.5) * 100)}% de comissão`, icon: <WalletCards color={colors.info} size={18} /> },
+          ]}
+        />
 
-        <View style={styles.agendaHeader}>
-          <SectionHeading testID="barber-agenda-heading" eyebrow="Agenda" title="Ritmo do dia" description="Alterne entre seus horários e a visão de toda a equipe." />
-          <AppButton label="Atualizar" testID="barber-sync-button" variant="secondary" onPress={() => { void refresh(); }} loading={isDashboardSyncing} icon={<RefreshCw color={colors.text} size={15} />} style={styles.syncButton} />
-        </View>
-
-        <SegmentedControl<Tab> testID="barber-agenda-tabs" value={tab} activeColor={primaryColor} onChange={setTab} options={[{ value: 'mine', label: 'Minha agenda' }, { value: 'team', label: 'Agenda da equipe' }]} />
-
-        <View style={styles.calendarNavContainer}>
-          <Pressable 
-            testID="barber-calendar-prev"
-            hitSlop={hitSlop}
-            onPress={() => {
-              const d = new Date(selectedDate);
-              d.setDate(d.getDate() - 7);
-              setSelectedDate(d);
-            }} 
-            style={styles.navArrow}
-          >
-            <ChevronLeft color={colors.textSecondary} size={18} />
-          </Pressable>
-
-          {isWide ? (
-            <View style={styles.dateListWide}>
-              {dateOptions.map((date) => {
-                const id = date.toISOString().split('T')[0];
-                const selected = selectedDate.toDateString() === date.toDateString();
-                return (
-                  <Pressable
-                    key={id}
-                    testID={`barber-date-${id}`}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedDate(date); }}
-                    style={({ pressed }) => [
-                      styles.dateCard,
-                      styles.dateCardWide,
-                      selected && [styles.dateCardSelected, { backgroundColor: primaryColor }],
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text testID={`barber-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
-                      {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                    </Text>
-                    <Text testID={`barber-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
-                      {date.getDate()}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList} style={{ flex: 1 }}>
-              {dateOptions.map((date) => {
-                const id = date.toISOString().split('T')[0];
-                const selected = selectedDate.toDateString() === date.toDateString();
-                return (
-                  <Pressable
-                    key={id}
-                    testID={`barber-date-${id}`}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedDate(date); }}
-                    style={({ pressed }) => [
-                      styles.dateCard,
-                      selected && [styles.dateCardSelected, { backgroundColor: primaryColor }],
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text testID={`barber-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: primaryForeground }]}>
-                      {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                    </Text>
-                    <Text testID={`barber-date-${id}-day`} style={[styles.dateDay, selected && { color: primaryForeground }]}>
-                      {date.getDate()}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <Pressable 
-            testID="barber-calendar-next"
-            hitSlop={hitSlop}
-            onPress={() => {
-              const d = new Date(selectedDate);
-              d.setDate(d.getDate() + 7);
-              setSelectedDate(d);
-            }} 
-            style={styles.navArrow}
-          >
-            <ChevronRight color={colors.textSecondary} size={18} />
-          </Pressable>
-
-          {weekOffset !== 0 && (
-            <Pressable 
-              testID="barber-calendar-today"
-              hitSlop={hitSlop}
-              onPress={() => setSelectedDate(new Date())} 
-              style={styles.todayBtn}
-            >
-              <Text style={styles.todayBtnText}>Hoje</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {loading ? <ActivityIndicator testID="barber-agenda-loading" color={colors.brand} style={styles.loader} /> : (
-          <View style={{ gap: 20 }}>
-            {/* Timeline Real (Slots de Horários Ativos e Livres) */}
-            <View style={styles.appointmentList}>
-              {timelineSlots.map((slot) => {
-                const slotApps = activeAppointmentsBySlot[slot] || [];
-                
-                if (slotApps.length > 0) {
-                  return slotApps.map((item) => {
-                    const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
-                    return (
-                    <AppCard key={item.id} testID={`barber-appointment-${item.id}`} style={styles.appointmentCard}>
-                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={[styles.appointmentTime, { color: primaryColor }]}>{time(item.dateTime)}</Text></View>
-                        <View style={styles.appointmentCopy}>
-                          <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
-                          <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
-                          {item.status === 'cancelled' && !!item.cancellationReason ? (
-                            <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
-                          ) : null}
-                          {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
-                          {cancelCandidateId === item.id ? (
-                            <InlineNotice testID={`barber-appointment-${item.id}-cancel-confirmation`} tone="danger" message="Cancelar este atendimento?" action={<View style={styles.confirmActions}><AppButton label="Confirmar" testID={`barber-appointment-${item.id}-cancel-confirm-button`} onPress={() => updateStatus(item.id, 'cancelled')} loading={actionLoadingId === item.id} variant="danger" style={styles.smallButton} /><AppButton label="Voltar" testID={`barber-appointment-${item.id}-cancel-back-button`} onPress={() => setCancelCandidateId(null)} variant="secondary" style={styles.smallButton} /></View>} />
-                          ) : (item.status === 'pending' || item.status === 'confirmed') && item.professionalId === profile?.id ? (
-                            <View style={styles.appointmentActions}>
-                              {!!item.clientPhone && (
-                                <AppButton 
-                                  label="WhatsApp" 
-                                  testID={`barber-appointment-${item.id}-whatsapp-button`} 
-                                  onPress={() => {
-                                    const text = `Olá, ${item.clientName}! Confirmando o seu agendamento de ${item.serviceName} no CutSync para as ${time(item.dateTime)} com o profissional ${item.barberName}.`;
-                                    sendWhatsAppMessage(item.clientPhone, text);
-                                  }}
-                                  variant="secondary"
-                                  icon={<MessageSquare color={colors.brand} size={14} />}
-                                  style={styles.smallButton}
-                                />
-                              )}
-                              <AppButton 
-                                label="Reagendar" 
-                                testID={`barber-appointment-${item.id}-reschedule-button`} 
-                                onPress={() => {
-                                  setRescheduleItem(item);
-                                  setNewRescheduleDate(new Date(item.dateTime));
-                                  setNewRescheduleTime(time(item.dateTime));
-                                }} 
-                                variant="secondary" 
-                                icon={<RefreshCw color={colors.textSecondary} size={13} />} 
-                                style={styles.smallButton} 
-                              />
-                              <AppButton label="Cancelar" testID={`barber-appointment-${item.id}-cancel-button`} onPress={() => setCancelCandidateId(item.id)} variant="danger" icon={<X color={colors.danger} size={14} />} style={styles.smallButton} />
-                              <AppButton label={item.status === 'pending' ? 'Confirmar' : 'Concluir'} testID={`barber-appointment-${item.id}-advance-button`} onPress={() => updateStatus(item.id, item.status === 'pending' ? 'confirmed' : 'completed')} loading={actionLoadingId === item.id} icon={<Check color={colors.ink} size={14} />} style={styles.smallButton} />
-                            </View>
-                          ) : null}
-                        </View>
-                      </AppCard>
-                    );
-                  });
-                }
-                
-                // Mostrar slot livre
-                return (
-                <Pressable
-                    key={`free-${slot}`}
-                    testID={`barber-free-slot-${slot.replace(':', '-')}`}
-                    onPress={() => {
-                      setQuickBookSource('timeline');
-                      setQuickTime(slot);
-                      const newDate = new Date(selectedDate);
-                      const [h, m] = slot.split(':').map(Number);
-                      newDate.setHours(h, m, 0, 0);
-                      setQuickDate(newDate);
-                      setQuickName('');
-                      setQuickService(services[0]?.id || null);
-                      setQuickOpen(true);
-                    }}
-                    style={({ pressed }) => [styles.freeSlotCard, pressed && styles.pressed]}
-                  >
-                    <View style={styles.timeBox}>
-                      <Text testID={`barber-free-slot-${slot.replace(':', '-')}-time`} style={styles.freeSlotTime}>{slot}</Text>
-                    </View>
-                    <View style={styles.freeSlotLine} />
-                    <View testID={`barber-free-slot-${slot.replace(':', '-')}-add`} style={styles.freeSlotAdd}><Plus size={14} color={colors.textMuted} /></View>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Seção final com Concluídos / Cancelados */}
-            {inactiveAppointments.length > 0 && (
-              <View style={styles.inactiveSection}>
-                <Text style={styles.inactiveSectionTitle}>Atendimentos Finalizados ou Cancelados</Text>
-                <View style={styles.appointmentList}>
-                  {inactiveAppointments.map((item) => {
-                    const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
-                    return (
-                      <View key={item.id} testID={`barber-history-${item.id}`} style={styles.historyRow}>
-                        <View style={styles.timeBox}><Text testID={`barber-appointment-${item.id}-time`} style={[styles.appointmentTime, { color: primaryColor }]}>{time(item.dateTime)}</Text></View>
-                        <View style={styles.appointmentCopy}>
-                          <View style={styles.appointmentTitleRow}><Text testID={`barber-appointment-${item.id}-client`} style={styles.clientName}>{item.clientName}</Text><StatusBadge testID={`barber-appointment-${item.id}-status`} label={status.label} tone={status.tone} /></View>
-                          <Text style={styles.serviceName}>{item.serviceName} · {currency(item.price)}</Text>
-                          {item.status === 'cancelled' && !!item.cancellationReason ? (
-                            <Text style={styles.cancellationReasonText}>Motivo: {item.cancellationReason}</Text>
-                          ) : null}
-                          {tab === 'team' && <Text style={styles.barberName}>{item.barberName}</Text>}
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
+        <SectionHeading
+          testID="barber-agenda-heading"
+          eyebrow="Agenda"
+          title="Ritmo do dia"
+          description="Clique em um horário livre para iniciar um encaixe."
+          variant="section"
+        />
+        <OperationalCalendar
+          allowTeamView={Boolean(barbershop?.shareAgendas)}
+          appointments={calendarAppointments}
+          blocks={scheduleBlocks}
+          closed={selectedWorkingDay ? !selectedWorkingDay.isOpen : false}
+          date={selectedDate}
+          error={appointmentError || scheduleBlocksError}
+          loading={loading || scheduleBlocksLoading}
+          legacyTestIDs={{
+            previousDay: 'barber-calendar-prev',
+            nextDay: 'barber-calendar-next',
+            today: 'barber-calendar-today',
+            view: 'barber-agenda-tabs',
+            loading: 'barber-agenda-loading',
+          }}
+          onBlockPress={(block) => {
+            if (block.professionalId === profile?.id) void deleteBlock(block.id);
+          }}
+          onAppointmentPress={(appointment) => setSelectedAppointmentId(appointment.id)}
+          onDateChange={setSelectedDate}
+          onRetry={() => { void refreshAppointments(); }}
+          onSlotPress={(selection) => {
+            const { professionalId } = selection;
+            if (professionalId !== profile?.id) {
+              setNotice({ tone: 'danger', message: 'Você pode criar encaixes somente na sua própria agenda.' });
+              return;
+            }
+            setSlotSelection(selection);
+          }}
+          onToggleFinished={() => setShowFinished((current) => !current)}
+          onViewChange={(nextView) => setTab(nextView)}
+          ownProfessionalId={profile?.id}
+          resources={calendarResources}
+          showFinished={showFinished}
+          syncState={syncError ? 'offline' : isDashboardSyncing ? 'syncing' : 'live'}
+          testID="barber-operational-calendar"
+          timezone={barbershop?.timezone}
+          view={tab}
+          workingHours={selectedWorkingDay?.isOpen ? { start: selectedWorkingDay.open, end: selectedWorkingDay.close } : null}
+        />
       </ScrollView>
+
+      <SlotActionSheet
+        canBlock={Boolean(scheduleBlocksSupported && slotSelection?.professionalId === profile?.id)}
+        onBlock={(selection) => {
+          setSlotSelection(null);
+          setBlockError(null);
+          setBlockSelection(selection);
+        }}
+        onBook={(selection) => {
+          setSlotSelection(null);
+          setQuickBookSource('timeline');
+          setQuickTime(time(selection.startsAt));
+          setQuickDate(selection.startsAt);
+          setQuickName('');
+          setQuickService(services[0]?.id || null);
+          setQuickOpen(true);
+        }}
+        onClose={() => setSlotSelection(null)}
+        professionalName={profile?.name}
+        selection={slotSelection}
+      />
+
+      <ScheduleBlockModal
+        error={blockError}
+        loading={blockLoading}
+        onClose={() => {
+          if (!blockLoading) setBlockSelection(null);
+        }}
+        onSubmit={(draft) => { void createBlock(draft); }}
+        professionals={calendarResources.filter((resource) => resource.id === profile?.id)}
+        selection={blockSelection}
+      />
+
+      <AppointmentDetailSheet
+        appointment={selectedCalendarAppointment}
+        canCancel={Boolean(selectedCalendarAppointment && !actionLoadingId && selectedCalendarAppointment.professionalId === profile?.id && !['completed', 'cancelled'].includes(selectedCalendarAppointment.status))}
+        canComplete={Boolean(selectedCalendarAppointment && !actionLoadingId && selectedCalendarAppointment.professionalId === profile?.id && !['completed', 'cancelled'].includes(selectedCalendarAppointment.status))}
+        canReschedule={Boolean(selectedCalendarAppointment && !actionLoadingId && selectedCalendarAppointment.professionalId === profile?.id && !['completed', 'cancelled'].includes(selectedCalendarAppointment.status))}
+        completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
+        onCancel={(appointment) => {
+          setSelectedAppointmentId(null);
+          void updateStatus(appointment.id, 'cancelled');
+        }}
+        onClose={() => setSelectedAppointmentId(null)}
+        onComplete={(appointment) => {
+          setSelectedAppointmentId(null);
+          void updateStatus(appointment.id, appointment.status === 'pending' ? 'confirmed' : 'completed');
+        }}
+        onReschedule={(appointment) => {
+          const item = appointments.find((candidate) => candidate.id === appointment.id);
+          if (!item) return;
+          setSelectedAppointmentId(null);
+          setRescheduleItem(item);
+          setNewRescheduleDate(new Date(item.dateTime));
+          setNewRescheduleTime(time(item.dateTime));
+        }}
+        professionalName={appointments.find((item) => item.id === selectedCalendarAppointment?.id)?.barberName}
+        visible={Boolean(selectedCalendarAppointment)}
+      />
 
       <ProfessionalQuickBook
         visible={quickOpen}
@@ -675,8 +649,6 @@ export const BarberDashboardExperience = () => {
   );
 };
 
-const Metric = ({ icon, label, value, note, testID }: { icon: React.ReactNode; label: string; value: string; note: string; testID: string }) => <AppCard testID={testID} style={styles.metric}><View style={styles.metricTop}>{icon}<Text testID={`${testID}-label`} style={styles.metricLabel}>{label}</Text></View><Text testID={`${testID}-value`} style={styles.metricValue}>{value}</Text><Text testID={`${testID}-note`} style={styles.metricNote}>{note}</Text></AppCard>;
-
 const styles = StyleSheet.create({
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 30, paddingBottom: 70 },
   pageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 18 },
@@ -686,9 +658,9 @@ const styles = StyleSheet.create({
   metricsStack: { flexDirection: 'column' },
   metric: { flex: 1, minWidth: 190, borderWidth: 0.5, borderColor: '#E5E7EB66', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.025, shadowRadius: 22, elevation: 1 },
   metricTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  metricLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.25, textTransform: 'uppercase' },
+  metricLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.25, textTransform: 'uppercase' },
   metricValue: { color: '#171717', fontFamily: typography.display, fontSize: 24, letterSpacing: -1, marginTop: 17 },
-  metricNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 4 },
+  metricNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 4 },
   agendaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 14, marginTop: 42, marginBottom: 17 },
   syncButton: { minHeight: 40, paddingVertical: 8 },
   dateList: { gap: 8, paddingVertical: 14 },
@@ -696,7 +668,7 @@ const styles = StyleSheet.create({
   dateCard: { width: 62, alignItems: 'center', paddingVertical: 10, backgroundColor: 'transparent', borderWidth: 0, borderRadius: radii.md },
   dateCardWide: { flex: 1, maxWidth: 120 },
   dateCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
+  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },
   selectedInk: { color: colors.ink },
   loader: { margin: 50 },
@@ -707,8 +679,8 @@ const styles = StyleSheet.create({
   appointmentCopy: { flex: 1, minWidth: 0 },
   appointmentTitleRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 7 },
   clientName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  serviceName: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 10, marginTop: 5 },
-  barberName: { color: colors.info, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 5 },
+  serviceName: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 5 },
+  barberName: { color: colors.info, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 5 },
   appointmentActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
   confirmActions: { gap: 6 },
   smallButton: { minHeight: 36, paddingVertical: 7, paddingHorizontal: 11 },
@@ -716,18 +688,18 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000000C9', padding: 18 },
   modalCard: { width: '100%', maxWidth: 640, maxHeight: '90%', padding: 0, overflow: 'hidden' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.6 },
+  modalEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6 },
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 20, letterSpacing: -0.6, marginTop: 5 },
   closeButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: radii.md },
   modalContent: { padding: 20, gap: 15 },
-  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choiceCard: { width: '47%', minWidth: 150, flexGrow: 1 },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' },
   timeSlot: { width: '23%', height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   timeSlotSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  timeSlotText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
-  cancellationReasonText: { color: colors.danger, fontSize: 10, marginTop: 4, fontFamily: typography.bodyStrong },
+  timeSlotText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
+  cancellationReasonText: { color: colors.danger, fontSize: 11, marginTop: 4, fontFamily: typography.bodyStrong },
   timeSlotOccupied: {
     backgroundColor: colors.surfaceRaised,
     borderColor: 'transparent',
@@ -766,7 +738,7 @@ const styles = StyleSheet.create({
   todayBtnText: {
     color: colors.ink,
     fontFamily: typography.bodyStrong,
-    fontSize: 10,
+    fontSize: 11,
     textTransform: 'uppercase',
   },
   freeSlotCard: {

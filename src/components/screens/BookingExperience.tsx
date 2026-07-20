@@ -27,6 +27,7 @@ import { BrandMark } from '../ui/BrandMark';
 import { ChoiceCard } from '../ui/ChoiceCard';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { StatusBadge } from '../ui/StatusBadge';
+import { StickyActionBar } from '../ui/sticky-action-bar';
 import { InlineNotice } from '../ui/InlineNotice';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
@@ -232,7 +233,7 @@ export const BookingExperience = () => {
 
         <View style={[styles.contentGrid, isWide && styles.contentGridWide]}>
           <View style={styles.stepsColumn}>
-            <AppCard testID="booking-service-step" style={styles.stepCard}>
+            {(isWide || activeStep === 1) ? <AppCard testID="booking-service-step" style={styles.stepCard}>
               <StepHeader number="01" title="Escolha o serviço" active={activeStep === 1} complete={!!selectedService} />
               {services.length === 0 ? (
                 <Text testID="booking-services-empty" style={styles.emptyText}>Nenhum serviço disponível no momento.</Text>
@@ -253,9 +254,9 @@ export const BookingExperience = () => {
                   ))}
                 </View>
               )}
-            </AppCard>
+            </AppCard> : null}
 
-            <Animated.View style={{ opacity: barberOpacity, transform: [{ translateY: barberTranslateY }] }}>
+            {(isWide || activeStep === 2) ? <Animated.View style={{ opacity: barberOpacity, transform: [{ translateY: barberTranslateY }] }}>
               <AppCard testID="booking-barber-step" style={[styles.stepCard, !selectedService && styles.stepDisabled]}>
                 <StepHeader number="02" title="Escolha o profissional" active={activeStep === 2} complete={!!selectedBarber} />
                 <View style={styles.choiceGrid}>
@@ -273,9 +274,9 @@ export const BookingExperience = () => {
                   ))}
                 </View>
               </AppCard>
-            </Animated.View>
+            </Animated.View> : null}
 
-            <Animated.View style={{ opacity: dateTimeOpacity, transform: [{ translateY: dateTimeTranslateY }] }}>
+            {(isWide || activeStep >= 3) ? <Animated.View style={{ opacity: dateTimeOpacity, transform: [{ translateY: dateTimeTranslateY }] }}>
               <AppCard testID="booking-datetime-step" style={[styles.stepCard, !selectedBarber && styles.stepDisabled]}>
                 <StepHeader number="03" title="Data e horário" active={activeStep === 3} complete={!!selectedTime} />
                 <Text style={styles.subsectionLabel}>Próximos 14 dias</Text>
@@ -327,10 +328,10 @@ export const BookingExperience = () => {
                   })}
                 </View>
               </AppCard>
-            </Animated.View>
+            </Animated.View> : null}
           </View>
 
-          <View style={styles.summaryColumn}>
+          {(isWide || activeStep === 4) ? <View style={styles.summaryColumn}>
             <AppCard testID="booking-summary-card" style={styles.summaryCard} elevated>
               <Text testID="booking-summary-title" style={styles.summaryTitle}>Resumo do agendamento</Text>
               <Text style={styles.summaryDescription}>Confira os detalhes antes de enviar sua solicitação.</Text>
@@ -352,7 +353,7 @@ export const BookingExperience = () => {
 
               {!!error && <InlineNotice testID="booking-error-message" tone="danger" message={error} />}
 
-              <AppButton
+              {isWide ? <AppButton
                 label="Solicitar agendamento"
                 testID="booking-confirm-button"
                 onPress={confirmBooking}
@@ -360,12 +361,19 @@ export const BookingExperience = () => {
                 disabled={activeStep !== 4}
                 fullWidth
                 icon={<ChevronRight color={colors.ink} size={17} />}
-              />
+              /> : null}
               <Text testID="booking-confirmation-note" style={styles.confirmationNote}>O horário ficará pendente até a confirmação da barbearia.</Text>
             </AppCard>
-          </View>
+          </View> : null}
         </View>
       </ScrollView>
+      {!isWide && activeStep === 4 ? (
+        <StickyActionBar
+          actions={<AppButton disabled={activeStep !== 4} label="Solicitar agendamento" loading={bookingLoading} onPress={confirmBooking} testID="booking-confirm-button-mobile" />}
+          message={error || 'Revise os dados e confirme o horário.'}
+          testID="booking-mobile-action-bar"
+        />
+      ) : null}
     </ScreenBackground>
   );
 };
@@ -389,12 +397,12 @@ const SummaryRow = ({ label, value, testID }: { label: string; value: string; te
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
   loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
-  topbar: { minHeight: 70, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#09090BF2', zIndex: 2 },
-  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  topbar: { minHeight: 70, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, zIndex: 2 },
+  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingBottom: 70 },
   heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch', gap: 24, marginTop: 22, marginBottom: 26 },
   heroCopy: { flex: 1, justifyContent: 'center', paddingVertical: 20 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 10, letterSpacing: 2 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 38, lineHeight: 42, letterSpacing: -1.8, marginTop: 12 },
   shopName: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 12 },
   heroImageBox: { width: '38%', minHeight: 170, borderRadius: radii.lg, overflow: 'hidden' },
@@ -403,26 +411,26 @@ const styles = StyleSheet.create({
   contentGrid: { gap: 18 },
   contentGridWide: { flexDirection: 'row', alignItems: 'flex-start' },
   stepsColumn: { flex: 1.7, gap: 14 },
-  summaryColumn: { flex: 0.85, minWidth: 300 },
+  summaryColumn: { flex: 0.85, minWidth: 300, ...Platform.select({ web: { position: 'sticky', top: 18 } as any, default: {} }) },
   stepCard: { gap: 18 },
   stepDisabled: { opacity: 0.48 },
   stepHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepNumber: { width: 30, height: 30, borderRadius: radii.sm, backgroundColor: colors.surfacePressed, alignItems: 'center', justifyContent: 'center' },
   stepNumberActive: { borderWidth: 1, borderColor: colors.brand },
   stepNumberComplete: { backgroundColor: colors.brand },
-  stepNumberText: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 10 },
+  stepNumberText: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11 },
   stepNumberTextActive: { color: colors.brand },
   stepTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.4 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   choiceCard: { width: '48%', minWidth: 150, flexGrow: 1 },
   emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
-  subsectionLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase' },
+  subsectionLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase' },
   dateList: { gap: 8, paddingVertical: 2 },
   dateCard: { width: 62, alignItems: 'center', paddingVertical: 10, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   dateCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
+  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 3 },
-  dateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, textTransform: 'uppercase', marginTop: 2 },
+  dateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', marginTop: 2 },
   selectedInk: { color: colors.ink },
   timeLabel: { marginTop: 4 },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -435,10 +443,10 @@ const styles = StyleSheet.create({
   summaryTitle: { color: colors.text, fontFamily: typography.display, fontSize: 19, letterSpacing: -0.5 },
   summaryDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 17, marginTop: -8 },
   summaryRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
-  summaryLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8 },
+  summaryLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
   summaryValue: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 5 },
   summaryTotal: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.brandSoft, borderRadius: radii.md, padding: 14 },
   totalLabel: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
   totalValue: { color: colors.brand, fontFamily: typography.display, fontSize: 20 },
-  confirmationNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, lineHeight: 14, textAlign: 'center' },
+  confirmationNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16, textAlign: 'center' },
 });

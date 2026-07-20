@@ -43,9 +43,15 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
 export const AppointmentsExperience = () => {
   const { feedback } = useLocalSearchParams<{ feedback?: string }>();
   const { profile, signOut } = useAuth();
-  const { appointments: records, loading, error: syncError, refresh } = useAppointments({ clientId: profile?.id });
   const router = useRouter();
   const [tab, setTab] = useState<AppointmentTab>('upcoming');
+  const upcomingQuery = useAppointments({ clientId: profile?.id, statuses: ['pending', 'confirmed'] });
+  const historyQuery = useAppointments({ clientId: profile?.id, statuses: ['completed', 'cancelled'], enabled: tab === 'history' });
+  const activeQuery = tab === 'history' ? historyQuery : upcomingQuery;
+  const records = activeQuery.appointments;
+  const loading = activeQuery.loading;
+  const syncError = activeQuery.error;
+  const refresh = activeQuery.refresh;
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -93,9 +99,10 @@ export const AppointmentsExperience = () => {
     const proceedCancel = async () => {
       setActionLoading(true);
       try {
-        const { error } = await supabase.rpc('cancel_appointment', {
+        const { error } = await supabase.rpc('update_appointment_status', {
           target_appointment_id: item.id,
-          reason,
+          new_status: 'cancelled',
+          new_cancellation_reason: reason,
         });
         if (error) throw error;
         setCancelId(null);
@@ -197,7 +204,7 @@ export const AppointmentsExperience = () => {
           <EmptyState testID="client-appointments-empty" title={tab === 'upcoming' ? 'Nenhum horário marcado' : 'Histórico vazio'} description={tab === 'upcoming' ? 'Explore os estabelecimentos e reserve seu próximo atendimento.' : 'Seus atendimentos concluídos aparecerão aqui.'} icon={<CalendarDays color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
         ) : (
           <View testID="client-appointments-list" style={styles.list}>
-            {visible.map((item) => {
+            {visible.map((item, index) => {
               const status = statusMap[item.status] || { label: item.status, tone: 'warning' as const };
               const isUpcoming = item.dateTime.getTime() > referenceTime;
               const cancellable = isUpcoming && (item.status === 'pending' || item.status === 'confirmed');
@@ -208,7 +215,7 @@ export const AppointmentsExperience = () => {
               const isLateCancellation = hoursDiff > 0 && hoursDiff < 2;
 
               return (
-                <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={styles.card}>
+                <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={[styles.card, tab === 'upcoming' && index === 0 && styles.nextCard]}>
                   <View style={styles.dateBlock}>
                     <Text style={styles.month}>{item.dateTime.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</Text>
                     <Text style={styles.day}>{item.dateTime.getDate()}</Text>
@@ -387,15 +394,16 @@ const styles = StyleSheet.create({
   loader: { margin: 50 },
   list: { gap: 12 },
   card: { flexDirection: 'row', gap: 18 },
+  nextCard: { borderColor: colors.brandSecondary, borderWidth: 1.5, backgroundColor: colors.surface },
   dateBlock: { width: 58, alignItems: 'flex-start', paddingTop: 2 },
-  month: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase', letterSpacing: 2 },
+  month: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
   day: { color: colors.text, fontFamily: typography.serif, fontSize: 32, lineHeight: 38, marginTop: 2 },
   time: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 },
   copy: { flex: 1, minWidth: 0, borderLeftWidth: hairlineW, borderLeftColor: colors.hairline, paddingLeft: 18 },
   titleRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 9 },
-  meta: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 10 },
+  meta: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   cancelReasonContainer: {
     marginTop: 16,
     padding: 14,
@@ -431,7 +439,7 @@ const styles = StyleSheet.create({
   reasonChipText: {
     color: colors.textSecondary,
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
   },
   reasonChipActiveText: {
     color: colors.ink,
@@ -477,7 +485,7 @@ const styles = StyleSheet.create({
   rescheduleBadgeText: {
     color: colors.info,
     fontFamily: typography.bodyStrong,
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 0.4,
   },
   reasonDisplay: {
@@ -491,7 +499,7 @@ const styles = StyleSheet.create({
   reasonDisplayText: {
     color: colors.danger,
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
   },
   lateButtonsRow: {
     flexDirection: 'row',
@@ -520,7 +528,7 @@ const styles = StyleSheet.create({
   inputMinLabel: {
     color: colors.labelSoft,
     fontFamily: typography.bodyStrong,
-    fontSize: 9,
+    fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: 5,

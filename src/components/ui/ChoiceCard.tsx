@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   iconSelected: { backgroundColor: colors.brand },
   copy: { flex: 1 },
   title: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, lineHeight: 17 },
-  subtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, lineHeight: 15, marginTop: 3 },
+  subtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 15, marginTop: 3 },
   meta: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
   metaSelected: { color: colors.brand },
 });

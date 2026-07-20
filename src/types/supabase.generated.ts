@@ -93,6 +93,16 @@ export type Database = {
         Update: { id?: never; actor_id?: string | null; action?: string; target_id?: string; target_type?: string; changes?: Json; client_ip?: string; created_at?: string };
         Relationships: [];
       };
+      schedule_blocks: {
+        Row: { id: string; establishment_id: string; professional_id: string; starts_at: string; ends_at: string; kind: 'break' | 'time_off' | 'blocked'; reason: string | null; created_by: string; created_at: string; updated_at: string; deleted_at: string | null };
+        Insert: { id?: string; establishment_id: string; professional_id: string; starts_at: string; ends_at: string; kind: 'break' | 'time_off' | 'blocked'; reason?: string | null; created_by: string; created_at?: string; updated_at?: string; deleted_at?: string | null };
+        Update: { id?: string; establishment_id?: string; professional_id?: string; starts_at?: string; ends_at?: string; kind?: 'break' | 'time_off' | 'blocked'; reason?: string | null; created_by?: string; created_at?: string; updated_at?: string; deleted_at?: string | null };
+        Relationships: [
+          { foreignKeyName: 'schedule_blocks_establishment_id_fkey'; columns: ['establishment_id']; isOneToOne: false; referencedRelation: 'establishments'; referencedColumns: ['id'] },
+          { foreignKeyName: 'schedule_blocks_professional_id_fkey'; columns: ['professional_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+          { foreignKeyName: 'schedule_blocks_created_by_fkey'; columns: ['created_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+        ];
+      };
       establishment_invites: {
         Row: { id: string; establishment_id: string; target_contact: string; role: 'admin' | 'professional'; token_hash: string; status: 'pending' | 'accepted' | 'revoked' | 'expired'; created_by: string; created_at: string; expires_at: string; accepted_by: string | null; accepted_at: string | null; revoked_at: string | null; lgpd_accepted: boolean };
         Insert: { id?: string; establishment_id: string; target_contact: string; role: 'admin' | 'professional'; token_hash: string; status?: 'pending' | 'accepted' | 'revoked' | 'expired'; created_by: string; created_at?: string; expires_at: string; accepted_by?: string | null; accepted_at?: string | null; revoked_at?: string | null; lgpd_accepted?: boolean };
@@ -108,10 +118,18 @@ export type Database = {
       can_view_profile: { Args: { target_profile_id: string }; Returns: boolean };
       create_invitation: { Args: { target_email: string; target_establishment_id: string; target_role: string }; Returns: { expires_at: string; invitation_id: string; raw_token: string }[] };
       create_appointment: { Args: { target_client_id?: string | null; target_client_name?: string | null; target_date_time: string; target_establishment_id: string; target_professional_id: string; target_service_id: string }; Returns: string };
+      create_schedule_block: { Args: { target_establishment_id: string; target_professional_id: string; requested_start: string; requested_end: string; requested_kind: string; requested_reason?: string | null }; Returns: string };
+      delete_schedule_block: { Args: { target_block_id: string }; Returns: string };
       get_establishment_team: { Args: { include_administrators?: boolean; target_establishment_id: string }; Returns: { avatar_url: string | null; commission_rate: number | null; email: string; establishment_id: string; id: string; instagram: string | null; name: string; phone: string | null; role: string; specialties: string | null; titulo_profissional: string | null; work_hours: string | null }[] };
       get_my_profile: { Args: Record<PropertyKey, never>; Returns: { avatar_url: string | null; commission_rate: number | null; deleted_at: string | null; email: string; establishment_id: string | null; id: string; instagram: string | null; name: string; phone: string | null; push_token: string | null; role: string; specialties: string | null; titulo_profissional: string | null; work_hours: string | null }[] };
-      get_public_team: { Args: { target_establishment_id: string }; Returns: { avatar_url: string | null; commission_rate: number | null; email: string; establishment_id: string; id: string; instagram: string | null; name: string; phone: string | null; role: string; specialties: string | null; titulo_profissional: string | null; work_hours: string | null }[] };
+      get_public_team: { Args: { target_establishment_id: string }; Returns: { avatar_url: string | null; id: string; name: string; professional_profile_slug: string | null; specialties: string | null; titulo_profissional: string | null }[] };
+      get_establishment_client_contacts: { Args: { target_establishment_id: string }; Returns: { email: string; id: string; name: string; phone: string | null }[] };
+      get_appointment_participant_names: { Args: { target_appointment_ids: string[] }; Returns: { appointment_id: string; client_name: string; professional_name: string }[] };
+      get_public_professional_profile: { Args: { profile_slug: string }; Returns: { avatar_url: string | null; bio: string | null; gallery_urls: Json; id: string; instagram_url: string | null; name: string; portfolio_url: string | null; slug: string; specialties: string | null; titulo_profissional: string | null }[] };
+      get_my_professional_profile: { Args: Record<PropertyKey, never>; Returns: { bio: string | null; created_at: string; gallery_urls: Json; id: string; instagram_url: string | null; is_public: boolean; portfolio_url: string | null; slug: string; updated_at: string }[] };
+      upsert_my_professional_profile: { Args: { requested_bio?: string | null; requested_gallery_urls?: Json; requested_instagram_url?: string | null; requested_is_public?: boolean; requested_portfolio_url?: string | null; requested_slug: string }; Returns: { profile_id: string; profile_slug: string }[] };
       get_public_busy_slots: { Args: { range_end: string; range_start: string; target_professional_id: string }; Returns: { date_time: string; duration_minutes: number }[] };
+      get_schedule_blocks: { Args: { target_establishment_id: string; range_start: string; range_end: string; target_professional_id?: string | null }; Returns: { id: string; establishment_id: string; professional_id: string; starts_at: string; ends_at: string; kind: string; reason: string | null; created_by: string; created_at: string; updated_at: string }[] };
       get_available_slots: { Args: { target_appointment_id?: string | null; target_establishment_id: string; target_local_date: string; target_professional_id: string; target_service_id: string }; Returns: { available: boolean; duration_minutes: number; local_time: string | null; starts_at: string | null; unavailable_reason: string | null }[] };
       has_active_membership: { Args: { allowed_roles?: string[] | null; target_establishment_id: string }; Returns: boolean };
       inspect_invitation: { Args: { invitation_token: string }; Returns: { establishment_name: string; expiration: string; invitation_status: string; invited_email: string; invited_role: string }[] };
@@ -120,6 +138,7 @@ export type Database = {
       reject_establishment_request: { Args: { reason: string; target_request_id: string }; Returns: undefined };
       remove_professional: { Args: { target_establishment_id: string; target_profile_id: string }; Returns: undefined };
       reschedule_appointment: { Args: { requested_date_time: string; requested_professional_id: string; requested_service_id: string; target_appointment_id: string }; Returns: string };
+      update_appointment_status: { Args: { target_appointment_id: string; new_status: string; new_cancellation_reason?: string | null }; Returns: string };
       request_establishment: { Args: { requested_address?: string | null; requested_name: string; requested_phone?: string | null; requested_primary_color?: string; requested_slug: string }; Returns: string };
       switch_active_establishment: { Args: { target_establishment_id: string }; Returns: string };
       is_governance_user: { Args: { allowed_roles?: ('SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner')[] | null }; Returns: boolean };

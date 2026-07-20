@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.pill },
   topbarTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   topbarStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+  topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', paddingBottom: 150 },
   // Hero
   heroContainer: { width: '100%', height: 250, position: 'relative' },
@@ -442,14 +442,14 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1 },
   slogan: { color: colors.textSecondary, fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
   instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surface, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: hairlineW, borderColor: colors.border },
-  instagramBadgeText: { fontSize: 10, fontFamily: typography.bodyStrong, color: colors.textSecondary },
+  instagramBadgeText: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textSecondary },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: 8 },
   // Info Grid
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 24 },
   infoItem: { flex: 1, minWidth: 200, flexDirection: 'row', gap: 11, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 15, ...atmosphericShadow },
   infoIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.pill },
   infoCopyText: { flex: 1 },
-  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.6 },
+  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.6 },
   infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
@@ -466,17 +466,17 @@ const styles = StyleSheet.create({
   cardIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 16 },
   servicePrice: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 8 },
-  serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
+  serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
   // Equipe
   professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 18, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, ...atmosphericShadow },
   avatarCircleSmall: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.canvas },
   avatarImage: { width: '100%', height: '100%' },
   avatarInitials: { fontFamily: typography.serif, fontSize: 20, color: '#52525B', letterSpacing: 1 },
   professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 6 },
-  professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, textTransform: 'uppercase', letterSpacing: 1.4 },
-  professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 9, textAlign: 'center', marginTop: 2 },
+  professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4 },
+  professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, textAlign: 'center', marginTop: 2 },
   barberInstaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
-  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 9 },
+  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover' },
   // Barra flutuante
   floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     }),
   },
   floatingCopy: { flex: 1, minWidth: 0 },
-  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 8, letterSpacing: 1.8, textTransform: 'uppercase' },
+  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8, textTransform: 'uppercase' },
   floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 13, letterSpacing: -0.3, marginTop: 3 },
   floatingButton: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 18, borderRadius: radii.pill },
   floatingButtonText: { fontFamily: typography.bodyStrong, fontSize: 12 },
@@ -516,9 +516,9 @@ const styles = StyleSheet.create({
   bottomSheetAvatarImage: { width: '100%', height: '100%' },
   bottomSheetAvatarInitials: { fontFamily: typography.serif, fontSize: 30, color: '#52525B', letterSpacing: 1 },
   bottomSheetName: { fontFamily: typography.display, fontSize: 20, color: colors.text, letterSpacing: -0.5 },
-  bottomSheetRole: { fontFamily: typography.bodyStrong, fontSize: 9, color: colors.labelSoft, textTransform: 'uppercase', letterSpacing: 1.8 },
+  bottomSheetRole: { fontFamily: typography.bodyStrong, fontSize: 11, color: colors.labelSoft, textTransform: 'uppercase', letterSpacing: 1.8 },
   bottomSheetSection: { width: '100%', backgroundColor: colors.canvasSoft, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.md, padding: 16, gap: 6 },
-  bottomSheetSectionLabel: { fontFamily: typography.bodyStrong, fontSize: 9, color: colors.labelSoft, textTransform: 'uppercase', letterSpacing: 1.4 },
+  bottomSheetSectionLabel: { fontFamily: typography.bodyStrong, fontSize: 11, color: colors.labelSoft, textTransform: 'uppercase', letterSpacing: 1.4 },
   bottomSheetSectionValue: { fontFamily: typography.body, fontSize: 13, color: colors.text, lineHeight: 18 },
   bottomSheetInstagramBtn: { width: '100%', height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, marginTop: 6, backgroundColor: colors.surface },
   bottomSheetInstagramText: { fontFamily: typography.bodyStrong, fontSize: 12, color: colors.text },

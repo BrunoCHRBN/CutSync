@@ -25,6 +25,6 @@ const styles = StyleSheet.create({
   card: { gap: 20 },
   heading: { paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
-  description: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, lineHeight: 16, marginTop: 5, maxWidth: 580 },
+  description: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16, marginTop: 5, maxWidth: 580 },
   content: { gap: 16 },
 });

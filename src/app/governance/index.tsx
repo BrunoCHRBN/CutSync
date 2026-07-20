@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { ShieldCheck, LogOut, Search, ShieldAlert, Activity, RefreshCw, Globe, MapPin, User, Check, AlertTriangle } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ShieldCheck, LogOut, Search, ShieldAlert, Activity, RefreshCw, Globe, MapPin, AlertTriangle } from 'lucide-react-native';
 import { supabaseGovernance } from '../../services/supabaseGovernance';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppCard } from '../../components/ui/AppCard';
 import { AppInput } from '../../components/ui/AppInput';
 import { InlineNotice } from '../../components/ui/InlineNotice';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
-import { colors, layout, radii, typography, glassSurface, atmosphericShadow } from '../../theme/tokens';
+import { colors, layout, radii, typography } from '../../theme/tokens';
 
 interface Establishment {
   id: string;
@@ -34,7 +33,6 @@ interface AuditLog {
 }
 
 export default function GovernanceDashboard() {
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= layout.mobileBreakpoint;
 
@@ -68,7 +66,7 @@ export default function GovernanceDashboard() {
     });
   }, []);
 
-  const loadGovernanceProfile = async (uid: string) => {
+  async function loadGovernanceProfile(uid: string) {
     try {
       // Validamos se o usuário possui cargo de governança
       const { data: govUser, error: govError } = await supabaseGovernance
@@ -92,12 +90,12 @@ export default function GovernanceDashboard() {
         // Carrega dados após autenticação e validação
         loadDashboardData();
       }
-    } catch (e) {
+    } catch {
       setNotice({ tone: 'danger', message: 'Erro ao carregar permissões da Central.' });
     } finally {
       setAuthLoading(false);
     }
-  };
+  }
 
   const handleVolatileLogin = async () => {
     setNotice(null);
@@ -149,7 +147,7 @@ export default function GovernanceDashboard() {
     setAuthLoading(false);
   };
 
-  const loadDashboardData = async () => {
+  async function loadDashboardData() {
     setLoadingData(true);
     setNotice(null);
     try {
@@ -172,12 +170,12 @@ export default function GovernanceDashboard() {
       if (logError) throw logError;
       setAuditLogs((logs || []) as AuditLog[]);
 
-    } catch (err: any) {
+    } catch {
       setNotice({ tone: 'danger', message: 'Erro ao carregar dados do dashboard.' });
     } finally {
       setLoadingData(false);
     }
-  };
+  }
 
   const updateAccountStatus = async (estId: string, newStatus: any) => {
     if (profile?.role === 'SaaS_Viewer') {
@@ -200,8 +198,8 @@ export default function GovernanceDashboard() {
         setNotice({ tone: 'success', message: 'Status atualizado com sucesso!' });
         await loadDashboardData();
       }
-    } catch (err: any) {
-      setNotice({ tone: 'danger', message: err.message || 'Erro ao salvar alterações.' });
+    } catch {
+      setNotice({ tone: 'danger', message: 'Erro ao salvar alterações.' });
     } finally {
       setUpdatingId(null);
     }
@@ -222,17 +220,18 @@ export default function GovernanceDashboard() {
     return (
       <ScreenBackground testID="governance-login-screen">
         <View style={styles.loginContainer}>
-          <AppCard style={styles.loginCard} elevated>
+          <AppCard testID="governance-login-card" style={styles.loginCard} elevated>
             <View style={styles.brandContainer}>
               <ShieldAlert color={colors.danger} size={32} />
               <Text style={styles.brandText}>Central de Governança</Text>
             </View>
             <Text style={styles.loginDesc}>Sessão de RAM volátil (Zero Persistência). Ao atualizar a página (F5), você será deslogado.</Text>
             
-            {!!notice && <InlineNotice tone={notice.tone} message={notice.message} />}
+            {!!notice && <InlineNotice testID="governance-login-notice" tone={notice.tone} message={notice.message} />}
 
             <View style={styles.fields}>
               <AppInput 
+                testID="governance-email-input"
                 label="E-mail Administrativo" 
                 value={email} 
                 onChangeText={setEmail} 
@@ -241,6 +240,7 @@ export default function GovernanceDashboard() {
                 autoCapitalize="none"
               />
               <AppInput 
+                testID="governance-password-input"
                 label="Senha de Acesso" 
                 value={password} 
                 onChangeText={setPassword} 
@@ -253,7 +253,7 @@ export default function GovernanceDashboard() {
             {authLoading ? (
               <ActivityIndicator color={colors.brand} style={{ marginVertical: 12 }} />
             ) : (
-              <AppButton label="Entrar na Central" onPress={handleVolatileLogin} fullWidth />
+              <AppButton testID="governance-login-button" label="Entrar na Central" onPress={handleVolatileLogin} fullWidth />
             )}
           </AppCard>
         </View>
@@ -261,12 +261,13 @@ export default function GovernanceDashboard() {
         {/* Modal WhatsApp MFA Mock */}
         <Modal visible={mfaModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <AppCard style={styles.modalCard}>
+            <AppCard testID="governance-mfa-card" style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Verificação de Duas Etapas (MFA)</Text>
               </View>
               <Text style={styles.modalDesc}>Enviamos um código OTP via WhatsApp para o telefone cadastrado do administrador.</Text>
               <AppInput 
+                testID="governance-mfa-input"
                 label="Código de 6 dígitos" 
                 value={mfaInput} 
                 onChangeText={setMfaInput} 
@@ -274,7 +275,7 @@ export default function GovernanceDashboard() {
                 keyboardType="number-pad" 
               />
               {!!mfaError && <Text style={styles.otpError}>{mfaError}</Text>}
-              <AppButton label="Verificar Acesso" onPress={confirmMfa} fullWidth />
+              <AppButton testID="governance-mfa-button" label="Verificar Acesso" onPress={confirmMfa} fullWidth />
             </AppCard>
           </View>
         </Modal>
@@ -304,17 +305,17 @@ export default function GovernanceDashboard() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {!!notice && <InlineNotice tone={notice.tone} message={notice.message} />}
+        {!!notice && <InlineNotice testID="governance-dashboard-notice" tone={notice.tone} message={notice.message} />}
 
         {/* Estatísticas Rápidas */}
         <View style={styles.statsRow}>
-          <AppCard style={styles.statCard}>
+          <AppCard testID="governance-establishments-metric" style={styles.statCard}>
             <Activity color={colors.info} size={18} />
             <Text style={styles.statValue}>{establishments.length}</Text>
             <Text style={styles.statLabel}>Estabelecimentos</Text>
           </AppCard>
 
-          <AppCard style={styles.statCard}>
+          <AppCard testID="governance-active-metric" style={styles.statCard}>
             <ShieldCheck color={colors.success} size={18} />
             <Text style={styles.statValue}>
               {establishments.filter(e => e.account_status === 'active').length}
@@ -322,7 +323,7 @@ export default function GovernanceDashboard() {
             <Text style={styles.statLabel}>Ativos / Verificados</Text>
           </AppCard>
 
-          <AppCard style={styles.statCard}>
+          <AppCard testID="governance-blocked-metric" style={styles.statCard}>
             <AlertTriangle color={colors.danger} size={18} />
             <Text style={styles.statValue}>
               {establishments.filter(e => e.account_status === 'delinquent' || e.account_status === 'blocked').length}
@@ -334,7 +335,7 @@ export default function GovernanceDashboard() {
         <View style={[styles.mainLayout, isWide && styles.mainLayoutWide]}>
           
           {/* Seção 1: Estabelecimentos e Circuit Breaker */}
-          <AppCard style={styles.listSection}>
+          <AppCard testID="governance-establishments-card" style={styles.listSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Estabelecimentos e Controle de Acesso</Text>
               <Pressable onPress={loadDashboardData} disabled={loadingData} style={styles.refreshButton}>
@@ -345,6 +346,8 @@ export default function GovernanceDashboard() {
             <View style={styles.searchBar}>
               <Search size={16} color={colors.textMuted} />
               <AppInput 
+                testID="governance-search-input"
+                label="Buscar estabelecimentos"
                 containerStyle={{ flex: 1, borderWidth: 0 }}
                 style={{ minHeight: 40 }}
                 placeholder="Buscar por Nome, Slug ou Documento..." 
@@ -415,7 +418,7 @@ export default function GovernanceDashboard() {
           </AppCard>
 
           {/* Seção 2: Logs de Auditoria de Segurança Imutáveis */}
-          <AppCard style={styles.logsSection}>
+          <AppCard testID="governance-audit-card" style={styles.logsSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Trilha de Auditoria Imutável</Text>
               <Globe size={18} color={colors.info} />
@@ -464,7 +467,7 @@ const styles = StyleSheet.create({
   headerTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18 },
   roleBadge: { backgroundColor: colors.accent, borderRadius: radii.sm, paddingHorizontal: 8, paddingVertical: 4 },
-  roleBadgeText: { color: colors.ink, fontFamily: typography.bodyStrong, fontSize: 9, textTransform: 'uppercase' },
+  roleBadgeText: { color: colors.ink, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
   headerIdentity: { alignItems: 'flex-end' },
   headerName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
   headerEmail: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
@@ -505,10 +508,10 @@ const styles = StyleSheet.create({
   logItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 6 },
   logTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   logAction: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  logDate: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10 },
+  logDate: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   logMeta: { flexDirection: 'row', gap: 12 },
   logMetaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
-  logChanges: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 10, backgroundColor: colors.canvasSoft, padding: 6, borderRadius: radii.sm, marginTop: 2 },
+  logChanges: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, backgroundColor: colors.canvasSoft, padding: 6, borderRadius: radii.sm, marginTop: 2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 400, padding: 24, gap: 16 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -25,12 +25,32 @@ export const parseSchedule = (value?: string | null): ScheduleDay[] => {
   }
 };
 
-export const getOpeningStatus = (value?: string | null) => {
+export const getOpeningStatus = (value?: string | null, timezone?: string | null) => {
   const schedule = parseSchedule(value);
   if (!schedule.length) return { isOpen: false, text: '' };
 
   const now = new Date();
-  const day = now.getDay();
+  let day = now.getDay();
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+  if (timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(now);
+      const weekday = parts.find((part) => part.type === 'weekday')?.value;
+      const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+      const minute = Number(parts.find((part) => part.type === 'minute')?.value);
+      const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      if (weekday && weekdayMap[weekday] != null) day = weekdayMap[weekday];
+      if (Number.isFinite(hour) && Number.isFinite(minute)) currentMinutes = hour * 60 + minute;
+    } catch {
+      // Fuso inválido: mantém o horário local do dispositivo como fallback seguro.
+    }
+  }
   const todaySchedule = schedule.find((item) => item.day === day);
   const nextOpenDay = (startingDay: number) => {
     let nextDay = startingDay;
@@ -54,7 +74,6 @@ export const getOpeningStatus = (value?: string | null) => {
 
   const [openHour, openMinute] = todaySchedule.open.split(':').map(Number);
   const [closeHour, closeMinute] = todaySchedule.close.split(':').map(Number);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const openMinutes = openHour * 60 + openMinute;
   const closeMinutes = closeHour * 60 + closeMinute;
 

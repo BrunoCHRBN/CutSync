@@ -199,11 +199,11 @@ export const TeamExperience = () => {
 
   return (
     <AdminShell testID="team-screen" activeRoute="team" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <SectionHeading testID="team-heading" eyebrow="Pessoas" title="Equipe e escalas" description="Convide profissionais, configure jornadas de trabalho, folgas e comissões." />
 
       {!!notice && <InlineNotice testID="team-action-notice" tone={notice.tone} message={notice.message} />}
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={[styles.workspace, isWide && styles.workspaceWide]}>
           <AppCard testID="team-invite-card" style={styles.inviteCard} elevated>
             <View style={styles.inviteIcon}><UserPlus color={colors.text} size={22} /></View>
@@ -245,7 +245,7 @@ export const TeamExperience = () => {
                       <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                       <View style={styles.memberCopy}>
                         <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
-                        <Text testID={`team-member-${barber.id}-title`} style={{ color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 9, marginTop: 2 }}>
+                        <Text testID={`team-member-${barber.id}-title`} style={{ color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 }}>
                           {barber.tituloProfissional || 'Especialista'}{barber.specialties ? ` • ${barber.specialties}` : ''}
                         </Text>
                         <Text style={styles.memberContact}>{barber.email}</Text>
@@ -312,7 +312,7 @@ export const TeamExperience = () => {
                                     placeholder="09:00"
                                     placeholderTextColor="#666"
                                   />
-                                  <Text style={{ color: colors.textMuted, fontSize: 10 }}>às</Text>
+                                  <Text style={{ color: colors.textMuted, fontSize: 11 }}>às</Text>
                                   <TextInput
                                     testID={`team-member-${barber.id}-schedule-close-${dayItem.day}`}
                                     style={styles.timeInput}
@@ -364,17 +364,18 @@ export const TeamExperience = () => {
 };
 
 const styles = StyleSheet.create({
+  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 24, paddingTop: 30, paddingBottom: 110, gap: 20 },
   workspace: { gap: 18, marginTop: 28 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
   inviteCard: { flex: 0.75, minWidth: 300 },
   inviteIcon: { width: 46, height: 46, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
-  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.6, marginTop: 22 },
+  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6, marginTop: 22 },
   inviteTitle: { color: colors.text, fontFamily: typography.display, fontSize: 23, lineHeight: 28, letterSpacing: -0.8, marginTop: 7 },
   inviteDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: 10 },
   codeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 10, marginTop: 22 },
   code: { flex: 1, color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: 0.5 },
   copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, lineHeight: 14, marginTop: 10 },
+  inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 14, marginTop: 10 },
   invitationList: { gap: 8, marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
   invitationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: colors.canvasSoft, borderRadius: radii.sm },
   invitationCopy: { flex: 1 },
@@ -383,7 +384,7 @@ const styles = StyleSheet.create({
   teamColumn: { flex: 1.4 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },
-  listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, marginTop: 3 },
+  listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   loader: { margin: 50 },
   teamList: { gap: 10 },
   memberCard: { gap: 14 },
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
   memberCopy: { flex: 1, minWidth: 0 },
   memberName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  memberContact: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, marginTop: 3 },
+  memberContact: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   commissionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surfacePressed, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
   commissionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
   memberActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
@@ -408,8 +409,8 @@ const styles = StyleSheet.create({
   scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
   scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 11 },
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
-  timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 10, paddingHorizontal: 4 },
-  closedText: { color: colors.textMuted, fontSize: 10, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
+  timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
+  closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
   workHoursActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   warningContainer: {
     flexDirection: 'row',
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.warning,
     fontFamily: typography.body,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 14,
   },
 });

@@ -152,14 +152,18 @@ export const fetchLegacyAvailableSlots = async ({
     ?? serviceResult.data.duration_minutes,
   );
   const establishmentSchedule = parseConfiguredSchedule(establishmentResult.data.opening_hours);
-  const professionalSchedule = parseConfiguredSchedule(professional.work_hours);
+  // Jornadas individuais são privadas; a disponibilidade pública usa a jornada
+  // do estabelecimento e deixa a RPC transacional validar a agenda profissional.
+  const professionalSchedule: ReturnType<typeof parseConfiguredSchedule> = [];
   if (establishmentSchedule.length === 0 && professionalSchedule.length === 0) {
     return stateRow(durationMinutes, 'schedule_not_configured');
   }
 
   const targetDay = new Date(`${localDate}T12:00:00Z`).getUTCDay();
   const establishmentDay = daySchedule(establishmentSchedule, targetDay);
-  const professionalDay = daySchedule(professionalSchedule, targetDay);
+  const professionalDay = professionalSchedule.length > 0
+    ? daySchedule(professionalSchedule, targetDay)
+    : null;
   if (establishmentDay === undefined || professionalDay === undefined) return stateRow(durationMinutes, 'closed');
 
   const effectiveOpen = Math.max(establishmentDay?.open ?? 0, professionalDay?.open ?? 0);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
 interface Segment<T extends string> {
@@ -38,7 +38,9 @@ export const SegmentedControl = <T extends string>({ value, options, onChange, t
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#ECEDEF',
+    backgroundColor: colors.canvasSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     borderRadius: radii.md,
     padding: 4,
     gap: 4,
@@ -46,12 +48,10 @@ const styles = StyleSheet.create({
   option: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, paddingHorizontal: 10 },
   optionActive: {
     backgroundColor: colors.surface,
-    ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } as any,
-      default: { shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-    }),
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
-  label: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11 },
+  label: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12 },
   labelActive: { color: colors.text },
   pressed: { transform: [{ scale: 0.97 }] },
 });

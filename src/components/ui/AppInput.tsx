@@ -1,5 +1,5 @@
 import React, { ReactNode, useState } from 'react';
-import { Platform, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
 export interface AppInputProps extends TextInputProps {
@@ -47,7 +47,7 @@ export const AppInput = ({
         />
         {rightAccessory}
       </View>
-      {!!error && <Text testID={`${testID}-error`} style={styles.error}>{error}</Text>}
+      {!!error && <Text testID={`${testID}-error`} accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>}
       {!error && !!hint && <Text testID={`${testID}-hint`} style={styles.hint}>{hint}</Text>}
     </View>
   );
@@ -73,11 +73,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   fieldFocused: {
-    borderColor: '#262626',
-    ...Platform.select({
-      web: { boxShadow: '0 0 0 4px rgba(10,10,10,0.05)' } as any,
-      default: { shadowColor: '#0A0A0A', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 1 },
-    }),
+    borderColor: colors.brandPrimary,
+    boxShadow: '0 0 0 4px rgba(218,210,182,0.55)',
   },
   fieldError: { borderColor: colors.danger },
   input: {
@@ -91,12 +88,12 @@ const styles = StyleSheet.create({
   hint: {
     color: colors.textMuted,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
   error: {
     color: colors.danger,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
   },
 });

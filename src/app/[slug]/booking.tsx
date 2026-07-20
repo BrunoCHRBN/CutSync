@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1, minWidth: 0 },
   headerTitle: {
-    fontSize: 8,
+    fontSize: 11,
     color: colors.labelSoft,
     fontFamily: typography.bodyStrong,
     textTransform: 'uppercase',
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   sectionEyebrow: {
     color: colors.labelSoft,
     fontFamily: typography.bodyStrong,
-    fontSize: 9,
+    fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 2.2,
     marginBottom: 4,
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     color: colors.labelSoft,
     width: '14.28%',
     textAlign: 'center',
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: typography.bodyStrong,
     textTransform: 'uppercase',
     letterSpacing: 1.4,
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     }),
   },
   floatingCopy: { flex: 1, minWidth: 0 },
-  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase' },
+  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6, textTransform: 'uppercase' },
   floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 2 },
   confirmButton: {
     minHeight: 46,

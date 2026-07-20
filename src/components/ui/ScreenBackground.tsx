@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
-import { SafeAreaView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 
 interface ScreenBackgroundProps {
@@ -28,7 +29,7 @@ const styles = StyleSheet.create({
     borderRadius: 230,
     top: -320,
     right: -120,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.brandSecondary,
     opacity: 0.04,
   },
   noPointerEvents: { pointerEvents: 'none' },
