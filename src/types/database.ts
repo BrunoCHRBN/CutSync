@@ -38,6 +38,7 @@ export interface Establishment {
   reviewCount?: number;
   averagePrice?: number;
   priceLevel?: number;
+  instantBookingEnabled?: boolean;
 }
 
 export interface ProfileRecord {
@@ -135,6 +136,7 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   reviewCount: 'review_count' in row ? Number((row as any).review_count || 0) : 0,
   averagePrice: 'average_price' in row ? Number((row as any).average_price || 0) : 0,
   priceLevel: 'price_level' in row ? Number((row as any).price_level || 1) : 1,
+  instantBookingEnabled: row.instant_booking_enabled !== false,
 });
 
 export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({

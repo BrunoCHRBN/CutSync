@@ -68,6 +68,8 @@ export const SettingsExperience = () => {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
+
+
   const [cep, setCep] = useState('');
   const [phone, setPhone] = useState('');
   const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
@@ -79,6 +81,7 @@ export const SettingsExperience = () => {
   const [slogan, setSlogan] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
   const [instagram, setInstagram] = useState('');
+  const [instantBookingEnabled, setInstantBookingEnabled] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
@@ -97,7 +100,8 @@ export const SettingsExperience = () => {
     slogan,
     bannerUrl,
     instagram,
-  }), [address, bannerUrl, galleryUrls, instagram, logoUrl, name, phone, primaryColor, schedule, slogan, slug]);
+    instantBookingEnabled,
+  }), [address, bannerUrl, galleryUrls, instagram, instantBookingEnabled, logoUrl, name, phone, primaryColor, schedule, slogan, slug]);
   const isDirty = Boolean(savedSnapshot && currentSnapshot !== savedSnapshot);
   const invalidSchedule = schedule.some((day) => day.isOpen && (!/^\d{2}:\d{2}$/.test(day.open) || !/^\d{2}:\d{2}$/.test(day.close) || day.open >= day.close));
   const formError = !name.trim() || !slug.trim()
@@ -225,7 +229,7 @@ export const SettingsExperience = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (barbershop) {
-      const shop = barbershop;
+        const shop = barbershop;
         setName(shop.name || '');
         setSlug(shop.slug || '');
         setAddress(shop.address || '');
@@ -235,6 +239,7 @@ export const SettingsExperience = () => {
         setSlogan(shop.slogan || '');
         setBannerUrl(shop.bannerUrl || '');
         setInstagram(shop.instagram || '');
+        setInstantBookingEnabled(shop.instantBookingEnabled !== false);
 
         let parsedGallery: string[] = [];
         if (shop.galleryUrls) {
@@ -268,6 +273,7 @@ export const SettingsExperience = () => {
           slogan: shop.slogan || '',
           bannerUrl: shop.bannerUrl || '',
           instagram: shop.instagram || '',
+          instantBookingEnabled: shop.instantBookingEnabled !== false,
         }));
       }
     }, 0);
@@ -291,6 +297,7 @@ export const SettingsExperience = () => {
         instagram: instagram.trim() || null, opening_hours: JSON.stringify(schedule),
         primary_color: primaryColor.toUpperCase(), logo_url: logoUrl,
         gallery_urls: JSON.stringify(galleryUrls),
+        instant_booking_enabled: instantBookingEnabled,
       }).eq('id', barbershop.id);
       if (error) throw error;
       setSlug(cleanSlug);
@@ -299,6 +306,7 @@ export const SettingsExperience = () => {
         name: name.trim(),
         slug: cleanSlug,
         primaryColor: primaryColor.toUpperCase(),
+        instantBookingEnabled: instantBookingEnabled,
       }));
       setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
     } catch {
@@ -332,6 +340,7 @@ export const SettingsExperience = () => {
     setSlogan(snapshot.slogan);
     setBannerUrl(snapshot.bannerUrl);
     setInstagram(snapshot.instagram);
+    setInstantBookingEnabled(snapshot.instantBookingEnabled);
     setNotice(null);
   };
 
@@ -532,6 +541,20 @@ export const SettingsExperience = () => {
                   </View>
                 ))}
               </View>
+
+              <View style={styles.instantBookingRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.instantBookingTitle}>Reserva Instantânea</Text>
+                  <Text style={styles.instantBookingDesc}>Se ativado, os agendamentos dos clientes são confirmados imediatamente. Se desativado, entram como &quot;Aguardando confirmação&quot;.</Text>
+                </View>
+                <Switch
+                  testID="settings-instant-booking-switch"
+                  value={instantBookingEnabled}
+                  onValueChange={setInstantBookingEnabled}
+                  trackColor={{ false: colors.borderStrong, true: colors.accent }}
+                  thumbColor={colors.white}
+                />
+              </View>
             </FormSection> : null}
           </View>
 
@@ -625,5 +648,8 @@ const styles = StyleSheet.create({
   securityTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
   securityDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, lineHeight: 17, marginTop: 3 },
   galleryItemImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }
+  galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  instantBookingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
+  instantBookingTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  instantBookingDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 4, lineHeight: 16 }
 });
