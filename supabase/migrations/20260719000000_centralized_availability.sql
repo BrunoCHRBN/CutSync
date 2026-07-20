@@ -334,7 +334,13 @@ EXCEPTION WHEN exclusion_violation THEN RAISE EXCEPTION 'appointment_conflict' U
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.reschedule_appointment(
+-- Bancos criados antes da migration transacional podem ter esta mesma
+-- assinatura com outro tipo de retorno. PostgreSQL não permite alterar o
+-- retorno com CREATE OR REPLACE, então removemos a versão antiga dentro da
+-- própria transação antes de recriá-la com o contrato atual.
+DROP FUNCTION IF EXISTS public.reschedule_appointment(text, timestamptz, uuid, text);
+
+CREATE FUNCTION public.reschedule_appointment(
   target_appointment_id text,
   requested_date_time timestamptz,
   requested_professional_id uuid,

@@ -42,6 +42,10 @@ def test_create_and_reschedule_enforce_same_availability_contract() -> None:
     content = _read(MIGRATION)
 
     assert content.count("FROM public.compute_available_slots(") >= 3
+    drop_reschedule = "DROP FUNCTION IF EXISTS public.reschedule_appointment(text, timestamptz, uuid, text);"
+    create_reschedule = "CREATE FUNCTION public.reschedule_appointment("
+    assert drop_reschedule in content
+    assert content.index(drop_reschedule) < content.index(create_reschedule)
     assert "appointment_outside_availability" in content
     assert "IF selected_slot.unavailable_reason = 'busy' THEN RAISE EXCEPTION 'appointment_conflict'" in content
     assert "ignored_appointment_id IS NULL OR appointment.id <> ignored_appointment_id" in content
