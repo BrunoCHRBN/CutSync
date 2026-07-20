@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18 },
   refreshButton: { padding: 8, borderRadius: radii.pill, backgroundColor: colors.canvas },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderHeight: 1, borderColor: colors.border, borderRadius: radii.sm, paddingHorizontal: 12, backgroundColor: colors.canvas },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radii.sm, paddingHorizontal: 12, backgroundColor: colors.canvas },
   emptyText: { textAlign: 'center', color: colors.textMuted, marginVertical: 32, fontSize: 13 },
   establishmentItem: { borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 16, gap: 14 },
   estMeta: { gap: 4 },
