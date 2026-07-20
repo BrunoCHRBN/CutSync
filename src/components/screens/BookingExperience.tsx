@@ -207,6 +207,27 @@ export const BookingExperience = () => {
     );
   }
 
+  const isInactive = barbershop && (barbershop.accountStatus === 'blocked' || barbershop.accountStatus === 'delinquent');
+
+  if (isInactive) {
+    return (
+      <ScreenBackground testID="booking-inactive-screen" style={styles.center}>
+        <AppCard style={styles.inactiveCard} elevated>
+          <Text style={styles.inactiveTitle}>Estabelecimento Indisponível</Text>
+          <Text style={styles.inactiveDesc}>
+            O estabelecimento {"\""}{barbershop?.name}{"\""} está temporariamente indisponível para agendamentos online.
+          </Text>
+          <AppButton 
+            testID="booking-back-to-explore"
+            label="Voltar para a Exploração" 
+            onPress={() => router.replace('/(client)')} 
+            fullWidth 
+          />
+        </AppCard>
+      </ScreenBackground>
+    );
+  }
+
   return (
     <ScreenBackground testID="booking-screen">
       <View style={styles.topbar}>
@@ -449,4 +470,7 @@ const styles = StyleSheet.create({
   totalLabel: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
   totalValue: { color: colors.brand, fontFamily: typography.display, fontSize: 20 },
   confirmationNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16, textAlign: 'center' },
+  inactiveCard: { width: '100%', maxWidth: 420, padding: 24, gap: 16, alignItems: 'center' },
+  inactiveTitle: { color: colors.danger, fontFamily: typography.display, fontSize: 20, textAlign: 'center' },
+  inactiveDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 13, lineHeight: 19, textAlign: 'center' },
 });

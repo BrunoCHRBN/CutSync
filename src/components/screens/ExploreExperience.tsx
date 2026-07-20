@@ -26,7 +26,11 @@ export const ExploreExperience = () => {
 
   useEffect(() => {
     const refresh = async () => {
-      const { data } = await supabase.from('establishments').select('*').order('name');
+      const { data } = await supabase
+        .from('establishments')
+        .select('*')
+        .in('account_status', ['active', 'pending_verification'])
+        .order('name');
       setBarbershops((data || []).map(mapEstablishment));
       setLoading(false);
     };

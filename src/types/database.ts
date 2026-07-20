@@ -33,6 +33,7 @@ export interface Establishment {
   openingHours?: string | null;
   shareAgendas?: boolean;
   galleryUrls?: string | null;
+  accountStatus?: 'pending_verification' | 'active' | 'delinquent' | 'blocked';
 }
 
 export interface ProfileRecord {
@@ -57,6 +58,7 @@ export interface ServiceRecord {
   price: number;
   durationMinutes: number;
   isActive: boolean;
+  sortOrder: number;
 }
 
 export interface ProfessionalGalleryItem {
@@ -124,6 +126,7 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   openingHours: row.opening_hours,
   shareAgendas: row.share_agendas !== false,
   galleryUrls: row.gallery_urls,
+  accountStatus: row.account_status as any,
 });
 
 export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({
@@ -148,6 +151,7 @@ export const mapService = (row: ServiceRow): ServiceRecord => ({
   price: Number(row.price),
   durationMinutes: Number(row.duration_minutes),
   isActive: Boolean(row.is_active),
+  sortOrder: Number(row.sort_order || 0),
 });
 
 export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => ({
