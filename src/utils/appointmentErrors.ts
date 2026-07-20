@@ -1,6 +1,15 @@
+export const appointmentFeedbackMessages = {
+  appointmentCreated: 'Agendamento solicitado. O horário ficará pendente até a confirmação do estabelecimento.',
+  appointmentRescheduled: 'Agendamento reagendado com sucesso.',
+  quickBookingCreated: 'Encaixe criado e reservado na sua agenda.',
+  appointmentConflict: 'Esse horário acabou de ser reservado. Escolha outro horário.',
+  availabilityLoadFailed: 'Não foi possível consultar os horários. Tente novamente.',
+  nextAppointmentLoadFailed: 'Não foi possível consultar o próximo atendimento.',
+} as const;
+
 const appointmentErrorMessages: Record<string, string> = {
   appointment_must_be_in_future: 'Escolha um horário futuro para criar o encaixe.',
-  appointment_conflict: 'Esse horário acabou de ser reservado. Escolha outro horário.',
+  appointment_conflict: appointmentFeedbackMessages.appointmentConflict,
   appointment_outside_availability: 'Este horário está fora da jornada disponível do profissional.',
   availability_check_failed: 'Não foi possível confirmar a disponibilidade. Tente novamente.',
   professional_unavailable: 'Seu vínculo com esta unidade não está ativo.',

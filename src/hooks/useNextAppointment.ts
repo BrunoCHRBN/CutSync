@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { AppointmentQueryRow, AppointmentRecord, mapAppointment } from '../types/database';
+import { appointmentFeedbackMessages } from '../utils/appointmentErrors';
 
 interface UseNextAppointmentOptions {
   establishmentId?: string | null;
@@ -105,7 +106,7 @@ export function useNextAppointment({
       console.error('[useNextAppointment] Falha ao consultar próximo atendimento:', queryError);
       if (currentRequest === requestId.current) {
         setAppointment(null);
-        setError('Não foi possível consultar o próximo atendimento.');
+        setError(appointmentFeedbackMessages.nextAppointmentLoadFailed);
         setResolvedQueryKey(queryKey);
       }
     } finally {

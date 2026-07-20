@@ -27,8 +27,10 @@ import { BrandMark } from '../ui/BrandMark';
 import { ChoiceCard } from '../ui/ChoiceCard';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { StatusBadge } from '../ui/StatusBadge';
+import { InlineNotice } from '../ui/InlineNotice';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
+import { getAppointmentErrorText, translateAppointmentError } from '../../utils/appointmentErrors';
 
 const toolsImage = 'https://images.unsplash.com/photo-1596362601603-b74f6ef166e4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxoYWlyY3V0JTIwdG9vbHMlMjBzY2lzc29ycyUyMGNsaXBwZXJ8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85';
 
@@ -176,21 +178,20 @@ export const BookingExperience = () => {
       if (barbershop?.name && appointmentId) {
         await scheduleAppointmentNotification(appointmentId as string, barbershop.name, appointmentDate);
       }
-      router.replace('/(client)');
+      router.replace({
+        pathname: '/(client)/appointments',
+        params: { feedback: 'appointment_created' },
+      });
     } catch (err) {
       console.error('[BookingExperience] create_appointment falhou:', err);
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('appointment_conflict')) {
+      const message = getAppointmentErrorText(err);
+      if (message.includes('appointment_conflict') || message.includes('appointment_outside_availability')) {
         setSelectedTime(null);
-        setError('Esse horário acabou de ser reservado. Escolha outro horário.');
-      } else if (message.includes('appointment_outside_availability')) {
-        setSelectedTime(null);
-        setError('Esse horário não está mais dentro da jornada disponível. Escolha outro horário.');
-      } else if (message.includes('availability_check_failed')) {
-        setError('Não foi possível revalidar os horários. Tente novamente.');
-      } else {
-        setError('Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.');
       }
+      setError(translateAppointmentError(
+        err,
+        'Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.',
+      ));
     } finally {
       setBookingLoading(false);
     }
@@ -303,9 +304,9 @@ export const BookingExperience = () => {
                   {availabilityLoading ? (
                     <ActivityIndicator testID="booking-availability-loading" color={colors.brand} />
                   ) : availabilityError ? (
-                    <Text testID="booking-availability-error" style={styles.errorText}>{availabilityError}</Text>
+                    <InlineNotice testID="booking-availability-error" tone="danger" message={availabilityError} />
                   ) : availableSlots.length === 0 ? (
-                    <Text testID="booking-availability-empty" style={styles.emptyText}>{emptyMessage}</Text>
+                    <InlineNotice testID="booking-availability-empty" tone="info" message={emptyMessage} />
                   ) : availableSlots.map((slot) => {
                     const selected = selectedTime === slot.localTime;
                     return (
@@ -349,7 +350,7 @@ export const BookingExperience = () => {
                 <Text testID="booking-summary-total" style={styles.totalValue}>{currentService ? currency(currentService.price) : '—'}</Text>
               </View>
 
-              {!!error && <Text testID="booking-error-message" style={styles.errorText}>{error}</Text>}
+              {!!error && <InlineNotice testID="booking-error-message" tone="danger" message={error} />}
 
               <AppButton
                 label="Solicitar agendamento"
@@ -439,6 +440,5 @@ const styles = StyleSheet.create({
   summaryTotal: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.brandSoft, borderRadius: radii.md, padding: 14 },
   totalLabel: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
   totalValue: { color: colors.brand, fontFamily: typography.display, fontSize: 20 },
-  errorText: { color: colors.danger, backgroundColor: colors.dangerSoft, borderRadius: radii.sm, padding: 11, fontFamily: typography.body, fontSize: 10, lineHeight: 15 },
   confirmationNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 9, lineHeight: 14, textAlign: 'center' },
 });

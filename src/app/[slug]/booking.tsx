@@ -16,6 +16,8 @@ import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
 import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
+import { InlineNotice } from '../../components/ui/InlineNotice';
+import { getAppointmentErrorText, translateAppointmentError } from '../../utils/appointmentErrors';
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
@@ -49,6 +51,7 @@ export default function BookingSlugScreen() {
   
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState('');
   const {
     availableSlots,
     loading: availabilityLoading,
@@ -176,6 +179,7 @@ export default function BookingSlugScreen() {
 
   const executeBooking = async (clientId: string) => {
     if (!selectedBarber || !selectedService || !selectedDate || !selectedTime || !barbershop) return;
+    setBookingError('');
     setBookingLoading(true);
     try {
       const freshSlots = await refreshAvailability(reschedule_id || null);
@@ -212,17 +216,16 @@ export default function BookingSlugScreen() {
       }
 
       tapSuccess();
-      displayAlert('Sucesso', 'Agendamento solicitado! O horário ficará pendente até a confirmação do estabelecimento.');
-      router.replace(`/salon/${slug}` as never);
+      router.replace({
+        pathname: '/(client)/appointments',
+        params: { feedback: reschedule_id ? 'appointment_rescheduled' : 'appointment_created' },
+      });
     } catch (error: unknown) {
-      const message = getErrorMessage(error, '');
-      const conflict = message.includes('appointment_conflict');
-      const outsideAvailability = message.includes('appointment_outside_availability');
-      displayAlert('Erro', conflict
-        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
-        : outsideAvailability
-          ? 'Esse horário não está mais dentro da jornada disponível.'
-          : 'Não foi possível salvar o agendamento.');
+      const message = getAppointmentErrorText(error);
+      if (message.includes('appointment_conflict') || message.includes('appointment_outside_availability')) {
+        setSelectedTime(null);
+      }
+      setBookingError(translateAppointmentError(error, 'Não foi possível salvar o agendamento. Sua seleção foi mantida.'));
     } finally {
       setBookingLoading(false);
     }
@@ -542,9 +545,9 @@ export default function BookingSlugScreen() {
                 {availabilityLoading ? (
                   <ActivityIndicator testID="booking-availability-loading" color={primaryColor} />
                 ) : availabilityError ? (
-                  <Text testID="booking-availability-error" style={styles.emptyText}>{availabilityError}</Text>
+                  <InlineNotice testID="booking-availability-error" tone="danger" message={availabilityError} />
                 ) : availableSlots.length === 0 ? (
-                  <Text testID="booking-availability-empty" style={styles.emptyText}>{emptyMessage}</Text>
+                  <InlineNotice testID="booking-availability-empty" tone="info" message={emptyMessage} />
                 ) : availableSlots.map((slot) => {
                   const isSelected = selectedTime === slot.localTime;
                   return (
@@ -569,6 +572,9 @@ export default function BookingSlugScreen() {
                 })}
               </View>
             </View>
+          )}
+          {!!bookingError && (
+            <InlineNotice testID="booking-action-error" tone="danger" message={bookingError} />
           )}
         </ScrollView>
       </View>

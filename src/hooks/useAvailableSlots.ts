@@ -5,6 +5,7 @@ import {
   isAvailabilityRpcMissing,
 } from '../services/legacyAvailability';
 import { formatCalendarDate } from '../utils/dateTime';
+import { appointmentFeedbackMessages } from '../utils/appointmentErrors';
 
 export interface AvailableSlot {
   startsAt: string;
@@ -34,7 +35,7 @@ const availabilityErrorMessage = (message: string) => {
   if (message.includes('service_unavailable')) return 'Este serviço não está disponível.';
   if (message.includes('invalid_schedule_configuration')) return 'A jornada possui uma configuração inválida.';
   if (message.includes('invalid_establishment_timezone')) return 'O fuso horário da unidade precisa ser corrigido.';
-  return 'Não foi possível consultar os horários. Tente novamente.';
+  return appointmentFeedbackMessages.availabilityLoadFailed;
 };
 
 export function useAvailableSlots({

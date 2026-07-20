@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, Alert, Pressable, Linking, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarDays, MapPin, Scissors, UserRound, X, RefreshCw } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppointments } from '../../hooks/useAppointments';
@@ -15,6 +15,7 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
+import { appointmentFeedbackMessages } from '../../utils/appointmentErrors';
 
 type AppointmentTab = 'upcoming' | 'history';
 
@@ -40,6 +41,7 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
 };
 
 export const AppointmentsExperience = () => {
+  const { feedback } = useLocalSearchParams<{ feedback?: string }>();
   const { profile, signOut } = useAuth();
   const { appointments: records, loading, error: syncError, refresh } = useAppointments({ clientId: profile?.id });
   const router = useRouter();
@@ -51,6 +53,14 @@ export const AppointmentsExperience = () => {
   const [reschedulePromptId, setReschedulePromptId] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState<string>('');
   const [targetTime, setTargetTime] = useState<string>('');
+
+  useEffect(() => {
+    if (feedback === 'appointment_created') {
+      setNotice({ tone: 'success', message: appointmentFeedbackMessages.appointmentCreated });
+    } else if (feedback === 'appointment_rescheduled') {
+      setNotice({ tone: 'success', message: appointmentFeedbackMessages.appointmentRescheduled });
+    }
+  }, [feedback]);
 
   const appointments = useMemo<AppointmentDetail[]>(() => records.map((item) => ({
       id: item.id,

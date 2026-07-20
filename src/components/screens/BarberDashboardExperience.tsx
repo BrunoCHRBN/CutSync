@@ -23,7 +23,7 @@ import { DashboardAppointment } from '../../types/dashboard';
 import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
 import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
 import { getTodayInTimeZone } from '../../utils/dateTime';
-import { translateAppointmentError } from '../../utils/appointmentErrors';
+import { appointmentFeedbackMessages, translateAppointmentError } from '../../utils/appointmentErrors';
 import { NextAppointmentCard } from '../booking/NextAppointmentCard';
 
 type Tab = 'mine' | 'team';
@@ -357,7 +357,7 @@ export const BarberDashboardExperience = () => {
       });
       if (error) throw error;
       setQuickOpen(false); setQuickName(''); setQuickService(null); setQuickTime(null);
-      setNotice({ tone: 'success', message: 'Encaixe criado e reservado na sua agenda.' });
+      setNotice({ tone: 'success', message: appointmentFeedbackMessages.quickBookingCreated });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refresh();
     } catch (err) {

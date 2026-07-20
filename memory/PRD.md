@@ -719,6 +719,32 @@ Usar os componentes atuais de aviso de forma consistente nesta Sprint. A substit
 
 - S1-06: consolidar o feedback mínimo dos fluxos alterados, com mensagens consistentes para criação, conflito, disponibilidade e próximo atendimento.
 
+## Implementação iniciada — S1-06
+
+**Estado:** primeira fatia vertical implementada no código-fonte em 19/07/2026.
+
+### Alterações aplicadas
+
+- As mensagens mínimas de agendamento criado, reagendamento, encaixe criado, conflito, falha de disponibilidade e falha do próximo atendimento agora possuem uma fonte compartilhada.
+- Os fluxos autenticado e público encaminham agendamento e reagendamento concluídos para “Meus agendamentos”, onde o `InlineNotice` existente apresenta a confirmação.
+- Conflitos e horários fora da jornada removem apenas o horário inválido, preservando serviço, profissional e data para uma nova tentativa.
+- Falhas e estados vazios de disponibilidade usam `InlineNotice` de forma consistente nos dois fluxos de cliente; os modais profissionais já utilizavam o mesmo componente.
+- O encaixe rápido profissional reutiliza a mensagem compartilhada de sucesso no aviso existente da dashboard.
+- A falha do próximo atendimento reutiliza a mensagem compartilhada e continua sendo diferenciada do estado de agenda livre.
+- Foi adicionada uma regressão estática específica para os contratos de feedback do S1-06.
+
+### Validação executada
+
+- ESLint direcionado aos arquivos alterados: aprovado sem erros ou avisos.
+- Lint completo do projeto: aprovado sem erros; permanecem 16 avisos preexistentes fora do escopo.
+- Export web Expo: aprovado.
+- Regressão S1-06 executada por harness Python: 6 contratos aprovados.
+
+### Validação restante
+
+- Exercitar visualmente criação, reagendamento e conflito nas roles de cliente e profissional após publicar o bundle atualizado.
+- Cobrir os mesmos avisos em Android e iOS na regressão conjunta da Sprint 1.
+
 ### Sprint 2 — Operação e perfil
 
 1. Extrair calendário compartilhado e navegação diária no desktop.
