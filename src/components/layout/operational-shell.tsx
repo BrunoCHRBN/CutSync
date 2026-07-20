@@ -70,7 +70,7 @@ export const OperationalShell = ({
   );
 
   return (
-    <View testID={testID} style={styles.root}>
+    <View testID={testID} style={[styles.root, { flexDirection: isDesktop ? 'row' : 'column' }]}>
       {isDesktop ? (
         <View testID={`${prefix}-sidebar`} style={styles.sidebar}>
           <BrandMark compact testID={`${prefix}-shell-brand`} />
