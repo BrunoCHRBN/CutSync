@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.establishment_reviews (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   establishment_id uuid NOT NULL REFERENCES public.establishments(id) ON DELETE CASCADE,
   client_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  appointment_id uuid NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE UNIQUE,
+  appointment_id text NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE UNIQUE,
   rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
   comment text,
   created_at timestamptz NOT NULL DEFAULT now(),
