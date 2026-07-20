@@ -72,6 +72,61 @@ export const RequestEstablishmentExperience = () => {
     return true;
   };
 
+  // CNPJ Check Digit mathematical validation
+  const isValidCnpj = (val: string) => {
+    const clean = val.replace(/[^0-9]/g, '');
+    if (clean.length !== 14 || /^(\d)\1{13}$/.test(clean)) return false;
+    let length = clean.length - 2;
+    let numbers = clean.substring(0, length);
+    const digits = clean.substring(length);
+    let sum = 0;
+    let pos = length - 7;
+    for (let i = length; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(length - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digits.charAt(0))) return false;
+    length = length + 1;
+    numbers = clean.substring(0, length);
+    sum = 0;
+    pos = length - 7;
+    for (let i = length; i >= 1; i--) {
+      sum += parseInt(numbers.charAt(length - i)) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (result !== parseInt(digits.charAt(1))) return false;
+    return true;
+  };
+
+  // Live masks formatting
+  const formatCpf = (val: string) => {
+    const clean = val.replace(/\D/g, '');
+    if (clean.length <= 3) return clean;
+    if (clean.length <= 6) return `${clean.slice(0, 3)}.${clean.slice(3)}`;
+    if (clean.length <= 9) return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6)}`;
+    return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6, 9)}-${clean.slice(9, 11)}`;
+  };
+
+  const formatCnpj = (val: string) => {
+    const clean = val.replace(/\D/g, '');
+    if (clean.length <= 2) return clean;
+    if (clean.length <= 5) return `${clean.slice(0, 2)}.${clean.slice(2)}`;
+    if (clean.length <= 8) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5)}`;
+    if (clean.length <= 12) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8)}`;
+    return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8, 12)}-${clean.slice(12, 14)}`;
+  };
+
+  const formatPhone = (val: string) => {
+    const clean = val.replace(/\D/g, '');
+    if (clean.length === 0) return '';
+    if (clean.length <= 2) return `(${clean}`;
+    if (clean.length <= 6) return `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+    if (clean.length <= 10) return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+  };
+
   const loadRequest = async () => {
     setLoading(true);
     // Verificamos se há algum estabelecimento ou solicitação ativa
@@ -140,6 +195,12 @@ export const RequestEstablishmentExperience = () => {
     setSubmitting(true);
 
     if (onboardingType === 'CNPJ') {
+      const cleanCnpj = cnpj.replace(/[^0-9]/g, '');
+      if (!isValidCnpj(cleanCnpj)) {
+        setNotice({ tone: 'danger', message: 'CNPJ inválido matematicamente.' });
+        setSubmitting(false);
+        return;
+      }
       // ESTEIRA CNPJ: Triagem automatizada na Receita via Edge Function
       try {
         const { data, error } = await supabase.functions.invoke('verify-cnpj-and-promote', {
@@ -275,7 +336,7 @@ export const RequestEstablishmentExperience = () => {
                     label="CNPJ do Estabelecimento" 
                     testID="request-establishment-cnpj-input" 
                     value={cnpj} 
-                    onChangeText={setCnpj} 
+                    onChangeText={(val) => setCnpj(formatCnpj(val))} 
                     placeholder="00.000.000/0000-00" 
                     hint="Aprovado de forma atômica se status Receita for ATIVO em beleza/estética." 
                   />
@@ -286,7 +347,7 @@ export const RequestEstablishmentExperience = () => {
                       label="CPF do Profissional" 
                       testID="request-establishment-cpf-input" 
                       value={cpf} 
-                      onChangeText={setCpf} 
+                      onChangeText={(val) => setCpf(formatCpf(val))} 
                       placeholder="000.000.000-00" 
                       hint="Sujeito a fricção e validação de WhatsApp OTP obrigatória." 
                     />
@@ -296,7 +357,7 @@ export const RequestEstablishmentExperience = () => {
                 <AppInput label="Nome comercial" testID="request-establishment-name-input" icon={<Building2 color={colors.textMuted} size={17} />} value={name} onChangeText={setName} placeholder="Ex.: Navalha Studio" />
                 <AppInput label="Endereço digital" testID="request-establishment-slug-input" icon={<Link2 color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" placeholder="navalha-studio" hint={cleanSlug ? `cutsync.com/${cleanSlug}` : 'Use letras, números e hífens.'} />
                 <AppInput label="Endereço físico" testID="request-establishment-address-input" icon={<MapPin color={colors.textMuted} size={17} />} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro e cidade" />
-                <AppInput label="Telefone comercial" testID="request-establishment-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
+                <AppInput label="Telefone comercial" testID="request-establishment-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={(val) => setPhone(formatPhone(val))} keyboardType="phone-pad" placeholder="(11) 99999-9999" />
                 
                 {onboardingType === 'CPF' && (
                   <View style={styles.whatsappVerificationContainer}>
@@ -305,7 +366,7 @@ export const RequestEstablishmentExperience = () => {
                       containerStyle={{ flex: 1 }}
                       label="WhatsApp para validação OTP" 
                       value={whatsapp} 
-                      onChangeText={(val) => { setWhatsapp(val); setWhatsappVerified(false); }} 
+                      onChangeText={(val) => { setWhatsapp(formatPhone(val)); setWhatsappVerified(false); }} 
                       placeholder="(11) 99999-9999" 
                       editable={!whatsappVerified}
                     />

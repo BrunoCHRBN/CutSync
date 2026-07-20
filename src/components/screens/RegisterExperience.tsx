@@ -24,10 +24,31 @@ export const RegisterExperience = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const formatPhone = (val: string) => {
+    const clean = val.replace(/\D/g, '');
+    if (clean.length === 0) return '';
+    if (clean.length <= 2) return `(${clean}`;
+    if (clean.length <= 6) return `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+    if (clean.length <= 10) return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+  };
+
   const handleRegister = async () => {
     setError('');
     if (!name.trim() || !email.trim() || password.length < 8) {
       setError('Informe nome, e-mail e uma senha com pelo menos 8 caracteres.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Informe um e-mail válido.');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length > 0 && cleanPhone.length < 10) {
+      setError('Informe um telefone válido com DDD (mínimo de 10 dígitos).');
       return;
     }
 
@@ -84,7 +105,7 @@ export const RegisterExperience = () => {
                 <AppInput label="Nome completo" testID="register-name-input" icon={<UserRound color={colors.textMuted} size={17} />} placeholder="Como podemos chamar você?" value={name} onChangeText={setName} autoComplete="name" />
                 <View style={styles.fieldsRow}>
                   <AppInput containerStyle={styles.halfField} label="E-mail" testID="register-email-input" icon={<Mail color={colors.textMuted} size={17} />} placeholder="voce@exemplo.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-                  <AppInput containerStyle={styles.halfField} label="Telefone" testID="register-phone-input" icon={<Phone color={colors.textMuted} size={17} />} placeholder="(11) 99999-9999" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
+                  <AppInput containerStyle={styles.halfField} label="Telefone" testID="register-phone-input" icon={<Phone color={colors.textMuted} size={17} />} placeholder="(11) 99999-9999" value={phone} onChangeText={(val) => setPhone(formatPhone(val))} keyboardType="phone-pad" autoComplete="tel" />
                 </View>
                 <AppInput label="Senha" testID="register-password-input" icon={<LockKeyhole color={colors.textMuted} size={17} />} placeholder="Mínimo de 8 caracteres" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
               </View>
