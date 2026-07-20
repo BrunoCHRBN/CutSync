@@ -42,6 +42,9 @@ function RootLayoutNavigation() {
       return;
     }
 
+    // A Central mantém uma sessão Supabase separada e volátil no layout de governança.
+    if (isGovernance) return;
+
     if (!user) {
       // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
       if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile) {
@@ -68,11 +71,6 @@ function RootLayoutNavigation() {
         router.replace('/governance');
         return;
       }
-      if (inGovernanceGroup) {
-        if (!governanceRole) router.replace('/(client)');
-        return;
-      }
-
       // 3. Superadmin legado
       if (isSuperadmin && inAuthGroup) {
         router.replace('/superadmin');

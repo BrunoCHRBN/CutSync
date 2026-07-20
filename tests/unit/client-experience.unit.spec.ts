@@ -36,5 +36,5 @@ test('protege a vitrine contra unidades não publicadas e mantém retry real', (
   expect(explore).not.toContain("'pending_verification'");
   expect(explore).toContain('client-shops-retry-button');
   expect(explore).toContain('contentFit="contain"');
-  expect(explore).toContain('onSync={() => { void refresh(); }}');
+  expect(explore).not.toContain('onSync={');
 });
