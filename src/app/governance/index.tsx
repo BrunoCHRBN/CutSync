@@ -71,7 +71,7 @@ export default function GovernanceDashboard() {
       // Validamos se o usuário possui cargo de governança
       const { data: govUser, error: govError } = await supabaseGovernance
         .from('governance_users')
-        .select('role, profiles(name, email)')
+        .select('role')
         .eq('profile_id', uid)
         .maybeSingle();
 
@@ -81,10 +81,13 @@ export default function GovernanceDashboard() {
         setUser(null);
         setProfile(null);
       } else {
+        const sessionRes = await supabaseGovernance.auth.getSession();
+        const emailVal = sessionRes.data.session?.user?.email || '';
+
         setProfile({
           id: uid,
-          name: (govUser.profiles as any)?.name || 'Membro da Governança',
-          email: (govUser.profiles as any)?.email,
+          name: 'Membro da Governança',
+          email: emailVal,
           role: govUser.role,
         });
         // Carrega dados após autenticação e validação
