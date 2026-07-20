@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ShieldCheck, LogOut, Search, ShieldAlert, Activity, RefreshCw, Globe, MapPin, User, Check, AlertTriangle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
