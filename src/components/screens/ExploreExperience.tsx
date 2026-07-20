@@ -29,14 +29,27 @@ const ShopCardSkeleton = () => {
   );
 };
 
-const extractBairro = (address?: string | null) => {
-  if (!address) return 'Outros';
+const parseAddress = (address?: string | null) => {
+  if (!address) return { estado: 'Outro', cidade: 'Geral', bairro: 'Geral' };
   const parts = address.split(',');
-  if (parts.length >= 3) {
-    const candidate = parts[2].trim();
-    return candidate.split('-')[0].trim();
+  let estado = 'Outro';
+  let cidade = 'Geral';
+  let bairro = 'Geral';
+
+  if (parts.length >= 4) {
+    bairro = parts[2].trim();
+    const cityState = parts[3].trim().split('-');
+    if (cityState.length >= 2) {
+      cidade = cityState[0].trim();
+      estado = cityState[1].trim();
+    } else {
+      cidade = cityState[0].trim();
+    }
+  } else if (parts.length === 3) {
+    bairro = parts[1].trim();
+    cidade = parts[2].trim();
   }
-  return 'Geral';
+  return { estado, cidade, bairro };
 };
 
 export const ExploreExperience = () => {
@@ -51,7 +64,10 @@ export const ExploreExperience = () => {
   const [error, setError] = useState<Error | null>(null);
   const [openOnly, setOpenOnly] = useState(false);
 
+  const [selectedEstado, setSelectedEstado] = useState('Todos');
+  const [selectedCidade, setSelectedCidade] = useState('Todos');
   const [selectedBairro, setSelectedBairro] = useState('Todos');
+  const [filterStep, setFilterStep] = useState<'estado' | 'cidade' | 'bairro'>('estado');
   const [selectedPriceLevel, setSelectedPriceLevel] = useState<number | null>(null);
   const [minRating, setMinRating] = useState<number | null>(null);
 
@@ -59,15 +75,48 @@ export const ExploreExperience = () => {
   const [priceModalVisible, setPriceModalVisible] = useState(false);
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
 
-  const availableBairros = useMemo(() => {
+  const parsedLocations = useMemo(() => {
+    return barbershops.map(shop => {
+      const loc = parseAddress(shop.address);
+      return { id: shop.id, ...loc };
+    });
+  }, [barbershops]);
+
+  const uniqueEstados = useMemo(() => {
     const set = new Set<string>();
-    barbershops.forEach(shop => {
-      if (shop.address) {
-        set.add(extractBairro(shop.address));
+    parsedLocations.forEach(loc => set.add(loc.estado));
+    return Array.from(set).sort();
+  }, [parsedLocations]);
+
+  const uniqueCidades = useMemo(() => {
+    const set = new Set<string>();
+    parsedLocations.forEach(loc => {
+      if (selectedEstado === 'Todos' || loc.estado === selectedEstado) {
+        set.add(loc.cidade);
       }
     });
-    return ['Todos', ...Array.from(set).sort()];
-  }, [barbershops]);
+    return Array.from(set).sort();
+  }, [parsedLocations, selectedEstado]);
+
+  const uniqueBairros = useMemo(() => {
+    const set = new Set<string>();
+    parsedLocations.forEach(loc => {
+      if (
+        (selectedEstado === 'Todos' || loc.estado === selectedEstado) &&
+        (selectedCidade === 'Todos' || loc.cidade === selectedCidade)
+      ) {
+        set.add(loc.bairro);
+      }
+    });
+    return Array.from(set).sort();
+  }, [parsedLocations, selectedEstado, selectedCidade]);
+
+  const locationLabel = useMemo(() => {
+    if (selectedEstado === 'Todos') return 'Localização';
+    if (selectedCidade === 'Todos') return selectedEstado;
+    if (selectedBairro === 'Todos') return `${selectedCidade} - ${selectedEstado}`;
+    return `${selectedBairro}, ${selectedCidade}`;
+  }, [selectedEstado, selectedCidade, selectedBairro]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -101,15 +150,17 @@ export const ExploreExperience = () => {
       const matchesTerm = !term || [shop.name, shop.address, shop.slug].some((value) => value?.toLowerCase().includes(term));
       const matchesOpen = !openOnly || getOpeningStatus(shop.openingHours, shop.timezone).isOpen;
       
-      const shopBairro = extractBairro(shop.address);
-      const matchesBairro = selectedBairro === 'Todos' || shopBairro === selectedBairro;
+      const { estado, cidade, bairro } = parseAddress(shop.address);
+      const matchesEstado = selectedEstado === 'Todos' || estado === selectedEstado;
+      const matchesCidade = selectedCidade === 'Todos' || cidade === selectedCidade;
+      const matchesBairro = selectedBairro === 'Todos' || bairro === selectedBairro;
       
       const matchesPrice = !selectedPriceLevel || shop.priceLevel === selectedPriceLevel;
       const matchesRating = !minRating || (shop.averageRating || 0) >= minRating;
 
-      return matchesTerm && matchesOpen && matchesBairro && matchesPrice && matchesRating;
+      return matchesTerm && matchesOpen && matchesEstado && matchesCidade && matchesBairro && matchesPrice && matchesRating;
     });
-  }, [barbershops, openOnly, search, selectedBairro, selectedPriceLevel, minRating]);
+  }, [barbershops, openOnly, search, selectedEstado, selectedCidade, selectedBairro, selectedPriceLevel, minRating]);
 
   const openShop = (id: string) => {
     tapLight();
@@ -156,12 +207,12 @@ export const ExploreExperience = () => {
               </Pressable>
 
               <Pressable
-                onPress={() => setBairroModalVisible(true)}
-                style={[styles.filterChip, selectedBairro !== 'Todos' && styles.filterChipSelected]}
+                onPress={() => { setFilterStep('estado'); setBairroModalVisible(true); }}
+                style={[styles.filterChip, selectedEstado !== 'Todos' && styles.filterChipSelected]}
                 testID="client-filter-bairro"
               >
-                <Text style={[styles.filterText, selectedBairro !== 'Todos' && styles.filterTextSelected]}>
-                  {selectedBairro === 'Todos' ? 'Bairro' : `Bairro: ${selectedBairro}`}
+                <Text style={[styles.filterText, selectedEstado !== 'Todos' && styles.filterTextSelected]}>
+                  {locationLabel}
                 </Text>
               </Pressable>
 
@@ -268,23 +319,105 @@ export const ExploreExperience = () => {
         )}
       </ScrollView>
 
-      {/* Modal Selecionar Bairro */}
+      {/* Modal Selecionar Localização */}
       <Modal visible={bairroModalVisible} transparent animationType="fade" onRequestClose={() => setBairroModalVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setBairroModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Filtrar por Bairro</Text>
-            <ScrollView style={styles.modalScroll}>
-              {availableBairros.map((b) => (
-                <Pressable
-                  key={b}
-                  onPress={() => { setSelectedBairro(b); setBairroModalVisible(false); }}
-                  style={styles.modalItem}
-                >
-                  <Text style={[styles.modalItemText, selectedBairro === b && styles.modalItemTextActive]}>{b}</Text>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              {filterStep !== 'estado' ? (
+                <Pressable onPress={() => setFilterStep(filterStep === 'bairro' ? 'cidade' : 'estado')} style={styles.backStepBtn}>
+                  <Text style={styles.backStepText}>← Voltar</Text>
                 </Pressable>
-              ))}
+              ) : (
+                <Text style={styles.modalTitle}>Filtrar por Estado</Text>
+              )}
+              {filterStep === 'cidade' && <Text style={styles.modalTitle}>Filtrar por Cidade</Text>}
+              {filterStep === 'bairro' && <Text style={styles.modalTitle}>Filtrar por Bairro</Text>}
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              {filterStep === 'estado' && (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      setSelectedEstado('Todos');
+                      setSelectedCidade('Todos');
+                      setSelectedBairro('Todos');
+                      setBairroModalVisible(false);
+                    }}
+                    style={styles.modalItem}
+                  >
+                    <Text style={[styles.modalItemText, selectedEstado === 'Todos' && styles.modalItemTextActive]}>Todos os estados</Text>
+                  </Pressable>
+                  {uniqueEstados.map((est) => (
+                    <Pressable
+                      key={est}
+                      onPress={() => {
+                        setSelectedEstado(est);
+                        setFilterStep('cidade');
+                      }}
+                      style={styles.modalItem}
+                    >
+                      <Text style={[styles.modalItemText, selectedEstado === est && styles.modalItemTextActive]}>{est}</Text>
+                    </Pressable>
+                  ))}
+                </>
+              )}
+
+              {filterStep === 'cidade' && (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      setSelectedCidade('Todos');
+                      setSelectedBairro('Todos');
+                      setBairroModalVisible(false);
+                    }}
+                    style={styles.modalItem}
+                  >
+                    <Text style={[styles.modalItemText, selectedCidade === 'Todos' && styles.modalItemTextActive]}>Todas as cidades ({selectedEstado})</Text>
+                  </Pressable>
+                  {uniqueCidades.map((cid) => (
+                    <Pressable
+                      key={cid}
+                      onPress={() => {
+                        setSelectedCidade(cid);
+                        setFilterStep('bairro');
+                      }}
+                      style={styles.modalItem}
+                    >
+                      <Text style={[styles.modalItemText, selectedCidade === cid && styles.modalItemTextActive]}>{cid}</Text>
+                    </Pressable>
+                  ))}
+                </>
+              )}
+
+              {filterStep === 'bairro' && (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      setSelectedBairro('Todos');
+                      setBairroModalVisible(false);
+                    }}
+                    style={styles.modalItem}
+                  >
+                    <Text style={[styles.modalItemText, selectedBairro === 'Todos' && styles.modalItemTextActive]}>Todos os bairros ({selectedCidade})</Text>
+                  </Pressable>
+                  {uniqueBairros.map((b) => (
+                    <Pressable
+                      key={b}
+                      onPress={() => {
+                        setSelectedBairro(b);
+                        setBairroModalVisible(false);
+                      }}
+                      style={styles.modalItem}
+                    >
+                      <Text style={[styles.modalItemText, selectedBairro === b && styles.modalItemTextActive]}>{b}</Text>
+                    </Pressable>
+                  ))}
+                </>
+              )}
             </ScrollView>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -417,4 +550,6 @@ const styles = StyleSheet.create({
   modalItem: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
   modalItemText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14 },
   modalItemTextActive: { color: colors.brandPrimary, fontFamily: typography.bodyStrong },
+  backStepBtn: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: colors.canvasSoft, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSubtle },
+  backStepText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
 });
