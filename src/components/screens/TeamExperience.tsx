@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { AlertTriangle, BadgePercent, Clock, Copy, Mail, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
+import { AlertTriangle, BadgePercent, BarChart3, CalendarDays, ChevronDown, ChevronUp, Clock, Copy, Mail, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useTeam } from '../../hooks/useTeam';
@@ -43,6 +44,7 @@ const defaultSchedule: DaySchedule[] = [
 ];
 
 export const TeamExperience = () => {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
@@ -67,14 +69,25 @@ export const TeamExperience = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [invitations, setInvitations] = useState<InvitationRecord[]>([]);
+  const [showInvitationHistory, setShowInvitationHistory] = useState(false);
 
-  const loadInvitations = async () => {
+  const pendingInvitations = invitations.filter((invitation) => invitation.status === 'pending' && new Date(invitation.expires_at).getTime() > Date.now());
+  const invitationHistory = invitations.filter((invitation) => !pendingInvitations.some((pending) => pending.id === invitation.id));
+  const invitationStatus = (invitation: InvitationRecord) => {
+    if (invitation.status === 'pending' && new Date(invitation.expires_at).getTime() <= Date.now()) return 'Expirado';
+    if (invitation.status === 'pending') return 'Pendente';
+    if (invitation.status === 'accepted') return 'Aceito';
+    if (invitation.status === 'expired') return 'Expirado';
+    return 'Revogado';
+  };
+
+  const loadInvitations = React.useCallback(async () => {
     if (!profile?.establishment_id) return;
     const { data } = await supabase.rpc('list_establishment_invitations', { target_establishment_id: profile.establishment_id });
     setInvitations((data || []) as InvitationRecord[]);
-  };
+  }, [profile?.establishment_id]);
 
-  React.useEffect(() => { void loadInvitations(); }, [profile?.establishment_id]);
+  React.useEffect(() => { void loadInvitations(); }, [loadInvitations]);
 
   const startEditing = (barber: ProfileRecord) => {
     setEditingId(barber.id);
@@ -217,11 +230,30 @@ export const TeamExperience = () => {
               <Pressable testID="team-copy-invite-link-button" accessibilityRole="button" accessibilityLabel="Copiar link de convite" onPress={copyInvite} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.white} size={16} /></Pressable>
             </View>}
             <Text style={styles.inviteHint}>Nunca compartilhe o endereço público como credencial de equipe.</Text>
-            {invitations.length > 0 && <View testID="team-invitations-list" style={styles.invitationList}>{invitations.slice(0, 5).map((invitation) => (
+            {pendingInvitations.length > 0 && <View testID="team-invitations-list" style={styles.invitationList}>
+              <Text style={styles.invitationSectionTitle}>PENDENTES</Text>
+              {pendingInvitations.map((invitation) => (
               <View key={invitation.id} testID={`team-invitation-${invitation.id}`} style={styles.invitationRow}>
-                <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>{invitation.status === 'pending' ? 'Pendente' : invitation.status === 'accepted' ? 'Aceito' : invitation.status === 'expired' ? 'Expirado' : 'Revogado'} · {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
+                <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>Pendente · expira em {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
               </View>
             ))}</View>}
+            {invitationHistory.length > 0 ? (
+              <View style={styles.historyBlock}>
+                <AppButton
+                  label={`${showInvitationHistory ? 'Ocultar' : 'Ver'} histórico (${invitationHistory.length})`}
+                  testID="team-toggle-invitation-history"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => setShowInvitationHistory((current) => !current)}
+                  trailingIcon={showInvitationHistory ? <ChevronUp color={colors.textSecondary} size={15} /> : <ChevronDown color={colors.textSecondary} size={15} />}
+                />
+                {showInvitationHistory ? <View testID="team-invitation-history" style={styles.historyList}>{invitationHistory.map((invitation) => (
+                  <View key={invitation.id} testID={`team-invitation-history-${invitation.id}`} style={styles.invitationRow}>
+                    <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>{invitationStatus(invitation)} · {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
+                  </View>
+                ))}</View> : null}
+              </View>
+            ) : null}
           </AppCard>
 
           <View style={styles.teamColumn}>
@@ -347,6 +379,8 @@ export const TeamExperience = () => {
                       />
                     ) : (
                       <View style={styles.memberActions}>
+                        <AppButton label="Desempenho" testID={`team-member-${barber.id}-reports-button`} onPress={() => router.push({ pathname: '/(admin)/reports', params: { professionalId: barber.id } } as never)} variant="secondary" icon={<BarChart3 color={colors.text} size={15} />} style={styles.smallButton} />
+                        <AppButton label="Ver agenda" testID={`team-member-${barber.id}-agenda-button`} onPress={() => router.push({ pathname: '/(admin)', params: { professionalId: barber.id } } as never)} variant="secondary" icon={<CalendarDays color={colors.text} size={15} />} style={styles.smallButton} />
                         <AppButton label="Editar perfil" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
                         <AppButton label="Jornada / Escala" testID={`team-member-${barber.id}-edit-hours-button`} onPress={() => startEditingWorkHours(barber)} variant="secondary" icon={<Clock color={colors.text} size={15} />} style={styles.smallButton} />
                         <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
@@ -377,10 +411,13 @@ const styles = StyleSheet.create({
   copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 14, marginTop: 10 },
   invitationList: { gap: 8, marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
+  invitationSectionTitle: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.2 },
   invitationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: colors.canvasSoft, borderRadius: radii.sm },
   invitationCopy: { flex: 1 },
   invitationEmail: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   invitationMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  historyBlock: { marginTop: 8, alignItems: 'flex-start' },
+  historyList: { width: '100%', gap: 8, marginTop: 6 },
   teamColumn: { flex: 1.4 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },

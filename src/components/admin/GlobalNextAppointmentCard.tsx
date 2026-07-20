@@ -22,6 +22,7 @@ export const GlobalNextAppointmentCard = ({ appointment, loading, error, style }
     title="Próximo atendimento da unidade"
     description="O compromisso ativo mais próximo de toda a equipe"
     showProfessional
+    compact
     style={style}
   />
 );

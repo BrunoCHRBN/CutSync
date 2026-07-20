@@ -70,9 +70,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: 'profiles_establishment_id_fkey'; columns: ['establishment_id']; isOneToOne: false; referencedRelation: 'establishments'; referencedColumns: ['id'] }];
       };
       services: {
-        Row: { created_at: string; deleted_at: string | null; duration_minutes: number; establishment_id: string; id: string; is_active: boolean; name: string; price: number; updated_at: string };
-        Insert: { created_at?: string; deleted_at?: string | null; duration_minutes: number; establishment_id: string; id?: string; is_active?: boolean; name: string; price: number; updated_at?: string };
-        Update: { created_at?: string; deleted_at?: string | null; duration_minutes?: number; establishment_id?: string; id?: string; is_active?: boolean; name?: string; price?: number; updated_at?: string };
+        Row: { created_at: string; deleted_at: string | null; duration_minutes: number; establishment_id: string; id: string; is_active: boolean; name: string; price: number; sort_order: number; updated_at: string };
+        Insert: { created_at?: string; deleted_at?: string | null; duration_minutes: number; establishment_id: string; id?: string; is_active?: boolean; name: string; price: number; sort_order?: number; updated_at?: string };
+        Update: { created_at?: string; deleted_at?: string | null; duration_minutes?: number; establishment_id?: string; id?: string; is_active?: boolean; name?: string; price?: number; sort_order?: number; updated_at?: string };
         Relationships: [{ foreignKeyName: 'services_establishment_id_fkey'; columns: ['establishment_id']; isOneToOne: false; referencedRelation: 'establishments'; referencedColumns: ['id'] }];
       };
       superadmins: {
@@ -130,6 +130,7 @@ export type Database = {
       upsert_my_professional_profile: { Args: { requested_bio?: string | null; requested_gallery_urls?: Json; requested_instagram_url?: string | null; requested_is_public?: boolean; requested_portfolio_url?: string | null; requested_slug: string }; Returns: { profile_id: string; profile_slug: string }[] };
       get_public_busy_slots: { Args: { range_end: string; range_start: string; target_professional_id: string }; Returns: { date_time: string; duration_minutes: number }[] };
       get_schedule_blocks: { Args: { target_establishment_id: string; range_start: string; range_end: string; target_professional_id?: string | null }; Returns: { id: string; establishment_id: string; professional_id: string; starts_at: string; ends_at: string; kind: string; reason: string | null; created_by: string; created_at: string; updated_at: string }[] };
+      get_admin_report: { Args: { target_establishment_id: string; target_range_start: string; target_range_end: string }; Returns: Json };
       get_available_slots: { Args: { target_appointment_id?: string | null; target_establishment_id: string; target_local_date: string; target_professional_id: string; target_service_id: string }; Returns: { available: boolean; duration_minutes: number; local_time: string | null; starts_at: string | null; unavailable_reason: string | null }[] };
       has_active_membership: { Args: { allowed_roles?: string[] | null; target_establishment_id: string }; Returns: boolean };
       inspect_invitation: { Args: { invitation_token: string }; Returns: { establishment_name: string; expiration: string; invitation_status: string; invited_email: string; invited_role: string }[] };
@@ -137,6 +138,7 @@ export type Database = {
       list_establishment_invitations: { Args: { target_establishment_id: string }; Returns: { created_at: string; expires_at: string; id: string; invited_email: string; role: string; status: string }[] };
       reject_establishment_request: { Args: { reason: string; target_request_id: string }; Returns: undefined };
       remove_professional: { Args: { target_establishment_id: string; target_profile_id: string }; Returns: undefined };
+      reorder_service: { Args: { target_establishment_id: string; target_service_id: string; direction: string }; Returns: undefined };
       reschedule_appointment: { Args: { requested_date_time: string; requested_professional_id: string; requested_service_id: string; target_appointment_id: string }; Returns: string };
       update_appointment_status: { Args: { target_appointment_id: string; new_status: string; new_cancellation_reason?: string | null }; Returns: string };
       request_establishment: { Args: { requested_address?: string | null; requested_name: string; requested_phone?: string | null; requested_primary_color?: string; requested_slug: string }; Returns: string };

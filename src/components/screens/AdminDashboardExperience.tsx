@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Banknote,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  Clock3,
   Plus,
   RefreshCw,
   TrendingUp,
-  Users,
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppointments } from '../../hooks/useAppointments';
@@ -14,13 +18,13 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
 import { useNextAppointment } from '../../hooks/useNextAppointment';
+import { useAdminReport } from '../../hooks/use-admin-report';
 import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { SectionHeading } from '../ui/SectionHeading';
 import { StatusBadge } from '../ui/StatusBadge';
-import { SegmentedControl } from '../ui/SegmentedControl';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { AdminQuickBook } from '../admin/AdminQuickBook';
 import { AdminReschedule } from '../admin/AdminReschedule';
@@ -53,14 +57,18 @@ const toRichAppointment = (item: AppointmentRecord): RichAppointment => ({
 
 const quickTimes = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
 
-const periodOptions = [
-  { value: 'today' as const, label: 'Hoje' },
-  { value: 'week' as const, label: 'Semana' },
-  { value: 'month' as const, label: 'Mês' },
-];
+const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const comparisonNote = (current: number, previous: number) => {
+  if (previous === 0) return current === 0 ? 'sem variação contra ontem' : 'sem base no dia anterior';
+  const change = (current - previous) * 100 / Math.abs(previous);
+  if (Math.abs(change) < 0.1) return 'igual ao dia anterior';
+  return `${Math.abs(change).toFixed(1).replace('.', ',')}% ${change > 0 ? 'acima' : 'abaixo'} de ontem`;
+};
 
 export const AdminDashboardExperience = () => {
   const router = useRouter();
+  const { professionalId } = useLocalSearchParams<{ professionalId?: string }>();
   const { width } = useWindowDimensions();
   const { open: openCommandPalette } = useCommandPalette();
   const isWide = width >= layout.desktopBreakpoint;
@@ -87,9 +95,6 @@ export const AdminDashboardExperience = () => {
   const [quickTime, setQuickTime] = useState<string | null>(null);
   const [quickLoading, setQuickLoading] = useState(false);
 
-  // Filtro de Caixa do Painel de Desempenho e Faturamento
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
-
   const dailyRange = useMemo(() => {
     const start = new Date(selectedDate);
     start.setHours(0, 0, 0, 0);
@@ -98,22 +103,6 @@ export const AdminDashboardExperience = () => {
     return { start, end };
   }, [selectedDate]);
 
-  const periodRange = useMemo(() => {
-    const start = new Date();
-    const end = new Date();
-    if (period === 'today') {
-      start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999);
-    } else if (period === 'week') {
-      const day = start.getDay();
-      const daysSinceMonday = day === 0 ? 6 : day - 1;
-      start.setDate(start.getDate() - daysSinceMonday); start.setHours(0, 0, 0, 0);
-      end.setTime(start.getTime()); end.setDate(end.getDate() + 6); end.setHours(23, 59, 59, 999);
-    } else {
-      start.setDate(1); start.setHours(0, 0, 0, 0);
-      end.setMonth(end.getMonth() + 1); end.setDate(0); end.setHours(23, 59, 59, 999);
-    }
-    return { start, end };
-  }, [period]);
   const { appointments: appointmentRecords, loading: dailyLoading, error: dailyError, refresh: refreshDaily } = useAppointments({
     establishmentId: profile?.establishment_id,
     dateFrom: dailyRange.start.toISOString(),
@@ -132,10 +121,11 @@ export const AdminDashboardExperience = () => {
     rangeEnd: dailyRange.end,
     enabled: Boolean(profile?.establishment_id),
   });
-  const { appointments: periodAppointmentRecords, loading: periodLoading, error: periodError, refresh: refreshPeriod } = useAppointments({
+  const todayKey = toDateKey(new Date());
+  const { report: dayReport, loading: reportLoading, error: reportError, refresh: refreshReport } = useAdminReport({
     establishmentId: profile?.establishment_id,
-    dateFrom: periodRange.start.toISOString(),
-    dateTo: periodRange.end.toISOString(),
+    rangeStart: todayKey,
+    rangeEnd: todayKey,
     enabled: Boolean(profile?.establishment_id),
   });
   const {
@@ -147,12 +137,12 @@ export const AdminDashboardExperience = () => {
     establishmentId: profile?.establishment_id,
     enabled: Boolean(profile?.establishment_id),
   });
-  const isSyncing = dailyLoading || periodLoading || nextAppointmentLoading;
-  const appointmentError = dailyError || periodError || nextAppointmentError;
+  const isSyncing = dailyLoading || reportLoading || nextAppointmentLoading;
+  const appointmentError = dailyError || reportError || nextAppointmentError;
   const syncError = appointmentError ? new Error(appointmentError) : null;
   const refreshAgenda = useCallback(async () => {
-    await Promise.all([refreshDaily(), refreshPeriod()]);
-  }, [refreshDaily, refreshPeriod]);
+    await Promise.all([refreshDaily(), refreshReport()]);
+  }, [refreshDaily, refreshReport]);
   const refresh = useCallback(async () => {
     await Promise.all([refreshAgenda(), refreshNextAppointment()]);
   }, [refreshAgenda, refreshNextAppointment]);
@@ -194,11 +184,6 @@ export const AdminDashboardExperience = () => {
     setAppointments(appointmentRecords.map(toRichAppointment));
     setLoading(dailyLoading);
   }, [appointmentRecords, dailyLoading]);
-
-  const periodAppointments = useMemo<RichAppointment[]>(
-    () => periodAppointmentRecords.map(toRichAppointment),
-    [periodAppointmentRecords],
-  );
 
   useEffect(() => {
     if (!rescheduleItem || !newRescheduleDate) {
@@ -395,26 +380,24 @@ export const AdminDashboardExperience = () => {
     }
   };
 
-  // Cálculos do período selecionado (Hoje, Semana ou Mês) para métricas e repasses
-  const periodActive = periodAppointments.filter((item) => item.status !== 'cancelled');
-  const periodCompleted = periodAppointments.filter((item) => item.status === 'completed');
-  const revenue = periodCompleted.reduce((total, item) => total + item.price, 0);
-  const periodDayCount = Math.round((periodRange.end.getTime() - periodRange.start.getTime()) / 86_400_000) + 1;
-  const occupancy = Math.min(100, Math.round((periodActive.length / (Math.max(barbers.length, 1) * 12 * periodDayCount)) * 100));
-  
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const time = (value: Date) => value.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const barberName = (id: string) => barbers.find((barber) => barber.id === id)?.name || 'Profissional';
 
+  const reportSummary = dayReport?.summary;
+  const previousSummary = dayReport?.previous_summary;
   const metrics = [
-    { key: 'revenue', label: period === 'today' ? 'Faturamento do dia' : period === 'week' ? 'Faturamento da semana' : 'Faturamento do mês', value: currency(revenue), note: `${periodCompleted.length} atendimentos concluídos`, Icon: Banknote, actionLabel: 'Gerenciar serviços', action: () => router.push('/(admin)/services') },
-    { key: 'occupancy', label: 'Ocupação estimada', value: `${occupancy}%`, note: `${periodActive.length} horários no período`, Icon: TrendingUp, actionLabel: 'Ver vitrine', action: barbershop?.slug ? () => router.push(`/salon/${barbershop.slug}` as never) : undefined },
-    { key: 'team', label: 'Equipe em agenda', value: String(barbers.length), note: 'profissionais disponíveis', Icon: Users, actionLabel: 'Ver equipe', action: () => router.push('/(admin)/team') },
+    { key: 'production', label: 'Produção realizada hoje', value: currency(reportSummary?.production_realized || 0), note: previousSummary ? comparisonNote(reportSummary?.production_realized || 0, previousSummary.production_realized) : `${reportSummary?.completed_count || 0} concluídos`, Icon: Banknote },
+    { key: 'scheduled', label: 'Valor ainda agendado', value: currency(reportSummary?.scheduled_value || 0), note: `${reportSummary?.active_count || 0} atendimentos ativos`, Icon: CalendarClock },
+    { key: 'occupancy', label: 'Ocupação real', value: `${(reportSummary?.occupancy_rate || 0).toFixed(1).replace('.', ',')}%`, note: reportSummary?.available_minutes ? `${Math.round(reportSummary.occupied_minutes / 60)}h ocupadas` : 'configure jornadas e horários', Icon: TrendingUp },
+    { key: 'pending', label: 'Aguardando confirmação', value: String(reportSummary?.pending_count || 0), note: 'atendimentos pendentes hoje', Icon: CircleAlert },
   ];
 
   const calendarResources = useMemo(
-    () => barbers.map((barber) => ({ id: barber.id, name: barber.name, avatarUrl: barber.avatarUrl })),
-    [barbers],
+    () => barbers
+      .filter((barber) => !professionalId || barber.id === professionalId)
+      .map((barber) => ({ id: barber.id, name: barber.name, avatarUrl: barber.avatarUrl })),
+    [barbers, professionalId],
   );
 
   const calendarAppointments = useMemo<CalendarAppointment[]>(
@@ -432,10 +415,71 @@ export const AdminDashboardExperience = () => {
   );
 
   const selectedCalendarAppointment = calendarAppointments.find((item) => item.id === selectedAppointmentId) || null;
+  const visibleCalendarAppointments = professionalId
+    ? calendarAppointments.filter((item) => item.professionalId === professionalId)
+    : calendarAppointments;
+  const focusedProfessional = professionalId ? barbers.find((barber) => barber.id === professionalId) : null;
   const selectedWorkingDay = useMemo(
     () => parseSchedule(barbershop?.openingHours).find((day) => day.day === selectedDate.getDay()),
     [barbershop?.openingHours, selectedDate],
   );
+  const pendingAppointments = visibleCalendarAppointments.filter((item) => item.status === 'pending');
+  const cancelledAppointments = visibleCalendarAppointments.filter((item) => item.status === 'cancelled').slice(0, 3);
+  const nextFreeSlots = useMemo(() => {
+    if (!selectedWorkingDay?.isOpen || !calendarResources.length) return [];
+    const [openHour, openMinute] = selectedWorkingDay.open.split(':').map(Number);
+    const [closeHour, closeMinute] = selectedWorkingDay.close.split(':').map(Number);
+    const cursor = new Date(selectedDate);
+    cursor.setHours(openHour, openMinute, 0, 0);
+    const close = new Date(selectedDate);
+    close.setHours(closeHour, closeMinute, 0, 0);
+    if (cursor.toDateString() === new Date().toDateString() && cursor.getTime() < Date.now()) {
+      const now = new Date();
+      now.setSeconds(0, 0);
+      now.setMinutes(Math.ceil(now.getMinutes() / 30) * 30);
+      cursor.setTime(now.getTime());
+    }
+    const slots: { id: string; professionalName: string; startsAt: Date }[] = [];
+    while (cursor.getTime() + 30 * 60_000 <= close.getTime() && slots.length < 3) {
+      for (const professional of calendarResources) {
+        const startsAt = new Date(cursor);
+        const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
+        const professionalSchedule = parseSchedule(barbers.find((barber) => barber.id === professional.id)?.workHours);
+        const professionalDay = professionalSchedule.find((day) => day.day === selectedDate.getDay());
+        if (professionalSchedule.length) {
+          if (!professionalDay?.isOpen) continue;
+          const professionalOpen = new Date(selectedDate);
+          const [professionalOpenHour, professionalOpenMinute] = professionalDay.open.split(':').map(Number);
+          professionalOpen.setHours(professionalOpenHour, professionalOpenMinute, 0, 0);
+          const professionalClose = new Date(selectedDate);
+          const [professionalCloseHour, professionalCloseMinute] = professionalDay.close.split(':').map(Number);
+          professionalClose.setHours(professionalCloseHour, professionalCloseMinute, 0, 0);
+          if (startsAt < professionalOpen || endsAt > professionalClose) continue;
+        }
+        const conflictsAppointment = calendarAppointments.some((appointment) => appointment.professionalId === professional.id
+          && appointment.status !== 'cancelled'
+          && startsAt < appointment.endsAt
+          && endsAt > appointment.startsAt);
+        const conflictsBlock = scheduleBlocks.some((block) => block.professionalId === professional.id
+          && startsAt < block.endsAt
+          && endsAt > block.startsAt);
+        if (!conflictsAppointment && !conflictsBlock) {
+          slots.push({ id: `${professional.id}-${startsAt.toISOString()}`, professionalName: professional.name, startsAt });
+          if (slots.length === 3) break;
+        }
+      }
+      cursor.setMinutes(cursor.getMinutes() + 30);
+    }
+    return slots;
+  }, [barbers, calendarAppointments, calendarResources, scheduleBlocks, selectedDate, selectedWorkingDay]);
+
+  const setupItems = [
+    { label: 'Configurar horários da unidade', complete: Boolean(parseSchedule(barbershop?.openingHours).length), route: '/(admin)/settings' },
+    { label: 'Cadastrar serviços', complete: services.length > 0, route: '/(admin)/services' },
+    { label: 'Vincular profissionais', complete: barbers.length > 0, route: '/(admin)/team' },
+    { label: 'Publicar a vitrine', complete: Boolean(barbershop?.slug && services.some((service) => service.isActive) && barbers.length > 0), route: barbershop?.slug ? `/salon/${barbershop.slug}` : '/(admin)/settings' },
+  ];
+  const showSetupGuide = setupItems.some((item) => !item.complete);
 
   const openQuickBookFromSlot = useCallback((professionalId: string, startsAt: Date) => {
     setQuickOpen(true);
@@ -575,6 +619,22 @@ export const AdminDashboardExperience = () => {
         }))}
       />
 
+      {showSetupGuide ? (
+        <AppCard testID="admin-setup-guide" style={styles.setupGuide}>
+          <View style={styles.setupHeader}>
+            <View style={styles.setupCopy}><Text style={styles.panelTitle}>Prepare sua operação</Text><Text style={styles.panelSubtitle}>Complete os itens essenciais para receber agendamentos.</Text></View>
+            <StatusBadge testID="admin-setup-progress" label={`${setupItems.filter((item) => item.complete).length}/${setupItems.length} concluídos`} tone="warning" />
+          </View>
+          <View style={styles.setupList}>{setupItems.map((item) => (
+            <View key={item.label} style={styles.setupItem}>
+              <View style={[styles.setupIcon, item.complete && styles.setupIconComplete]}>{item.complete ? <Check color={colors.white} size={14} /> : <ChevronRight color={colors.textMuted} size={14} />}</View>
+              <Text style={[styles.setupLabel, item.complete && styles.setupLabelComplete]}>{item.label}</Text>
+              {!item.complete ? <AppButton label="Configurar" testID={`admin-setup-${item.label.toLowerCase().replace(/[^a-z]+/g, '-')}`} variant="ghost" size="sm" onPress={() => router.push(item.route as never)} /> : null}
+            </View>
+          ))}</View>
+        </AppCard>
+      ) : null}
+
       <View testID="admin-agenda-heading">
         <SectionHeading
           testID="admin-appointments-title"
@@ -583,76 +643,93 @@ export const AdminDashboardExperience = () => {
           description="Clique em um horário livre para iniciar um novo agendamento."
           variant="section"
           action={<View style={styles.headerActions}>
-            <StatusBadge testID="admin-active-appointments-count" label={`${calendarAppointments.filter((item) => item.status === 'pending' || item.status === 'confirmed').length} ativos`} tone="info" />
-            <StatusBadge testID="admin-finished-appointments-badge" label={`${calendarAppointments.filter((item) => item.status === 'completed').length} concluídos`} tone="success" />
+            {focusedProfessional ? <StatusBadge testID="admin-focused-professional" label={`Agenda: ${focusedProfessional.name}`} tone="warning" /> : null}
+            {focusedProfessional ? <AppButton label="Ver equipe toda" testID="admin-clear-professional-filter" variant="ghost" size="sm" onPress={() => router.replace('/(admin)')} /> : null}
+            <StatusBadge testID="admin-active-appointments-count" label={`${visibleCalendarAppointments.filter((item) => item.status === 'pending' || item.status === 'confirmed').length} ativos`} tone="info" />
+            <StatusBadge testID="admin-finished-appointments-badge" label={`${visibleCalendarAppointments.filter((item) => item.status === 'completed').length} concluídos`} tone="success" />
           </View>}
         />
       </View>
-      <OperationalCalendar
-        appointments={calendarAppointments}
-        blocks={scheduleBlocks}
-        canManageTeam
-        closed={selectedWorkingDay ? !selectedWorkingDay.isOpen : false}
-        date={selectedDate}
-        error={dailyError || scheduleBlocksError}
-        loading={loading || scheduleBlocksLoading}
-        legacyTestIDs={{
-          panel: 'admin-appointments-panel',
-          previousDay: 'admin-calendar-prev',
-          nextDay: 'admin-calendar-next',
-          today: 'admin-calendar-today',
-          loading: 'admin-appointments-loading',
-          empty: 'admin-appointments-empty',
-        }}
-        onBlockPress={(block) => { void deleteBlock(block.id); }}
-        onAppointmentPress={(appointment) => setSelectedAppointmentId(appointment.id)}
-        onDateChange={setSelectedDate}
-        onManageTeam={() => router.push('/(admin)/team')}
-        onRetry={() => { void refreshDaily(); }}
-        onSlotPress={setSlotSelection}
-        onToggleFinished={() => setShowFinished((current) => !current)}
-        resources={calendarResources}
-        showFinished={showFinished}
-        syncState={syncError ? 'offline' : isSyncing ? 'syncing' : 'live'}
-        testID="admin-operational-calendar"
-        timezone={barbershop?.timezone}
-        workingHours={selectedWorkingDay?.isOpen ? { start: selectedWorkingDay.open, end: selectedWorkingDay.close } : null}
-      />
+      <View style={[styles.calendarWorkspace, isWide && styles.calendarWorkspaceWide]}>
+        <View style={styles.calendarMain}>
+          <OperationalCalendar
+            appointments={visibleCalendarAppointments}
+            blocks={scheduleBlocks}
+            canManageTeam
+            closed={selectedWorkingDay ? !selectedWorkingDay.isOpen : false}
+            date={selectedDate}
+            error={dailyError || scheduleBlocksError}
+            loading={loading || scheduleBlocksLoading}
+            legacyTestIDs={{
+              panel: 'admin-appointments-panel',
+              previousDay: 'admin-calendar-prev',
+              nextDay: 'admin-calendar-next',
+              today: 'admin-calendar-today',
+              loading: 'admin-appointments-loading',
+              empty: 'admin-appointments-empty',
+            }}
+            onBlockPress={(block) => { void deleteBlock(block.id); }}
+            onAppointmentPress={(appointment) => setSelectedAppointmentId(appointment.id)}
+            onDateChange={setSelectedDate}
+            onManageTeam={() => router.push('/(admin)/team')}
+            onRetry={() => { void refreshDaily(); }}
+            onSlotPress={setSlotSelection}
+            onToggleFinished={() => setShowFinished((current) => !current)}
+            resources={calendarResources}
+            showFinished={showFinished}
+            syncState={syncError ? 'offline' : isSyncing ? 'syncing' : 'live'}
+            testID="admin-operational-calendar"
+            timezone={barbershop?.timezone}
+            workingHours={selectedWorkingDay?.isOpen ? { start: selectedWorkingDay.open, end: selectedWorkingDay.close } : null}
+          />
+        </View>
+        <AppCard testID="admin-day-insights" style={[styles.dayInsights, !isWide && styles.dayInsightsMobile]}>
+          <View style={styles.insightSection}>
+            <View style={styles.insightTitleRow}><CircleAlert color={colors.warning} size={17} /><Text style={styles.insightTitle}>Pendências</Text><StatusBadge testID="admin-pending-total" label={String(pendingAppointments.length)} tone={pendingAppointments.length ? 'warning' : 'success'} /></View>
+            {pendingAppointments.slice(0, 3).map((appointment) => <Text key={appointment.id} style={styles.insightLine}>{time(appointment.startsAt)} · {appointment.clientName}</Text>)}
+            {!pendingAppointments.length ? <Text style={styles.insightEmpty}>Nenhuma confirmação pendente.</Text> : null}
+          </View>
+          <View style={styles.insightSection}>
+            <View style={styles.insightTitleRow}><Clock3 color={colors.info} size={17} /><Text style={styles.insightTitle}>Próximas janelas livres</Text></View>
+            {nextFreeSlots.map((slot) => <Text key={slot.id} style={styles.insightLine}>{time(slot.startsAt)} · {slot.professionalName}</Text>)}
+            {!nextFreeSlots.length ? <Text style={styles.insightEmpty}>Sem janelas de 30 min neste dia.</Text> : null}
+          </View>
+          <View style={styles.insightSection}>
+            <View style={styles.insightTitleRow}><CircleAlert color={colors.danger} size={17} /><Text style={styles.insightTitle}>Cancelamentos</Text></View>
+            {cancelledAppointments.map((appointment) => <Text key={appointment.id} style={styles.insightLine}>{time(appointment.startsAt)} · {appointment.clientName}</Text>)}
+            {!cancelledAppointments.length ? <Text style={styles.insightEmpty}>Nenhum cancelamento no dia.</Text> : null}
+          </View>
+        </AppCard>
+      </View>
 
       <View style={[styles.workspace, isWide && styles.workspaceWide]}>
         <AppCard testID="admin-team-performance-panel" style={styles.performancePanel}>
           <View style={styles.performanceCardHeader}>
             <View style={{ flex: 1, minWidth: 160 }}>
-              <Text style={styles.panelTitle}>Desempenho da equipe</Text>
-              <Text style={styles.panelSubtitle}>Produção e repasse por profissional</Text>
+              <Text style={styles.panelTitle}>Prévia da equipe hoje</Text>
+              <Text style={styles.panelSubtitle}>Produção concluída e ocupação dos profissionais</Text>
             </View>
-            <SegmentedControl testID="admin-performance-period" value={period} options={periodOptions} onChange={setPeriod} />
+            <AppButton label="Ver relatórios" testID="admin-open-reports-button" variant="secondary" size="sm" onPress={() => router.push('/(admin)/reports')} trailingIcon={<ChevronRight color={colors.text} size={15} />} />
           </View>
 
           <View style={styles.teamList}>
-            {barbers.map((barber) => {
-              const barberAppointments = periodCompleted.filter((item) => item.professionalId === barber.id);
-              const gross = barberAppointments.reduce((total, item) => total + item.price, 0);
-              const rate = barber.commissionRate ?? 0;
-              const commissionLabel = barber.commissionRate == null
-                ? 'Comissão não configurada'
-                : `${Math.round(rate * 100)}% comissão`;
+            {(dayReport?.professionals || []).slice(0, 3).map((barber) => {
               return (
                 <View key={barber.id} testID={`admin-team-performance-${barber.id}`} style={styles.teamRow}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                   <View style={styles.teamCopy}>
                     <Text style={styles.teamName}>{barber.name}</Text>
-                    <Text testID={`admin-team-performance-${barber.id}-summary`} style={styles.teamMeta}>{barberAppointments.length} atend. · {commissionLabel}</Text>
+                    <Text testID={`admin-team-performance-${barber.id}-summary`} style={styles.teamMeta}>{barber.completed_count} concluídos · {barber.occupancy_rate.toFixed(1).replace('.', ',')}% ocupação</Text>
                   </View>
                   <View style={styles.teamValue}>
-                    <Text testID={`admin-team-performance-${barber.id}-gross`} style={styles.teamGross}>{currency(gross)}</Text>
-                    <Text testID={`admin-team-performance-${barber.id}-commission`} style={styles.teamCommission}>{currency(gross * rate)} repasse</Text>
+                    <Text testID={`admin-team-performance-${barber.id}-gross`} style={styles.teamGross}>{currency(barber.production_realized)}</Text>
+                    <Text testID={`admin-team-performance-${barber.id}-commission`} style={styles.teamCommission}>{currency(barber.commission_amount)} repasse</Text>
                   </View>
                 </View>
               );
             })}
           </View>
-          {barbers.length === 0 && <Text testID="admin-team-performance-empty" style={styles.emptyText}>Nenhum profissional vinculado.</Text>}
+          {!dayReport?.professionals.length && <Text testID="admin-team-performance-empty" style={styles.emptyText}>Nenhum profissional vinculado.</Text>}
         </AppCard>
       </View>
       </ScrollView>
@@ -755,7 +832,16 @@ const styles = StyleSheet.create({
   scroll: { width: '100%', maxWidth: layout.operationalMax, alignSelf: 'center', padding: 24, paddingTop: 30, paddingBottom: 110, gap: 20 },
   pageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 },
   headerActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
-  nextAppointmentCard: { marginTop: 30 },
+  nextAppointmentCard: { marginTop: 16 },
+  setupGuide: { padding: 0, overflow: 'hidden' },
+  setupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 18, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
+  setupCopy: { flex: 1, minWidth: 0 },
+  setupList: { paddingHorizontal: 18 },
+  setupItem: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
+  setupIcon: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvasSubtle },
+  setupIconComplete: { backgroundColor: colors.success },
+  setupLabel: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  setupLabelComplete: { color: colors.textMuted, textDecorationLine: 'line-through' },
   metrics: { flexDirection: 'row', gap: 14, marginTop: 14 },
   metricsMobile: { flexDirection: 'column' },
   metricCard: { flex: 1, minWidth: 190 },
@@ -777,6 +863,16 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   workspace: { gap: 16, marginTop: 18 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
+  calendarWorkspace: { gap: 16 },
+  calendarWorkspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
+  calendarMain: { flex: 1, minWidth: 0 },
+  dayInsights: { width: 300, padding: 0, overflow: 'hidden' },
+  dayInsightsMobile: { width: '100%' },
+  insightSection: { gap: 8, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
+  insightTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  insightTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  insightLine: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
+  insightEmpty: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
   schedulePanel: { flex: 1.7, padding: 0, overflow: 'hidden' },
   performancePanel: { flex: 1, minWidth: 300 },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },

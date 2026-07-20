@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
-import { LayoutDashboard, Scissors, Settings, Users } from 'lucide-react-native';
+import { BarChart3, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
@@ -9,7 +9,7 @@ import { colors, radii, typeScale } from '../../theme/tokens';
 import { ActionMenu } from '../ui/action-menu';
 import { OperationalShell } from './operational-shell';
 
-type AdminRoute = 'overview' | 'services' | 'team' | 'settings';
+type AdminRoute = 'overview' | 'reports' | 'services' | 'team' | 'settings';
 
 interface AdminShellProps {
   children: ReactNode;
@@ -24,6 +24,7 @@ interface AdminShellProps {
 
 const navItems = [
   { key: 'overview', label: 'Visão geral', path: '/(admin)', icon: LayoutDashboard },
+  { key: 'reports', label: 'Relatórios', path: '/(admin)/reports', icon: BarChart3 },
   { key: 'services', label: 'Serviços', path: '/(admin)/services', icon: Scissors },
   { key: 'team', label: 'Equipe', path: '/(admin)/team', icon: Users },
   { key: 'settings', label: 'Configurações', path: '/(admin)/settings', icon: Settings },

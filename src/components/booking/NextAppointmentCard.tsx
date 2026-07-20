@@ -17,6 +17,7 @@ interface NextAppointmentCardProps {
   showProfessional?: boolean;
   style?: StyleProp<ViewStyle>;
   testIDPrefix?: string;
+  compact?: boolean;
 }
 
 const formatAppointmentDate = (date: Date) => {
@@ -43,13 +44,14 @@ export const NextAppointmentCard = ({
   showProfessional = false,
   style,
   testIDPrefix = 'next-appointment',
+  compact = false,
 }: NextAppointmentCardProps) => {
   const status = appointment?.status === 'pending'
     ? { label: 'Pendente', tone: 'warning' as const }
     : { label: 'Confirmado', tone: 'info' as const };
 
   return (
-    <AppCard testID={testID} style={[styles.card, style]} elevated>
+    <AppCard testID={testID} style={[styles.card, compact && styles.cardCompact, style]} elevated>
       <View testID={`${testIDPrefix}-header`} style={styles.header}>
         <View testID={`${testIDPrefix}-heading`} style={styles.heading}>
           <View testID={`${testIDPrefix}-icon`} style={[styles.icon, { backgroundColor: `${accentColor}1A` }]}>
@@ -87,8 +89,8 @@ export const NextAppointmentCard = ({
           </View>
         </View>
       ) : (
-        <View testID={`${testIDPrefix}-content`} style={styles.content}>
-          <Text testID={`${testIDPrefix}-time`} style={[styles.time, { color: accentColor }]}>{formatAppointmentDate(appointment.dateTime)}</Text>
+        <View testID={`${testIDPrefix}-content`} style={[styles.content, compact && styles.contentCompact]}>
+          <Text testID={`${testIDPrefix}-time`} style={[styles.time, compact && styles.timeCompact, { color: accentColor }]}>{formatAppointmentDate(appointment.dateTime)}</Text>
           <View testID={`${testIDPrefix}-details`} style={styles.details}>
             <Text testID={`${testIDPrefix}-client`} style={styles.client}>{appointment.client?.name || appointment.clientName || 'Cliente'}</Text>
             <Text testID={`${testIDPrefix}-service`} style={styles.meta}>{appointment.service?.name || 'Serviço indisponível'}</Text>
@@ -102,6 +104,7 @@ export const NextAppointmentCard = ({
 
 const styles = StyleSheet.create({
   card: { padding: 22, borderRadius: radii.lg },
+  cardCompact: { paddingVertical: 16, paddingHorizontal: 18 },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
   heading: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   headingCopy: { flex: 1, minWidth: 0 },
@@ -109,7 +112,9 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
   description: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   content: { marginTop: 24, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 18 },
+  contentCompact: { marginTop: 12, alignItems: 'center' },
   time: { fontFamily: typography.display, fontSize: 28, letterSpacing: -1.1 },
+  timeCompact: { fontSize: 22, letterSpacing: -0.7 },
   details: { minWidth: 180, flex: 1, alignItems: 'flex-end' },
   client: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, textAlign: 'right' },
   meta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 4, textAlign: 'right' },

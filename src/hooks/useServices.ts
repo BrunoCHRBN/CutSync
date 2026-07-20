@@ -21,7 +21,7 @@ export function useServices(establishmentId: string | null | undefined, activeOn
         .select('*')
         .eq('establishment_id', establishmentId);
       if (activeOnly) query = query.eq('is_active', true);
-      query = query.order('name', { ascending: true });
+      query = query.order('sort_order', { ascending: true }).order('name', { ascending: true });
 
       const { data, error: err } = await query;
       if (err) throw err;
