@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
+import {
+  fetchLegacyAvailableSlots,
+  isAvailabilityRpcMissing,
+} from '../services/legacyAvailability';
 import { formatCalendarDate } from '../utils/dateTime';
 
 export interface AvailableSlot {
@@ -64,19 +68,39 @@ export function useAvailableSlots({
 
     setLoading(true);
     setError(null);
-    const { data, error: queryError } = await supabase.rpc('get_available_slots', {
+    const availabilityResult = await supabase.rpc('get_available_slots', {
       target_establishment_id: establishmentId,
       target_professional_id: professionalId,
       target_service_id: serviceId,
       target_local_date: localDate,
       target_appointment_id: appointmentIdOverride ?? appointmentId ?? null,
     });
+    let data = availabilityResult.data;
+    let queryError: unknown = availabilityResult.error;
+
+    if (isAvailabilityRpcMissing(availabilityResult.error)) {
+      try {
+        data = await fetchLegacyAvailableSlots({
+          establishmentId,
+          professionalId,
+          serviceId,
+          localDate,
+          appointmentId: appointmentIdOverride ?? appointmentId ?? null,
+        });
+        queryError = null;
+      } catch (fallbackError) {
+        queryError = fallbackError;
+      }
+    }
 
     if (queryError) {
       if (currentRequest === requestId.current) {
         console.error('[useAvailableSlots] Falha ao consultar disponibilidade:', queryError);
         setSlots([]);
-        setError(availabilityErrorMessage(queryError.message));
+        const queryErrorMessage = queryError instanceof Error
+          ? queryError.message
+          : String((queryError as { message?: string }).message || queryError);
+        setError(availabilityErrorMessage(queryErrorMessage));
         setEmptyMessage('');
         setResolvedQueryKey(queryKey);
         setLoading(false);

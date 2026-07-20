@@ -1,11 +1,12 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { RefreshCw, X } from 'lucide-react-native';
 import { DashboardAppointment } from '../../types/dashboard';
 import { colors, radii, typography } from '../../theme/tokens';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
+import { InlineNotice } from '../ui/InlineNotice';
 
 interface ProfessionalRescheduleProps {
   appointment: DashboardAppointment | null;
@@ -14,7 +15,9 @@ interface ProfessionalRescheduleProps {
   selectedDate: Date;
   onDateChange: (value: Date) => void;
   times: string[];
-  occupiedTimes: string[];
+  availabilityLoading: boolean;
+  availabilityError: string | null;
+  availabilityEmptyMessage: string;
   selectedTime: string | null;
   onTimeChange: (value: string) => void;
   primaryColor: string;
@@ -23,7 +26,7 @@ interface ProfessionalRescheduleProps {
   onSubmit: () => void;
 }
 
-export const ProfessionalReschedule = ({ appointment, onClose, dates, selectedDate, onDateChange, times, occupiedTimes, selectedTime, onTimeChange, primaryColor, foregroundColor, loading, onSubmit }: ProfessionalRescheduleProps) => (
+export const ProfessionalReschedule = ({ appointment, onClose, dates, selectedDate, onDateChange, times, availabilityLoading, availabilityError, availabilityEmptyMessage, selectedTime, onTimeChange, primaryColor, foregroundColor, loading, onSubmit }: ProfessionalRescheduleProps) => (
   <Modal visible={!!appointment} transparent animationType="fade" onRequestClose={onClose}>
     <View testID="barber-reschedule-modal" style={styles.overlay}>
       <AppCard testID="barber-reschedule-card" style={styles.card} elevated>
@@ -36,11 +39,22 @@ export const ProfessionalReschedule = ({ appointment, onClose, dates, selectedDa
             return <Pressable key={id} testID={`barber-reschedule-date-${id}`} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onDateChange(date); }} style={({ pressed }) => [styles.dateCard, selected && { backgroundColor: primaryColor }, pressed && styles.pressed]}><Text testID={`barber-reschedule-date-${id}-weekday`} style={[styles.dateWeek, selected && { color: foregroundColor }]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text><Text testID={`barber-reschedule-date-${id}-day`} style={[styles.dateDay, selected && { color: foregroundColor }]}>{date.getDate()}</Text></Pressable>;
           })}</ScrollView>
           <Text testID="barber-reschedule-time-label" style={styles.label}>Selecione o novo horário</Text>
-          <View style={styles.timeGrid}>{times.map((slot) => {
-            const occupied = occupiedTimes.includes(slot); const selected = selectedTime === slot;
-            return <Pressable key={slot} testID={`barber-reschedule-time-${slot.replace(':', '-')}`} disabled={occupied} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onTimeChange(slot); }} style={({ pressed }) => [styles.timeSlot, selected && { backgroundColor: primaryColor, borderColor: primaryColor }, occupied && styles.occupied, pressed && styles.pressed]}><Text testID={`barber-reschedule-time-${slot.replace(':', '-')}-label`} style={[styles.timeText, selected && { color: foregroundColor }, occupied && styles.occupiedText]}>{slot}</Text></Pressable>;
-          })}</View>
-          <AppButton label="Confirmar reagendamento" testID="barber-reschedule-submit-button" onPress={onSubmit} loading={loading} disabled={!selectedTime} fullWidth icon={<RefreshCw color={foregroundColor} size={16} />} foregroundColor={foregroundColor} style={{ backgroundColor: primaryColor, borderColor: primaryColor }} />
+          {availabilityLoading ? (
+            <View testID="barber-reschedule-availability-loading" style={styles.availabilityState}>
+              <ActivityIndicator color={primaryColor} />
+              <Text style={styles.availabilityText}>Consultando horários disponíveis...</Text>
+            </View>
+          ) : availabilityError ? (
+            <InlineNotice testID="barber-reschedule-availability-error" tone="danger" message={availabilityError} />
+          ) : times.length === 0 ? (
+            <InlineNotice testID="barber-reschedule-availability-empty" tone="info" message={availabilityEmptyMessage || 'Nenhum horário disponível nesta data.'} />
+          ) : (
+            <View style={styles.timeGrid}>{times.map((slot) => {
+              const selected = selectedTime === slot;
+              return <Pressable key={slot} testID={`barber-reschedule-time-${slot.replace(':', '-')}`} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onTimeChange(slot); }} style={({ pressed }) => [styles.timeSlot, selected && { backgroundColor: primaryColor, borderColor: primaryColor }, pressed && styles.pressed]}><Text testID={`barber-reschedule-time-${slot.replace(':', '-')}-label`} style={[styles.timeText, selected && { color: foregroundColor }]}>{slot}</Text></Pressable>;
+            })}</View>
+          )}
+          <AppButton label="Confirmar reagendamento" testID="barber-reschedule-submit-button" onPress={onSubmit} loading={loading} disabled={!selectedTime || availabilityLoading || Boolean(availabilityError)} fullWidth icon={<RefreshCw color={foregroundColor} size={16} />} foregroundColor={foregroundColor} style={{ backgroundColor: primaryColor, borderColor: primaryColor }} />
         </ScrollView>
       </AppCard>
     </View>
@@ -65,7 +79,7 @@ const styles = StyleSheet.create({
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   timeSlot: { width: '23%', height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   timeText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 10 },
-  occupied: { opacity: 0.3, borderColor: 'transparent' },
-  occupiedText: { color: colors.textMuted, textDecorationLine: 'line-through' },
+  availabilityState: { minHeight: 72, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  availabilityText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   pressed: { transform: [{ scale: 0.97 }] },
 });

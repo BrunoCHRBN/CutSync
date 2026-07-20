@@ -38,12 +38,6 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
   cancelled: { label: 'Cancelado', tone: 'danger' },
 };
 
-const rescheduleTimes = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
-  '20:00'
-];
 const hitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
 const defaultSchedule = [
   { day: 1, name: 'Segunda-feira', isOpen: true, open: '09:00', close: '20:00' },
@@ -88,7 +82,6 @@ export const BarberDashboardExperience = () => {
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
-  const [occupiedTimes, setOccupiedTimes] = useState<string[]>([]);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
   const selectedRange = useMemo(() => {
     const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
@@ -130,6 +123,19 @@ export const BarberDashboardExperience = () => {
     serviceId: quickService,
     date: quickOpen ? quickDate : null,
   });
+  const rescheduleRecord = appointmentRecords.find((appointment) => appointment.id === rescheduleItem?.id);
+  const {
+    availableSlots: rescheduleAvailableSlots,
+    loading: rescheduleAvailabilityLoading,
+    error: rescheduleAvailabilityError,
+    emptyMessage: rescheduleAvailabilityEmptyMessage,
+  } = useAvailableSlots({
+    establishmentId: profile?.establishment_id,
+    professionalId: rescheduleItem?.professionalId,
+    serviceId: rescheduleRecord?.serviceId,
+    date: rescheduleItem ? newRescheduleDate : null,
+    appointmentId: rescheduleItem?.id,
+  });
 
   const weekOffset = useMemo(() => {
     const today = new Date();
@@ -166,24 +172,6 @@ export const BarberDashboardExperience = () => {
     })));
     setLoading(isSyncing);
   }, [appointmentRecords, isSyncing]);
-
-  useEffect(() => {
-    if (!rescheduleItem || !newRescheduleDate) {
-      setOccupiedTimes([]);
-      return;
-    }
-    const startOfDay = new Date(newRescheduleDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(newRescheduleDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    void (async () => {
-      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', rescheduleItem.professionalId)
-        .neq('status', 'cancelled').neq('id', rescheduleItem.id)
-        .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
-      setOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
-    })();
-  }, [rescheduleItem, newRescheduleDate]);
 
   useEffect(() => {
     if (!quickOpen || quickBookSource !== 'header' || quickTime || quickAvailabilityLoading) return;
@@ -257,18 +245,6 @@ export const BarberDashboardExperience = () => {
       return (ha * 60 + ma) - (hb * 60 + mb);
     });
   }, [timeSlots, activeAppointments]);
-
-  const filteredRescheduleTimes = useMemo(() => {
-    const isToday = newRescheduleDate.toDateString() === new Date().toDateString();
-    if (!isToday) return rescheduleTimes;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMin = now.getMinutes();
-    return rescheduleTimes.filter(slot => {
-      const [h, m] = slot.split(':').map(Number);
-      return h > currentHour || (h === currentHour && m >= currentMin);
-    });
-  }, [newRescheduleDate]);
 
   const updateStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled', reason?: string) => {
     if (status === 'cancelled' && !reason) {
@@ -684,8 +660,10 @@ export const BarberDashboardExperience = () => {
         dates={dateOptions}
         selectedDate={newRescheduleDate}
         onDateChange={(value) => { setNewRescheduleDate(value); setNewRescheduleTime(null); }}
-        times={filteredRescheduleTimes}
-        occupiedTimes={occupiedTimes}
+        times={rescheduleAvailableSlots.map((slot) => slot.localTime)}
+        availabilityLoading={rescheduleAvailabilityLoading}
+        availabilityError={rescheduleAvailabilityError}
+        availabilityEmptyMessage={rescheduleAvailabilityEmptyMessage}
         selectedTime={newRescheduleTime}
         onTimeChange={setNewRescheduleTime}
         primaryColor={primaryColor}

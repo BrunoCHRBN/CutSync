@@ -8,6 +8,9 @@ HOOK = Path("/app/src/hooks/useAvailableSlots.ts")
 CLIENT_BOOKING = Path("/app/src/components/screens/BookingExperience.tsx")
 PUBLIC_BOOKING = Path("/app/src/app/[slug]/booking.tsx")
 GENERATED_TYPES = Path("/app/src/types/supabase.generated.ts")
+LEGACY_FALLBACK = Path("/app/src/services/legacyAvailability.ts")
+PROFESSIONAL_DASHBOARD = Path("/app/src/components/screens/BarberDashboardExperience.tsx")
+PROFESSIONAL_RESCHEDULE = Path("/app/src/components/professional/ProfessionalReschedule.tsx")
 
 
 def _read(path: Path) -> str:
@@ -67,6 +70,32 @@ def test_shared_hook_calls_new_rpc_and_exposes_distinct_states() -> None:
     assert "setInterval(() => { void refresh(); }, 15_000)" in content
     assert "if (currentRequest === requestId.current)" in content
     assert "appointmentIdOverride ?? appointmentId ?? null" in content
+
+
+def test_missing_rpc_uses_scoped_legacy_availability_fallback() -> None:
+    hook = _read(HOOK)
+    fallback = _read(LEGACY_FALLBACK)
+
+    assert "isAvailabilityRpcMissing(availabilityResult.error)" in hook
+    assert "error?.code === MISSING_AVAILABILITY_RPC_CODE" in fallback
+    assert "error.message?.includes('get_available_slots')" in fallback
+    assert "rpc('get_public_busy_slots'" in fallback
+    assert "rpc('get_public_team'" in fallback
+    assert "professional_services" in fallback
+    assert "appointmentId" in fallback
+
+
+def test_professional_reschedule_uses_shared_availability_contract() -> None:
+    dashboard = _read(PROFESSIONAL_DASHBOARD)
+    modal = _read(PROFESSIONAL_RESCHEDULE)
+
+    assert "availableSlots: rescheduleAvailableSlots" in dashboard
+    assert "appointmentId: rescheduleItem?.id" in dashboard
+    assert "rescheduleAvailableSlots.map((slot) => slot.localTime)" in dashboard
+    assert "barber-reschedule-availability-loading" in modal
+    assert "barber-reschedule-availability-error" in modal
+    assert "barber-reschedule-availability-empty" in modal
+    assert "occupiedTimes" not in dashboard
 
 
 def test_both_booking_flows_use_shared_available_slots() -> None:
