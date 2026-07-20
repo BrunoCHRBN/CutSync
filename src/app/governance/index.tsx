@@ -151,9 +151,11 @@ export default function GovernanceDashboard() {
     setAuthLoading(false);
   };
 
-  async function loadDashboardData() {
+  async function loadDashboardData(preserveNotice = false) {
     setLoadingData(true);
-    setNotice(null);
+    if (!preserveNotice) {
+      setNotice(null);
+    }
     try {
       // 1. Carregar estabelecimentos
       const { data: ests, error: estError } = await supabaseGovernance
@@ -191,16 +193,19 @@ export default function GovernanceDashboard() {
     setNotice(null);
 
     try {
-      const { error } = await supabaseGovernance
+      const { data, error } = await supabaseGovernance
         .from('establishments')
         .update({ account_status: newStatus })
-        .eq('id', estId);
+        .eq('id', estId)
+        .select('id');
 
       if (error) {
         setNotice({ tone: 'danger', message: 'Não foi possível atualizar o status do estabelecimento.' });
+      } else if (!data || data.length === 0) {
+        setNotice({ tone: 'danger', message: 'Permissão negada ou estabelecimento não encontrado.' });
       } else {
         setNotice({ tone: 'success', message: 'Status atualizado com sucesso!' });
-        await loadDashboardData();
+        await loadDashboardData(true);
       }
     } catch {
       setNotice({ tone: 'danger', message: 'Erro ao salvar alterações.' });
@@ -218,6 +223,44 @@ export default function GovernanceDashboard() {
       (e.document_number && e.document_number.includes(query))
     );
   }, [establishments, searchQuery]);
+
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case 'active': return 'Ativo';
+      case 'pending_verification': return 'Pendente';
+      case 'delinquent': return 'Inadimplente';
+      case 'blocked': return 'Bloqueado';
+      default: return status || 'Desconhecido';
+    }
+  };
+
+  const translateAction = (action: string) => {
+    switch (action) {
+      case 'establishment.status_changed': return 'Alteração de Status';
+      case 'governance.user_created': return 'Usuário Criado';
+      case 'governance.user_role_changed': return 'Cargo Alterado';
+      case 'governance.user_removed': return 'Usuário Removido';
+      default: return action;
+    }
+  };
+
+  const renderLogDescription = (log: AuditLog) => {
+    if (log.action === 'establishment.status_changed') {
+      const oldVal = translateStatus(log.changes?.old_status);
+      const newVal = translateStatus(log.changes?.new_status);
+      return `Alterou "${log.changes?.name || 'estabelecimento'}" de ${oldVal} para ${newVal}`;
+    }
+    if (log.action === 'governance.user_created') {
+      return `Criou usuário com cargo ${log.changes?.role || 'N/A'}`;
+    }
+    if (log.action === 'governance.user_role_changed') {
+      return `Alterou cargo de ${log.changes?.old_role || 'N/A'} para ${log.changes?.new_role || 'N/A'}`;
+    }
+    if (log.action === 'governance.user_removed') {
+      return `Removeu usuário (cargo: ${log.changes?.role || 'N/A'})`;
+    }
+    return JSON.stringify(log.changes);
+  };
 
   // LOGIN SCREEN (Volatile Auth Form)
   if (!user || !profile) {
@@ -347,18 +390,14 @@ export default function GovernanceDashboard() {
               </Pressable>
             </View>
 
-            <View style={styles.searchBar}>
-              <Search size={16} color={colors.textMuted} />
-              <AppInput 
-                testID="governance-search-input"
-                label="Buscar estabelecimentos"
-                containerStyle={{ flex: 1, borderWidth: 0 }}
-                style={{ minHeight: 40 }}
-                placeholder="Buscar por Nome, Slug ou Documento..." 
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
+            <AppInput 
+              testID="governance-search-input"
+              label="Buscar estabelecimentos"
+              placeholder="Buscar por Nome, Slug ou Documento..." 
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              icon={<Search size={16} color={colors.textMuted} />}
+            />
 
             {loadingData ? (
               <ActivityIndicator color={colors.brand} style={{ margin: 40 }} />
@@ -370,9 +409,32 @@ export default function GovernanceDashboard() {
                 keyExtractor={(item) => item.id}
                 scrollEnabled={false}
                 renderItem={({ item }) => (
-                  <View style={styles.establishmentItem}>
+                  <View style={[
+                    styles.establishmentItem,
+                    item.account_status === 'blocked' && styles.establishmentItemBlocked,
+                    item.account_status === 'delinquent' && styles.establishmentItemDelinquent,
+                  ]}>
                     <View style={styles.estMeta}>
-                      <Text style={styles.estName}>{item.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Text style={styles.estName}>{item.name}</Text>
+                        <View style={[
+                          styles.statusBadge,
+                          item.account_status === 'active' && styles.badgeSuccess,
+                          item.account_status === 'pending_verification' && styles.badgeWarning,
+                          item.account_status === 'delinquent' && styles.badgeDanger,
+                          item.account_status === 'blocked' && styles.badgeDanger,
+                        ]}>
+                          <Text style={[
+                            styles.statusBadgeText,
+                            item.account_status === 'active' && styles.badgeTextSuccess,
+                            item.account_status === 'pending_verification' && styles.badgeTextWarning,
+                            item.account_status === 'delinquent' && styles.badgeTextDanger,
+                            item.account_status === 'blocked' && styles.badgeTextDanger,
+                          ]}>
+                            {translateStatus(item.account_status)}
+                          </Text>
+                        </View>
+                      </View>
                       <Text style={styles.estSlug}>cutsync.com/{item.slug}</Text>
                       <View style={styles.docRow}>
                         <Text style={styles.docText}>{item.document_type}: {item.document_number || 'Não informado'}</Text>
@@ -388,7 +450,7 @@ export default function GovernanceDashboard() {
 
                     {/* Circuit Breaker Controls */}
                     <View style={styles.statusControls}>
-                      <Text style={styles.controlLabel}>Status da Conta:</Text>
+                      <Text style={styles.controlLabel}>Alterar Status da Conta:</Text>
                       <View style={styles.statusButtons}>
                         <Pressable 
                           onPress={() => updateAccountStatus(item.id, 'active')}
@@ -440,14 +502,14 @@ export default function GovernanceDashboard() {
                 renderItem={({ item }) => (
                   <View style={styles.logItem}>
                     <View style={styles.logTop}>
-                      <Text style={styles.logAction}>{item.action}</Text>
+                      <Text style={styles.logAction}>{translateAction(item.action)}</Text>
                       <Text style={styles.logDate}>{new Date(item.created_at).toLocaleTimeString('pt-BR')} - {new Date(item.created_at).toLocaleDateString('pt-BR')}</Text>
                     </View>
                     <View style={styles.logMeta}>
                       <Text style={styles.logMetaText}>IP: {item.client_ip}</Text>
                       <Text style={styles.logMetaText}>Alvo: {item.target_type} ({item.target_id.slice(0, 8)})</Text>
                     </View>
-                    <Text style={styles.logChanges}>Alterações: {JSON.stringify(item.changes)}</Text>
+                    <Text style={styles.logChanges}>{renderLogDescription(item)}</Text>
                   </View>
                 )}
               />
@@ -522,4 +584,14 @@ const styles = StyleSheet.create({
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18 },
   modalDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   otpError: { color: colors.danger, fontFamily: typography.bodyStrong, fontSize: 11 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radii.pill, borderWidth: 1, alignSelf: 'flex-start' },
+  statusBadgeText: { fontSize: 10, fontFamily: typography.bodyStrong, textTransform: 'uppercase' },
+  badgeSuccess: { backgroundColor: colors.successSoft, borderColor: colors.success },
+  badgeTextSuccess: { color: colors.success },
+  badgeWarning: { backgroundColor: colors.warningSoft, borderColor: colors.warning },
+  badgeTextWarning: { color: colors.warning },
+  badgeDanger: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  badgeTextDanger: { color: colors.danger },
+  establishmentItemBlocked: { borderLeftWidth: 4, borderLeftColor: colors.danger, paddingLeft: 12, opacity: 0.8 },
+  establishmentItemDelinquent: { borderLeftWidth: 4, borderLeftColor: colors.warning, paddingLeft: 12, opacity: 0.9 },
 });
