@@ -28,7 +28,8 @@ interface KnowledgeMarkdownProps {
 
 type Segment = { type: 'markdown'; value: string } | { type: 'attachment'; id: string; alt: string };
 
-function splitMarkdown(markdown: string): Segment[] {
+function splitMarkdown(markdown: string | null | undefined): Segment[] {
+  if (!markdown) return [];
   const segments: Segment[] = [];
   let markdownBuffer: string[] = [];
   const flush = () => {

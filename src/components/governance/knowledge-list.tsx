@@ -219,18 +219,26 @@ function FilterChip({ label, selected, onPress }: { label: string; selected: boo
   );
 }
 
+function formatSafeDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR');
+}
+
 function TopicCard({ topic, onPress }: { topic: KnowledgeTopicListItem; onPress: () => void }) {
   const canonical = ['guide', 'procedure', 'decision'].includes(topic.kind);
   const reviewExpired = topic.is_official && isReviewExpired(topic.reviewed_at);
+  const tagsArray = Array.isArray(topic.tags) ? topic.tags : [];
+
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Abrir tópico ${topic.title}`} onPress={onPress} style={({ pressed }) => [styles.topicPressable, pressed && styles.topicPressed]}>
       <AppCard testID={`knowledge-topic-${topic.id}`} style={styles.topicCard}>
         <View style={styles.topicTop}>
           <View style={styles.topicBadges}>
-            <Badge label={kindLabels[topic.kind]} />
+            <Badge label={kindLabels[topic.kind] || topic.kind} />
             {topic.is_official && <Badge label="Oficial" tone="success" icon={<ShieldCheck size={12} color={colors.success} />} />}
             {topic.resolution_status === 'resolved' && <Badge label="Resolvido" tone="info" icon={<CheckCircle2 size={12} color={colors.info} />} />}
-            {topic.publication_status !== 'published' && <Badge label={statusLabels[topic.publication_status]} tone="warning" />}
+            {topic.publication_status !== 'published' && <Badge label={statusLabels[topic.publication_status] || topic.publication_status} tone="warning" />}
             {canonical && !topic.is_official && !topic.reviewed_at && <Badge label="Revisão pendente" tone="warning" />}
             {reviewExpired && <Badge label="Revisão vencida" tone="warning" />}
           </View>
@@ -238,13 +246,13 @@ function TopicCard({ topic, onPress }: { topic: KnowledgeTopicListItem; onPress:
         </View>
         <Text selectable style={styles.topicTitle}>{topic.title}</Text>
         <Text numberOfLines={3} style={styles.excerpt}>{topic.excerpt || 'Sem resumo disponível.'}</Text>
-        {!!topic.tags.length && (
+        {tagsArray.length > 0 && (
           <View style={styles.tags}>
-            {topic.tags.slice(0, 4).map((tag) => <Text key={tag} style={styles.tag}>#{tag}</Text>)}
+            {tagsArray.slice(0, 4).map((tag) => <Text key={tag} style={styles.tag}>#{tag}</Text>)}
           </View>
         )}
         <View style={styles.topicFooter}>
-          <Text style={styles.topicMeta}>{topic.category_name} · {topic.author_name} · atualizado em {new Date(topic.updated_at).toLocaleDateString('pt-BR')}</Text>
+          <Text style={styles.topicMeta}>{topic.category_name} · {topic.author_name} · atualizado em {formatSafeDate(topic.updated_at)}</Text>
           <View style={styles.replyCount}><MessageSquare size={14} color={colors.textMuted} /><Text style={styles.topicMeta}>{topic.reply_count}</Text></View>
         </View>
       </AppCard>

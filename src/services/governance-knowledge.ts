@@ -253,8 +253,9 @@ export async function uploadKnowledgeImage({
 }
 
 export function subscribeToKnowledgeTopics(onChange: () => void): RealtimeChannel {
+  const subscriptionId = Math.random().toString(36).slice(2, 10);
   return supabaseGovernance
-    .channel('governance-knowledge-topics')
+    .channel(`governance-knowledge-topics-${subscriptionId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'governance_kb_topics' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'governance_kb_replies' }, onChange)
     .subscribe();

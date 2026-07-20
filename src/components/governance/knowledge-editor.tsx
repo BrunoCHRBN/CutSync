@@ -39,6 +39,12 @@ const kindLabels: Record<KnowledgeTopicKind, string> = {
   incident: 'Incidente',
 };
 
+function formatSafeDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? '' : d.toLocaleString('pt-BR');
+}
+
 export function KnowledgeEditor({ topicId }: { topicId?: string }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -81,7 +87,7 @@ export function KnowledgeEditor({ topicId }: { topicId?: string }) {
       setBody(detail.topic.body_markdown);
       setCategoryId(detail.topic.category.id);
       setKind(detail.topic.kind);
-      setTags(detail.topic.tags.join(', '));
+      setTags(Array.isArray(detail.topic.tags) ? detail.topic.tags.join(', ') : '');
       setPublicationStatus(detail.topic.publication_status);
       setResolutionStatus(detail.topic.resolution_status);
       setAttachments(detail.attachments);
@@ -300,7 +306,7 @@ export function KnowledgeEditor({ topicId }: { topicId?: string }) {
             <View key={revision.id} style={styles.revisionRow}>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.revisionTitle}>Versão {revision.revision_number}</Text>
-                <Text selectable style={styles.helper}>{revision.change_summary} · {revision.changed_by_name} · {new Date(revision.created_at).toLocaleString('pt-BR')}</Text>
+                <Text selectable style={styles.helper}>{revision.change_summary} · {revision.changed_by_name} · {formatSafeDateTime(revision.created_at)}</Text>
               </View>
               {isKnowledgeOwner(role) && <AppButton testID={`knowledge-restore-${revision.id}`} label="Restaurar" variant="secondary" size="sm" onPress={() => restore(revision.id)} loading={saving} />}
             </View>

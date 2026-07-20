@@ -27,7 +27,11 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { InlineNotice } from '../ui/InlineNotice';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+function formatSafeDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? '' : d.toLocaleString('pt-BR');
+}
 
 export function KnowledgeTopicDetailScreen({ topicId }: { topicId: string }) {
   const router = useRouter();
@@ -187,7 +191,7 @@ export function KnowledgeTopicDetailScreen({ topicId }: { topicId: string }) {
           {topic.is_official && isReviewExpired(topic.reviewed_at) && <Badge label="Revisão vencida" tone="warning" />}
         </View>
         <Text selectable style={styles.title}>{topic.title}</Text>
-        <Text selectable style={styles.meta}>{topic.category.name} · {topic.author_name} · versão {topic.version} · atualizado em {new Date(topic.updated_at).toLocaleString('pt-BR')}</Text>
+        <Text selectable style={styles.meta}>{topic.category.name} · {topic.author_name} · versão {topic.version} · atualizado em {formatSafeDateTime(topic.updated_at)}</Text>
         <View style={styles.rule} />
         <KnowledgeMarkdown testID="knowledge-topic-markdown" markdown={topic.body_markdown} attachments={topicAttachments} />
 
@@ -218,7 +222,7 @@ export function KnowledgeTopicDetailScreen({ topicId }: { topicId: string }) {
             <View style={styles.replyHeader}>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text selectable style={styles.replyAuthor}>{reply.author_name}</Text>
-                <Text style={styles.meta}>{new Date(reply.created_at).toLocaleString('pt-BR')} · versão {reply.version}{reply.status === 'draft' ? ' · rascunho' : ''}</Text>
+                <Text style={styles.meta}>{formatSafeDateTime(reply.created_at)} · versão {reply.version}{reply.status === 'draft' ? ' · rascunho' : ''}</Text>
               </View>
               {accepted && <Badge label="Solução aceita" tone="success" icon={<CheckCircle2 size={12} color={colors.success} />} />}
             </View>
