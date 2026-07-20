@@ -7,7 +7,7 @@ import { canEditKnowledge, isKnowledgeOwner, isReviewExpired } from '../../src/t
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
-const migration = read('supabase/migrations/20260720005000_governance_knowledge_forum.sql');
+const migration = read('supabase/migrations/20260720005000_governance_knowledge_forum.sql').replace(/\r\n/g, '\n');
 
 test('mantém a matriz de permissões do fórum no cliente e no banco', () => {
   expect(canEditKnowledge('SaaS_Viewer')).toBe(false);
