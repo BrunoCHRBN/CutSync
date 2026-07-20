@@ -640,6 +640,51 @@ export default function GovernanceDashboard() {
                 </View>
               </View>
             )}
+
+            {renderKbTopic(
+              'db_perf',
+              '⚡ Performance & Manutenção do Banco (DBA/SRE)',
+              <Activity size={20} color={colors.info} />,
+              <View style={styles.kbTopicBody}>
+                <Text style={styles.kbParagraph}>Mantenha o banco de dados otimizado e identifique gargalos operacionais com os guias de performance:</Text>
+                
+                <Text style={styles.kbSubHeading}>1. Identificar Consultas Lentas (Slow Queries)</Text>
+                <View style={styles.kbCodeBlock}>
+                  <Text style={styles.kbCodeText}>SELECT query, calls, total_exec_time / 1000 AS total_seconds,{"\n"}       mean_exec_time AS mean_ms, rows{"\n"}FROM pg_stat_statements{"\n"}ORDER BY total_exec_time DESC{"\n"}LIMIT 10;</Text>
+                </View>
+
+                <Text style={styles.kbSubHeading}>2. Estratégia de Índices de Busca</Text>
+                <Text style={styles.kbParagraph}>Para buscas de agendamentos de clientes e profissionais, o banco utiliza índices compostos (B-Tree) nas colunas estruturadas <Text style={styles.kbCodeInline}>establishment_id</Text> e <Text style={styles.kbCodeInline}>starts_at</Text>. Certifique-se de que filtros nessas tabelas sempre contenham essas referências.</Text>
+
+                <Text style={styles.kbSubHeading}>3. Purga/Limpeza de Logs Antigos</Text>
+                <View style={styles.kbCodeBlock}>
+                  <Text style={styles.kbCodeText}>DELETE FROM public.security_audit_logs{"\n"}WHERE created_at &lt; NOW() - INTERVAL &apos;1 year&apos;;</Text>
+                </View>
+              </View>
+            )}
+
+            {renderKbTopic(
+              'dev_guide',
+              '🛠️ Guia de Integração e Padronização (Desenvolvedores)',
+              <Code size={20} color={colors.success} />,
+              <View style={styles.kbTopicBody}>
+                <Text style={styles.kbParagraph}>Instruções técnicas para desenvolvedores integrando novos fluxos ao ecossistema:</Text>
+                
+                <Text style={styles.kbSubHeading}>1. Como Inserir Novo Registro na Trilha de Auditoria (TypeScript)</Text>
+                <View style={styles.kbCodeBlock}>
+                  <Text style={styles.kbCodeText}>await supabase.from(&apos;security_audit_logs&apos;).insert(&#123;{"\n"}  action: &apos;establishment.status_changed&apos;,{"\n"}  target_type: &apos;establishment&apos;,{"\n"}  target_id: &apos;ESTABLISHMENT_UUID&apos;,{"\n"}  changes: &#123; old_status: &apos;active&apos;, new_status: &apos;blocked&apos; &#125;,{"\n"}  client_ip: &apos;CLIENT_IP_ADDRESS&apos;{"\n"}&#125;);</Text>
+                </View>
+
+                <Text style={styles.kbSubHeading}>2. Gerenciamento de Migrações do Supabase</Text>
+                <Text style={styles.kbParagraph}>Nunca modifique arquivos de migração já aplicados em produção. Sempre gere uma nova migração utilizando o Supabase CLI:</Text>
+                <View style={styles.kbCodeBlock}>
+                  <Text style={styles.kbCodeText}>supabase migration new meu_novo_schema</Text>
+                </View>
+                
+                <Text style={styles.kbSubHeading}>3. Regras de Segurança RLS (Row Level Security)</Text>
+                <Text style={styles.kbParagraph}>Toda tabela nova deve possuir RLS habilitado e políticas explícitas de escrita baseadas no cargo de segurança do usuário logado (<Text style={styles.kbCodeInline}>auth.uid()</Text>).</Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
