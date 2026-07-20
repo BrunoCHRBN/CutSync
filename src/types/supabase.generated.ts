@@ -87,6 +87,36 @@ export type Database = {
         Update: { profile_id?: string; role?: 'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner'; granted_by?: string | null; granted_at?: string; updated_at?: string };
         Relationships: [];
       };
+      governance_kb_categories: {
+        Row: { id: string; slug: string; name: string; description: string | null; sort_order: number; is_active: boolean; created_by: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; slug: string; name: string; description?: string | null; sort_order?: number; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; slug?: string; name?: string; description?: string | null; sort_order?: number; is_active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      governance_kb_topics: {
+        Row: { id: string; slug: string; title: string; body_markdown: string; category_id: string; kind: 'question' | 'guide' | 'procedure' | 'decision' | 'incident'; tags: string[]; publication_status: 'draft' | 'published' | 'archived'; resolution_status: 'open' | 'resolved' | null; author_id: string | null; accepted_reply_id: string | null; is_official: boolean; is_pinned: boolean; reviewed_at: string | null; reviewed_by: string | null; version: number; last_change_summary: string | null; published_at: string | null; archived_at: string | null; created_at: string; updated_at: string; search_document: unknown };
+        Insert: { id?: string; slug: string; title: string; body_markdown?: string; category_id: string; kind: 'question' | 'guide' | 'procedure' | 'decision' | 'incident'; tags?: string[]; publication_status?: 'draft' | 'published' | 'archived'; resolution_status?: 'open' | 'resolved' | null; author_id?: string | null; accepted_reply_id?: string | null; is_official?: boolean; is_pinned?: boolean; reviewed_at?: string | null; reviewed_by?: string | null; version?: number; last_change_summary?: string | null; published_at?: string | null; archived_at?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; slug?: string; title?: string; body_markdown?: string; category_id?: string; kind?: 'question' | 'guide' | 'procedure' | 'decision' | 'incident'; tags?: string[]; publication_status?: 'draft' | 'published' | 'archived'; resolution_status?: 'open' | 'resolved' | null; author_id?: string | null; accepted_reply_id?: string | null; is_official?: boolean; is_pinned?: boolean; reviewed_at?: string | null; reviewed_by?: string | null; version?: number; last_change_summary?: string | null; published_at?: string | null; archived_at?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      governance_kb_replies: {
+        Row: { id: string; topic_id: string; body_markdown: string; author_id: string; status: 'draft' | 'published' | 'removed'; version: number; last_change_summary: string | null; published_at: string | null; removed_at: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; topic_id: string; body_markdown: string; author_id: string; status?: 'draft' | 'published' | 'removed'; version?: number; last_change_summary?: string | null; published_at?: string | null; removed_at?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; topic_id?: string; body_markdown?: string; author_id?: string; status?: 'draft' | 'published' | 'removed'; version?: number; last_change_summary?: string | null; published_at?: string | null; removed_at?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      governance_kb_attachments: {
+        Row: { id: string; topic_id: string; reply_id: string | null; storage_path: string; original_name: string; mime_type: 'image/jpeg' | 'image/png' | 'image/webp'; size_bytes: number; width: number | null; height: number | null; alt_text: string; upload_status: 'pending' | 'ready' | 'failed'; uploaded_by: string; created_at: string; updated_at: string };
+        Insert: { id?: string; topic_id: string; reply_id?: string | null; storage_path: string; original_name: string; mime_type: 'image/jpeg' | 'image/png' | 'image/webp'; size_bytes: number; width?: number | null; height?: number | null; alt_text: string; upload_status?: 'pending' | 'ready' | 'failed'; uploaded_by: string; created_at?: string; updated_at?: string };
+        Update: { alt_text?: string; upload_status?: 'pending' | 'ready' | 'failed'; updated_at?: string };
+        Relationships: [];
+      };
+      governance_kb_revisions: {
+        Row: { id: number; entity_type: 'topic' | 'reply'; entity_id: string; revision_number: number; snapshot: Json; changed_by: string | null; change_summary: string; created_at: string };
+        Insert: { id?: never; entity_type: 'topic' | 'reply'; entity_id: string; revision_number: number; snapshot: Json; changed_by?: string | null; change_summary: string; created_at?: string };
+        Update: { id?: never; entity_type?: 'topic' | 'reply'; entity_id?: string; revision_number?: number; snapshot?: Json; changed_by?: string | null; change_summary?: string; created_at?: string };
+        Relationships: [];
+      };
       security_audit_logs: {
         Row: { id: number; actor_id: string | null; action: string; target_id: string; target_type: string; changes: Json; client_ip: string; created_at: string };
         Insert: { id?: never; actor_id?: string | null; action: string; target_id: string; target_type: string; changes?: Json; client_ip?: string; created_at?: string };
@@ -152,6 +182,13 @@ export type Database = {
       accept_invitation_v2: { Args: { invitation_token: string }; Returns: { accepted_establishment_id: string; accepted_role: string }[] };
       create_establishment_and_promote_owner: { Args: { target_user_id: string; target_cnpj: string; requested_name: string; requested_slug: string; requested_address: string; requested_phone: string; requested_primary_color: string }; Returns: string };
       create_establishment_cpf: { Args: { target_user_id: string; target_cpf: string; requested_name: string; requested_slug: string; requested_address: string; requested_phone: string; requested_primary_color: string }; Returns: string };
+      search_governance_kb_topics: { Args: { search_query?: string | null; filter_category?: string | null; filter_kind?: string | null; filter_status?: string | null; page_number?: number; page_size?: number }; Returns: { id: string; slug: string; title: string; excerpt: string; kind: string; tags: string[]; publication_status: string; resolution_status: string | null; is_official: boolean; is_pinned: boolean; reviewed_at: string | null; author_name: string; category_id: string; category_name: string; category_slug: string; reply_count: number; version: number; created_at: string; updated_at: string; total_count: number }[] };
+      get_governance_kb_topic: { Args: { target_topic_id: string }; Returns: Json };
+      accept_governance_kb_solution: { Args: { target_topic_id: string; target_reply_id?: string | null }; Returns: undefined };
+      moderate_governance_kb_topic: { Args: { target_topic_id: string; requested_action: string }; Returns: undefined };
+      restore_governance_kb_revision: { Args: { target_revision_id: number; requested_change_summary: string }; Returns: undefined };
+      reserve_governance_kb_attachment: { Args: { target_topic_id: string; target_reply_id: string | null; requested_original_name: string; requested_mime_type: string; requested_size_bytes: number; requested_width: number | null; requested_height: number | null; requested_alt_text: string }; Returns: { attachment_id: string; storage_path: string }[] };
+      finalize_governance_kb_attachment: { Args: { target_attachment_id: string }; Returns: undefined };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
