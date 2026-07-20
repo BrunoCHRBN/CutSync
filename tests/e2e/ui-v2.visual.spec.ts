@@ -75,6 +75,19 @@ test.describe('cliente', () => {
     });
   }
 
+  test('configurações — navegação e dados da conta', async ({ page }) => {
+    await page.goto('/preferences');
+    await expect(page.getByTestId('client-settings-screen')).toBeVisible();
+    await expect(page.getByTestId('client-settings-name-input')).toHaveValue(/.+/);
+    await expect(page.getByTestId('client-settings-email-value')).not.toBeEmpty();
+    await expect(page.getByTestId('client-settings-save-button')).toBeDisabled();
+
+    await page.getByTestId('client-settings-security-link').click();
+    await expect(page.getByTestId('change-password-screen')).toBeVisible();
+    await page.getByTestId('change-password-back-button').click();
+    await expect(page.getByTestId('client-settings-screen')).toBeVisible();
+  });
+
   test('perfil público e booking — baseline visual', async ({ page }) => {
     const slug = process.env.CUTSYNC_E2E_PUBLIC_SLUG;
     test.skip(!slug, 'Configure CUTSYNC_E2E_PUBLIC_SLUG');

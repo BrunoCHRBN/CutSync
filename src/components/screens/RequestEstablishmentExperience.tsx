@@ -228,7 +228,7 @@ export const RequestEstablishmentExperience = () => {
   const statusLabel = request?.status === 'pending' ? 'Em análise' : request?.status === 'approved' ? 'Aprovada' : 'Rejeitada';
 
   return (
-    <ClientShell testID="request-establishment-screen" activeRoute="request" userName={profile?.name} isSyncing={loading} syncError={null} onSync={loadRequest} onSignOut={signOut}>
+    <ClientShell testID="request-establishment-screen" activeRoute="settings" userName={profile?.name} isSyncing={loading} syncError={null} onSync={loadRequest} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SectionHeading 
           testID="request-establishment-heading" 

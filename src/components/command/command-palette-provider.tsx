@@ -62,7 +62,8 @@ export const CommandPaletteProvider = ({ children }: { children: ReactNode }) =>
     { id: 'professional-profile', label: 'Abrir Meu perfil', keywords: ['perfil'], roles: ['professional'], run: () => router.push('/(professional)/profile') },
     { id: 'client-explore', label: 'Explorar estabelecimentos', keywords: ['buscar', 'salao'], roles: ['client'], run: () => router.push('/(client)') },
     { id: 'client-appointments', label: 'Abrir Meus agendamentos', keywords: ['agenda', 'historico'], roles: ['client'], run: () => router.push('/(client)/appointments') },
-    { id: 'account-security', label: 'Abrir Segurança da conta', keywords: ['senha', 'conta'], roles: ['admin', 'professional', 'client'], run: () => router.push('/security') },
+    { id: 'client-settings', label: 'Abrir Configurações', keywords: ['conta', 'perfil', 'telefone', 'negocio'], roles: ['client'], run: () => router.push('/(client)/preferences') },
+    { id: 'account-security', label: 'Abrir Segurança da conta', keywords: ['senha', 'conta'], roles: ['admin', 'professional'], run: () => router.push('/security') },
   ], [router]);
 
   const allCommands = useMemo(() => {

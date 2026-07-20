@@ -16,12 +16,22 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 
 export const ChangePasswordExperience = () => {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    if (profile?.role === 'admin') router.replace('/(admin)' as never);
+    else if (profile?.role === 'professional') router.replace('/(professional)' as never);
+    else router.replace('/(client)/preferences' as never);
+  };
 
   const changePassword = async () => {
     setNotice(null);
@@ -74,7 +84,7 @@ export const ChangePasswordExperience = () => {
           <View style={styles.shell}>
             <View style={styles.topbar}>
               <BrandMark compact testID="change-password-brand" />
-              <Pressable testID="change-password-back-button" accessibilityRole="button" onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+              <Pressable testID="change-password-back-button" accessibilityRole="button" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
                 <ArrowLeft color={colors.textSecondary} size={17} />
                 <Text style={styles.backText}>Voltar</Text>
               </Pressable>

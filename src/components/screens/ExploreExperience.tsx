@@ -1,12 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { Establishment, mapEstablishment } from '../../types/database';
 import { ClientShell } from '../layout/ClientShell';
+import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
+import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { atmosphericShadow, colors, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf } from '../../theme/color';
@@ -22,24 +25,34 @@ export const ExploreExperience = () => {
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [openOnly, setOpenOnly] = useState(false);
 
-  useEffect(() => {
-    const refresh = async () => {
-      const { data } = await supabase
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: queryError } = await supabase
         .from('establishments')
         .select('*')
-        .in('account_status', ['active', 'pending_verification'])
+        .eq('account_status', 'active')
         .order('name');
+      if (queryError) throw queryError;
       setBarbershops((data || []).map(mapEstablishment));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause : new Error('Não foi possível carregar os estabelecimentos.'));
+    } finally {
       setLoading(false);
-    };
+    }
+  }, []);
+
+  useEffect(() => {
     void refresh();
     const channel = supabase.channel(`explore-establishments-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'establishments' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'establishments' }, () => { void refresh(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, []);
+  }, [refresh]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -56,12 +69,12 @@ export const ExploreExperience = () => {
   };
 
   return (
-    <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} isSyncing={loading} syncError={null} onSync={() => {}} onSignOut={signOut}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
+    <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} isSyncing={loading} syncError={error} onSync={() => { void refresh(); }} onSignOut={signOut}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
-            <Text testID="client-explore-eyebrow" style={styles.eyebrow}>Descubra seu próximo estilo</Text>
-            <Text testID="client-explore-title" style={styles.title}>Sua cadeira ideal{`\n`}está por perto.</Text>
+            <Text testID="client-explore-eyebrow" style={styles.eyebrow}>Descubra seu próximo atendimento</Text>
+            <Text testID="client-explore-title" style={styles.title}>Encontre o lugar{`\n`}certo para você.</Text>
             <Text testID="client-explore-description" style={styles.description}>Compare estabelecimentos, conheça os serviços e marque sem ligações ou espera.</Text>
           </View>
         </View>
@@ -100,20 +113,29 @@ export const ExploreExperience = () => {
 
         <SectionHeading testID="client-shops-heading" eyebrow="Seleção CutSync" title="Estabelecimentos disponíveis" description="Informações reais de cada estabelecimento, direto da agenda do salão." />
 
+        {!!error && <InlineNotice
+          testID="client-shops-error"
+          tone="danger"
+          title="Não foi possível atualizar a vitrine"
+          message="Verifique sua conexão e tente novamente."
+          action={<AppButton testID="client-shops-retry-button" label="Tentar novamente" onPress={() => { void refresh(); }} variant="secondary" size="sm" />}
+        />}
+
         {loading ? (
           <ActivityIndicator testID="client-shops-loading" color={colors.accent} size="large" style={styles.loader} />
-        ) : filtered.length === 0 ? (
+        ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
           <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Sincronize novamente para verificar novos parceiros.'} icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
         ) : (
           <View testID="client-shops-grid" style={styles.grid}>
             {filtered.map((shop) => {
               const accent = shop.primaryColor || colors.accent;
               const opening = getOpeningStatus(shop.openingHours, shop.timezone);
+              const cardWidth = columns === 3 && filtered.length >= 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%';
               return (
-                <Pressable key={shop.id} testID={`client-shop-card-${shop.id}`} onPress={() => openShop(shop.id)} style={({ pressed }) => [styles.shopCard, { width: columns === 3 ? '31.8%' : columns === 2 ? '48.5%' : '100%' }, pressed && styles.pressed]}>
+                <Pressable key={shop.id} testID={`client-shop-card-${shop.id}`} accessibilityRole="button" accessibilityLabel={`Ver ${shop.name}`} onPress={() => openShop(shop.id)} style={({ pressed }) => [styles.shopCard, { width: cardWidth }, pressed && styles.pressed]}>
                   <View style={styles.visual}>
                     {shop.logoUrl ? (
-                      <Image source={{ uri: shop.logoUrl }} style={styles.logoImage} resizeMode="cover" />
+                      <Image source={{ uri: shop.logoUrl }} style={styles.logoImage} contentFit="contain" transition={160} />
                     ) : (
                       <>
                         <Text style={styles.monogram}>{initialsOf(shop.name)}</Text>
@@ -201,7 +223,7 @@ const styles = StyleSheet.create({
     ...atmosphericShadow,
   },
   visual: { aspectRatio: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
-  logoImage: { width: '100%', height: '100%' },
+  logoImage: { width: '82%', height: '82%' },
   monogram: { fontFamily: typography.serif, fontSize: 38, color: colors.textSecondary, letterSpacing: 2 },
   monogramCaption: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 6 },
   visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
