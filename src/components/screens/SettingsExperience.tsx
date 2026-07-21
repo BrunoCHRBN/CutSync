@@ -17,7 +17,7 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
 import { StickyActionBar } from '../ui/sticky-action-bar';
 
-type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'security';
+type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'policies' | 'security';
 
 interface SettingsSnapshot {
   name: string;
@@ -31,6 +31,10 @@ interface SettingsSnapshot {
   slogan: string;
   bannerUrl: string;
   instagram: string;
+  minCancellationHours: number | null;
+  noShowFeePercent: number | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 interface DaySchedule {
@@ -56,7 +60,8 @@ const settingsSections: { key: SettingsSection; label: string; Icon: typeof Stor
   { key: 'contact', label: 'Contato', Icon: Phone },
   { key: 'images', label: 'Imagens', Icon: ImageIcon },
   { key: 'schedule', label: 'Funcionamento', Icon: Clock3 },
-  { key: 'security', label: 'Segurança', Icon: ShieldCheck },
+  { key: 'policies', label: 'Políticas & Geodecisões', Icon: ShieldCheck },
+  { key: 'security', label: 'Segurança', Icon: KeyRound },
 ];
 
 export const SettingsExperience = () => {
@@ -69,7 +74,6 @@ export const SettingsExperience = () => {
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
 
-
   const [cep, setCep] = useState('');
   const [phone, setPhone] = useState('');
   const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
@@ -77,11 +81,17 @@ export const SettingsExperience = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   
-  // Novos campos estéticos
+  // Novos campos estéticos e de políticas
   const [slogan, setSlogan] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
   const [instagram, setInstagram] = useState('');
   const [instantBookingEnabled, setInstantBookingEnabled] = useState(true);
+  
+  const [minCancellationHours, setMinCancellationHours] = useState('24');
+  const [noShowFeePercent, setNoShowFeePercent] = useState('0');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [professionalPixAllowed, setProfessionalPixAllowed] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
@@ -101,7 +111,12 @@ export const SettingsExperience = () => {
     bannerUrl,
     instagram,
     instantBookingEnabled,
-  }), [address, bannerUrl, galleryUrls, instagram, instantBookingEnabled, logoUrl, name, phone, primaryColor, schedule, slogan, slug]);
+    minCancellationHours,
+    noShowFeePercent,
+    latitude,
+    longitude,
+    professionalPixAllowed,
+  }), [address, bannerUrl, galleryUrls, instagram, instantBookingEnabled, logoUrl, name, phone, primaryColor, schedule, slogan, slug, minCancellationHours, noShowFeePercent, latitude, longitude, professionalPixAllowed]);
   const isDirty = Boolean(savedSnapshot && currentSnapshot !== savedSnapshot);
   const invalidSchedule = schedule.some((day) => day.isOpen && (!/^\d{2}:\d{2}$/.test(day.open) || !/^\d{2}:\d{2}$/.test(day.close) || day.open >= day.close));
   const formError = !name.trim() || !slug.trim()
@@ -240,6 +255,11 @@ export const SettingsExperience = () => {
         setBannerUrl(shop.bannerUrl || '');
         setInstagram(shop.instagram || '');
         setInstantBookingEnabled(shop.instantBookingEnabled !== false);
+        setMinCancellationHours(String(shop.minCancellationHours ?? '24'));
+        setNoShowFeePercent(String(shop.noShowFeePercent ?? '0'));
+        setLatitude(shop.latitude ? String(shop.latitude) : '');
+        setLongitude(shop.longitude ? String(shop.longitude) : '');
+        setProfessionalPixAllowed(shop.professionalPixAllowed !== false);
 
         let parsedGallery: string[] = [];
         if (shop.galleryUrls) {
@@ -274,6 +294,11 @@ export const SettingsExperience = () => {
           bannerUrl: shop.bannerUrl || '',
           instagram: shop.instagram || '',
           instantBookingEnabled: shop.instantBookingEnabled !== false,
+          minCancellationHours: shop.minCancellationHours ?? 24,
+          noShowFeePercent: shop.noShowFeePercent ?? 0,
+          latitude: shop.latitude ? String(shop.latitude) : '',
+          longitude: shop.longitude ? String(shop.longitude) : '',
+          professionalPixAllowed: shop.professionalPixAllowed !== false,
         }));
       }
     }, 0);
@@ -298,6 +323,11 @@ export const SettingsExperience = () => {
         primary_color: primaryColor.toUpperCase(), logo_url: logoUrl,
         gallery_urls: JSON.stringify(galleryUrls),
         instant_booking_enabled: instantBookingEnabled,
+        min_cancellation_hours: parseInt(minCancellationHours, 10) || 24,
+        no_show_fee_percent: parseFloat(noShowFeePercent) || 0.00,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+        professional_pix_allowed: professionalPixAllowed,
       }).eq('id', barbershop.id);
       if (error) throw error;
       setSlug(cleanSlug);
@@ -307,6 +337,11 @@ export const SettingsExperience = () => {
         slug: cleanSlug,
         primaryColor: primaryColor.toUpperCase(),
         instantBookingEnabled: instantBookingEnabled,
+        minCancellationHours: parseInt(minCancellationHours, 10) || 24,
+        noShowFeePercent: parseFloat(noShowFeePercent) || 0.00,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+        professionalPixAllowed: professionalPixAllowed,
       }));
       setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
     } catch {
@@ -426,6 +461,24 @@ export const SettingsExperience = () => {
                   <Text testID="settings-account-security-description" style={styles.securityDescription}>Exigimos senha atual, 8 caracteres, maiúscula, minúscula, número e símbolo.</Text>
                 </View>
                 <AppButton label="Alterar senha" testID="settings-change-password-button" onPress={() => router.push('/security' as never)} variant="secondary" />
+              </View>
+            </FormSection> : null}
+
+            {activeSection === 'policies' ? <FormSection testID="settings-policies-section" title="Políticas de Agendamento & Geodecisões" description="Ajuste os prazos mínimos para cancelamento, taxas por falta de cliente, e coordenadas de latitude e longitude no mapa.">
+              <View style={styles.fieldsRow}>
+                <AppInput containerStyle={styles.flexField} label="Cancelamento prévio mínimo (horas)" value={minCancellationHours} onChangeText={setMinCancellationHours} keyboardType="numeric" placeholder="24" hint="Prazos antes do agendamento." />
+                <AppInput containerStyle={styles.flexField} label="Multa No-Show (%)" value={noShowFeePercent} onChangeText={setNoShowFeePercent} keyboardType="numeric" placeholder="0" hint="Taxa cobrada em faltas." />
+              </View>
+              <View style={styles.fieldsRow}>
+                <AppInput containerStyle={styles.flexField} label="Latitude Geográfica" value={latitude} onChangeText={setLatitude} keyboardType="numeric" placeholder="-23.550520" />
+                <AppInput containerStyle={styles.flexField} label="Longitude Geográfica" value={longitude} onChangeText={setLongitude} keyboardType="numeric" placeholder="-46.633308" />
+              </View>
+              <View style={styles.visibilityRow}>
+                <View style={styles.visibilityCopy}>
+                  <Text style={styles.visibilityTitle}>Permitir Pix dos colaboradores</Text>
+                  <Text style={styles.visibilityText}>Permite que profissionais de sua barbearia cadastrem chaves Pix para recebimento automático de comissões.</Text>
+                </View>
+                <Switch value={professionalPixAllowed} onValueChange={setProfessionalPixAllowed} trackColor={{ false: colors.borderStrong, true: colors.success }} />
               </View>
             </FormSection> : null}
 
@@ -651,5 +704,9 @@ const styles = StyleSheet.create({
   galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   instantBookingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   instantBookingTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  instantBookingDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 4, lineHeight: 16 }
+  instantBookingDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 4, lineHeight: 16 },
+  visibilityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: radii.md, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.border, marginTop: 14 },
+  visibilityCopy: { flex: 1, marginRight: 16 },
+  visibilityTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  visibilityText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16, marginTop: 4 }
 });

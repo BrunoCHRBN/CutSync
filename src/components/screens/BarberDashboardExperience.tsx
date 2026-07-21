@@ -19,6 +19,7 @@ import { parseSchedule } from '../../utils/schedule';
 import { DashboardAppointment } from '../../types/dashboard';
 import { ProfessionalQuickBook } from '../professional/ProfessionalQuickBook';
 import { ProfessionalReschedule } from '../professional/ProfessionalReschedule';
+import { ProfessionalOnboarding } from '../professional/ProfessionalOnboarding';
 import { getTodayInTimeZone } from '../../utils/dateTime';
 import { appointmentFeedbackMessages, translateAppointmentError } from '../../utils/appointmentErrors';
 import { NextAppointmentCard } from '../booking/NextAppointmentCard';
@@ -56,7 +57,7 @@ const readableForeground = (hex: string) => {
 
 export const BarberDashboardExperience = () => {
   const { open: openCommandPalette } = useCommandPalette();
-  const { profile, signOut } = useAuth();
+  const { profile, refreshProfile, signOut } = useAuth();
   const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
   const { services } = useServices(profile?.establishment_id, true);
@@ -446,6 +447,25 @@ export const BarberDashboardExperience = () => {
   const saudacaoProfissional = profile?.titulo_profissional
     ? profile.titulo_profissional.toLowerCase()
     : 'especialista';
+
+  const professionalPixAllowed = barbershop?.professionalPixAllowed !== false;
+  const needsOnboarding = profile?.role === 'professional' && (
+    !profile?.specialties || 
+    !profile?.titulo_profissional || 
+    (professionalPixAllowed && !profile?.pix_key)
+  );
+
+  if (needsOnboarding) {
+    return (
+      <ProfessionalOnboarding
+        profile={profile}
+        professionalPixAllowed={professionalPixAllowed}
+        onComplete={async () => {
+          await refreshProfile();
+        }}
+      />
+    );
+  }
 
   return (
     <ProfessionalShell testID="barber-dashboard-screen" name={profile?.name} shopName={barbershop?.name} onSignOut={signOut}>

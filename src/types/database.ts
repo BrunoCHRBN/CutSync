@@ -39,6 +39,12 @@ export interface Establishment {
   averagePrice?: number;
   priceLevel?: number;
   instantBookingEnabled?: boolean;
+  minCancellationHours?: number | null;
+  noShowFeePercent?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  professionalPixAllowed?: boolean;
+  pixKey?: string | null;
 }
 
 export interface ProfileRecord {
@@ -54,6 +60,8 @@ export interface ProfileRecord {
   specialties?: string | null;
   instagram?: string | null;
   tituloProfissional?: string | null;
+  pixKey?: string | null;
+  notificationChannels?: string[] | null;
 }
 
 export interface ServiceRecord {
@@ -137,6 +145,11 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   averagePrice: 'average_price' in row ? Number((row as any).average_price || 0) : 0,
   priceLevel: 'price_level' in row ? Number((row as any).price_level || 1) : 1,
   instantBookingEnabled: row.instant_booking_enabled !== false,
+  minCancellationHours: 'min_cancellation_hours' in row ? (row as any).min_cancellation_hours : null,
+  noShowFeePercent: 'no_show_fee_percent' in row ? Number((row as any).no_show_fee_percent || 0) : null,
+  latitude: 'latitude' in row ? Number((row as any).latitude || 0) : null,
+  longitude: 'longitude' in row ? Number((row as any).longitude || 0) : null,
+  professionalPixAllowed: 'professional_pix_allowed' in row ? (row as any).professional_pix_allowed !== false : true,
 });
 
 export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({
@@ -152,6 +165,8 @@ export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRe
   specialties: row.specialties,
   instagram: 'instagram' in row ? row.instagram : null,
   tituloProfissional: row.titulo_profissional,
+  pixKey: 'pix_key' in row ? (row as any).pix_key : null,
+  notificationChannels: 'notification_channels' in row ? (row as any).notification_channels : null,
 });
 
 export const mapService = (row: ServiceRow): ServiceRecord => ({
