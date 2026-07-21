@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Platform,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,11 +15,16 @@ import {
   Briefcase,
   Calendar as CalendarIcon,
   ChevronRight,
+  Compass,
+  Filter,
   LogIn,
   MapPin,
-  Search,
   Scissors,
+  Search,
+  Sparkles,
   Star,
+  X,
+  Zap,
 } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -30,60 +34,193 @@ import { colors, layout, radii, typography, typeScale } from '../theme/tokens';
 
 /* ────────────────────────────────────────────────────────────────────────────
    MARKETPLACE B2C — Rota Raiz /
-   Vitrine pública de estabelecimentos reais do Supabase.
+   Com Carrosséis Horizontais, Mobile Search Sheet e Badges nos Cards.
    ──────────────────────────────────────────────────────────────────────────── */
+
+interface EstablishmentItem {
+  id: string;
+  name: string;
+  slug: string;
+  address?: string | null;
+  phone?: string | null;
+  banner_url?: string | null;
+  logo_url?: string | null;
+  description?: string | null;
+  average_rating?: number | null;
+  account_status?: string | null;
+  created_at?: string | null;
+  // Extra computed metadata for card badges
+  reviews_count?: number;
+  distance_km?: string;
+  price_range?: string;
+  next_available_slot?: string;
+  is_new?: boolean;
+}
+
+// ── SKELETON LOADER FOR HORIZONTAL CAROUSEL ─────────────────────────────────
+const CarouselSkeleton = () => (
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+    {[1, 2, 3].map((i) => (
+      <View key={i} style={styles.cardSkeleton}>
+        <View style={styles.coverSkeleton} />
+        <View style={{ padding: 14, gap: 10 }}>
+          <View style={{ height: 16, backgroundColor: '#E4E5DF', borderRadius: 4, width: '70%' }} />
+          <View style={{ height: 12, backgroundColor: '#F0F0F0', borderRadius: 4, width: '90%' }} />
+          <View style={{ height: 12, backgroundColor: '#F0F0F0', borderRadius: 4, width: '50%' }} />
+        </View>
+      </View>
+    ))}
+  </ScrollView>
+);
+
+// ── ESTABLISHMENT CARD COMPONENT (16:9 Cover, Badges ⭐ 📍 💲 🟢) ───────────
+const EstablishmentCard: React.FC<{
+  item: EstablishmentItem;
+  onPress: () => void;
+}> = ({ item, onPress }) => {
+  const ratingText = item.average_rating ? Number(item.average_rating).toFixed(1) : '4.9';
+  const reviewsCount = item.reviews_count || 42;
+  const distanceText = item.distance_km || '1.2 km';
+  const priceRange = item.price_range || '$$';
+  const nextSlot = item.next_available_slot || 'Vaga hoje às 17:30';
+
+  // Helper address display
+  const neighborhood = item.address?.split(',')[2]?.trim() || item.address?.split(',')[0]?.trim() || 'Centro';
+
+  return (
+    <Pressable style={styles.cardContainer} onPress={onPress}>
+      {/* 16:9 Cover Image */}
+      <View style={styles.coverContainer}>
+        {item.banner_url || item.logo_url ? (
+          <Image
+            source={{ uri: item.banner_url || item.logo_url || '' }}
+            style={styles.coverImage}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={styles.coverFallback}>
+            <Scissors size={32} color={colors.brandPrimary} />
+          </View>
+        )}
+
+        {/* Top Badges (⭐ Rating, 📍 Distance, 💲 Price) */}
+        <View style={styles.topBadgesRow}>
+          <View style={styles.badgeItem}>
+            <Star size={11} color="#F5A524" fill="#F5A524" />
+            <Text style={styles.badgeTextBold}>{ratingText}</Text>
+            <Text style={styles.badgeTextMuted}>({reviewsCount})</Text>
+          </View>
+
+          <View style={styles.badgeItem}>
+            <MapPin size={11} color={colors.brandPrimary} />
+            <Text style={styles.badgeTextBold}>{distanceText}</Text>
+          </View>
+
+          <View style={styles.badgeItem}>
+            <Text style={styles.priceBadgeText}>{priceRange}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Card Content Body */}
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.name}
+        </Text>
+
+        <Text style={styles.cardSubtitle} numberOfLines={1}>
+          {neighborhood} • <Text style={styles.openNowText}>Aberto agora</Text>
+        </Text>
+
+        {/* Urgency Badge 🟢 */}
+        <View style={styles.urgencyBadge}>
+          <View style={styles.greenDot} />
+          <Text style={styles.urgencyText}>{nextSlot}</Text>
+        </View>
+
+        {/* Action Button */}
+        <View style={styles.cardActionRow}>
+          <AppButton
+            label="Ver Horários"
+            size="sm"
+            style={styles.actionBtn}
+            icon={<ChevronRight size={14} color={colors.ink} />}
+            iconPosition="right"
+            onPress={onPress}
+          />
+        </View>
+      </View>
+    </Pressable>
+  );
+};
 
 export default function MarketplacePage() {
   const router = useRouter();
   const { user, profile } = useAuth();
   const { width } = useWindowDimensions();
-  const isDesktop = width >= layout.mobileBreakpoint;
-  const columns = width >= 1280 ? 3 : width >= layout.mobileBreakpoint ? 2 : 1;
+  const isDesktop = width >= 768;
   const location = useUserLocation();
 
-  // ── Search & Filter State ─────────────────────────────────────────────
+  // ── States ────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('Qualquer Data');
 
-  // ── Establishments from Supabase ──────────────────────────────────────
-  const [establishments, setEstablishments] = useState<any[]>([]);
+  // Mobile Search Sheet Modal State
+  const [isSearchSheetOpen, setIsSearchSheetOpen] = useState(false);
+
+  // Supabase Data
+  const [establishments, setEstablishments] = useState<EstablishmentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch Establishments from Supabase
   useEffect(() => {
-    const fetch = async () => {
+    const fetchShops = async () => {
       try {
         setLoading(true);
         const { data, error } = await supabase
           .from('establishments')
-          .select('id, name, slug, address, phone, banner_url, logo_url, description, primary_color, average_rating, account_status')
+          .select('id, name, slug, address, phone, banner_url, logo_url, description, average_rating, account_status, created_at')
           .eq('account_status', 'active')
-          .order('name');
+          .order('created_at', { ascending: false });
+
         if (error) throw error;
-        setEstablishments(data || []);
+
+        // Enrich items with computed mock/display metadata for badges
+        const enriched: EstablishmentItem[] = (data || []).map((shop, idx) => ({
+          ...shop,
+          reviews_count: 28 + (idx * 7) % 65,
+          distance_km: `${(0.8 + (idx * 0.5) % 3.2).toFixed(1)} km`,
+          price_range: idx % 3 === 0 ? '$$$' : idx % 2 === 0 ? '$$' : '$',
+          next_available_slot: idx % 2 === 0 ? 'Vaga hoje às 17:30' : 'Vaga hoje às 18:00',
+          is_new: idx < 3,
+        }));
+
+        setEstablishments(enriched);
       } catch (err) {
-        console.error('[Marketplace] Failed to fetch establishments:', err);
+        console.error('[Marketplace B2C] Error fetching establishments:', err);
       } finally {
         setLoading(false);
       }
     };
-    void fetch();
+    void fetchShops();
   }, []);
 
-  // Pre-fill location filter from detected city
+  // Sync Location filter with user GPS detection
   useEffect(() => {
     if (location.city && !locationFilter) {
       setLocationFilter(location.city);
     }
   }, [location.city, locationFilter]);
 
-  // ── Filtering ─────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
+  // ── Filter Logic ──────────────────────────────────────────────────────
+  const filteredList = useMemo(() => {
     return establishments.filter((shop) => {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
-        shop.name?.toLowerCase().includes(q) ||
+        shop.name.toLowerCase().includes(q) ||
         shop.description?.toLowerCase().includes(q) ||
         shop.address?.toLowerCase().includes(q);
 
@@ -91,15 +228,14 @@ export default function MarketplacePage() {
       const matchesLocation =
         !loc || shop.address?.toLowerCase().includes(loc);
 
-      // Category keywords (simple heuristic based on name/description)
       let matchesCategory = true;
       if (selectedCategory) {
         const text = `${shop.name} ${shop.description || ''}`.toLowerCase();
         const keywords: Record<string, string[]> = {
           barbearia: ['barber', 'barba', 'corte masculino', 'barbearia'],
-          salao: ['salão', 'salao', 'beleza', 'cabelo', 'hair'],
-          manicure: ['manicure', 'nails', 'unha', 'pedicure'],
-          estetica: ['estética', 'estetica', 'pele', 'facial', 'depilação'],
+          salao: ['salão', 'salao', 'beleza', 'cabelo', 'hair', 'estilo'],
+          manicure: ['manicure', 'nails', 'unha', 'pedicure', 'alongamento'],
+          estetica: ['estética', 'estetica', 'pele', 'facial', 'depilação', 'spa'],
         };
         const kws = keywords[selectedCategory] || [];
         matchesCategory = kws.some((kw) => text.includes(kw));
@@ -109,15 +245,56 @@ export default function MarketplacePage() {
     });
   }, [establishments, searchQuery, locationFilter, selectedCategory]);
 
-  // ── Categories ────────────────────────────────────────────────────────
+  // ── Specific Carousel Subsets ──────────────────────────────────────────
+  // 1. ⚡ "Horário livre nas próximas 2 horas"
+  const urgentCarousels = useMemo(
+    () => filteredList.slice(0, 4),
+    [filteredList]
+  );
+
+  // 2. 📍 "Populares perto de ti"
+  const popularCarousels = useMemo(
+    () => [...filteredList].sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0)),
+    [filteredList]
+  );
+
+  // 3. 🆕 "Recém-chegados à plataforma"
+  const newCarousels = useMemo(
+    () => filteredList.filter((item) => item.is_new),
+    [filteredList]
+  );
+
+  // 4. 💈 "Barbearias"
+  const barbershopCarousels = useMemo(
+    () =>
+      filteredList.filter((item) =>
+        ['barber', 'barba', 'corte', 'barbearia'].some((kw) =>
+          `${item.name} ${item.description || ''}`.toLowerCase().includes(kw)
+        )
+      ),
+    [filteredList]
+  );
+
+  // 5. 💇‍♀️ "Salões de Beleza"
+  const beautyCarousels = useMemo(
+    () =>
+      filteredList.filter((item) =>
+        ['salão', 'salao', 'beleza', 'cabelo', 'hair', 'estilo', 'unha'].some((kw) =>
+          `${item.name} ${item.description || ''}`.toLowerCase().includes(kw)
+        )
+      ),
+    [filteredList]
+  );
+
+  // Categories definition
   const categories = [
-    { id: 'barbearia', label: '💈 Barbearia' },
-    { id: 'salao', label: '💇‍♀️ Salão de Beleza' },
-    { id: 'manicure', label: '💅 Manicure' },
-    { id: 'estetica', label: '🪒 Estética' },
+    { id: 'barbearia', label: '💈 Barbearias' },
+    { id: 'salao', label: '💇‍♀️ Salões de Beleza' },
+    { id: 'manicure', label: '💅 Manicure & Pedicure' },
+    { id: 'estetica', label: '🪒 Estética & Spa' },
   ];
 
-  // ── Auth CTA ──────────────────────────────────────────────────────────
+  // Auth Navigation Helper
   const handleAuthAction = useCallback(() => {
     if (user && profile) {
       if (profile.role === 'admin') router.push('/(admin)' as any);
@@ -130,7 +307,7 @@ export default function MarketplacePage() {
 
   return (
     <View style={styles.root}>
-      {/* ─── HEADER ──────────────────────────────────────────────────── */}
+      {/* ─── 1. HEADER MINIMALISTA ────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
           <View style={styles.logoRow}>
@@ -172,182 +349,247 @@ export default function MarketplacePage() {
               <Text style={styles.heroHighlight}>Sem esperas. Sem atrito.</Text>
             </Text>
             <Text style={styles.heroSubtitle}>
-              Encontre os melhores salões e barbearias perto de você com confirmação instantânea.
+              Descubra os melhores salões e barbearias perto de você com reserva instantânea.
             </Text>
           </View>
 
-          {/* ─── SEARCH BAR ────────────────────────────────────────── */}
-          <View style={styles.searchBar}>
-            <View style={styles.searchField}>
-              <Search size={16} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Qual serviço? (ex: Barba, Degradê...)"
-                placeholderTextColor={colors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
+          {/* ─── 2. BARRA DE PESQUISA RESPONSIVA ────────────────────────── */}
+          {isDesktop ? (
+            /* DESKTOP SEARCH BAR (>= 768px) */
+            <View style={styles.desktopSearchBar}>
+              <View style={styles.searchField}>
+                <Search size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Serviço ou Salão (ex: Barba, Corte...)"
+                  placeholderTextColor={colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+
+              <View style={styles.searchDivider} />
+
+              <View style={styles.searchField}>
+                <MapPin size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={location.loading ? 'Detectando GPS...' : 'Perto de mim / Raio de 2,5 km'}
+                  placeholderTextColor={colors.textMuted}
+                  value={locationFilter}
+                  onChangeText={setLocationFilter}
+                />
+              </View>
+
+              <View style={styles.searchDivider} />
+
+              <View style={styles.searchField}>
+                <CalendarIcon size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Data (Qualquer Data)"
+                  placeholderTextColor={colors.textMuted}
+                  value={dateFilter}
+                  onChangeText={setDateFilter}
+                />
+              </View>
+
+              <AppButton
+                label="Pesquisar"
+                size="sm"
+                style={styles.searchBtn}
+                onPress={() => {}}
               />
             </View>
-
-            <View style={styles.searchDivider} />
-
-            <View style={styles.searchField}>
-              <MapPin size={16} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={location.loading ? 'Detectando localização...' : 'Cidade / Bairro'}
-                placeholderTextColor={colors.textMuted}
-                value={locationFilter}
-                onChangeText={setLocationFilter}
-              />
-            </View>
-
-            {isDesktop && (
-              <>
-                <View style={styles.searchDivider} />
-                <View style={styles.searchField}>
-                  <CalendarIcon size={16} color={colors.textMuted} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Qualquer data"
-                    placeholderTextColor={colors.textMuted}
-                    editable={false}
-                  />
-                </View>
-              </>
-            )}
-
-            <AppButton
-              label="Buscar"
-              size="sm"
-              style={styles.searchBtn}
-              onPress={() => {}}
-            />
-          </View>
-
-          {/* ─── CATEGORY CHIPS ─────────────────────────────────────── */}
-          <View style={styles.chipsRow}>
-            {categories.map((cat) => (
-              <Pressable
-                key={cat.id}
-                style={[
-                  styles.chip,
-                  selectedCategory === cat.id && styles.chipActive,
-                ]}
-                onPress={() =>
-                  setSelectedCategory(selectedCategory === cat.id ? null : cat.id)
-                }
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedCategory === cat.id && styles.chipTextActive,
-                  ]}
-                >
-                  {cat.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* ─── ESTABLISHMENTS GRID ────────────────────────────────── */}
-          <View style={styles.gridSection}>
-            <Text style={styles.sectionTitle}>
-              {location.city
-                ? `Estabelecimentos em ${location.city}`
-                : 'Estabelecimentos em Destaque'}
-            </Text>
-
-            {loading ? (
-              <ActivityIndicator color={colors.brandPrimary} style={{ marginVertical: 40 }} />
-            ) : filtered.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>
-                  Nenhum estabelecimento encontrado com os filtros atuais. Tente ajustar sua busca.
-                </Text>
-              </View>
-            ) : (
-              <View style={[styles.grid, { gap: 16 }]}>
-                {filtered.map((shop) => (
-                  <Pressable
-                    key={shop.id}
-                    style={[
-                      styles.shopCard,
-                      {
-                        width: columns === 1 ? '100%' : undefined,
-                        flexBasis: columns === 1 ? undefined : `${(100 / columns) - 2}%`,
-                        flexGrow: columns === 1 ? undefined : 1,
-                      },
-                    ]}
-                    onPress={() => router.push(`/${shop.slug}/booking` as any)}
-                  >
-                    {/* Cover Image */}
-                    <View style={styles.coverBox}>
-                      {shop.banner_url || shop.logo_url ? (
-                        <Image
-                          source={{ uri: shop.banner_url || shop.logo_url }}
-                          style={styles.coverImg}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <View style={styles.coverFallback}>
-                          <Scissors size={28} color={colors.brandPrimary} />
-                        </View>
-                      )}
-
-                      {/* Rating Badge */}
-                      <View style={styles.ratingBadge}>
-                        <Star size={11} color="#F5A524" fill="#F5A524" />
-                        <Text style={styles.ratingText}>
-                          {shop.average_rating ? Number(shop.average_rating).toFixed(1) : '4.9'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Card Body */}
-                    <View style={styles.cardBody}>
-                      <Text style={styles.shopName} numberOfLines={1}>
-                        {shop.name}
-                      </Text>
-                      <Text style={styles.shopAddress} numberOfLines={1}>
-                        {shop.address || 'Endereço não informado'}
-                      </Text>
-                      <Text style={styles.shopDesc} numberOfLines={2}>
-                        {shop.description || 'Atendimento especializado com hora marcada.'}
-                      </Text>
-
-                      <View style={styles.cardFooter}>
-                        <AppButton
-                          label="Ver Horários"
-                          size="sm"
-                          icon={<ChevronRight size={14} color={colors.ink} />}
-                          iconPosition="right"
-                          onPress={() => router.push(`/${shop.slug}/booking` as any)}
-                        />
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* ─── MOBILE B2B LINK ────────────────────────────────────── */}
-          {!isDesktop && (
+          ) : (
+            /* MOBILE SEARCH TRIGGER (< 768px) */
             <Pressable
-              style={styles.mobileB2BLink}
-              onPress={() => router.push('/para-estabelecimentos' as any)}
+              style={styles.mobileSearchTrigger}
+              onPress={() => setIsSearchSheetOpen(true)}
             >
-              <Briefcase size={16} color={colors.brandPrimary} />
-              <Text style={styles.mobileB2BText}>
-                É proprietário de um salão? Conheça o CutSync para Negócios →
+              <Search size={18} color={colors.brandPrimary} />
+              <Text style={styles.mobileSearchPlaceholder}>
+                Buscar serviço, salão ou localização...
               </Text>
+              <View style={styles.filterIconButton}>
+                <Filter size={14} color={colors.brandPrimary} />
+              </View>
             </Pressable>
+          )}
+
+          {/* ─── 2C. CHIPS DE CATEGORIA (AMBER HIGHLIGHT) ──────────────── */}
+          <View style={styles.chipsRow}>
+            {categories.map((cat) => {
+              const isActive = selectedCategory === cat.id;
+              return (
+                <Pressable
+                  key={cat.id}
+                  style={[
+                    styles.chip,
+                    isActive && styles.chipActiveAmber,
+                  ]}
+                  onPress={() =>
+                    setSelectedCategory(isActive ? null : cat.id)
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      isActive && styles.chipTextActiveAmber,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* ─── 3. CARROSSÉIS HORIZONTAIS DE DESCOBRIMENTO ─────────────── */}
+          {loading ? (
+            <View style={{ gap: 24, marginTop: 12 }}>
+              <CarouselSkeleton />
+              <CarouselSkeleton />
+            </View>
+          ) : filteredList.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>Nenhum estabelecimento encontrado</Text>
+              <Text style={styles.emptyText}>
+                Tente ajustar os filtros ou a localização para visualizar salões disponíveis.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.carouselsContainer}>
+
+              {/* CARROSSEL 1: ⚡ Horário livre nas próximas 2 horas */}
+              {urgentCarousels.length > 0 && (
+                <View style={styles.carouselSection}>
+                  <View style={styles.sectionHeader}>
+                    <Zap size={18} color="#F5A524" />
+                    <Text style={styles.sectionTitle}>
+                      Horário livre nas próximas 2 horas
+                    </Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.carouselContent}
+                  >
+                    {urgentCarousels.map((item) => (
+                      <EstablishmentCard
+                        key={`urgent-${item.id}`}
+                        item={item}
+                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* CARROSSEL 2: 📍 Populares perto de ti */}
+              {popularCarousels.length > 0 && (
+                <View style={styles.carouselSection}>
+                  <View style={styles.sectionHeader}>
+                    <MapPin size={18} color={colors.brandPrimary} />
+                    <Text style={styles.sectionTitle}>
+                      Populares perto de ti (Raio 2,5 km)
+                    </Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.carouselContent}
+                  >
+                    {popularCarousels.map((item) => (
+                      <EstablishmentCard
+                        key={`popular-${item.id}`}
+                        item={item}
+                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* CARROSSEL 3: 🆕 Recém-chegados à plataforma */}
+              {newCarousels.length > 0 && (
+                <View style={styles.carouselSection}>
+                  <View style={styles.sectionHeader}>
+                    <Sparkles size={18} color={colors.brandPrimary} />
+                    <Text style={styles.sectionTitle}>
+                      Recém-chegados à plataforma
+                    </Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.carouselContent}
+                  >
+                    {newCarousels.map((item) => (
+                      <EstablishmentCard
+                        key={`new-${item.id}`}
+                        item={item}
+                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* CARROSSEL 4: 💈 Barbearias */}
+              {barbershopCarousels.length > 0 && (
+                <View style={styles.carouselSection}>
+                  <View style={styles.sectionHeader}>
+                    <Scissors size={18} color={colors.brandPrimary} />
+                    <Text style={styles.sectionTitle}>Barbearias</Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.carouselContent}
+                  >
+                    {barbershopCarousels.map((item) => (
+                      <EstablishmentCard
+                        key={`barber-${item.id}`}
+                        item={item}
+                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* CARROSSEL 5: 💇‍♀️ Salões de Beleza */}
+              {beautyCarousels.length > 0 && (
+                <View style={styles.carouselSection}>
+                  <View style={styles.sectionHeader}>
+                    <Compass size={18} color={colors.brandPrimary} />
+                    <Text style={styles.sectionTitle}>Salões de Beleza</Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.carouselContent}
+                  >
+                    {beautyCarousels.map((item) => (
+                      <EstablishmentCard
+                        key={`beauty-${item.id}`}
+                        item={item}
+                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+            </View>
           )}
 
           {/* ─── FOOTER ─────────────────────────────────────────────── */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>© {new Date().getFullYear()} CutSync — Plataforma de Agendamento Universal</Text>
+            <Text style={styles.footerText}>
+              © {new Date().getFullYear()} CutSync — Plataforma de Agendamento Universal
+            </Text>
             <View style={styles.footerLinks}>
               <Pressable onPress={() => router.push('/para-estabelecimentos' as any)}>
                 <Text style={styles.footerLink}>Para Estabelecimentos</Text>
@@ -359,6 +601,84 @@ export default function MarketplacePage() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ─── MOBILE SEARCH SHEET (DRAWER FULLSCREEN MODAL) ───────────── */}
+      <Modal
+        visible={isSearchSheetOpen}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsSearchSheetOpen(false)}
+      >
+        <View style={styles.sheetContainer}>
+          {/* Sheet Header */}
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Filtrar e Buscar</Text>
+            <Pressable
+              style={styles.sheetCloseButton}
+              onPress={() => setIsSearchSheetOpen(false)}
+            >
+              <X size={20} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.sheetBody}>
+            {/* Field 1: Service / Salon Name */}
+            <View style={styles.sheetGroup}>
+              <Text style={styles.sheetLabel}>O que você procura?</Text>
+              <View style={styles.sheetInputBox}>
+                <Search size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.sheetInput}
+                  placeholder="Serviço ou Salão (ex: Barba, Degradê)"
+                  placeholderTextColor={colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+            </View>
+
+            {/* Field 2: Location */}
+            <View style={styles.sheetGroup}>
+              <Text style={styles.sheetLabel}>Onde você quer agendar?</Text>
+              <View style={styles.sheetInputBox}>
+                <MapPin size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.sheetInput}
+                  placeholder="Cidade / Bairro ou Raio GPS"
+                  placeholderTextColor={colors.textMuted}
+                  value={locationFilter}
+                  onChangeText={setLocationFilter}
+                />
+              </View>
+            </View>
+
+            {/* Field 3: Date */}
+            <View style={styles.sheetGroup}>
+              <Text style={styles.sheetLabel}>Quando?</Text>
+              <View style={styles.sheetInputBox}>
+                <CalendarIcon size={16} color={colors.textMuted} />
+                <TextInput
+                  style={styles.sheetInput}
+                  placeholder="Qualquer Data"
+                  placeholderTextColor={colors.textMuted}
+                  value={dateFilter}
+                  onChangeText={setDateFilter}
+                />
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Sheet Footer Button */}
+          <View style={styles.sheetFooter}>
+            <AppButton
+              label="Aplicar Filtros"
+              fullWidth
+              style={styles.sheetApplyBtn}
+              onPress={() => setIsSearchSheetOpen(false)}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -437,8 +757,8 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: 12,
-    paddingTop: 40,
-    paddingBottom: 8,
+    paddingTop: 32,
+    paddingBottom: 4,
   },
   heroTitle: {
     ...typeScale.displayLarge,
@@ -456,10 +776,9 @@ const styles = StyleSheet.create({
     maxWidth: 540,
   },
 
-  /* Search Bar */
-  searchBar: {
+  /* Search Bars */
+  desktopSearchBar: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -467,14 +786,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: 6,
     gap: 6,
-    ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.04)' } as any,
-      default: {},
-    }),
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
   },
   searchField: {
     flex: 1,
-    minWidth: 160,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -486,8 +801,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: typography.body,
     color: colors.text,
-    ...Platform.select({ web: { outlineStyle: 'none' } as any, default: {} }),
-  },
+    outlineStyle: 'none',
+  } as any,
   searchDivider: {
     width: 1,
     height: 22,
@@ -498,7 +813,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  /* Category Chips */
+  /* Mobile Search Trigger */
+  mobileSearchTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+  },
+  mobileSearchPlaceholder: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  filterIconButton: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.sm,
+    backgroundColor: colors.brandSecondarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Category Chips (Amber highlight) */
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -512,62 +855,59 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipActive: {
-    backgroundColor: colors.brandPrimary,
-    borderColor: colors.brandPrimary,
+  chipActiveAmber: {
+    backgroundColor: '#F5A524',
+    borderColor: '#F5A524',
   },
   chipText: {
     fontSize: 12,
     fontFamily: typography.bodyStrong,
     color: colors.text,
   },
-  chipTextActive: {
-    color: colors.ink,
+  chipTextActiveAmber: {
+    color: '#FFFFFF',
   },
 
-  /* Grid */
-  gridSection: {
-    gap: 16,
+  /* Carousels Container */
+  carouselsContainer: {
+    gap: 28,
+    marginTop: 8,
+  },
+  carouselSection: {
+    gap: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionTitle: {
     ...typeScale.sectionTitle,
+    fontSize: 18,
     color: colors.text,
   },
-  emptyBox: {
-    padding: 32,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
+  carouselContent: {
+    gap: 14,
+    paddingRight: 20,
   },
-  emptyText: {
-    ...typeScale.body,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  shopCard: {
+
+  /* Card Anatomy */
+  cardContainer: {
+    width: 280,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0 2px 6px rgba(0,0,0,0.03)' } as any,
-      default: {},
-    }),
+    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
   },
-  coverBox: {
-    height: 140,
+  coverContainer: {
+    height: 150,
     width: '100%',
     position: 'relative',
     backgroundColor: colors.brandSecondarySoft,
   },
-  coverImg: {
+  coverImage: {
     width: '100%',
     height: '100%',
   },
@@ -576,64 +916,120 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ratingBadge: {
+  topBadgesRow: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  badgeItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: radii.pill,
   },
-  ratingText: {
+  badgeTextBold: {
     fontSize: 11,
     fontFamily: typography.bodyStrong,
     color: colors.text,
   },
-  cardBody: {
-    padding: 16,
+  badgeTextMuted: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: typography.body,
+  },
+  priceBadgeText: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: colors.brandPrimary,
+  },
+  cardContent: {
+    padding: 14,
     gap: 6,
   },
-  shopName: {
+  cardTitle: {
     ...typeScale.cardTitle,
+    fontSize: 15,
     color: colors.text,
   },
-  shopAddress: {
+  cardSubtitle: {
     fontSize: 11,
     fontFamily: typography.body,
     color: colors.textMuted,
   },
-  shopDesc: {
-    ...typeScale.small,
-    color: colors.textSecondary,
+  openNowText: {
+    color: colors.success,
+    fontFamily: typography.bodyStrong,
   },
-  cardFooter: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-    marginTop: 6,
-    alignItems: 'flex-end',
-  },
-
-  /* Mobile B2B Link */
-  mobileB2BLink: {
+  urgencyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.brandSecondarySoft,
-    borderRadius: radii.lg,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.brandBorder,
+    gap: 6,
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
+    marginTop: 2,
   },
-  mobileB2BText: {
-    flex: 1,
-    ...typeScale.small,
+  greenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+  },
+  urgencyText: {
+    fontSize: 11,
     fontFamily: typography.bodyStrong,
-    color: colors.brandPrimary,
+    color: colors.success,
+  },
+  cardActionRow: {
+    marginTop: 8,
+    alignItems: 'flex-end',
+  },
+  actionBtn: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+  },
+
+  /* Skeletons */
+  cardSkeleton: {
+    width: 280,
+    height: 240,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  coverSkeleton: {
+    height: 140,
+    backgroundColor: '#E4E5DF',
+  },
+
+  /* Empty Box */
+  emptyBox: {
+    padding: 32,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    ...typeScale.cardTitle,
+    color: colors.text,
+  },
+  emptyText: {
+    ...typeScale.body,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 
   /* Footer */
@@ -657,5 +1053,68 @@ const styles = StyleSheet.create({
     ...typeScale.small,
     fontFamily: typography.bodyStrong,
     color: colors.textSecondary,
+  },
+
+  /* Mobile Search Sheet Modal */
+  sheetContainer: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sheetTitle: {
+    ...typeScale.cardTitle,
+    fontSize: 17,
+    color: colors.text,
+  },
+  sheetCloseButton: {
+    padding: 4,
+  },
+  sheetBody: {
+    padding: 20,
+    gap: 20,
+  },
+  sheetGroup: {
+    gap: 8,
+  },
+  sheetLabel: {
+    ...typeScale.bodyStrong,
+    fontSize: 13,
+    color: colors.text,
+  },
+  sheetInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    height: 48,
+  },
+  sheetInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: typography.body,
+    color: colors.text,
+  },
+  sheetFooter: {
+    padding: 20,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  sheetApplyBtn: {
+    minHeight: 48,
+    backgroundColor: colors.brandPrimary,
   },
 });
