@@ -95,7 +95,8 @@ const EstablishmentCard: React.FC<{
   userLat?: number | null;
   userLng?: number | null;
   onPress: () => void;
-}> = ({ item, userLat, userLng, onPress }) => {
+  onBookPress?: () => void;
+}> = ({ item, userLat, userLng, onPress, onBookPress }) => {
   const hasRating = Boolean(item.average_rating && Number(item.average_rating) > 0);
   const ratingText = hasRating ? Number(item.average_rating).toFixed(1) : 'Novo';
   const reviewsCount = item.reviews_count || 0;
@@ -174,7 +175,7 @@ const EstablishmentCard: React.FC<{
             style={styles.actionBtn}
             icon={<ChevronRight size={14} color={colors.ink} />}
             iconPosition="right"
-            onPress={onPress}
+            onPress={onBookPress || onPress}
           />
         </View>
       </View>
@@ -518,7 +519,8 @@ export default function MarketplacePage() {
                         item={item}
                         userLat={location.lat}
                         userLng={location.lng}
-                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                        onPress={() => router.push(`/${item.slug}` as any)}
+                        onBookPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
                   </ScrollView>
@@ -545,7 +547,8 @@ export default function MarketplacePage() {
                         item={item}
                         userLat={location.lat}
                         userLng={location.lng}
-                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                        onPress={() => router.push(`/${item.slug}` as any)}
+                        onBookPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
                   </ScrollView>
@@ -572,7 +575,8 @@ export default function MarketplacePage() {
                         item={item}
                         userLat={location.lat}
                         userLng={location.lng}
-                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                        onPress={() => router.push(`/${item.slug}` as any)}
+                        onBookPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
                   </ScrollView>
@@ -597,7 +601,8 @@ export default function MarketplacePage() {
                         item={item}
                         userLat={location.lat}
                         userLng={location.lng}
-                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                        onPress={() => router.push(`/${item.slug}` as any)}
+                        onBookPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
                   </ScrollView>
@@ -622,7 +627,8 @@ export default function MarketplacePage() {
                         item={item}
                         userLat={location.lat}
                         userLng={location.lng}
-                        onPress={() => router.push(`/${item.slug}/booking` as any)}
+                        onPress={() => router.push(`/${item.slug}` as any)}
+                        onBookPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
                   </ScrollView>

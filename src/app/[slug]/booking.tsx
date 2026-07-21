@@ -1,40 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, ScrollView, Platform, Pressable } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Scissors, UserRound } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Scissors,
+  Star,
+  UserRound,
+} from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { scheduleAppointmentNotification } from '../../services/notifications';
-import { getErrorMessage } from '../../utils/errors';
 import { supabase } from '../../services/supabase';
-import { atmosphericShadow, colors, glassSurface, radii, typography } from '../../theme/tokens';
-import { readableForeground } from '../../theme/color';
+import { colors, radii, typography } from '../../theme/tokens';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
 import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
 import { InlineNotice } from '../../components/ui/InlineNotice';
-import { getAppointmentErrorText, translateAppointmentError } from '../../utils/appointmentErrors';
+import { AppButton } from '../../components/ui/AppButton';
 
 export default function BookingSlugScreen() {
   const { slug, reschedule_id } = useLocalSearchParams<{ slug: string; reschedule_id?: string }>();
   const { user } = useAuth();
   const router = useRouter();
+
   const { establishment: barbershop, loading: shopLoading } = useEstablishment(slug, 'slug');
   const { services, loading: servicesLoading } = useServices(barbershop?.id, true);
   const { team: barbers, loading: teamLoading } = usePublicTeam(barbershop?.id);
-  const [barberServices, setBarberServices] = useState<{ professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }[]>([]);
-  
+  const [barberServices, setBarberServices] = useState<
+    { professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }[]
+  >([]);
+
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
 
+  // Reschedule listener
   useEffect(() => {
     if (reschedule_id) {
       void (async () => {
-        const { data, error } = await supabase.from('appointments').select('service_id,professional_id').eq('id', reschedule_id).single();
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('service_id,professional_id')
+          .eq('id', reschedule_id)
+          .single();
         if (error) throw error;
         setSelectedService(data.service_id);
         setSelectedBarber(data.professional_id);
@@ -43,21 +69,21 @@ export default function BookingSlugScreen() {
       });
     }
   }, [reschedule_id]);
-  
-  // Calendário em Grade Mensal (Grid)
+
+  // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  
+
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState('');
+
   const {
     availableSlots,
     loading: availabilityLoading,
     error: availabilityError,
     emptyMessage,
-    refresh: refreshAvailability,
   } = useAvailableSlots({
     establishmentId: barbershop?.id,
     professionalId: selectedBarber,
@@ -66,7 +92,7 @@ export default function BookingSlugScreen() {
     appointmentId: user ? reschedule_id : null,
   });
 
-  // Estados de Autenticação Atrito Zero (Modal)
+  // Auth Modal State
   const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authName, setAuthName] = useState('');
@@ -84,17 +110,17 @@ export default function BookingSlugScreen() {
     }
   };
 
-  // Função auxiliar para resolver preço e duração com base no barbeiro selecionado (Fallback)
+  // Service price & duration resolution
   const getServicePriceAndDuration = (serviceId: string | null, professionalId: string | null) => {
     if (!serviceId) return { price: 0, duration: 30, isActive: false };
-    const globalSrv = services.find(s => s.id === serviceId);
+    const globalSrv = services.find((s) => s.id === serviceId);
     if (!globalSrv) return { price: 0, duration: 30, isActive: false };
 
     if (!professionalId) {
       return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
     }
 
-    const custom = barberServices.find(bs => bs.professionalId === professionalId && bs.serviceId === serviceId);
+    const custom = barberServices.find((bs) => bs.professionalId === professionalId && bs.serviceId === serviceId);
     if (custom) {
       return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
     }
@@ -102,511 +128,640 @@ export default function BookingSlugScreen() {
     return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
   };
 
+  // Fetch barber custom services
   useEffect(() => {
-    if (barbershop?.timezone) {
-      const today = getTodayInTimeZone(barbershop.timezone);
-      setSelectedDate(today);
-      setViewDate(today);
-    }
-  }, [barbershop?.timezone]);
+    if (!barbershop?.id) return;
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('professional_services')
+        .select('professional_id, service_id, price, duration_minutes, is_active')
+        .eq('is_active', true);
 
-  useEffect(() => {
-    if (selectedTime && !availabilityLoading && !availableSlots.some((slot) => slot.localTime === selectedTime)) {
-      setSelectedTime(null);
-    }
-  }, [availabilityLoading, availableSlots, selectedTime]);
+      if (error) return;
+      if (active && data) {
+        setBarberServices(
+          data.map((item) => ({
+            professionalId: item.professional_id,
+            serviceId: item.service_id,
+            price: Number(item.price),
+            durationMinutes: item.duration_minutes,
+            isActive: item.is_active,
+          }))
+        );
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [barbershop?.id]);
 
-  // Lógica de geração de dias do mês da grade
-  const generateMonthGrid = (year: number, month: number) => {
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    const daysInMonth = lastDayOfMonth.getDate();
-    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Domingo
-    
-    const grid: (Date | null)[] = [];
-    for (let i = 0; i < startDayOfWeek; i++) {
-      grid.push(null);
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      grid.push(new Date(year, month, day));
-    }
-    return grid;
-  };
+  // Filtered barbers based on selected service
+  const filteredBarbers = useMemo(() => {
+    if (!selectedService) return barbers;
+    return barbers.filter((b) => {
+      const { isActive } = getServicePriceAndDuration(selectedService, b.id);
+      return isActive;
+    });
+  }, [barbers, selectedService, barberServices, services]);
 
-  const monthGrid = generateMonthGrid(viewDate.getFullYear(), viewDate.getMonth());
+  const activeServiceObj = services.find((s) => s.id === selectedService);
+  const activeBarberObj = barbers.find((b) => b.id === selectedBarber);
 
-  const isDateSelectable = (date: Date | null) => {
-    if (!date) return false;
-    const today = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
-    today.setHours(0, 0, 0, 0);
-    const maxDate = new Date(today);
-    maxDate.setDate(maxDate.getDate() + 30);
-    maxDate.setHours(23, 59, 59, 999);
-    return date >= today && date <= maxDate;
-  };
+  const { price: summaryPrice } = getServicePriceAndDuration(selectedService, selectedBarber);
 
+  // Month navigation
   const handlePrevMonth = () => {
-    tapLight();
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    const prev = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    if (prev.getFullYear() < today.getFullYear() || (prev.getFullYear() === today.getFullYear() && prev.getMonth() < today.getMonth())) {
+      return;
+    }
+    setViewDate(prev);
   };
 
   const handleNextMonth = () => {
-    tapLight();
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
-  // 2. Carregar personalizações de serviço por profissional
-  useEffect(() => {
-    if (!barbershop?.id) return;
-    const fetchProfessionalServices = async () => {
-      const { data, error } = await supabase.from('professional_services').select('*').eq('establishment_id', barbershop.id);
-      if (error) { console.error('Erro ao buscar serviços por profissional:', error); return; }
-      setBarberServices((data || []).map((item) => ({
-        professionalId: item.professional_id, serviceId: item.service_id,
-        price: Number(item.price), durationMinutes: Number(item.duration_minutes), isActive: Boolean(item.is_active),
-      })));
-    };
-    void fetchProfessionalServices();
-  }, [barbershop?.id]);
+  // Month Grid computation
+  const monthGrid = useMemo(() => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(`/salon/${slug}` as never);
+    const grid: (Date | null)[] = [];
+    for (let i = 0; i < firstDay; i++) {
+      grid.push(null);
     }
+    for (let d = 1; d <= daysInMonth; d++) {
+      grid.push(new Date(year, month, d));
+    }
+    return grid;
+  }, [viewDate]);
+
+  const isDateSelectable = (date: Date) => {
+    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(date);
+    target.setHours(0, 0, 0, 0);
+    return target >= today;
   };
 
-  const executeBooking = async (clientId: string) => {
-    if (!selectedBarber || !selectedService || !selectedDate || !selectedTime || !barbershop) return;
-    setBookingError('');
+  const formattedMonthYearLabel = useMemo(() => {
+    return viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }, [viewDate]);
+
+  // Group slots by period
+  const groupedSlots = useMemo(() => {
+    const morning: typeof availableSlots = [];
+    const afternoon: typeof availableSlots = [];
+    const evening: typeof availableSlots = [];
+
+    availableSlots.forEach((slot) => {
+      const hour = parseInt(slot.localTime.split(':')[0], 10);
+      if (hour < 12) morning.push(slot);
+      else if (hour < 18) afternoon.push(slot);
+      else evening.push(slot);
+    });
+
+    return { morning, afternoon, evening };
+  }, [availableSlots]);
+
+  const primaryColor = barbershop?.primary_color || '#113939';
+  const summaryReady = Boolean(selectedService && selectedBarber && selectedDate && selectedTime);
+
+  // Booking Execution
+  const executeBooking = async (userId: string) => {
     setBookingLoading(true);
+    setBookingError('');
+
     try {
-      const freshSlots = await refreshAvailability(reschedule_id || null);
-      if (!freshSlots) throw new Error('availability_check_failed');
-      const confirmedSlot = freshSlots.find((slot) => slot.available && slot.localTime === selectedTime);
-      if (!confirmedSlot) throw new Error('appointment_conflict');
-      const appointmentDate = new Date(confirmedSlot.startsAt);
+      if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !barbershop) {
+        throw new Error('Preencha todas as etapas antes de confirmar.');
+      }
 
-      let targetAppointmentId = '';
+      const dateStr = formatCalendarDate(selectedDate);
+      const chosenSlot = availableSlots.find((s) => s.localTime === selectedTime);
+      if (!chosenSlot) {
+        throw new Error('O horário selecionado não está mais disponível.');
+      }
+
+      const { duration } = getServicePriceAndDuration(selectedService, selectedBarber);
+
       if (reschedule_id) {
-        const { error } = await supabase.rpc('reschedule_appointment', {
-          target_appointment_id: reschedule_id,
-          requested_date_time: appointmentDate.toISOString(),
-          requested_professional_id: selectedBarber,
-          requested_service_id: selectedService,
-        });
-        if (error) throw error;
-        targetAppointmentId = reschedule_id;
-      } else {
-        const { data, error } = await supabase.rpc('create_appointment', {
-          target_establishment_id: barbershop.id,
-          target_professional_id: selectedBarber,
-          target_service_id: selectedService,
-          target_date_time: appointmentDate.toISOString(),
-          target_client_name: null,
-          target_client_id: clientId,
-        });
-        if (error) throw error;
-        targetAppointmentId = data;
+        const { error: updateError } = await supabase
+          .from('appointments')
+          .update({
+            service_id: selectedService,
+            professional_id: selectedBarber,
+            appointment_date: dateStr,
+            start_time: selectedTime,
+            end_time: chosenSlot.endTime,
+            price: summaryPrice,
+            status: 'confirmed',
+          })
+          .eq('id', reschedule_id);
+
+        if (updateError) throw updateError;
+        tapSuccess();
+        displayAlert('Sucesso', 'Reagendamento realizado com sucesso!');
+        router.replace('/appointments' as any);
+        return;
       }
 
-      if (barbershop?.name) {
-        await scheduleAppointmentNotification(targetAppointmentId, barbershop.name, appointmentDate);
-      }
+      const { data: newAppt, error: insertError } = await supabase
+        .from('appointments')
+        .insert({
+          client_id: userId,
+          establishment_id: barbershop.id,
+          service_id: selectedService,
+          professional_id: selectedBarber,
+          appointment_date: dateStr,
+          start_time: selectedTime,
+          end_time: chosenSlot.endTime,
+          price: summaryPrice,
+          status: 'confirmed',
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
 
       tapSuccess();
-      router.replace({
-        pathname: '/(client)/appointments',
-        params: { feedback: reschedule_id ? 'appointment_rescheduled' : 'appointment_created' },
-      });
-    } catch (error: unknown) {
-      const message = getAppointmentErrorText(error);
-      if (message.includes('appointment_conflict') || message.includes('appointment_outside_availability')) {
-        setSelectedTime(null);
-      }
-      setBookingError(translateAppointmentError(error, 'Não foi possível salvar o agendamento. Sua seleção foi mantida.'));
+      void scheduleAppointmentNotification(
+        dateStr,
+        selectedTime,
+        activeServiceObj?.name || 'Serviço',
+        barbershop.name
+      );
+
+      displayAlert('Agendamento Confirmado!', 'Seu horário foi reservado com sucesso.');
+      router.replace('/appointments' as any);
+    } catch (err: any) {
+      console.error('Booking execution error:', err);
+      setBookingError(err.message || 'Erro ao processar agendamento.');
     } finally {
       setBookingLoading(false);
     }
   };
 
-  const handleConfirmBooking = async () => {
-    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
-      displayAlert('Atenção', 'Por favor, selecione serviço, profissional, data e horário.');
-      return;
-    }
-
-    if (!user) {
-      // Se não estiver logado, abre o modal de autenticação sem senha/cadastro rápido!
+  const handleConfirmBooking = () => {
+    if (!summaryReady) return;
+    if (user) {
+      void executeBooking(user.id);
+    } else {
       setIsAuthModalVisible(true);
-      return;
     }
-
-    await executeBooking(user.id);
   };
 
-  // Fluxo Magic Link (Login sem Senha)
   const handleSendMagicLink = async () => {
-    if (!authEmail) {
-      displayAlert('E-mail obrigatório', 'Por favor, digite seu e-mail.');
+    if (!authEmail.trim()) {
+      displayAlert('Atenção', 'Informe seu e-mail.');
       return;
     }
-
     setAuthLoading(true);
     try {
-      const redirectUrl = Platform.OS === 'web' 
-        ? window.location.origin + `/${slug}/booking`
-        : 'cutsync://(client)';
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email: authEmail,
-        options: {
-          emailRedirectTo: redirectUrl,
-        }
-      });
-
+      const { error } = await supabase.auth.signInWithOtp({ email: authEmail.trim() });
       if (error) throw error;
-
       setMagicLinkSent(true);
-      displayAlert('Link enviado', 'Verifique sua caixa de entrada para o acesso rápido!');
-    } catch (err: unknown) {
-      displayAlert('Erro de conexão', getErrorMessage(err, 'Erro ao enviar link.'));
+    } catch (err: any) {
+      displayAlert('Erro', err.message || 'Erro ao enviar código.');
     } finally {
       setAuthLoading(false);
     }
   };
 
-  // Fluxo de Cadastro e Login Clássico Simplificado
   const handleAuthSubmit = async () => {
-    if (!authEmail || !authPassword || (isRegisterMode && !authName)) {
-      displayAlert('Campos incompletos', 'Preencha todos os campos obrigatórios.');
+    if (!authEmail.trim() || !authPassword.trim()) {
+      displayAlert('Atenção', 'Preencha e-mail e senha.');
       return;
     }
-    if (isRegisterMode && !isStrongPassword(authPassword)) {
-      displayAlert('Senha fraca', passwordPolicyMessage);
-      return;
-    }
-    if (isRegisterMode && authPassword !== authPasswordConfirmation) {
-      displayAlert('Senhas diferentes', 'Digite a mesma senha nos dois campos.');
-      return;
+
+    if (isRegisterMode) {
+      if (!authName.trim()) {
+        displayAlert('Atenção', 'Informe seu nome completo.');
+        return;
+      }
+      if (authPassword !== authPasswordConfirmation) {
+        displayAlert('Atenção', 'As senhas não coincidem.');
+        return;
+      }
+      if (!isStrongPassword(authPassword)) {
+        displayAlert('Senha Fraca', passwordPolicyMessage);
+        return;
+      }
     }
 
     setAuthLoading(true);
     try {
       if (isRegisterMode) {
-        // Registrar novo usuário visitante
         const { data, error } = await supabase.auth.signUp({
-          email: authEmail,
+          email: authEmail.trim(),
           password: authPassword,
-          options: {
-            data: {
-              name: authName,
-            }
-          }
+          options: { data: { name: authName.trim(), role: 'client' } },
         });
-
         if (error) throw error;
-        if (!data.user) throw new Error('Falha no cadastro.');
-
-        displayAlert('Sucesso', 'Conta criada! Agendamento sendo concluído.');
-        setIsAuthModalVisible(false);
-        await executeBooking(data.user.id);
+        if (data.user) {
+          setIsAuthModalVisible(false);
+          void executeBooking(data.user.id);
+        }
       } else {
-        // Fazer login rápido
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: authEmail,
+          email: authEmail.trim(),
           password: authPassword,
         });
         if (error) throw error;
-        if (!data.user) throw new Error('Falha no login.');
-        setIsAuthModalVisible(false);
-        await executeBooking(data.user.id);
+        if (data.user) {
+          setIsAuthModalVisible(false);
+          void executeBooking(data.user.id);
+        }
       }
-    } catch (err: unknown) {
-      displayAlert('Erro', getErrorMessage(err, 'Ocorreu um erro na autenticação.'));
+    } catch (err: any) {
+      displayAlert('Erro de Autenticação', err.message || 'Falha na autenticação.');
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const formatPrice = (price: number) => {
-    const currencyCode = barbershop?.currency || 'BRL';
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(price);
-  };
-
-  const monthYearLabel = viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const formattedMonthYearLabel = monthYearLabel.charAt(0).toUpperCase() + monthYearLabel.slice(1);
-
-  const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  // Determine Current Step Number (1..4)
+  const currentStep = !selectedService ? 1 : !selectedBarber ? 2 : !selectedDate ? 3 : 4;
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.loadingText}>Preparando horários disponíveis...</Text>
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#113939" />
+        <Text style={styles.loadingText}>Carregando informações do agendamento...</Text>
       </View>
     );
   }
 
-  const primaryColor = barbershop?.primaryColor || colors.accent;
-  const primaryFg = readableForeground(primaryColor);
-
-  // Filtrar barbeiros que realizam o serviço selecionado
-  const filteredBarbers = barbers.filter(b => {
-    if (!selectedService) return true;
-    const { isActive } = getServicePriceAndDuration(selectedService, b.id);
-    return isActive;
-  });
-
-  const isToday = (date: Date) => formatCalendarDate(date) === formatCalendarDate(
-    getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo'),
-  );
-  const summaryReady = !!(selectedService && selectedBarber && selectedDate && selectedTime);
-  const { price: summaryPrice } = getServicePriceAndDuration(selectedService, selectedBarber);
-
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable testID="booking-back-button" onPress={handleBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressedScale]}>
-          <ArrowLeft color={colors.text} size={18} strokeWidth={1.8} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{reschedule_id ? 'Reagendamento' : 'Agendamento online'}</Text>
-          <Text numberOfLines={1} style={styles.barbershopName}>{barbershop?.name}</Text>
+    <View style={styles.root}>
+      {/* ─── HEADER BAR ─────────────────────────────────────────────── */}
+      <View style={styles.topbar}>
+        <View style={styles.topbarInner}>
+          <Pressable style={styles.backBtn} onPress={() => router.push(`/${slug}` as any)}>
+            <ArrowLeft size={16} color={colors.text} />
+            <Text style={styles.backBtnText}>Voltar ao Salão</Text>
+          </Pressable>
+
+          <Text style={styles.topbarTitle} numberOfLines={1}>
+            {barbershop?.name || 'Agendamento Online'}
+          </Text>
+
+          <View style={{ width: 100 }} />
         </View>
       </View>
 
-      <View style={styles.innerContainer}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
-          {/* 1. Escolha do Serviço */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>Etapa 01</Text>
-            <Text style={styles.sectionTitle}>Escolha o serviço</Text>
-            {services.map((item) => {
-              const active = selectedService === item.id;
-              return (
-                <Pressable
-                  key={item.id}
-                  testID={`booking-service-${item.id}`}
-                  style={({ pressed }) => [
-                    styles.card,
-                    active && { borderColor: primaryColor, borderWidth: 1.5 },
-                    pressed && styles.pressedScale,
-                  ]}
-                  onPress={() => {
-                    tapLight();
-                    setSelectedService(item.id);
-                    if (selectedBarber) {
-                      const { isActive } = getServicePriceAndDuration(item.id, selectedBarber);
-                      if (!isActive) setSelectedBarber(null);
-                    }
-                    setSelectedTime(null);
-                  }}
-                >
-                  <View style={styles.cardIcon}>
-                    <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
-                  </View>
-                  <View style={styles.cardCopy}>
-                    <Text style={styles.cardName}>{item.name}</Text>
-                    <Text style={styles.cardSubText}>
-                      {formatPrice(item.price)} · {item.durationMinutes} min
-                    </Text>
-                  </View>
-                  {active && (
-                    <View style={[styles.checkCircle, { backgroundColor: primaryColor }]}>
-                      <Check color={primaryFg} size={12} strokeWidth={3} />
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.mainWrapper}>
+          {/* ─── SALON HERO COVER PREVIEW ───────────────────────────── */}
+          <View style={styles.heroCard}>
+            {barbershop?.banner_url ? (
+              <Image source={{ uri: barbershop.banner_url }} style={styles.heroImg} contentFit="cover" />
+            ) : (
+              <View style={styles.heroFallback}>
+                <Scissors size={28} color="#113939" />
+              </View>
+            )}
+
+            <View style={styles.heroInfoRow}>
+              <View style={styles.heroLogoCircle}>
+                {barbershop?.logo_url ? (
+                  <Image source={{ uri: barbershop.logo_url }} style={styles.logoImg} contentFit="cover" />
+                ) : (
+                  <Scissors size={20} color="#113939" />
+                )}
+              </View>
+
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.salonName}>{barbershop?.name}</Text>
+                <Text style={styles.salonAddress} numberOfLines={1}>
+                  {barbershop?.address || 'Endereço não informado'}
+                </Text>
+              </View>
+
+              <View style={styles.ratingBadge}>
+                <Star size={11} color="#F5A524" fill="#F5A524" />
+                <Text style={styles.ratingText}>
+                  {barbershop?.average_rating ? Number(barbershop.average_rating).toFixed(1) : '4.9'}
+                </Text>
+              </View>
+            </View>
           </View>
 
-          {/* 2. Escolha do Profissional */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>Etapa 02</Text>
-            <Text style={styles.sectionTitle}>Escolha o profissional</Text>
-            {filteredBarbers.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Sem profissionais disponíveis para este serviço.</Text>
+          {/* ─── STEP PROGRESS TRACKER ───────────────────────────────── */}
+          <View style={styles.stepTracker}>
+            {[
+              { step: 1, label: '1. Serviço', done: Boolean(selectedService) },
+              { step: 2, label: '2. Profissional', done: Boolean(selectedBarber) },
+              { step: 3, label: '3. Data', done: Boolean(selectedDate) },
+              { step: 4, label: '4. Horário', done: Boolean(selectedTime) },
+            ].map((st) => (
+              <View
+                key={st.step}
+                style={[
+                  styles.stepPill,
+                  currentStep === st.step && styles.stepPillActive,
+                  st.done && styles.stepPillDone,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stepPillText,
+                    (currentStep === st.step || st.done) && styles.stepPillTextActive,
+                  ]}
+                >
+                  {st.label}
+                </Text>
               </View>
-            ) : (
-              filteredBarbers.map((item) => {
-                const { price: customPrice } = getServicePriceAndDuration(selectedService, item.id);
-                const active = selectedBarber === item.id;
+            ))}
+          </View>
+
+          {/* ─── ETAPA 1: ESCOLHA O SERVIÇO ──────────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>ETAPA 01</Text>
+            <Text style={styles.sectionTitle}>Escolha o Serviço</Text>
+
+            <View style={styles.servicesGrid}>
+              {services.map((srv) => {
+                const isSelected = selectedService === srv.id;
                 return (
                   <Pressable
-                    key={item.id}
-                    testID={`booking-barber-${item.id}`}
-                    style={({ pressed }) => [
-                      styles.card,
-                      active && { borderColor: primaryColor, borderWidth: 1.5 },
-                      pressed && styles.pressedScale,
-                    ]}
+                    key={srv.id}
+                    style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
                     onPress={() => {
                       tapLight();
-                      setSelectedBarber(item.id);
+                      setSelectedService(srv.id);
                       setSelectedTime(null);
                     }}
                   >
-                    <View style={styles.cardIcon}>
-                      <UserRound color={colors.textSecondary} size={14} strokeWidth={1.6} />
+                    <View style={styles.serviceIconBox}>
+                      <Scissors size={16} color={isSelected ? '#113939' : colors.textMuted} />
                     </View>
-                    <View style={styles.cardCopy}>
-                      <Text style={styles.cardName}>{item.name}</Text>
-                      <Text style={styles.cardSubText}>
-                        {item.tituloProfissional || 'Especialista'}
-                        {selectedService && customPrice > 0 ? ` · ${formatPrice(customPrice)}` : ''}
+
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.serviceName}>{srv.name}</Text>
+                      <Text style={styles.serviceMeta}>
+                        <Clock size={11} color={colors.textMuted} /> {srv.durationMinutes} min
                       </Text>
                     </View>
-                    {active && (
-                      <View style={[styles.checkCircle, { backgroundColor: primaryColor }]}>
-                        <Check color={primaryFg} size={12} strokeWidth={3} />
+
+                    <View style={styles.priceTag}>
+                      <Text style={styles.priceTagText}>R$ {Number(srv.price).toFixed(2)}</Text>
+                    </View>
+
+                    {isSelected && (
+                      <View style={styles.checkCircle}>
+                        <Check size={12} color="#FFFFFF" />
                       </View>
                     )}
                   </Pressable>
                 );
-              })
-            )}
+              })}
+            </View>
           </View>
 
-          {/* 3. Escolha do Dia (Calendário estilo Fresha) */}
+          {/* ─── ETAPA 2: ESCOLHA O PROFISSIONAL ─────────────────────── */}
           <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>Etapa 03</Text>
-            <View style={styles.calendarHeader}>
-              <Text style={styles.sectionTitle}>Escolha o dia</Text>
-              <View style={styles.monthSelector}>
-                <Pressable testID="booking-previous-month-button" onPress={handlePrevMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
-                  <ChevronLeft color={colors.textSecondary} size={16} strokeWidth={1.8} />
+            <Text style={styles.sectionEyebrow}>ETAPA 02</Text>
+            <Text style={styles.sectionTitle}>Escolha o Profissional</Text>
+
+            <View style={styles.barbersGrid}>
+              {filteredBarbers.length === 0 ? (
+                <View style={styles.emptyNotice}>
+                  <Text style={styles.emptyNoticeText}>
+                    Selecione um serviço acima para visualizar a lista de profissionais disponíveis.
+                  </Text>
+                </View>
+              ) : (
+                filteredBarbers.map((barber) => {
+                  const isSelected = selectedBarber === barber.id;
+                  const { price: customPrice } = getServicePriceAndDuration(selectedService, barber.id);
+
+                  return (
+                    <Pressable
+                      key={barber.id}
+                      style={[styles.barberCard, isSelected && styles.barberCardSelected]}
+                      onPress={() => {
+                        tapLight();
+                        setSelectedBarber(barber.id);
+                        setSelectedTime(null);
+                      }}
+                    >
+                      <View style={styles.barberAvatar}>
+                        {barber.fotoUrl ? (
+                          <Image source={{ uri: barber.fotoUrl }} style={styles.avatarImg} contentFit="cover" />
+                        ) : (
+                          <UserRound size={18} color="#113939" />
+                        )}
+                      </View>
+
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.barberName}>{barber.name}</Text>
+                        <Text style={styles.barberRole}>
+                          {barber.tituloProfissional || 'Especialista'}
+                          {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
+                        </Text>
+                      </View>
+
+                      {isSelected && (
+                        <View style={styles.checkCircle}>
+                          <Check size={12} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+          </View>
+
+          {/* ─── ETAPA 3: ESCOLHA O DIA (CALENDÁRIO GRID) ─────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>ETAPA 03</Text>
+            <View style={styles.calendarTitleRow}>
+              <Text style={styles.sectionTitle}>Escolha o Dia</Text>
+              <View style={styles.monthNav}>
+                <Pressable onPress={handlePrevMonth} style={styles.monthNavBtn}>
+                  <ChevronLeft size={16} color={colors.text} />
                 </Pressable>
                 <Text style={styles.monthLabel}>{formattedMonthYearLabel}</Text>
-                <Pressable testID="booking-next-month-button" onPress={handleNextMonth} style={({ pressed }) => [styles.monthNavButton, pressed && styles.pressedScale]}>
-                  <ChevronRight color={colors.textSecondary} size={16} strokeWidth={1.8} />
+                <Pressable onPress={handleNextMonth} style={styles.monthNavBtn}>
+                  <ChevronRight size={16} color={colors.text} />
                 </Pressable>
               </View>
             </View>
 
             <View style={styles.calendarCard}>
-              <View style={styles.weekDaysRow}>
-                {weekDays.map((wd, index) => (
-                  <Text key={index} style={styles.weekDayText}>{wd}</Text>
+              <View style={styles.weekHeaderRow}>
+                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                  <Text key={idx} style={styles.weekHeaderDay}>
+                    {day}
+                  </Text>
                 ))}
               </View>
 
-              <View style={styles.daysRow}>
-                {monthGrid.map((date, index) => {
-                  if (!date) {
-                    return <View key={`empty-${index}`} style={styles.dayCellEmpty} />;
-                  }
+              <View style={styles.daysGrid}>
+                {monthGrid.map((date, idx) => {
+                  if (!date) return <View key={`empty-${idx}`} style={styles.emptyDayCell} />;
 
                   const selectable = isDateSelectable(date);
                   const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
-                  const today = isToday(date);
 
                   return (
                     <Pressable
-                      key={formatCalendarDate(date)}
-                      testID={`booking-day-${formatCalendarDate(date)}`}
-                      style={({ pressed }) => [styles.dayCell, pressed && selectable && styles.pressedScale]}
-                      onPress={() => { if (selectable) { tapLight(); setSelectedDate(date); setSelectedTime(null); } }}
+                      key={date.toISOString()}
                       disabled={!selectable}
+                      style={[
+                        styles.dayCell,
+                        !selectable && styles.dayCellDisabled,
+                        isSelected && styles.dayCellSelected,
+                      ]}
+                      onPress={() => {
+                        tapLight();
+                        setSelectedDate(date);
+                        setSelectedTime(null);
+                      }}
                     >
-                      <View style={[
-                        styles.dayCircle,
-                        today && !isSelected && styles.dayCircleToday,
-                        isSelected && { backgroundColor: primaryColor },
-                      ]}>
-                        <Text style={[
+                      <Text
+                        style={[
                           styles.dayCellText,
                           !selectable && styles.dayCellTextDisabled,
-                          isSelected && { color: primaryFg, fontFamily: typography.bodyStrong },
-                        ]}>
-                          {date.getDate()}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-
-          {/* 4. Escolha do Horário */}
-          {selectedBarber && selectedService && selectedDate && (
-            <View style={styles.section}>
-              <Text style={styles.sectionEyebrow}>Etapa 04</Text>
-              <Text style={styles.sectionTitle}>Escolha o horário</Text>
-              <View style={styles.timeGrid}>
-                {availabilityLoading ? (
-                  <ActivityIndicator testID="booking-availability-loading" color={primaryColor} />
-                ) : availabilityError ? (
-                  <InlineNotice testID="booking-availability-error" tone="danger" message={availabilityError} />
-                ) : availableSlots.length === 0 ? (
-                  <InlineNotice testID="booking-availability-empty" tone="info" message={emptyMessage} />
-                ) : availableSlots.map((slot) => {
-                  const isSelected = selectedTime === slot.localTime;
-                  return (
-                    <Pressable
-                      key={slot.startsAt}
-                      testID={`booking-time-${slot.localTime.replace(':', '-')}`}
-                      style={({ pressed }) => [
-                        styles.timeCard,
-                        isSelected && { backgroundColor: primaryColor, borderColor: primaryColor },
-                        pressed && styles.pressedScale,
-                      ]}
-                      onPress={() => { tapLight(); setSelectedTime(slot.localTime); }}
-                    >
-                      <Text testID={`booking-time-${slot.localTime.replace(':', '-')}-label`} style={[
-                        styles.timeText,
-                        isSelected && { color: primaryFg },
-                      ]}>
-                        {slot.localTime}
+                          isSelected && styles.dayCellTextSelected,
+                        ]}
+                      >
+                        {date.getDate()}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
             </View>
-          )}
-          {!!bookingError && (
-            <InlineNotice testID="booking-action-error" tone="danger" message={bookingError} />
-          )}
-        </ScrollView>
-      </View>
-
-      {/* Barra flutuante de confirmação */}
-      {summaryReady && (
-        <View style={styles.floatingWrap} pointerEvents="box-none">
-          <View style={styles.floatingBar}>
-            <View style={styles.floatingCopy}>
-              <Text style={styles.floatingEyebrow}>
-                {selectedDate?.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')} · {selectedTime}
-              </Text>
-              <Text numberOfLines={1} style={styles.floatingTitle}>{formatPrice(summaryPrice)}</Text>
-            </View>
-            <Pressable
-              testID="booking-confirm-button"
-              onPress={handleConfirmBooking}
-              disabled={bookingLoading}
-              style={({ pressed }) => [styles.confirmButton, { backgroundColor: primaryColor }, pressed && styles.pressedScale, bookingLoading && { opacity: 0.7 }]}
-            >
-              {bookingLoading ? (
-                <ActivityIndicator color={primaryFg} />
-              ) : (
-                <Text style={[styles.confirmButtonText, { color: primaryFg }]}>
-                  {user ? (reschedule_id ? 'Confirmar reagendamento' : 'Confirmar agendamento') : 'Entrar e confirmar'}
-                </Text>
-              )}
-            </Pressable>
           </View>
+
+          {/* ─── ETAPA 4: ESCOLHA O HORÁRIO (SLOTS AGRUPADOS POR TURNO) ─ */}
+          {selectedService && selectedBarber && selectedDate && (
+            <View style={styles.section}>
+              <Text style={styles.sectionEyebrow}>ETAPA 04</Text>
+              <Text style={styles.sectionTitle}>Escolha o Horário</Text>
+
+              {availabilityLoading ? (
+                <ActivityIndicator color="#113939" style={{ marginVertical: 20 }} />
+              ) : availabilityError ? (
+                <InlineNotice tone="danger" message={availabilityError} />
+              ) : availableSlots.length === 0 ? (
+                <InlineNotice tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
+              ) : (
+                <View style={styles.timeSlotsContainer}>
+                  {/* Turno Manhã */}
+                  {groupedSlots.morning.length > 0 && (
+                    <View style={styles.periodGroup}>
+                      <Text style={styles.periodLabel}>🌅 Manhã</Text>
+                      <View style={styles.timeGrid}>
+                        {groupedSlots.morning.map((slot) => {
+                          const isSelected = selectedTime === slot.localTime;
+                          return (
+                            <Pressable
+                              key={slot.startsAt}
+                              style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                              onPress={() => {
+                                tapLight();
+                                setSelectedTime(slot.localTime);
+                              }}
+                            >
+                              <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                {slot.localTime}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Turno Tarde */}
+                  {groupedSlots.afternoon.length > 0 && (
+                    <View style={styles.periodGroup}>
+                      <Text style={styles.periodLabel}>☀️ Tarde</Text>
+                      <View style={styles.timeGrid}>
+                        {groupedSlots.afternoon.map((slot) => {
+                          const isSelected = selectedTime === slot.localTime;
+                          return (
+                            <Pressable
+                              key={slot.startsAt}
+                              style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                              onPress={() => {
+                                tapLight();
+                                setSelectedTime(slot.localTime);
+                              }}
+                            >
+                              <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                {slot.localTime}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Turno Noite */}
+                  {groupedSlots.evening.length > 0 && (
+                    <View style={styles.periodGroup}>
+                      <Text style={styles.periodLabel}>🌙 Noite</Text>
+                      <View style={styles.timeGrid}>
+                        {groupedSlots.evening.map((slot) => {
+                          const isSelected = selectedTime === slot.localTime;
+                          return (
+                            <Pressable
+                              key={slot.startsAt}
+                              style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                              onPress={() => {
+                                tapLight();
+                                setSelectedTime(slot.localTime);
+                              }}
+                            >
+                              <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                {slot.localTime}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {!!bookingError && <InlineNotice tone="danger" message={bookingError} />}
+        </View>
+      </ScrollView>
+
+      {/* ─── STICKY FOOTER BARRA FLUTUANTE DE CONFIRMAÇÃO ────────────── */}
+      {summaryReady && (
+        <View style={styles.stickyFooter}>
+          <View style={styles.stickySummary}>
+            <Text style={styles.stickyEyebrow}>
+              {activeServiceObj?.name} • {selectedTime}
+            </Text>
+            <Text style={styles.stickyPrice}>R$ {summaryPrice.toFixed(2)}</Text>
+          </View>
+
+          <AppButton
+            label={bookingLoading ? 'Processando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
+            style={styles.confirmBtn}
+            disabled={bookingLoading}
+            onPress={handleConfirmBooking}
+          />
         </View>
       )}
 
+      {/* ─── PUBLIC BOOKING AUTH MODAL ─────────────────────────────── */}
       <PublicBookingAuthModal
         visible={isAuthModalVisible}
         magicLinkSent={magicLinkSent}
@@ -617,13 +772,16 @@ export default function BookingSlugScreen() {
         password={authPassword}
         passwordConfirmation={authPasswordConfirmation}
         primaryColor={primaryColor}
-        foregroundColor={primaryFg}
+        foregroundColor="#FFFFFF"
         onEmailChange={setAuthEmail}
         onNameChange={setAuthName}
         onPasswordChange={setAuthPassword}
         onPasswordConfirmationChange={setAuthPasswordConfirmation}
         onModeChange={setIsRegisterMode}
-        onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
+        onMagicLinkDismiss={() => {
+          setMagicLinkSent(false);
+          setIsAuthModalVisible(false);
+        }}
         onMagicLinkSubmit={handleSendMagicLink}
         onAuthSubmit={handleAuthSubmit}
         onClose={() => setIsAuthModalVisible(false)}
@@ -632,286 +790,454 @@ export default function BookingSlugScreen() {
   );
 }
 
-const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
+/* ────────────────────────────────────────────────────────────────────────────
+   STYLES — Off-White Premium Design System
+   ──────────────────────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#F8F9FA',
   },
-  innerContainer: {
+  loadingScreen: {
     flex: 1,
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-  },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 26,
-    paddingBottom: 140,
-  },
-  header: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: hairlineW,
-    borderBottomColor: colors.hairline,
-    ...glassSurface,
-    zIndex: 3,
-  },
-  backButton: {
-    width: 38,
-    height: 38,
+    backgroundColor: '#F8F9FA',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    borderRadius: radii.pill,
+    gap: 12,
   },
-  headerCopy: { flex: 1, minWidth: 0 },
-  headerTitle: {
-    fontSize: 11,
-    color: colors.labelSoft,
-    fontFamily: typography.bodyStrong,
-    textTransform: 'uppercase',
-    letterSpacing: 1.8,
-  },
-  barbershopName: {
-    fontSize: 16,
-    color: colors.text,
-    fontFamily: typography.display,
-    letterSpacing: -0.4,
-    marginTop: 2,
-  },
-  section: {
-    marginBottom: 34,
-  },
-  sectionEyebrow: {
-    color: colors.labelSoft,
-    fontFamily: typography.bodyStrong,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 2.2,
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    color: colors.text,
-    fontFamily: typography.display,
-    letterSpacing: -0.5,
-    marginBottom: 14,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: 15,
-    marginBottom: 9,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    ...atmosphericShadow,
-  },
-  cardIcon: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.pill,
-    backgroundColor: colors.canvas,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-  },
-  cardCopy: { flex: 1, minWidth: 0 },
-  cardName: {
-    color: colors.text,
+  loadingText: {
     fontSize: 13,
-    fontFamily: typography.bodyStrong,
-  },
-  cardSubText: {
+    fontFamily: typography.body,
     color: colors.textSecondary,
-    fontSize: 11,
-    fontFamily: typography.body,
-    marginTop: 3,
   },
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
+  topbar: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E5DF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    zIndex: 10,
   },
-  emptyCard: {
-    backgroundColor: colors.canvasSoft,
-    borderRadius: radii.lg,
-    padding: 18,
-    alignItems: 'center',
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontFamily: typography.body,
-    fontSize: 11,
-  },
-  calendarHeader: {
+  topbarInner: {
+    maxWidth: layout.formMax,
+    alignSelf: 'center',
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  monthSelector: {
+  backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 14,
   },
-  monthNavButton: {
-    width: 30,
-    height: 30,
+  backBtnText: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: colors.text,
+  },
+  topbarTitle: {
+    fontSize: 15,
+    fontFamily: typography.display,
+    color: '#113939',
+  },
+  scroll: {
+    paddingBottom: 120,
+  },
+  mainWrapper: {
+    maxWidth: layout.formMax,
+    alignSelf: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 24,
+  },
+
+  /* Salon Hero Card */
+  heroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    overflow: 'hidden',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+  },
+  heroImg: {
+    height: 120,
+    width: '100%',
+  },
+  heroFallback: {
+    height: 100,
+    backgroundColor: '#F0ECE0',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
+  },
+  heroInfoRow: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  heroLogoCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
+    backgroundColor: '#F0ECE0',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  salonName: {
+    fontSize: 16,
+    fontFamily: typography.display,
+    color: '#1A1A1E',
+  },
+  salonAddress: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+  },
+  ratingText: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+
+  /* Step Tracker */
+  stepTracker: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  stepPill: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    borderRadius: radii.sm,
+    alignItems: 'center',
+  },
+  stepPillActive: {
+    borderColor: '#113939',
+    backgroundColor: '#F4F7F5',
+  },
+  stepPillDone: {
+    borderColor: '#3F7A4C',
+    backgroundColor: '#E9F2EA',
+  },
+  stepPillText: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  stepPillTextActive: {
+    fontFamily: typography.bodyStrong,
+    color: '#113939',
+  },
+
+  /* Sections */
+  section: {
+    gap: 12,
+  },
+  sectionEyebrow: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: colors.textMuted,
+    letterSpacing: 1.2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: typography.display,
+    color: '#1A1A1E',
+  },
+
+  /* Services Grid */
+  servicesGrid: {
+    gap: 8,
+  },
+  serviceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 14,
+  },
+  serviceCardSelected: {
+    borderColor: '#113939',
+    borderWidth: 2,
+    backgroundColor: '#F4F7F5',
+  },
+  serviceIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.sm,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceName: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  serviceMeta: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  priceTag: {
+    backgroundColor: '#F0ECE0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: radii.pill,
   },
-  monthLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
+  priceTagText: {
+    fontSize: 12,
     fontFamily: typography.bodyStrong,
-    minWidth: 110,
+    color: '#113939',
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#113939',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Barbers Grid */
+  barbersGrid: {
+    gap: 8,
+  },
+  barberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 12,
+  },
+  barberCardSelected: {
+    borderColor: '#113939',
+    borderWidth: 2,
+    backgroundColor: '#F4F7F5',
+  },
+  barberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0ECE0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  barberName: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  barberRole: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: typography.body,
+  },
+  emptyNotice: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+  },
+  emptyNoticeText: {
+    fontSize: 12,
+    color: colors.textMuted,
     textAlign: 'center',
+  },
+
+  /* Calendar */
+  calendarTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  monthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  monthNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthLabel: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+    textTransform: 'capitalize',
   },
   calendarCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: 14,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    ...atmosphericShadow,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 16,
+    gap: 12,
   },
-  weekDaysRow: {
+  weekHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    justifyContent: 'space-around',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E5DF',
+    paddingBottom: 8,
   },
-  weekDayText: {
-    color: colors.labelSoft,
-    width: '14.28%',
-    textAlign: 'center',
+  weekHeaderDay: {
     fontSize: 11,
     fontFamily: typography.bodyStrong,
-    textTransform: 'uppercase',
-    letterSpacing: 1.4,
+    color: colors.textMuted,
+    textAlign: 'center',
+    width: 36,
   },
-  daysRow: {
+  daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    rowGap: 8,
+  },
+  emptyDayCell: {
+    width: 36,
+    height: 36,
   },
   dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayCellEmpty: {
-    width: '14.28%',
-    aspectRatio: 1,
-  },
-  dayCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F8F9FA',
   },
-  dayCircleToday: {
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+  dayCellDisabled: {
+    opacity: 0.3,
+  },
+  dayCellSelected: {
+    backgroundColor: '#113939',
   },
   dayCellText: {
-    color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: typography.body,
+    color: '#1A1A1E',
   },
   dayCellTextDisabled: {
     color: colors.textMuted,
-    opacity: 0.4,
+  },
+  dayCellTextSelected: {
+    fontFamily: typography.bodyStrong,
+    color: '#FFFFFF',
+  },
+
+  /* Time Slots */
+  timeSlotsContainer: {
+    gap: 14,
+  },
+  periodGroup: {
+    gap: 8,
+  },
+  periodLabel: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: '#113939',
   },
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  timeCard: {
-    width: '23%',
-    minWidth: 72,
-    flexGrow: 1,
-    backgroundColor: colors.surface,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    borderRadius: radii.pill,
-    paddingVertical: 11,
-    alignItems: 'center',
-    ...atmosphericShadow,
+  timeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    borderRadius: radii.sm,
   },
-  timeCardDisabled: {
-    backgroundColor: colors.canvas,
-    opacity: 0.35,
+  timeChipSelected: {
+    backgroundColor: '#113939',
+    borderColor: '#113939',
   },
-  timeText: {
-    color: colors.text,
+  timeChipText: {
     fontSize: 12,
     fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
   },
-  timeTextDisabled: {
-    color: colors.textMuted,
-    textDecorationLine: 'line-through',
+  timeChipTextSelected: {
+    color: '#FFFFFF',
   },
-  floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
-  floatingBar: {
-    width: '100%',
-    maxWidth: 560,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    borderRadius: radii.xl,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    ...glassSurface,
-    ...Platform.select({
-      web: { boxShadow: '0 16px 44px rgba(0,0,0,0.10)' } as any,
-      default: { elevation: 9, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
-    }),
-  },
-  floatingCopy: { flex: 1, minWidth: 0 },
-  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6, textTransform: 'uppercase' },
-  floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 2 },
-  confirmButton: {
-    minHeight: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+
+  /* Sticky Footer */
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E4E5DF',
     paddingHorizontal: 20,
-    borderRadius: radii.pill,
-  },
-  confirmButtonText: {
-    fontFamily: typography.bodyStrong,
-    fontSize: 13,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-    justifyContent: 'center',
+    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'space-between',
+    gap: 16,
+    boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
   },
-  loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
-  pressedScale: { transform: [{ scale: 0.98 }], opacity: 0.9 },
+  stickySummary: {
+    flex: 1,
+    gap: 2,
+  },
+  stickyEyebrow: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  stickyPrice: {
+    fontSize: 18,
+    fontFamily: typography.display,
+    color: '#113939',
+  },
+  confirmBtn: {
+    backgroundColor: '#113939',
+    paddingHorizontal: 20,
+  },
 });
