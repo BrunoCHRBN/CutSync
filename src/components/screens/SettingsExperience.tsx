@@ -470,8 +470,8 @@ export const SettingsExperience = () => {
                 <AppInput containerStyle={styles.flexField} label="Multa No-Show (%)" value={noShowFeePercent} onChangeText={setNoShowFeePercent} keyboardType="numeric" placeholder="0" hint="Taxa cobrada em faltas." />
               </View>
               <View style={styles.fieldsRow}>
-                <AppInput containerStyle={styles.flexField} label="Latitude Geográfica" value={latitude} onChangeText={setLatitude} keyboardType="numeric" placeholder="-23.550520" />
-                <AppInput containerStyle={styles.flexField} label="Longitude Geográfica" value={longitude} onChangeText={setLongitude} keyboardType="numeric" placeholder="-46.633308" />
+                <AppInput containerStyle={styles.flexField} label="Latitude Geográfica (Opcional)" value={latitude} onChangeText={setLatitude} keyboardType="numeric" placeholder="Ex: -23.550520" hint="Para exibir a rota ao cliente." />
+                <AppInput containerStyle={styles.flexField} label="Longitude Geográfica (Opcional)" value={longitude} onChangeText={setLongitude} keyboardType="numeric" placeholder="Ex: -46.633308" hint="Para exibir a rota ao cliente." />
               </View>
               <View style={styles.visibilityRow}>
                 <View style={styles.visibilityCopy}>
