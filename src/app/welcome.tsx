@@ -14,10 +14,225 @@ import {
   DollarSign, 
   Hourglass,
   Sparkles,
-  Search
+  Search,
+  UserRound,
+  Calendar,
+  TrendingUp,
+  Compass,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
+  ShieldCheck,
+  Zap
 } from 'lucide-react-native';
 
 export default function WelcomeLandingPage() {
+  if (Platform.OS !== 'web') {
+    return <WelcomeNativeLandingPage />;
+  }
+
+  return <WelcomeWebLandingPage />;
+}
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE NATIVE LANDING PAGE                                                 */
+/* -------------------------------------------------------------------------- */
+function WelcomeNativeLandingPage() {
+  const router = useRouter();
+  const [profileType, setProfileType] = useState<'client' | 'owner'>('client');
+  const [slideIndex, setSlideIndex] = useState(0);
+
+  const handleProfileChange = (type: 'client' | 'owner') => {
+    setProfileType(type);
+    setSlideIndex(0);
+  };
+
+  const clientSlides = [
+    {
+      icon: <Scissors color={colors.brandPrimary} size={28} />,
+      badge: 'Sem complicações',
+      title: 'Agendamento em segundos',
+      description: 'Encontre as melhores barbearias, salões de beleza e manicures da sua região e agende sem precisar fazer ligações.',
+    },
+    {
+      icon: <Calendar color={colors.brandPrimary} size={28} />,
+      badge: 'Confirmação instantânea',
+      title: 'Escolha profissionais e horários',
+      description: 'Veja a grade de horários disponíveis em tempo real, escolha seu profissional de preferência e confirme na hora.',
+    },
+    {
+      icon: <Sparkles color={colors.brandPrimary} size={28} />,
+      badge: 'Zero atrasos',
+      title: 'Lembretes e histórico completo',
+      description: 'Receba notificações dos seus atendimentos e consulte todo o seu histórico de agendamentos com facilidade.',
+    },
+  ];
+
+  const ownerSlides = [
+    {
+      icon: <Building2 color={colors.brandPrimary} size={28} />,
+      badge: 'Multi-profissional',
+      title: 'Gestão completa do salão',
+      description: 'Gerencie múltiplos colaboradores, agendas individuais, tabela de serviços e horários de atendimento em um único lugar.',
+    },
+    {
+      icon: <TrendingUp color={colors.brandPrimary} size={28} />,
+      badge: 'Pix automático',
+      title: 'Repasse de comissões',
+      description: 'Automatize a divisão do faturamento da casa. O administrador libera e cada profissional cadastra sua chave Pix para repasse.',
+    },
+    {
+      icon: <Compass color={colors.brandPrimary} size={28} />,
+      badge: 'Link exclusivo',
+      title: 'Sua vitrine pública de reservas',
+      description: 'Divulgue seu link exclusivo no Instagram e WhatsApp para que seus clientes façam marcações automáticas 24 horas por dia.',
+    },
+  ];
+
+  const activeSlides = profileType === 'client' ? clientSlides : ownerSlides;
+  const currentSlide = activeSlides[slideIndex] || activeSlides[0];
+
+  const nextSlide = () => {
+    setSlideIndex((prev) => (prev + 1) % activeSlides.length);
+  };
+
+  const prevSlide = () => {
+    setSlideIndex((prev) => (prev - 1 + activeSlides.length) % activeSlides.length);
+  };
+
+  return (
+    <View style={nativeStyles.container}>
+      {/* Header */}
+      <View style={nativeStyles.header}>
+        <View style={nativeStyles.logoRow}>
+          <Scissors color={colors.brandPrimary} size={20} />
+          <Text style={nativeStyles.logoText}>Cut<Text style={nativeStyles.logoHighlight}>Sync</Text></Text>
+        </View>
+        <AppButton 
+          label="Entrar" 
+          variant="secondary" 
+          size="sm"
+          onPress={() => router.push('/(auth)/login' as any)}
+        />
+      </View>
+
+      <ScrollView contentContainerStyle={nativeStyles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Hero Badge & Title */}
+        <View style={nativeStyles.heroBlock}>
+          <View style={nativeStyles.heroBadge}>
+            <Zap size={12} color={colors.brandPrimary} />
+            <Text style={nativeStyles.heroBadgeText}>APP DE AGENDAMENTOS</Text>
+          </View>
+          <Text style={nativeStyles.heroTitle}>Sua beleza e estilo,{'\n'}na hora certa.</Text>
+          <Text style={nativeStyles.heroSubtitle}>Conectamos clientes aos melhores salões e barbearias de Araraquara e região.</Text>
+        </View>
+
+        {/* Profile Tabs */}
+        <View style={nativeStyles.tabContainer}>
+          <Pressable 
+            style={[nativeStyles.tabButton, profileType === 'client' && nativeStyles.tabButtonActive]}
+            onPress={() => handleProfileChange('client')}
+          >
+            <UserRound size={16} color={profileType === 'client' ? colors.ink : colors.textSecondary} />
+            <Text style={[nativeStyles.tabText, profileType === 'client' && nativeStyles.tabTextActive]}>Sou Cliente</Text>
+          </Pressable>
+
+          <Pressable 
+            style={[nativeStyles.tabButton, profileType === 'owner' && nativeStyles.tabButtonActive]}
+            onPress={() => handleProfileChange('owner')}
+          >
+            <Building2 size={16} color={profileType === 'owner' ? colors.ink : colors.textSecondary} />
+            <Text style={[nativeStyles.tabText, profileType === 'owner' && nativeStyles.tabTextActive]}>Sou Salão / Dono</Text>
+          </Pressable>
+        </View>
+
+        {/* Interactive Feature Card Carousel */}
+        <AppCard style={nativeStyles.carouselCard} elevated>
+          <View style={nativeStyles.cardHeaderRow}>
+            <View style={nativeStyles.iconCircle}>
+              {currentSlide.icon}
+            </View>
+            <View style={nativeStyles.featureBadge}>
+              <Text style={nativeStyles.featureBadgeText}>{currentSlide.badge}</Text>
+            </View>
+          </View>
+
+          <Text style={nativeStyles.slideTitle}>{currentSlide.title}</Text>
+          <Text style={nativeStyles.slideDesc}>{currentSlide.description}</Text>
+
+          {/* Controls: Nav arrows + dots */}
+          <View style={nativeStyles.carouselControls}>
+            <Pressable onPress={prevSlide} style={nativeStyles.arrowBtn}>
+              <ChevronLeft size={18} color={colors.textSecondary} />
+            </Pressable>
+
+            <View style={nativeStyles.dotsRow}>
+              {activeSlides.map((_, idx) => (
+                <Pressable 
+                  key={idx} 
+                  onPress={() => setSlideIndex(idx)}
+                  style={[nativeStyles.dot, slideIndex === idx && nativeStyles.dotActive]} 
+                />
+              ))}
+            </View>
+
+            <Pressable onPress={nextSlide} style={nativeStyles.arrowBtn}>
+              <ChevronRight size={18} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        </AppCard>
+
+        {/* Action CTAs */}
+        <View style={nativeStyles.ctaBlock}>
+          {profileType === 'client' ? (
+            <>
+              <AppButton 
+                label="Explorar Salões & Agendar"
+                icon={<ArrowRight size={18} color={colors.ink} />}
+                iconPosition="right"
+                fullWidth
+                onPress={() => router.push('/(client)' as any)}
+              />
+              <AppButton 
+                label="Já tenho conta / Entrar"
+                variant="secondary"
+                fullWidth
+                onPress={() => router.push('/(auth)/login' as any)}
+              />
+            </>
+          ) : (
+            <>
+              <AppButton 
+                label="Cadastrar Meu Estabelecimento"
+                icon={<ArrowRight size={18} color={colors.ink} />}
+                iconPosition="right"
+                fullWidth
+                onPress={() => router.push('/(auth)/register' as any)}
+              />
+              <AppButton 
+                label="Entrar no Painel do Salão"
+                variant="secondary"
+                fullWidth
+                onPress={() => router.push('/(auth)/login' as any)}
+              />
+            </>
+          )}
+        </View>
+
+        {/* Footer info */}
+        <View style={nativeStyles.footerNote}>
+          <ShieldCheck size={14} color={colors.textMuted} />
+          <Text style={nativeStyles.footerText}>CutSync • Agendamento universal rápido e seguro.</Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* WEB LANDING PAGE                                                           */
+/* -------------------------------------------------------------------------- */
+function WelcomeWebLandingPage() {
   const router = useRouter();
 
   // Wizard flow states
@@ -63,7 +278,6 @@ export default function WelcomeLandingPage() {
     if (Platform.OS !== 'web') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if focus is in input fields
       const activeElement = document.activeElement;
       if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
         return;
@@ -108,7 +322,7 @@ export default function WelcomeLandingPage() {
   const totalRevenue = numBarbers * avgPrice * appointmentsPerMonth;
   const ownerShare = totalRevenue * (commissionRate / 100);
   const barbersShare = totalRevenue - ownerShare;
-  const hoursSaved = numBarbers * 15; // 15 hours saved per barber per month
+  const hoursSaved = numBarbers * 15;
 
   // Filtered Shops grid output
   const filteredShops = establishments.filter((shop) => {
@@ -130,47 +344,47 @@ export default function WelcomeLandingPage() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={webStyles.container}>
       {/* Top Navbar */}
-      <View style={styles.navbar}>
-        <View style={styles.logoContainer}>
+      <View style={webStyles.navbar}>
+        <View style={webStyles.logoContainer}>
           <Scissors color={colors.brandPrimary} size={22} />
-          <Text style={styles.logoText}>Cut<Text style={styles.logoHighlight}>Sync</Text></Text>
+          <Text style={webStyles.logoText}>Cut<Text style={webStyles.logoHighlight}>Sync</Text></Text>
         </View>
         <AppButton 
           testID="landing-login-btn" 
           label="Acessar Painel" 
           variant="secondary" 
-          style={styles.navBtn}
+          style={webStyles.navBtn}
           onPress={() => router.push('/(auth)/login' as any)} 
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.centerLayout}>
+      <ScrollView contentContainerStyle={webStyles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={webStyles.centerLayout}>
           
           {/* Centered Hero Header */}
-          <View style={styles.heroTextContainer}>
-            <View style={styles.badge}>
+          <View style={webStyles.heroTextContainer}>
+            <View style={webStyles.badge}>
               <Sparkles size={12} color={colors.brandPrimary} />
-              <Text style={styles.badgeText}>SISTEMA DE AGENDAMENTO UNIVERSAL</Text>
+              <Text style={webStyles.badgeText}>SISTEMA DE AGENDAMENTO UNIVERSAL</Text>
             </View>
-            <Text style={styles.heroTitle}>
+            <Text style={webStyles.heroTitle}>
               Gestão simplificada.{'\n'}
-              <Text style={styles.heroHighlight}>Experiência inigualável.</Text>
+              <Text style={webStyles.heroHighlight}>Experiência inigualável.</Text>
             </Text>
-            <Text style={styles.heroDescription}>
+            <Text style={webStyles.heroDescription}>
               O agendador mais rápido e automatizado do mercado para clientes, profissionais e administradores.
             </Text>
           </View>
 
           {/* Global Search Bar */}
-          <View style={styles.searchBarContainer}>
-            <View style={styles.searchFieldBox}>
+          <View style={webStyles.searchBarContainer}>
+            <View style={webStyles.searchFieldBox}>
               <Search size={18} color={colors.textMuted} />
               <TextInput
                 testID="global-search-input"
-                style={styles.globalSearchInput}
+                style={webStyles.globalSearchInput}
                 placeholder="Buscar salão por nome, bairro ou especialidade..."
                 placeholderTextColor={colors.textMuted}
                 value={searchQuery}
@@ -180,69 +394,69 @@ export default function WelcomeLandingPage() {
           </View>
 
           {/* Reorganized Wizard Reativo (Atalhos [C], [D], [P]) */}
-          <View style={styles.wizardRow}>
+          <View style={webStyles.wizardRow}>
             <Pressable 
-              style={[styles.wizardTabCard, (role === 'client' || !role) && styles.wizardTabCardActive]}
+              style={[webStyles.wizardTabCard, (role === 'client' || !role) && webStyles.wizardTabCardActive]}
               onPress={() => { setRole('client'); setStep(step === 1 ? 2 : step); }}
             >
-              <View style={styles.keyCap}><Text style={styles.keyCapText}>C</Text></View>
-              <View style={styles.tabCardInfo}>
-                <Text style={styles.tabCardTitle}>Quero agendar um serviço</Text>
-                <Text style={styles.tabCardSubtitle}>Ver vitrine de salões</Text>
+              <View style={webStyles.keyCap}><Text style={webStyles.keyCapText}>C</Text></View>
+              <View style={webStyles.tabCardInfo}>
+                <Text style={webStyles.tabCardTitle}>Quero agendar um serviço</Text>
+                <Text style={webStyles.tabCardSubtitle}>Ver vitrine de salões</Text>
               </View>
             </Pressable>
 
             <Pressable 
-              style={[styles.wizardTabCard, role === 'owner' && styles.wizardTabCardActive]}
+              style={[webStyles.wizardTabCard, role === 'owner' && webStyles.wizardTabCardActive]}
               onPress={() => { setRole('owner'); setStep(2); }}
             >
-              <View style={styles.keyCap}><Text style={styles.keyCapText}>D</Text></View>
-              <View style={styles.tabCardInfo}>
-                <Text style={styles.tabCardTitle}>Sou proprietário / profissional</Text>
-                <Text style={styles.tabCardSubtitle}>Onboarding e simulador B2B</Text>
+              <View style={webStyles.keyCap}><Text style={webStyles.keyCapText}>D</Text></View>
+              <View style={webStyles.tabCardInfo}>
+                <Text style={webStyles.tabCardTitle}>Sou proprietário / profissional</Text>
+                <Text style={webStyles.tabCardSubtitle}>Onboarding e simulador B2B</Text>
               </View>
             </Pressable>
 
             <Pressable 
-              style={[styles.wizardTabCard, role === 'visitor' && styles.wizardTabCardActive]}
+              style={[webStyles.wizardTabCard, role === 'visitor' && webStyles.wizardTabCardActive]}
               onPress={() => { setRole('visitor'); setStep(2); }}
             >
-              <View style={styles.keyCap}><Text style={styles.keyCapText}>P</Text></View>
-              <View style={styles.tabCardInfo}>
-                <Text style={styles.tabCardTitle}>Apenas explorando</Text>
-                <Text style={styles.tabCardSubtitle}>Tour rápido pelos recursos</Text>
+              <View style={webStyles.keyCap}><Text style={webStyles.keyCapText}>P</Text></View>
+              <View style={webStyles.tabCardInfo}>
+                <Text style={webStyles.tabCardTitle}>Apenas explorando</Text>
+                <Text style={webStyles.tabCardSubtitle}>Tour rápido pelos recursos</Text>
               </View>
             </Pressable>
           </View>
 
           {/* Render step 2 details inline if selected */}
           {step === 2 && (role === 'client' || !role) && (
-            <AppCard style={styles.wizardSubCard} elevated>
-              <View style={styles.wizardSubHeader}>
-                <Pressable style={styles.backLink} onPress={() => { setStep(1); setRole(null); setInterest(null); }}>
+            <AppCard style={webStyles.wizardSubCard} elevated>
+              <View style={webStyles.wizardSubHeader}>
+                <Pressable style={webStyles.backLink} onPress={() => { setStep(1); setRole(null); setInterest(null); }}>
                   <ArrowLeft size={13} color={colors.textSecondary} />
-                  <Text style={styles.backLinkText}>Limpar filtros</Text>
+                  <Text style={webStyles.backLinkText}>Limpar filtros</Text>
                 </Pressable>
-                <Text style={styles.wizardLabel}>FILTRO DE CATEGORIA</Text>
+                <Text style={webStyles.wizardLabel}>FILTRO DE CATEGORIA</Text>
               </View>
-              <View style={styles.optionsListHorizontal}>
+              <View style={webStyles.optionsListHorizontal}>
                 <Pressable 
-                  style={[styles.optionButtonMini, interest === 'barbearia' && styles.optionButtonMiniActive]}
+                  style={[webStyles.optionButtonMini, interest === 'barbearia' && webStyles.optionButtonMiniActive]}
                   onPress={() => setInterest(interest === 'barbearia' ? null : 'barbearia')}
                 >
-                  <Text style={[styles.optionButtonMiniText, interest === 'barbearia' && styles.optionButtonMiniTextActive]}>Barbearia</Text>
+                  <Text style={[webStyles.optionButtonMiniText, interest === 'barbearia' && webStyles.optionButtonMiniTextActive]}>Barbearia</Text>
                 </Pressable>
                 <Pressable 
-                  style={[styles.optionButtonMini, interest === 'salao' && styles.optionButtonMiniActive]}
+                  style={[webStyles.optionButtonMini, interest === 'salao' && webStyles.optionButtonMiniActive]}
                   onPress={() => setInterest(interest === 'salao' ? null : 'salao')}
                 >
-                  <Text style={[styles.optionButtonMiniText, interest === 'salao' && styles.optionButtonMiniTextActive]}>Salão de Beleza</Text>
+                  <Text style={[webStyles.optionButtonMiniText, interest === 'salao' && webStyles.optionButtonMiniTextActive]}>Salão de Beleza</Text>
                 </Pressable>
                 <Pressable 
-                  style={[styles.optionButtonMini, interest === 'manicure' && styles.optionButtonMiniActive]}
+                  style={[webStyles.optionButtonMini, interest === 'manicure' && webStyles.optionButtonMiniActive]}
                   onPress={() => setInterest(interest === 'manicure' ? null : 'manicure')}
                 >
-                  <Text style={[styles.optionButtonMiniText, interest === 'manicure' && styles.optionButtonMiniTextActive]}>Manicure / Nails</Text>
+                  <Text style={[webStyles.optionButtonMiniText, interest === 'manicure' && webStyles.optionButtonMiniTextActive]}>Manicure / Nails</Text>
                 </Pressable>
               </View>
             </AppCard>
@@ -250,183 +464,175 @@ export default function WelcomeLandingPage() {
 
           {/* Dynamic Content Display */}
           {role === 'owner' ? (
-            /* Show Owner Simulator Dashboard */
-            <AppCard style={styles.simulatorDashboard} elevated>
+            <AppCard style={webStyles.simulatorDashboard} elevated>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.simTitle}>Simulador Financeiro CutSync</Text>
-                <Pressable style={styles.backLink} onPress={() => { setStep(1); setRole(null); }}>
+                <Text style={webStyles.simTitle}>Simulador Financeiro CutSync</Text>
+                <Pressable style={webStyles.backLink} onPress={() => { setStep(1); setRole(null); }}>
                   <ArrowLeft size={13} color={colors.textSecondary} />
-                  <Text style={styles.backLinkText}>Voltar</Text>
+                  <Text style={webStyles.backLinkText}>Voltar</Text>
                 </Pressable>
               </View>
-              <Text style={styles.simDesc}>Arraste os valores abaixo para ver o ganho mensal e anual estimado do seu negócio.</Text>
+              <Text style={webStyles.simDesc}>Arraste os valores abaixo para ver o ganho mensal e anual estimado do seu negócio.</Text>
 
-              <View style={styles.simSlidersContainer}>
-                {/* Professionals */}
-                <View style={styles.sliderRow}>
-                  <View style={styles.sliderLabelRow}>
-                    <Text style={styles.sliderLabel}>Profissionais / Colaboradores</Text>
-                    <Text style={styles.sliderValue}>{numBarbers}</Text>
+              <View style={webStyles.simSlidersContainer}>
+                <View style={webStyles.sliderRow}>
+                  <View style={webStyles.sliderLabelRow}>
+                    <Text style={webStyles.sliderLabel}>Profissionais / Colaboradores</Text>
+                    <Text style={webStyles.sliderValue}>{numBarbers}</Text>
                   </View>
-                  <View style={styles.rangeButtons}>
+                  <View style={webStyles.rangeButtons}>
                     {[1, 3, 5, 8, 12].map(n => (
                       <Pressable 
                         key={n} 
                         onPress={() => setNumBarbers(n)}
-                        style={[styles.rangeBtn, numBarbers === n && styles.rangeBtnActive]}
+                        style={[webStyles.rangeBtn, numBarbers === n && webStyles.rangeBtnActive]}
                       >
-                        <Text style={[styles.rangeBtnLabel, numBarbers === n && styles.rangeBtnLabelActive]}>{n}</Text>
+                        <Text style={[webStyles.rangeBtnLabel, numBarbers === n && webStyles.rangeBtnLabelActive]}>{n}</Text>
                       </Pressable>
                     ))}
                   </View>
                 </View>
 
-                {/* Average price */}
-                <View style={styles.sliderRow}>
-                  <View style={styles.sliderLabelRow}>
-                    <Text style={styles.sliderLabel}>Preço médio por serviço (R$)</Text>
-                    <Text style={styles.sliderValue}>R$ {avgPrice}</Text>
+                <View style={webStyles.sliderRow}>
+                  <View style={webStyles.sliderLabelRow}>
+                    <Text style={webStyles.sliderLabel}>Preço médio por serviço (R$)</Text>
+                    <Text style={webStyles.sliderValue}>R$ {avgPrice}</Text>
                   </View>
-                  <View style={styles.rangeButtons}>
+                  <View style={webStyles.rangeButtons}>
                     {[30, 50, 75, 100, 150].map(p => (
                       <Pressable 
                         key={p} 
                         onPress={() => setAvgPrice(p)}
-                        style={[styles.rangeBtn, avgPrice === p && styles.rangeBtnActive]}
+                        style={[webStyles.rangeBtn, avgPrice === p && webStyles.rangeBtnActive]}
                       >
-                        <Text style={[styles.rangeBtnLabel, avgPrice === p && styles.rangeBtnLabelActive]}>R$ {p}</Text>
+                        <Text style={[webStyles.rangeBtnLabel, avgPrice === p && webStyles.rangeBtnLabelActive]}>R$ {p}</Text>
                       </Pressable>
                     ))}
                   </View>
                 </View>
 
-                {/* Commission */}
-                <View style={styles.sliderRow}>
-                  <View style={styles.sliderLabelRow}>
-                    <Text style={styles.sliderLabel}>Porcentagem da Casa (Salão)</Text>
-                    <Text style={styles.sliderValue}>{commissionRate}%</Text>
+                <View style={webStyles.sliderRow}>
+                  <View style={webStyles.sliderLabelRow}>
+                    <Text style={webStyles.sliderLabel}>Porcentagem da Casa (Salão)</Text>
+                    <Text style={webStyles.sliderValue}>{commissionRate}%</Text>
                   </View>
-                  <View style={styles.rangeButtons}>
+                  <View style={webStyles.rangeButtons}>
                     {[30, 40, 50, 60, 70].map(c => (
                       <Pressable 
                         key={c} 
                         onPress={() => setCommissionRate(c)}
-                        style={[styles.rangeBtn, commissionRate === c && styles.rangeBtnActive]}
+                        style={[webStyles.rangeBtn, commissionRate === c && webStyles.rangeBtnActive]}
                       >
-                        <Text style={[styles.rangeBtnLabel, commissionRate === c && styles.rangeBtnLabelActive]}>{c}%</Text>
+                        <Text style={[webStyles.rangeBtnLabel, commissionRate === c && webStyles.rangeBtnLabelActive]}>{c}%</Text>
                       </Pressable>
                     ))}
                   </View>
                 </View>
 
-                {/* Appointments per month */}
-                <View style={styles.sliderRow}>
-                  <View style={styles.sliderLabelRow}>
-                    <Text style={styles.sliderLabel}>Agendamentos por Profissional/Mês</Text>
-                    <Text style={styles.sliderValue}>{appointmentsPerMonth}</Text>
+                <View style={webStyles.sliderRow}>
+                  <View style={webStyles.sliderLabelRow}>
+                    <Text style={webStyles.sliderLabel}>Agendamentos por Profissional/Mês</Text>
+                    <Text style={webStyles.sliderValue}>{appointmentsPerMonth}</Text>
                   </View>
-                  <View style={styles.rangeButtons}>
+                  <View style={webStyles.rangeButtons}>
                     {[60, 100, 120, 150, 200].map(a => (
                       <Pressable 
                         key={a} 
                         onPress={() => setAppointmentsPerMonth(a)}
-                        style={[styles.rangeBtn, appointmentsPerMonth === a && styles.rangeBtnActive]}
+                        style={[webStyles.rangeBtn, appointmentsPerMonth === a && webStyles.rangeBtnActive]}
                       >
-                        <Text style={[styles.rangeBtnLabel, appointmentsPerMonth === a && styles.rangeBtnLabelActive]}>{a}</Text>
+                        <Text style={[webStyles.rangeBtnLabel, appointmentsPerMonth === a && webStyles.rangeBtnLabelActive]}>{a}</Text>
                       </Pressable>
                     ))}
                   </View>
                 </View>
               </View>
 
-              {/* Simulated SVG Graph */}
-              <View style={styles.chartContainer}>
-                <Text style={styles.chartTitle}>Estimativa de Faturamento Mensal</Text>
-                <View style={styles.svgWrapper}>
-                  <View style={styles.chartBarContainer}>
-                    <View style={[styles.chartBar, { height: 90, backgroundColor: colors.brandPrimary }]} />
-                    <Text style={styles.chartBarLabel}>Total Geral{'\n'}R$ {totalRevenue}</Text>
+              <View style={webStyles.chartContainer}>
+                <Text style={webStyles.chartTitle}>Estimativa de Faturamento Mensal</Text>
+                <View style={webStyles.svgWrapper}>
+                  <View style={webStyles.chartBarContainer}>
+                    <View style={[webStyles.chartBar, { height: 90, backgroundColor: colors.brandPrimary }]} />
+                    <Text style={webStyles.chartBarLabel}>Total Geral{'\n'}R$ {totalRevenue}</Text>
                   </View>
                   
-                  <View style={styles.chartBarContainer}>
-                    <View style={[styles.chartBar, { height: Math.max(20, 90 * (commissionRate / 100)), backgroundColor: '#3F7A4C' }]} />
-                    <Text style={styles.chartBarLabel}>Sua Barbearia{'\n'}R$ {ownerShare.toFixed(0)}</Text>
+                  <View style={webStyles.chartBarContainer}>
+                    <View style={[webStyles.chartBar, { height: Math.max(20, 90 * (commissionRate / 100)), backgroundColor: '#3F7A4C' }]} />
+                    <Text style={webStyles.chartBarLabel}>Sua Barbearia{'\n'}R$ {ownerShare.toFixed(0)}</Text>
                   </View>
 
-                  <View style={styles.chartBarContainer}>
-                    <View style={[styles.chartBar, { height: Math.max(20, 90 * ((100 - commissionRate) / 100)), backgroundColor: '#315C9B' }]} />
-                    <Text style={styles.chartBarLabel}>Colaboradores{'\n'}R$ {barbersShare.toFixed(0)}</Text>
+                  <View style={webStyles.chartBarContainer}>
+                    <View style={[webStyles.chartBar, { height: Math.max(20, 90 * ((100 - commissionRate) / 100)), backgroundColor: '#315C9B' }]} />
+                    <Text style={webStyles.chartBarLabel}>Colaboradores{'\n'}R$ {barbersShare.toFixed(0)}</Text>
                   </View>
                 </View>
               </View>
 
-              {/* Key Metrics output grid */}
-              <View style={styles.simMetricsGrid}>
-                <View style={styles.metricCard}>
+              <View style={webStyles.simMetricsGrid}>
+                <View style={webStyles.metricCard}>
                   <Hourglass size={18} color={colors.brandPrimary} />
-                  <Text style={styles.metricVal}>{hoursSaved}h</Text>
-                  <Text style={styles.metricLbl}>Economizadas/mês</Text>
+                  <Text style={webStyles.metricVal}>{hoursSaved}h</Text>
+                  <Text style={webStyles.metricLbl}>Economizadas/mês</Text>
                 </View>
 
-                <View style={styles.metricCard}>
+                <View style={webStyles.metricCard}>
                   <DollarSign size={18} color={colors.brandPrimary} />
-                  <Text style={styles.metricVal}>R$ {(ownerShare * 12).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</Text>
-                  <Text style={styles.metricLbl}>Receita Anual</Text>
+                  <Text style={webStyles.metricVal}>R$ {(ownerShare * 12).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</Text>
+                  <Text style={webStyles.metricLbl}>Receita Anual</Text>
                 </View>
 
-                <View style={styles.metricCard}>
+                <View style={webStyles.metricCard}>
                   <Users size={18} color={colors.brandPrimary} />
-                  <Text style={styles.metricVal}>{numBarbers}</Text>
-                  <Text style={styles.metricLbl}>Agendas Sincronizadas</Text>
+                  <Text style={webStyles.metricVal}>{numBarbers}</Text>
+                  <Text style={webStyles.metricLbl}>Agendas Sincronizadas</Text>
                 </View>
               </View>
 
               <AppButton 
                 label="Criar minha conta de Dono" 
                 onPress={() => router.push('/(auth)/register' as any)} 
-                style={styles.donoSignupBtn} 
+                style={webStyles.donoSignupBtn} 
               />
             </AppCard>
           ) : role === 'visitor' ? (
-            /* Show Tour Differentials Card */
-            <AppCard style={styles.tourDashboard} elevated>
+            <AppCard style={webStyles.tourDashboard} elevated>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.simTitle}>Diferenciais CutSync</Text>
-                <Pressable style={styles.backLink} onPress={() => { setStep(1); setRole(null); }}>
+                <Text style={webStyles.simTitle}>Diferenciais CutSync</Text>
+                <Pressable style={webStyles.backLink} onPress={() => { setStep(1); setRole(null); }}>
                   <ArrowLeft size={13} color={colors.textSecondary} />
-                  <Text style={styles.backLinkText}>Voltar</Text>
+                  <Text style={webStyles.backLinkText}>Voltar</Text>
                 </Pressable>
               </View>
-              <Text style={styles.simDesc}>Conheça as vantagens exclusivas que tornam o CutSync a plataforma preferida dos profissionais modernos.</Text>
+              <Text style={webStyles.simDesc}>Conheça as vantagens exclusivas que tornam o CutSync a plataforma preferida dos profissionais modernos.</Text>
               
-              <View style={styles.featuresList}>
-                <View style={styles.featureRow}>
-                  <View style={styles.featureIconContainer}>
+              <View style={webStyles.featuresList}>
+                <View style={webStyles.featureRow}>
+                  <View style={webStyles.featureIconContainer}>
                     <Scissors size={18} color={colors.brandPrimary} />
                   </View>
-                  <View style={styles.featureCopy}>
-                    <Text style={styles.featureTitle}>Atalhos Superhuman</Text>
-                    <Text style={styles.featureDesc}>Navegue pelas funções do sistema em milissegundos utilizando apenas o teclado do seu computador.</Text>
+                  <View style={webStyles.featureCopy}>
+                    <Text style={webStyles.featureTitle}>Atalhos Superhuman</Text>
+                    <Text style={webStyles.featureDesc}>Navegue pelas funções do sistema em milissegundos utilizando apenas o teclado do seu computador.</Text>
                   </View>
                 </View>
 
-                <View style={styles.featureRow}>
-                  <View style={styles.featureIconContainer}>
+                <View style={webStyles.featureRow}>
+                  <View style={webStyles.featureIconContainer}>
                     <DollarSign size={18} color={colors.brandPrimary} />
                   </View>
-                  <View style={styles.featureCopy}>
-                    <Text style={styles.featureTitle}>Divisão de Comissão Automatizada</Text>
-                    <Text style={styles.featureDesc}>O sistema calcula e processa as transferências Pix para comissão do profissional de forma integrada.</Text>
+                  <View style={webStyles.featureCopy}>
+                    <Text style={webStyles.featureTitle}>Divisão de Comissão Automatizada</Text>
+                    <Text style={webStyles.featureDesc}>O sistema calcula e processa as transferências Pix para comissão do profissional de forma integrada.</Text>
                   </View>
                 </View>
 
-                <View style={styles.featureRow}>
-                  <View style={styles.featureIconContainer}>
+                <View style={webStyles.featureRow}>
+                  <View style={webStyles.featureIconContainer}>
                     <Building2 size={18} color={colors.brandPrimary} />
                   </View>
-                  <View style={styles.featureCopy}>
-                    <Text style={styles.featureTitle}>Vitrine de Reservas Customizável</Text>
-                    <Text style={styles.featureDesc}>Uma página de agendamentos limpa e otimizada para seus clientes realizarem marcações online sem atrito.</Text>
+                  <View style={webStyles.featureCopy}>
+                    <Text style={webStyles.featureTitle}>Vitrine de Reservas Customizável</Text>
+                    <Text style={webStyles.featureDesc}>Uma página de agendamentos limpa e otimizada para seus clientes realizarem marcações online sem atrito.</Text>
                   </View>
                 </View>
               </View>
@@ -438,53 +644,52 @@ export default function WelcomeLandingPage() {
               />
             </AppCard>
           ) : (
-            /* Default: Vitrine Grid Vivo */
-            <View style={styles.shopsSection}>
-              <Text style={styles.shopsSectionTitle}>Estabelecimentos em Destaque em Araraquara e Região</Text>
+            <View style={webStyles.shopsSection}>
+              <Text style={webStyles.shopsSectionTitle}>Estabelecimentos em Destaque em Araraquara e Região</Text>
               
               {loadingShops ? (
                 <ActivityIndicator color={colors.brandPrimary} style={{ marginVertical: 32 }} />
               ) : filteredShops.length === 0 ? (
-                <View style={styles.emptyCard}>
-                  <Text style={styles.emptyText}>Nenhum estabelecimento cadastrado ou ativo com os filtros atuais.</Text>
+                <View style={webStyles.emptyCard}>
+                  <Text style={webStyles.emptyText}>Nenhum estabelecimento cadastrado ou ativo com os filtros atuais.</Text>
                 </View>
               ) : (
-                <View style={styles.shopsGrid}>
+                <View style={webStyles.shopsGrid}>
                   {filteredShops.map((shop) => (
                     <Pressable 
                       key={shop.id} 
-                      style={styles.shopGridCard}
+                      style={webStyles.shopGridCard}
                       onPress={() => router.push(`/${shop.slug}/booking` as any)}
                     >
-                      <View style={styles.shopCardHeader}>
-                        <View style={styles.shopGridLogo}>
+                      <View style={webStyles.shopCardHeader}>
+                        <View style={webStyles.shopGridLogo}>
                           {shop.logo_url ? (
-                            <Image source={{ uri: shop.logo_url }} style={styles.shopLogoImg} contentFit="contain" />
+                            <Image source={{ uri: shop.logo_url }} style={webStyles.shopLogoImg} contentFit="contain" />
                           ) : (
-                            <Text style={styles.shopInitials}>
+                            <Text style={webStyles.shopInitials}>
                               {shop.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                             </Text>
                           )}
                         </View>
-                        <View style={styles.shopGridTitleRow}>
-                          <Text style={styles.shopGridName} numberOfLines={1}>{shop.name}</Text>
-                          <View style={styles.ratingRow}>
-                            <Text style={styles.ratingStar}>★</Text>
-                            <Text style={styles.ratingVal}>{shop.average_rating ? Number(shop.average_rating).toFixed(1) : 'Novo'}</Text>
+                        <View style={webStyles.shopGridTitleRow}>
+                          <Text style={webStyles.shopGridName} numberOfLines={1}>{shop.name}</Text>
+                          <View style={webStyles.ratingRow}>
+                            <Text style={webStyles.ratingStar}>★</Text>
+                            <Text style={webStyles.ratingVal}>{shop.average_rating ? Number(shop.average_rating).toFixed(1) : 'Novo'}</Text>
                           </View>
                         </View>
                       </View>
 
-                      <Text numberOfLines={2} style={styles.shopGridDesc}>
+                      <Text numberOfLines={2} style={webStyles.shopGridDesc}>
                         {shop.description || 'Experiência premium de cortes, cuidados capilares e barba com equipe dedicada.'}
                       </Text>
 
-                      <View style={styles.shopCardFooter}>
-                        <Text numberOfLines={1} style={styles.shopLocText}>{shop.address || 'Araraquara, SP'}</Text>
+                      <View style={webStyles.shopCardFooter}>
+                        <Text numberOfLines={1} style={webStyles.shopLocText}>{shop.address || 'Araraquara, SP'}</Text>
                         <AppButton 
                           label="Agendar" 
                           size="sm"
-                          style={styles.shopGridBookBtn}
+                          style={webStyles.shopGridBookBtn}
                           onPress={() => router.push(`/${shop.slug}/booking` as any)}
                         />
                       </View>
@@ -499,14 +704,14 @@ export default function WelcomeLandingPage() {
       </ScrollView>
 
       {/* Superhuman Key Shortcuts bar at bottom */}
-      <View style={styles.shortcutFooter}>
-        <Text style={styles.shortcutFooterText}>Navegue rápido:</Text>
-        <View style={styles.shortcutPillsRow}>
-          <View style={styles.shortcutPill}><Text style={styles.shortcutKey}>C</Text><Text style={styles.shortcutLabel}>Cliente</Text></View>
-          <View style={styles.shortcutPill}><Text style={styles.shortcutKey}>D</Text><Text style={styles.shortcutLabel}>Proprietário</Text></View>
-          <View style={styles.shortcutPill}><Text style={styles.shortcutKey}>P</Text><Text style={styles.shortcutLabel}>Passear</Text></View>
+      <View style={webStyles.shortcutFooter}>
+        <Text style={webStyles.shortcutFooterText}>Navegue rápido:</Text>
+        <View style={webStyles.shortcutPillsRow}>
+          <View style={webStyles.shortcutPill}><Text style={webStyles.shortcutKey}>C</Text><Text style={webStyles.shortcutLabel}>Cliente</Text></View>
+          <View style={webStyles.shortcutPill}><Text style={webStyles.shortcutKey}>D</Text><Text style={webStyles.shortcutLabel}>Proprietário</Text></View>
+          <View style={webStyles.shortcutPill}><Text style={webStyles.shortcutKey}>P</Text><Text style={webStyles.shortcutLabel}>Passear</Text></View>
           {step > 1 && (
-            <View style={styles.shortcutPill}><Text style={styles.shortcutKey}>Esc</Text><Text style={styles.shortcutLabel}>Voltar</Text></View>
+            <View style={webStyles.shortcutPill}><Text style={webStyles.shortcutKey}>Esc</Text><Text style={webStyles.shortcutLabel}>Voltar</Text></View>
           )}
         </View>
       </View>
@@ -514,7 +719,205 @@ export default function WelcomeLandingPage() {
   );
 }
 
-const styles = StyleSheet.create({
+/* -------------------------------------------------------------------------- */
+/* STYLES                                                                     */
+/* -------------------------------------------------------------------------- */
+const nativeStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 14,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoText: {
+    fontSize: 18,
+    fontFamily: typography.display,
+    color: colors.text,
+  },
+  logoHighlight: {
+    color: colors.brandPrimary,
+  },
+  scrollContent: {
+    padding: 20,
+    gap: 20,
+    paddingBottom: 40,
+  },
+  heroBlock: {
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.brandSecondarySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+  },
+  heroBadgeText: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: colors.brandPrimary,
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontFamily: typography.display,
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 32,
+    letterSpacing: -0.5,
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    fontFamily: typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: 10,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfacePressed,
+    borderRadius: radii.pill,
+    padding: 4,
+    gap: 4,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.brandPrimary,
+  },
+  tabText: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.ink,
+  },
+  carouselCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: 20,
+    gap: 14,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
+    backgroundColor: colors.brandSecondarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureBadge: {
+    backgroundColor: colors.canvasSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  featureBadgeText: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: colors.brandPrimary,
+  },
+  slideTitle: {
+    fontSize: 18,
+    fontFamily: typography.display,
+    color: colors.text,
+    marginTop: 4,
+  },
+  slideDesc: {
+    fontSize: 13,
+    fontFamily: typography.body,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  carouselControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  arrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: colors.canvasSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.borderStrong,
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: colors.brandPrimary,
+  },
+  ctaBlock: {
+    gap: 10,
+    marginTop: 4,
+  },
+  footerNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  footerText: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+});
+
+const webStyles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: colors.canvas,
