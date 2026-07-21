@@ -35,12 +35,10 @@ function RootLayoutNavigation() {
     const isSecurity = firstSegment === 'security';
     const isPasswordReset = inAuthGroup && secondSegment === 'reset-password';
     const isGovernance = firstSegment === 'governance';
-    const isWelcome = firstSegment === 'welcome';
-    const isEmbed = typeof window !== 'undefined' && (window.location.search.includes('embed=true') || window.self !== window.top);
 
     // 1. Isolamento Absoluto em Produção (Redirecionamento/Bloqueio físico de rotas restritas)
     if (buildTarget === 'production' && (isGovernance || firstSegment === 'superadmin')) {
-      router.replace('/(client)');
+      router.replace('/');
       return;
     }
 
@@ -48,10 +46,13 @@ function RootLayoutNavigation() {
     if (isGovernance) return;
 
     if (!user) {
-      // Se não estiver logado, redirecionar para a Landing Page /welcome
-      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile && !isWelcome && !isEmbed) {
-        router.replace('/welcome');
+      // Rotas protegidas exigem autenticação — redirecionar para o Marketplace público (/)
+      const protectedSegments = ['(admin)', '(client)', '(professional)', 'superadmin', 'governance', 'appointments', 'admin', 'professional', 'security', 'professional-profile'];
+      const isProtectedRoute = protectedSegments.includes(firstSegment || '');
+      if (isProtectedRoute) {
+        router.replace('/');
       }
+      // Rotas públicas: /, /para-estabelecimentos, /(auth), /[slug], /salon, /invite, /profile, /welcome, /embed — sem redirect
     } else if (profile) {
       if (isPasswordReset || isSecurity) return;
       
