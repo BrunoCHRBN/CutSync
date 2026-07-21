@@ -35,6 +35,7 @@ function RootLayoutNavigation() {
     const isSecurity = firstSegment === 'security';
     const isPasswordReset = inAuthGroup && secondSegment === 'reset-password';
     const isGovernance = firstSegment === 'governance';
+    const isWelcome = firstSegment === 'welcome';
 
     // 1. Isolamento Absoluto em Produção (Redirecionamento/Bloqueio físico de rotas restritas)
     if (buildTarget === 'production' && (isGovernance || firstSegment === 'superadmin')) {
@@ -46,9 +47,9 @@ function RootLayoutNavigation() {
     if (isGovernance) return;
 
     if (!user) {
-      // Se não estiver logado, redirecionar para tela de Login (a menos que seja uma barbearia visitante)
-      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile) {
-        router.replace('/(auth)/login');
+      // Se não estiver logado, redirecionar para a Landing Page /welcome
+      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile && !isWelcome) {
+        router.replace('/welcome');
       }
     } else if (profile) {
       if (isPasswordReset || isSecurity) return;
