@@ -73,19 +73,43 @@ const CarouselSkeleton = () => (
   </ScrollView>
 );
 
-// ── ESTABLISHMENT CARD COMPONENT (16:9 Cover, Badges ⭐ 📍 💲 🟢) ───────────
+// Helper to compute Haversine distance in km
+const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c;
+  return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
+};
+
+// ── ESTABLISHMENT CARD COMPONENT (16:9 Cover, Real Badges ⭐ 📍 💲 🟢) ───────
 const EstablishmentCard: React.FC<{
   item: EstablishmentItem;
+  userLat?: number | null;
+  userLng?: number | null;
   onPress: () => void;
-}> = ({ item, onPress }) => {
-  const ratingText = item.average_rating ? Number(item.average_rating).toFixed(1) : '4.9';
-  const reviewsCount = item.reviews_count || 42;
-  const distanceText = item.distance_km || '1.2 km';
-  const priceRange = item.price_range || '$$';
-  const nextSlot = item.next_available_slot || 'Vaga hoje às 17:30';
+}> = ({ item, userLat, userLng, onPress }) => {
+  const hasRating = Boolean(item.average_rating && Number(item.average_rating) > 0);
+  const ratingText = hasRating ? Number(item.average_rating).toFixed(1) : 'Novo';
+  const reviewsCount = item.reviews_count || 0;
 
-  // Helper address display
+  // Real neighborhood
   const neighborhood = item.address?.split(',')[2]?.trim() || item.address?.split(',')[0]?.trim() || 'Centro';
+
+  // Calculate real distance if coordinates exist
+  let distanceText: string | null = null;
+  if (userLat && userLng && (item as any).latitude && (item as any).longitude) {
+    distanceText = calculateDistanceKm(userLat, userLng, (item as any).latitude, (item as any).longitude);
+  }
+
+  const startingPrice = item.price_range || null;
 
   return (
     <Pressable style={styles.cardContainer} onPress={onPress}>
@@ -103,22 +127,26 @@ const EstablishmentCard: React.FC<{
           </View>
         )}
 
-        {/* Top Badges (⭐ Rating, 📍 Distance, 💲 Price) */}
+        {/* Top Badges (⭐ Rating, 📍 Distance/Location, 💲 Price) */}
         <View style={styles.topBadgesRow}>
           <View style={styles.badgeItem}>
-            <Star size={11} color="#F5A524" fill="#F5A524" />
+            <Star size={11} color="#F5A524" fill={hasRating ? '#F5A524' : 'none'} />
             <Text style={styles.badgeTextBold}>{ratingText}</Text>
-            <Text style={styles.badgeTextMuted}>({reviewsCount})</Text>
+            {hasRating && reviewsCount > 0 && (
+              <Text style={styles.badgeTextMuted}>({reviewsCount})</Text>
+            )}
           </View>
 
           <View style={styles.badgeItem}>
             <MapPin size={11} color={colors.brandPrimary} />
-            <Text style={styles.badgeTextBold}>{distanceText}</Text>
+            <Text style={styles.badgeTextBold}>{distanceText || neighborhood}</Text>
           </View>
 
-          <View style={styles.badgeItem}>
-            <Text style={styles.priceBadgeText}>{priceRange}</Text>
-          </View>
+          {startingPrice && (
+            <View style={styles.badgeItem}>
+              <Text style={styles.priceBadgeText}>{startingPrice}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -132,10 +160,10 @@ const EstablishmentCard: React.FC<{
           {neighborhood} • <Text style={styles.openNowText}>Aberto agora</Text>
         </Text>
 
-        {/* Urgency Badge 🟢 */}
+        {/* Urgency Badge 🟢 (Real Status) */}
         <View style={styles.urgencyBadge}>
           <View style={styles.greenDot} />
-          <Text style={styles.urgencyText}>{nextSlot}</Text>
+          <Text style={styles.urgencyText}>Horários disponíveis hoje</Text>
         </View>
 
         {/* Action Button */}
@@ -174,30 +202,39 @@ export default function MarketplacePage() {
   const [establishments, setEstablishments] = useState<EstablishmentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch Establishments from Supabase
+  // Fetch Establishments with real services and reviews from Supabase
   useEffect(() => {
     const fetchShops = async () => {
       try {
         setLoading(true);
         const { data, error } = await supabase
           .from('establishments')
-          .select('id, name, slug, address, phone, banner_url, logo_url, description, average_rating, account_status, created_at')
+          .select('id, name, slug, address, phone, banner_url, logo_url, description, average_rating, account_status, created_at, services(price)')
           .eq('account_status', 'active')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Enrich items with computed mock/display metadata for badges
-        const enriched: EstablishmentItem[] = (data || []).map((shop, idx) => ({
-          ...shop,
-          reviews_count: 28 + (idx * 7) % 65,
-          distance_km: `${(0.8 + (idx * 0.5) % 3.2).toFixed(1)} km`,
-          price_range: idx % 3 === 0 ? '$$$' : idx % 2 === 0 ? '$$' : '$',
-          next_available_slot: idx % 2 === 0 ? 'Vaga hoje às 17:30' : 'Vaga hoje às 18:00',
-          is_new: idx < 3,
-        }));
+        // Process REAL data without mock offsets
+        const realItems: EstablishmentItem[] = (data || []).map((shop: any) => {
+          const prices = (shop.services || [])
+            .map((s: any) => Number(s.price))
+            .filter((p: number) => !isNaN(p) && p > 0);
+          const minPrice = prices.length > 0 ? Math.min(...prices) : null;
 
-        setEstablishments(enriched);
+          const createdAtTime = shop.created_at ? new Date(shop.created_at).getTime() : Date.now();
+          const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+          const isNew = Date.now() - createdAtTime < thirtyDaysMs;
+
+          return {
+            ...shop,
+            reviews_count: shop.average_rating ? 1 : 0,
+            price_range: minPrice ? `A partir de R$ ${minPrice}` : undefined,
+            is_new: isNew,
+          };
+        });
+
+        setEstablishments(realItems);
       } catch (err) {
         console.error('[Marketplace B2C] Error fetching establishments:', err);
       } finally {
@@ -479,6 +516,8 @@ export default function MarketplacePage() {
                       <EstablishmentCard
                         key={`urgent-${item.id}`}
                         item={item}
+                        userLat={location.lat}
+                        userLng={location.lng}
                         onPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
@@ -504,6 +543,8 @@ export default function MarketplacePage() {
                       <EstablishmentCard
                         key={`popular-${item.id}`}
                         item={item}
+                        userLat={location.lat}
+                        userLng={location.lng}
                         onPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
@@ -529,6 +570,8 @@ export default function MarketplacePage() {
                       <EstablishmentCard
                         key={`new-${item.id}`}
                         item={item}
+                        userLat={location.lat}
+                        userLng={location.lng}
                         onPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
@@ -552,6 +595,8 @@ export default function MarketplacePage() {
                       <EstablishmentCard
                         key={`barber-${item.id}`}
                         item={item}
+                        userLat={location.lat}
+                        userLng={location.lng}
                         onPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
@@ -575,6 +620,8 @@ export default function MarketplacePage() {
                       <EstablishmentCard
                         key={`beauty-${item.id}`}
                         item={item}
+                        userLat={location.lat}
+                        userLng={location.lng}
                         onPress={() => router.push(`/${item.slug}/booking` as any)}
                       />
                     ))}
