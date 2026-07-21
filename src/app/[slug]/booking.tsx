@@ -29,7 +29,7 @@ import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { supabase } from '../../services/supabase';
-import { colors, radii, typography } from '../../theme/tokens';
+import { colors, layout, radii, typography } from '../../theme/tokens';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
