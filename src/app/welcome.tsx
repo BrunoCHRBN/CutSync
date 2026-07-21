@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { AppButton } from '../components/ui/AppButton';
 import { AppCard } from '../components/ui/AppCard';
-import { colors, radii, typography } from '../theme/tokens';
+import { colors, radii, typography, layout } from '../theme/tokens';
 import { supabase } from '../services/supabase';
 import { 
   Building2, 
