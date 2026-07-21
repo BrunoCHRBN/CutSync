@@ -36,6 +36,7 @@ function RootLayoutNavigation() {
     const isPasswordReset = inAuthGroup && secondSegment === 'reset-password';
     const isGovernance = firstSegment === 'governance';
     const isWelcome = firstSegment === 'welcome';
+    const isEmbed = typeof window !== 'undefined' && (window.location.search.includes('embed=true') || window.self !== window.top);
 
     // 1. Isolamento Absoluto em Produção (Redirecionamento/Bloqueio físico de rotas restritas)
     if (buildTarget === 'production' && (isGovernance || firstSegment === 'superadmin')) {
@@ -48,7 +49,7 @@ function RootLayoutNavigation() {
 
     if (!user) {
       // Se não estiver logado, redirecionar para a Landing Page /welcome
-      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile && !isWelcome) {
+      if (!inAuthGroup && !isDynamicSlug && !isPublicSalon && !isInvite && !isPublicProfessionalProfile && !isWelcome && !isEmbed) {
         router.replace('/welcome');
       }
     } else if (profile) {

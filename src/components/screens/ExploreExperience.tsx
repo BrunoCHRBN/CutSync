@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
@@ -56,12 +56,19 @@ export const ExploreExperience = () => {
   const { width } = useWindowDimensions();
   const columns = width >= 1280 ? 3 : width >= layout.mobileBreakpoint ? 2 : 1;
   const router = useRouter();
+  const { search: searchParam } = useLocalSearchParams<{ search?: string }>();
   const { profile, signOut } = useAuth();
   const [barbershops, setBarbershops] = useState<Establishment[]>([]);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (searchParam) {
+      setSearch(searchParam);
+    }
+  }, [searchParam]);
   const [openOnly, setOpenOnly] = useState(false);
 
   const [selectedEstado, setSelectedEstado] = useState('Todos');

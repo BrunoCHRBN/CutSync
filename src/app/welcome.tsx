@@ -1,20 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../services/supabase';
 import { AppButton } from '../components/ui/AppButton';
 import { AppCard } from '../components/ui/AppCard';
-import { AppInput } from '../components/ui/AppInput';
 import { colors, radii, typography, elevations } from '../theme/tokens';
 import { 
   Building2, 
   Scissors, 
   UserRound, 
   Compass, 
-  ChevronRight, 
   Check, 
-  Search, 
-  MapPin, 
   ArrowLeft, 
   Users, 
   DollarSign, 
@@ -22,18 +17,6 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react-native';
-
-interface LocalShop {
-  id: string;
-  name: string;
-  slug: string;
-  address: string | null;
-  phone: string | null;
-  bannerUrl: string | null;
-  logoUrl: string | null;
-  description: string | null;
-  primaryColor: string | null;
-}
 
 export default function WelcomeLandingPage() {
   const router = useRouter();
@@ -45,55 +28,11 @@ export default function WelcomeLandingPage() {
   const [role, setRole] = useState<'client' | 'owner' | 'visitor' | null>(null);
   const [interest, setInterest] = useState<string | null>(null);
 
-  // Data states
-  const [shops, setShops] = useState<LocalShop[]>([]);
-  const [loadingShops, setLoadingShops] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Simulated Vitrine Flow
-  const [selectedShop, setSelectedShop] = useState<LocalShop | null>(null);
-  const [selectedService, setSelectedService] = useState<{ id: string; name: string; price: number } | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-
   // Financial Simulator states
   const [numBarbers, setNumBarbers] = useState(3);
   const [avgPrice, setAvgPrice] = useState(50);
   const [commissionRate, setCommissionRate] = useState(40);
   const [appointmentsPerMonth, setAppointmentsPerMonth] = useState(120);
-
-  // Fetch shops
-  useEffect(() => {
-    const fetchShops = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('establishments')
-          .select('id, name, slug, address, phone, banner_url, logo_url, description, primary_color')
-          .eq('account_status', 'active')
-          .limit(10);
-        
-        if (error) throw error;
-        
-        const mapped: LocalShop[] = (data || []).map(row => ({
-          id: row.id,
-          name: row.name,
-          slug: row.slug,
-          address: row.address,
-          phone: row.phone,
-          bannerUrl: row.banner_url,
-          logoUrl: row.logo_url,
-          description: row.description,
-          primaryColor: row.primary_color
-        }));
-        setShops(mapped);
-      } catch (err) {
-        console.error("Failed to load establishments:", err);
-      } finally {
-        setLoadingShops(false);
-      }
-    };
-    void fetchShops();
-  }, []);
 
   // Keyboard Navigation listener (Superhuman style)
   useEffect(() => {
@@ -124,9 +63,6 @@ export default function WelcomeLandingPage() {
           setStep(1);
           setRole(null);
           setInterest(null);
-          setSelectedShop(null);
-          setSelectedService(null);
-          setSelectedTime(null);
         }
         if (role === 'client') {
           if (key === '1') {
@@ -149,21 +85,6 @@ export default function WelcomeLandingPage() {
   const ownerShare = totalRevenue * (commissionRate / 100);
   const barbersShare = totalRevenue - ownerShare;
   const hoursSaved = numBarbers * 15; // 15 hours saved per barber per month
-
-  const getCategoryFilteredShops = () => {
-    let list = shops;
-    if (searchTerm.trim()) {
-      list = list.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    }
-    return list;
-  };
-
-  const resetSimulatedBooking = () => {
-    setSelectedShop(null);
-    setSelectedService(null);
-    setSelectedTime(null);
-    setShowCheckoutModal(false);
-  };
 
   return (
     <View style={styles.container}>
@@ -361,153 +282,17 @@ export default function WelcomeLandingPage() {
                   <Text style={styles.phoneTitle}>Simulador CutSync App</Text>
                 </View>
 
-                <View style={styles.phoneScreen}>
-                  {!selectedShop ? (
-                    <>
-                      {/* Search and Listing view */}
-                      <View style={styles.phoneSearchBar}>
-                        <Search size={14} color={colors.textMuted} />
-                        <AppInput 
-                          containerStyle={styles.searchField}
-                          inputStyle={styles.searchInputText}
-                          placeholder="Buscar barbearias..."
-                          value={searchTerm}
-                          onChangeText={setSearchTerm}
-                        />
-                      </View>
-
-                      <ScrollView style={styles.phoneScrollList} showsVerticalScrollIndicator={false}>
-                        <Text style={styles.phoneSectionTitle}>Estabelecimentos Próximos</Text>
-                        
-                        {loadingShops ? (
-                          <ActivityIndicator color={colors.brandSecondary} style={{ marginTop: 24 }} />
-                        ) : getCategoryFilteredShops().length === 0 ? (
-                          <Text style={styles.emptyText}>Nenhuma barbearia ativa encontrada.</Text>
-                        ) : (
-                          getCategoryFilteredShops().map((shop) => (
-                            <Pressable 
-                              key={shop.id} 
-                              style={styles.shopCard}
-                              onPress={() => setSelectedShop(shop)}
-                            >
-                              <View style={styles.shopImageFallback}>
-                                <Building2 size={24} color={colors.brandSecondary} />
-                              </View>
-                              <View style={styles.shopCardInfo}>
-                                <Text style={styles.shopCardName}>{shop.name}</Text>
-                                <View style={styles.shopLocRow}>
-                                  <MapPin size={11} color={colors.textMuted} />
-                                  <Text numberOfLines={1} style={styles.shopCardLoc}>{shop.address || 'Araraquara, SP'}</Text>
-                                </View>
-                              </View>
-                              <ChevronRight size={16} color={colors.textMuted} />
-                            </Pressable>
-                          ))
-                        )}
-                      </ScrollView>
-                    </>
+                <View style={[styles.phoneScreen, { padding: 0 }]}>
+                  {Platform.OS === 'web' ? (
+                    <iframe
+                      src={interest ? `/(client)?search=${interest}&embed=true` : `/(client)?embed=true`}
+                      style={{ width: '100%', height: '100%', border: 'none', borderRadius: 28 }}
+                      title="Simulador CutSync"
+                    />
                   ) : (
-                    /* Shop Vitrine & Booking flow inside phone mock */
-                    <View style={styles.vitrineContainer}>
-                      <Pressable style={styles.backToShops} onPress={resetSimulatedBooking}>
-                        <ArrowLeft size={13} color={colors.brandSecondary} />
-                        <Text style={styles.backToShopsText}>Voltar às barbearias</Text>
-                      </Pressable>
-
-                      <Text style={styles.vitrineName}>{selectedShop.name}</Text>
-                      <Text style={styles.vitrineDesc}>{selectedShop.description || 'Barba clássica, navalha, degradê, e ambiente confortável com profissionais dedicados.'}</Text>
-
-                      <ScrollView style={styles.servicesList} showsVerticalScrollIndicator={false}>
-                        <Text style={styles.vitrineSectionTitle}>Serviços Disponíveis</Text>
-                        
-                        {[
-                          { id: '1', name: 'Corte Degradê Moderno', price: 45.00 },
-                          { id: '2', name: 'Barba Terapia Completa', price: 35.00 },
-                          { id: '3', name: 'Combo: Corte + Barba', price: 70.00 }
-                        ].map((service) => (
-                          <View key={service.id} style={styles.serviceRow}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.serviceName}>{service.name}</Text>
-                              <Text style={styles.servicePrice}>R$ {service.price.toFixed(2)}</Text>
-                            </View>
-                            
-                            {selectedService?.id === service.id ? (
-                              <View style={styles.serviceSelectedCheck}>
-                                <Check size={14} color={colors.success} />
-                              </View>
-                            ) : (
-                              <Pressable 
-                                style={styles.serviceSelectBtn}
-                                onPress={() => { setSelectedService(service); setSelectedTime(null); }}
-                              >
-                                <Text style={styles.serviceSelectBtnText}>Escolher</Text>
-                              </Pressable>
-                            )}
-                          </View>
-                        ))}
-
-                        {selectedService && (
-                          <View style={{ marginTop: 14 }}>
-                            <Text style={styles.vitrineSectionTitle}>Horários Disponíveis</Text>
-                            <View style={styles.timesGrid}>
-                              {['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'].map((time) => (
-                                <Pressable 
-                                  key={time} 
-                                  style={[styles.timeChip, selectedTime === time && styles.timeChipActive]}
-                                  onPress={() => setSelectedTime(time)}
-                                >
-                                  <Text style={[styles.timeChipText, selectedTime === time && styles.timeChipTextActive]}>{time}</Text>
-                                </Pressable>
-                              ))}
-                            </View>
-                          </View>
-                        )}
-                      </ScrollView>
-
-                      {selectedService && selectedTime && (
-                        <Pressable 
-                          style={styles.bookConfirmBtn}
-                          onPress={() => setShowCheckoutModal(true)}
-                        >
-                          <Text style={styles.bookConfirmBtnText}>Confirmar para {selectedTime}</Text>
-                        </Pressable>
-                      )}
-                    </View>
+                    <Text style={styles.emptyText}>Disponível apenas no navegador.</Text>
                   )}
                 </View>
-
-                {/* Overlaid minimal login check (Superhuman style modal) inside mock phone */}
-                {showCheckoutModal && (
-                  <View style={styles.checkoutOverlay}>
-                    <View style={styles.superhumanCard}>
-                      <Text style={styles.shModalTitle}>Finalizar Agendamento</Text>
-                      <Text style={styles.shModalDesc}>
-                        Você escolheu **{selectedService?.name}** às **{selectedTime}** em **{selectedShop?.name}**.
-                        Inscreva-se ou faça login para confirmar.
-                      </Text>
-
-                      <View style={{ gap: 8, width: '100%', marginTop: 12 }}>
-                        <AppButton 
-                          label="Criar minha conta de Cliente" 
-                          onPress={() => router.push('/(auth)/register' as any)} 
-                          fullWidth 
-                        />
-                        <AppButton 
-                          label="Fazer Login" 
-                          variant="secondary"
-                          onPress={() => router.push('/(auth)/login' as any)} 
-                          fullWidth 
-                        />
-                        <Pressable 
-                          style={styles.shCancelBtn}
-                          onPress={() => setShowCheckoutModal(false)}
-                        >
-                          <Text style={styles.shCancelText}>Cancelar e voltar</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-                )}
               </View>
             )}
 

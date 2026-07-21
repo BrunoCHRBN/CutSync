@@ -64,6 +64,16 @@ export const ClientShell = ({ children, activeRoute, userName, onSignOut, testID
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [router]);
 
+  const isEmbed = typeof window !== 'undefined' && (window.location.search.includes('embed=true') || window.self !== window.top);
+
+  if (isEmbed) {
+    return (
+      <View testID={testID} style={[styles.root, { paddingBottom: 0 }]}>
+        <View style={styles.content}>{children}</View>
+      </View>
+    );
+  }
+
   return (
     <View testID={testID} style={styles.root}>
       <View testID="client-shell-header" style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
