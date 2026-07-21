@@ -7,14 +7,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -49,6 +47,9 @@ export default function BookingSlugScreen() {
     { professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }[]
   >([]);
 
+  // ── WIZARD STEP STATE (1: Serviço, 2: Profissional, 3: Data & Horário, 4: Confirmação) ──
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
 
@@ -64,6 +65,7 @@ export default function BookingSlugScreen() {
         if (error) throw error;
         setSelectedService(data.service_id);
         setSelectedBarber(data.professional_id);
+        setWizardStep(3);
       })().catch((err: unknown) => {
         console.warn('Erro ao carregar dados de reagendamento:', err);
       });
@@ -230,7 +232,6 @@ export default function BookingSlugScreen() {
   }, [availableSlots]);
 
   const primaryColor = barbershop?.primary_color || '#113939';
-  const summaryReady = Boolean(selectedService && selectedBarber && selectedDate && selectedTime);
 
   // Booking Execution
   const executeBooking = async (userId: string) => {
@@ -247,8 +248,6 @@ export default function BookingSlugScreen() {
       if (!chosenSlot) {
         throw new Error('O horário selecionado não está mais disponível.');
       }
-
-      const { duration } = getServicePriceAndDuration(selectedService, selectedBarber);
 
       if (reschedule_id) {
         const { error: updateError } = await supabase
@@ -271,7 +270,7 @@ export default function BookingSlugScreen() {
         return;
       }
 
-      const { data: newAppt, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('appointments')
         .insert({
           client_id: userId,
@@ -283,9 +282,7 @@ export default function BookingSlugScreen() {
           end_time: chosenSlot.endTime,
           price: summaryPrice,
           status: 'confirmed',
-        })
-        .select()
-        .single();
+        });
 
       if (insertError) throw insertError;
 
@@ -308,7 +305,6 @@ export default function BookingSlugScreen() {
   };
 
   const handleConfirmBooking = () => {
-    if (!summaryReady) return;
     if (user) {
       void executeBooking(user.id);
     } else {
@@ -385,9 +381,6 @@ export default function BookingSlugScreen() {
     }
   };
 
-  // Determine Current Step Number (1..4)
-  const currentStep = !selectedService ? 1 : !selectedBarber ? 2 : !selectedDate ? 3 : 4;
-
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
@@ -399,7 +392,7 @@ export default function BookingSlugScreen() {
 
   return (
     <View style={styles.root}>
-      {/* ─── HEADER BAR ─────────────────────────────────────────────── */}
+      {/* ─── TOPBAR NAV ─────────────────────────────────────────────── */}
       <View style={styles.topbar}>
         <View style={styles.topbarInner}>
           <Pressable style={styles.backBtn} onPress={() => router.push(`/${slug}` as any)}>
@@ -417,7 +410,7 @@ export default function BookingSlugScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.mainWrapper}>
-          {/* ─── SALON HERO COVER PREVIEW ───────────────────────────── */}
+          {/* ─── SALON HERO CARD ────────────────────────────────────── */}
           <View style={styles.heroCard}>
             {barbershop?.banner_url ? (
               <Image source={{ uri: barbershop.banner_url }} style={styles.heroImg} contentFit="cover" />
@@ -452,314 +445,399 @@ export default function BookingSlugScreen() {
             </View>
           </View>
 
-          {/* ─── STEP PROGRESS TRACKER ───────────────────────────────── */}
+          {/* ─── INTERACTIVE 4-STEP WIZARD TRACKER ──────────────────── */}
           <View style={styles.stepTracker}>
             {[
-              { step: 1, label: '1. Serviço', done: Boolean(selectedService) },
-              { step: 2, label: '2. Profissional', done: Boolean(selectedBarber) },
-              { step: 3, label: '3. Data', done: Boolean(selectedDate) },
-              { step: 4, label: '4. Horário', done: Boolean(selectedTime) },
+              { step: 1 as const, label: '1. Serviço', done: Boolean(selectedService) },
+              { step: 2 as const, label: '2. Profissional', done: Boolean(selectedBarber) },
+              { step: 3 as const, label: '3. Data & Horário', done: Boolean(selectedDate && selectedTime) },
+              { step: 4 as const, label: '4. Confirmação', done: wizardStep === 4 },
             ].map((st) => (
-              <View
+              <Pressable
                 key={st.step}
+                disabled={st.step > wizardStep && !st.done}
                 style={[
                   styles.stepPill,
-                  currentStep === st.step && styles.stepPillActive,
+                  wizardStep === st.step && styles.stepPillActive,
                   st.done && styles.stepPillDone,
                 ]}
+                onPress={() => {
+                  tapLight();
+                  setWizardStep(st.step);
+                }}
               >
                 <Text
                   style={[
                     styles.stepPillText,
-                    (currentStep === st.step || st.done) && styles.stepPillTextActive,
+                    (wizardStep === st.step || st.done) && styles.stepPillTextActive,
                   ]}
                 >
                   {st.label}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
 
-          {/* ─── ETAPA 1: ESCOLHA O SERVIÇO ──────────────────────────── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>ETAPA 01</Text>
-            <Text style={styles.sectionTitle}>Escolha o Serviço</Text>
+          {/* ─── PASSO 1: ESCOLHA O SERVIÇO ───────────────────────────── */}
+          {wizardStep === 1 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 1 DE 4</Text>
+                <Text style={styles.stepTitle}>Qual serviço você deseja agendar?</Text>
+                <Text style={styles.stepSubtitle}>Selecione uma das opções abaixo para prosseguir.</Text>
+              </View>
 
-            <View style={styles.servicesGrid}>
-              {services.map((srv) => {
-                const isSelected = selectedService === srv.id;
-                return (
-                  <Pressable
-                    key={srv.id}
-                    style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
-                    onPress={() => {
-                      tapLight();
-                      setSelectedService(srv.id);
-                      setSelectedTime(null);
-                    }}
-                  >
-                    <View style={styles.serviceIconBox}>
-                      <Scissors size={16} color={isSelected ? '#113939' : colors.textMuted} />
-                    </View>
-
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={styles.serviceName}>{srv.name}</Text>
-                      <Text style={styles.serviceMeta}>
-                        <Clock size={11} color={colors.textMuted} /> {srv.durationMinutes} min
-                      </Text>
-                    </View>
-
-                    <View style={styles.priceTag}>
-                      <Text style={styles.priceTagText}>R$ {Number(srv.price).toFixed(2)}</Text>
-                    </View>
-
-                    {isSelected && (
-                      <View style={styles.checkCircle}>
-                        <Check size={12} color="#FFFFFF" />
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* ─── ETAPA 2: ESCOLHA O PROFISSIONAL ─────────────────────── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>ETAPA 02</Text>
-            <Text style={styles.sectionTitle}>Escolha o Profissional</Text>
-
-            <View style={styles.barbersGrid}>
-              {filteredBarbers.length === 0 ? (
-                <View style={styles.emptyNotice}>
-                  <Text style={styles.emptyNoticeText}>
-                    Selecione um serviço acima para visualizar a lista de profissionais disponíveis.
-                  </Text>
-                </View>
-              ) : (
-                filteredBarbers.map((barber) => {
-                  const isSelected = selectedBarber === barber.id;
-                  const { price: customPrice } = getServicePriceAndDuration(selectedService, barber.id);
-
+              <View style={styles.servicesGrid}>
+                {services.map((srv) => {
+                  const isSelected = selectedService === srv.id;
                   return (
                     <Pressable
-                      key={barber.id}
-                      style={[styles.barberCard, isSelected && styles.barberCardSelected]}
+                      key={srv.id}
+                      style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
                       onPress={() => {
                         tapLight();
-                        setSelectedBarber(barber.id);
+                        setSelectedService(srv.id);
                         setSelectedTime(null);
+                        // Auto advance to Step 2
+                        setWizardStep(2);
                       }}
                     >
-                      <View style={styles.barberAvatar}>
-                        {barber.fotoUrl ? (
-                          <Image source={{ uri: barber.fotoUrl }} style={styles.avatarImg} contentFit="cover" />
-                        ) : (
-                          <UserRound size={18} color="#113939" />
-                        )}
+                      <View style={styles.serviceIconBox}>
+                        <Scissors size={16} color={isSelected ? '#113939' : colors.textMuted} />
                       </View>
 
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={styles.barberName}>{barber.name}</Text>
-                        <Text style={styles.barberRole}>
-                          {barber.tituloProfissional || 'Especialista'}
-                          {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
+                        <Text style={styles.serviceName}>{srv.name}</Text>
+                        <Text style={styles.serviceMeta}>
+                          <Clock size={11} color={colors.textMuted} /> {srv.durationMinutes} min
                         </Text>
                       </View>
 
-                      {isSelected && (
-                        <View style={styles.checkCircle}>
-                          <Check size={12} color="#FFFFFF" />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })
-              )}
-            </View>
-          </View>
+                      <View style={styles.priceTag}>
+                        <Text style={styles.priceTagText}>R$ {Number(srv.price).toFixed(2)}</Text>
+                      </View>
 
-          {/* ─── ETAPA 3: ESCOLHA O DIA (CALENDÁRIO GRID) ─────────────── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>ETAPA 03</Text>
-            <View style={styles.calendarTitleRow}>
-              <Text style={styles.sectionTitle}>Escolha o Dia</Text>
-              <View style={styles.monthNav}>
-                <Pressable onPress={handlePrevMonth} style={styles.monthNavBtn}>
-                  <ChevronLeft size={16} color={colors.text} />
-                </Pressable>
-                <Text style={styles.monthLabel}>{formattedMonthYearLabel}</Text>
-                <Pressable onPress={handleNextMonth} style={styles.monthNavBtn}>
-                  <ChevronRight size={16} color={colors.text} />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.calendarCard}>
-              <View style={styles.weekHeaderRow}>
-                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
-                  <Text key={idx} style={styles.weekHeaderDay}>
-                    {day}
-                  </Text>
-                ))}
-              </View>
-
-              <View style={styles.daysGrid}>
-                {monthGrid.map((date, idx) => {
-                  if (!date) return <View key={`empty-${idx}`} style={styles.emptyDayCell} />;
-
-                  const selectable = isDateSelectable(date);
-                  const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
-
-                  return (
-                    <Pressable
-                      key={date.toISOString()}
-                      disabled={!selectable}
-                      style={[
-                        styles.dayCell,
-                        !selectable && styles.dayCellDisabled,
-                        isSelected && styles.dayCellSelected,
-                      ]}
-                      onPress={() => {
-                        tapLight();
-                        setSelectedDate(date);
-                        setSelectedTime(null);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.dayCellText,
-                          !selectable && styles.dayCellTextDisabled,
-                          isSelected && styles.dayCellTextSelected,
-                        ]}
-                      >
-                        {date.getDate()}
-                      </Text>
+                      <ChevronRight size={16} color={colors.textMuted} />
                     </Pressable>
                   );
                 })}
               </View>
             </View>
-          </View>
+          )}
 
-          {/* ─── ETAPA 4: ESCOLHA O HORÁRIO (SLOTS AGRUPADOS POR TURNO) ─ */}
-          {selectedService && selectedBarber && selectedDate && (
-            <View style={styles.section}>
-              <Text style={styles.sectionEyebrow}>ETAPA 04</Text>
-              <Text style={styles.sectionTitle}>Escolha o Horário</Text>
+          {/* ─── PASSO 2: ESCOLHA O PROFISSIONAL ────────────────────── */}
+          {wizardStep === 2 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 2 DE 4</Text>
+                <Text style={styles.stepTitle}>Com qual especialista prefere ser atendido?</Text>
+                <Text style={styles.stepSubtitle}>
+                  Serviço selecionado: <Text style={{ fontFamily: typography.bodyStrong, color: '#113939' }}>{activeServiceObj?.name}</Text>
+                </Text>
+              </View>
 
-              {availabilityLoading ? (
-                <ActivityIndicator color="#113939" style={{ marginVertical: 20 }} />
-              ) : availabilityError ? (
-                <InlineNotice tone="danger" message={availabilityError} />
-              ) : availableSlots.length === 0 ? (
-                <InlineNotice tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
-              ) : (
-                <View style={styles.timeSlotsContainer}>
-                  {/* Turno Manhã */}
-                  {groupedSlots.morning.length > 0 && (
-                    <View style={styles.periodGroup}>
-                      <Text style={styles.periodLabel}>🌅 Manhã</Text>
-                      <View style={styles.timeGrid}>
-                        {groupedSlots.morning.map((slot) => {
-                          const isSelected = selectedTime === slot.localTime;
-                          return (
-                            <Pressable
-                              key={slot.startsAt}
-                              style={[styles.timeChip, isSelected && styles.timeChipSelected]}
-                              onPress={() => {
-                                tapLight();
-                                setSelectedTime(slot.localTime);
-                              }}
-                            >
-                              <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
-                                {slot.localTime}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  )}
+              <View style={styles.barbersGrid}>
+                {filteredBarbers.length === 0 ? (
+                  <View style={styles.emptyNotice}>
+                    <Text style={styles.emptyNoticeText}>
+                      Sem profissionais cadastrados especificamente para este serviço.
+                    </Text>
+                  </View>
+                ) : (
+                  filteredBarbers.map((barber) => {
+                    const isSelected = selectedBarber === barber.id;
+                    const { price: customPrice } = getServicePriceAndDuration(selectedService, barber.id);
 
-                  {/* Turno Tarde */}
-                  {groupedSlots.afternoon.length > 0 && (
-                    <View style={styles.periodGroup}>
-                      <Text style={styles.periodLabel}>☀️ Tarde</Text>
-                      <View style={styles.timeGrid}>
-                        {groupedSlots.afternoon.map((slot) => {
-                          const isSelected = selectedTime === slot.localTime;
-                          return (
-                            <Pressable
-                              key={slot.startsAt}
-                              style={[styles.timeChip, isSelected && styles.timeChipSelected]}
-                              onPress={() => {
-                                tapLight();
-                                setSelectedTime(slot.localTime);
-                              }}
-                            >
-                              <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
-                                {slot.localTime}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  )}
+                    return (
+                      <Pressable
+                        key={barber.id}
+                        style={[styles.barberCard, isSelected && styles.barberCardSelected]}
+                        onPress={() => {
+                          tapLight();
+                          setSelectedBarber(barber.id);
+                          setSelectedTime(null);
+                          // Auto advance to Step 3
+                          setWizardStep(3);
+                        }}
+                      >
+                        <View style={styles.barberAvatar}>
+                          {barber.fotoUrl ? (
+                            <Image source={{ uri: barber.fotoUrl }} style={styles.avatarImg} contentFit="cover" />
+                          ) : (
+                            <UserRound size={18} color="#113939" />
+                          )}
+                        </View>
 
-                  {/* Turno Noite */}
-                  {groupedSlots.evening.length > 0 && (
-                    <View style={styles.periodGroup}>
-                      <Text style={styles.periodLabel}>🌙 Noite</Text>
-                      <View style={styles.timeGrid}>
-                        {groupedSlots.evening.map((slot) => {
-                          const isSelected = selectedTime === slot.localTime;
-                          return (
-                            <Pressable
-                              key={slot.startsAt}
-                              style={[styles.timeChip, isSelected && styles.timeChipSelected]}
-                              onPress={() => {
-                                tapLight();
-                                setSelectedTime(slot.localTime);
-                              }}
-                            >
-                              <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
-                                {slot.localTime}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={styles.barberName}>{barber.name}</Text>
+                          <Text style={styles.barberRole}>
+                            {barber.tituloProfissional || 'Especialista'}
+                            {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
+                          </Text>
+                        </View>
+
+                        <ChevronRight size={16} color={colors.textMuted} />
+                      </Pressable>
+                    );
+                  })
+                )}
+              </View>
+
+              <View style={styles.navRow}>
+                <AppButton
+                  label="← Voltar aos Serviços"
+                  variant="ghost"
+                  onPress={() => setWizardStep(1)}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ─── PASSO 3: ESCOLHA A DATA E HORÁRIO ──────────────────── */}
+          {wizardStep === 3 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 3 DE 4</Text>
+                <Text style={styles.stepTitle}>Escolha a Data e o Horário</Text>
+                <Text style={styles.stepSubtitle}>
+                  Atendimento com{' '}
+                  <Text style={{ fontFamily: typography.bodyStrong, color: '#113939' }}>
+                    {activeBarberObj?.name || 'Profissional'}
+                  </Text>
+                </Text>
+              </View>
+
+              {/* Calendário Grid */}
+              <View style={styles.calendarCard}>
+                <View style={styles.calendarTitleRow}>
+                  <Text style={styles.calendarMonthTitle}>{formattedMonthYearLabel}</Text>
+                  <View style={styles.monthNav}>
+                    <Pressable onPress={handlePrevMonth} style={styles.monthNavBtn}>
+                      <ChevronLeft size={16} color={colors.text} />
+                    </Pressable>
+                    <Pressable onPress={handleNextMonth} style={styles.monthNavBtn}>
+                      <ChevronRight size={16} color={colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.weekHeaderRow}>
+                  {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                    <Text key={idx} style={styles.weekHeaderDay}>
+                      {day}
+                    </Text>
+                  ))}
+                </View>
+
+                <View style={styles.daysGrid}>
+                  {monthGrid.map((date, idx) => {
+                    if (!date) return <View key={`empty-${idx}`} style={styles.emptyDayCell} />;
+
+                    const selectable = isDateSelectable(date);
+                    const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+
+                    return (
+                      <Pressable
+                        key={date.toISOString()}
+                        disabled={!selectable}
+                        style={[
+                          styles.dayCell,
+                          !selectable && styles.dayCellDisabled,
+                          isSelected && styles.dayCellSelected,
+                        ]}
+                        onPress={() => {
+                          tapLight();
+                          setSelectedDate(date);
+                          setSelectedTime(null);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dayCellText,
+                            !selectable && styles.dayCellTextDisabled,
+                            isSelected && styles.dayCellTextSelected,
+                          ]}
+                        >
+                          {date.getDate()}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Time Slots */}
+              {selectedDate && (
+                <View style={styles.timeSlotsBox}>
+                  <Text style={styles.slotsTitle}>
+                    Horários disponíveis para{' '}
+                    {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}:
+                  </Text>
+
+                  {availabilityLoading ? (
+                    <ActivityIndicator color="#113939" style={{ marginVertical: 20 }} />
+                  ) : availabilityError ? (
+                    <InlineNotice tone="danger" message={availabilityError} />
+                  ) : availableSlots.length === 0 ? (
+                    <InlineNotice tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
+                  ) : (
+                    <View style={styles.timeSlotsContainer}>
+                      {groupedSlots.morning.length > 0 && (
+                        <View style={styles.periodGroup}>
+                          <Text style={styles.periodLabel}>🌅 Manhã</Text>
+                          <View style={styles.timeGrid}>
+                            {groupedSlots.morning.map((slot) => {
+                              const isSelected = selectedTime === slot.localTime;
+                              return (
+                                <Pressable
+                                  key={slot.startsAt}
+                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  onPress={() => {
+                                    tapLight();
+                                    setSelectedTime(slot.localTime);
+                                  }}
+                                >
+                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                    {slot.localTime}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+
+                      {groupedSlots.afternoon.length > 0 && (
+                        <View style={styles.periodGroup}>
+                          <Text style={styles.periodLabel}>☀️ Tarde</Text>
+                          <View style={styles.timeGrid}>
+                            {groupedSlots.afternoon.map((slot) => {
+                              const isSelected = selectedTime === slot.localTime;
+                              return (
+                                <Pressable
+                                  key={slot.startsAt}
+                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  onPress={() => {
+                                    tapLight();
+                                    setSelectedTime(slot.localTime);
+                                  }}
+                                >
+                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                    {slot.localTime}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+
+                      {groupedSlots.evening.length > 0 && (
+                        <View style={styles.periodGroup}>
+                          <Text style={styles.periodLabel}>🌙 Noite</Text>
+                          <View style={styles.timeGrid}>
+                            {groupedSlots.evening.map((slot) => {
+                              const isSelected = selectedTime === slot.localTime;
+                              return (
+                                <Pressable
+                                  key={slot.startsAt}
+                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  onPress={() => {
+                                    tapLight();
+                                    setSelectedTime(slot.localTime);
+                                  }}
+                                >
+                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                    {slot.localTime}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>
               )}
+
+              <View style={styles.navRowBetween}>
+                <AppButton label="← Voltar ao Profissional" variant="ghost" onPress={() => setWizardStep(2)} />
+
+                <AppButton
+                  label="Avançar para Revisão →"
+                  disabled={!selectedDate || !selectedTime}
+                  onPress={() => setWizardStep(4)}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ─── PASSO 4: REVISÃO E CONFIRMAÇÃO ─────────────────────── */}
+          {wizardStep === 4 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 4 DE 4</Text>
+                <Text style={styles.stepTitle}>Revise e Confirme seu Agendamento</Text>
+                <Text style={styles.stepSubtitle}>Confira todos os dados antes de finalizar a reserva.</Text>
+              </View>
+
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Estabelecimento:</Text>
+                  <Text style={styles.summaryValue}>{barbershop?.name}</Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Serviço:</Text>
+                  <Text style={styles.summaryValue}>{activeServiceObj?.name}</Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Profissional:</Text>
+                  <Text style={styles.summaryValue}>{activeBarberObj?.name}</Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Data:</Text>
+                  <Text style={styles.summaryValue}>
+                    {selectedDate?.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Horário:</Text>
+                  <Text style={styles.summaryValue}>{selectedTime}</Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryTotalRow}>
+                  <Text style={styles.summaryTotalLabel}>Valor Total:</Text>
+                  <Text style={styles.summaryTotalValue}>R$ {summaryPrice.toFixed(2)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.navRowBetween}>
+                <AppButton label="← Alterar Data/Horário" variant="ghost" onPress={() => setWizardStep(3)} />
+
+                <AppButton
+                  label={bookingLoading ? 'Confirmando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
+                  style={styles.confirmBtn}
+                  disabled={bookingLoading}
+                  onPress={handleConfirmBooking}
+                />
+              </View>
             </View>
           )}
 
           {!!bookingError && <InlineNotice tone="danger" message={bookingError} />}
         </View>
       </ScrollView>
-
-      {/* ─── STICKY FOOTER BARRA FLUTUANTE DE CONFIRMAÇÃO ────────────── */}
-      {summaryReady && (
-        <View style={styles.stickyFooter}>
-          <View style={styles.stickySummary}>
-            <Text style={styles.stickyEyebrow}>
-              {activeServiceObj?.name} • {selectedTime}
-            </Text>
-            <Text style={styles.stickyPrice}>R$ {summaryPrice.toFixed(2)}</Text>
-          </View>
-
-          <AppButton
-            label={bookingLoading ? 'Processando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
-            style={styles.confirmBtn}
-            disabled={bookingLoading}
-            onPress={handleConfirmBooking}
-          />
-        </View>
-      )}
 
       {/* ─── PUBLIC BOOKING AUTH MODAL ─────────────────────────────── */}
       <PublicBookingAuthModal
@@ -843,7 +921,7 @@ const styles = StyleSheet.create({
     color: '#113939',
   },
   scroll: {
-    paddingBottom: 120,
+    paddingBottom: 80,
   },
   mainWrapper: {
     maxWidth: layout.formMax,
@@ -851,37 +929,36 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingVertical: 20,
-    gap: 24,
+    gap: 20,
   },
 
-  /* Salon Hero Card */
+  /* Hero Card */
   heroCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: '#E4E5DF',
     overflow: 'hidden',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
   },
   heroImg: {
-    height: 120,
+    height: 110,
     width: '100%',
   },
   heroFallback: {
-    height: 100,
+    height: 90,
     backgroundColor: '#F0ECE0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroInfoRow: {
-    padding: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   heroLogoCircle: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radii.pill,
     backgroundColor: '#F0ECE0',
     borderWidth: 1,
@@ -895,7 +972,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   salonName: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: typography.display,
     color: '#1A1A1E',
   },
@@ -921,14 +998,14 @@ const styles = StyleSheet.create({
     color: '#1A1A1E',
   },
 
-  /* Step Tracker */
+  /* Interactive Step Tracker */
   stepTracker: {
     flexDirection: 'row',
     gap: 6,
   },
   stepPill: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E4E5DF',
@@ -938,6 +1015,7 @@ const styles = StyleSheet.create({
   stepPillActive: {
     borderColor: '#113939',
     backgroundColor: '#F4F7F5',
+    borderWidth: 1.5,
   },
   stepPillDone: {
     borderColor: '#3F7A4C',
@@ -953,20 +1031,33 @@ const styles = StyleSheet.create({
     color: '#113939',
   },
 
-  /* Sections */
-  section: {
-    gap: 12,
+  /* Step Section */
+  stepSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 20,
+    gap: 16,
   },
-  sectionEyebrow: {
+  stepHeader: {
+    gap: 4,
+  },
+  stepEyebrow: {
     fontSize: 11,
     fontFamily: typography.bodyStrong,
-    color: colors.textMuted,
-    letterSpacing: 1.2,
+    color: '#F5A524',
+    letterSpacing: 1.4,
   },
-  sectionTitle: {
+  stepTitle: {
     fontSize: 18,
     fontFamily: typography.display,
     color: '#1A1A1E',
+  },
+  stepSubtitle: {
+    fontSize: 12,
+    fontFamily: typography.body,
+    color: colors.textSecondary,
   },
 
   /* Services Grid */
@@ -977,7 +1068,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FA',
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: '#E4E5DF',
@@ -992,7 +1083,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: radii.sm,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1017,14 +1110,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyStrong,
     color: '#113939',
   },
-  checkCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#113939',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   /* Barbers Grid */
   barbersGrid: {
@@ -1034,7 +1119,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FA',
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: '#E4E5DF',
@@ -1070,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   emptyNotice: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FA',
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: '#E4E5DF',
@@ -1081,20 +1166,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* Calendar */
+  /* Calendar Card */
+  calendarCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 14,
+    gap: 10,
+  },
   calendarTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  calendarMonthTitle: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+    textTransform: 'capitalize',
+  },
   monthNav: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   monthNavBtn: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: radii.sm,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -1102,51 +1201,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthLabel: {
-    fontSize: 13,
-    fontFamily: typography.bodyStrong,
-    color: '#1A1A1E',
-    textTransform: 'capitalize',
-  },
-  calendarCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#E4E5DF',
-    padding: 16,
-    gap: 12,
-  },
   weekHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     borderBottomWidth: 1,
     borderBottomColor: '#E4E5DF',
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
   weekHeaderDay: {
     fontSize: 11,
     fontFamily: typography.bodyStrong,
     color: colors.textMuted,
     textAlign: 'center',
-    width: 36,
+    width: 34,
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    rowGap: 8,
+    rowGap: 6,
   },
   emptyDayCell: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
   },
   dayCell: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFFFFF',
   },
   dayCellDisabled: {
     opacity: 0.3,
@@ -1168,14 +1253,23 @@ const styles = StyleSheet.create({
   },
 
   /* Time Slots */
+  timeSlotsBox: {
+    gap: 10,
+    marginTop: 4,
+  },
+  slotsTitle: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
   timeSlotsContainer: {
-    gap: 14,
+    gap: 12,
   },
   periodGroup: {
-    gap: 8,
+    gap: 6,
   },
   periodLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: typography.bodyStrong,
     color: '#113939',
   },
@@ -1205,39 +1299,65 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* Sticky Footer */
-  stickyFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E4E5DF',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+  /* Nav Buttons Row */
+  navRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  navRowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 16,
-    boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
+    marginTop: 8,
   },
-  stickySummary: {
-    flex: 1,
-    gap: 2,
+
+  /* Summary Card */
+  summaryCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 16,
+    gap: 10,
   },
-  stickyEyebrow: {
-    fontSize: 11,
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 12,
     fontFamily: typography.body,
     color: colors.textMuted,
   },
-  stickyPrice: {
+  summaryValue: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#E4E5DF',
+    marginVertical: 2,
+  },
+  summaryTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  summaryTotalLabel: {
+    fontSize: 14,
+    fontFamily: typography.display,
+    color: '#1A1A1E',
+  },
+  summaryTotalValue: {
     fontSize: 18,
     fontFamily: typography.display,
     color: '#113939',
   },
   confirmBtn: {
     backgroundColor: '#113939',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
 });

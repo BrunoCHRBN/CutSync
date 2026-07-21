@@ -1,59 +1,80 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  ImageBackground,
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
-  Animated,
-  Vibration,
-  Platform,
-  Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Scissors,
+  Star,
+  UserRound,
+} from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
-import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
-import { getErrorMessage } from '../../utils/errors';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { useAvailableSlots } from '../../hooks/useAvailableSlots';
-import { supabase } from '../../services/supabase';
 import { scheduleAppointmentNotification } from '../../services/notifications';
-import { AppButton } from '../ui/AppButton';
-import { AppCard } from '../ui/AppCard';
-import { BrandMark } from '../ui/BrandMark';
-import { ChoiceCard } from '../ui/ChoiceCard';
-import { ScreenBackground } from '../ui/ScreenBackground';
-import { StatusBadge } from '../ui/StatusBadge';
-import { StickyActionBar } from '../ui/sticky-action-bar';
-import { InlineNotice } from '../ui/InlineNotice';
+import { supabase } from '../../services/supabase';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { tapLight, tapSuccess } from '../../utils/haptics';
+import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
+import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
 import { formatCalendarDate, getTodayInTimeZone } from '../../utils/dateTime';
-import { getAppointmentErrorText, translateAppointmentError } from '../../utils/appointmentErrors';
-
-const toolsImage = 'https://images.unsplash.com/photo-1596362601603-b74f6ef166e4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxoYWlyY3V0JTIwdG9vbHMlMjBzY2lzc29ycyUyMGNsaXBwZXJ8ZW58MHx8fHwxNzgzOTkxNzE1fDA&ixlib=rb-4.1.0&q=85';
+import { InlineNotice } from '../ui/InlineNotice';
+import { AppButton } from '../ui/AppButton';
 
 export const BookingExperience = () => {
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
-  const { width } = useWindowDimensions();
-  const isWide = width >= 940;
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+
   const { establishment: barbershop, loading: shopLoading } = useEstablishment(barbershopId);
   const { services, loading: servicesLoading } = useServices(barbershopId, true);
   const { team: barbers, loading: teamLoading } = usePublicTeam(barbershopId);
+  const [barberServices, setBarberServices] = useState<
+    { professionalId: string; serviceId: string; price: number; durationMinutes: number; isActive: boolean }[]
+  >([]);
+
+  // ── WIZARD STEP STATE (1: Serviço, 2: Profissional, 3: Data & Horário, 4: Confirmação) ──
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
+
+  // Calendar State
+  const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  // Auth states for visitors/unauthenticated bookings
+  const loading = shopLoading || servicesLoading || teamLoading;
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState('');
+
+  const {
+    availableSlots,
+    loading: availabilityLoading,
+    error: availabilityError,
+    emptyMessage,
+  } = useAvailableSlots({
+    establishmentId: barbershopId,
+    professionalId: selectedBarber,
+    serviceId: selectedService,
+    date: selectedDate,
+  });
+
+  // Auth Modal State
   const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authName, setAuthName] = useState('');
@@ -70,240 +91,250 @@ export const BookingExperience = () => {
       Alert.alert(title, message);
     }
   };
-  const {
-    availableSlots,
-    loading: availabilityLoading,
-    error: availabilityError,
-    emptyMessage,
-    refresh: refreshAvailability,
-  } = useAvailableSlots({
-    establishmentId: barbershopId,
-    professionalId: selectedBarber,
-    serviceId: selectedService,
-    date: selectedDate,
-  });
 
-  const triggerHaptic = () => {
-    if (Platform.OS !== 'web') {
-      Vibration.vibrate(10);
+  // Service price & duration resolution
+  const getServicePriceAndDuration = (serviceId: string | null, professionalId: string | null) => {
+    if (!serviceId) return { price: 0, duration: 30, isActive: false };
+    const globalSrv = services.find((s) => s.id === serviceId);
+    if (!globalSrv) return { price: 0, duration: 30, isActive: false };
+
+    if (!professionalId) {
+      return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
     }
-  };
 
-  const barberOpacity = React.useRef(new Animated.Value(selectedService ? 1 : 0.48)).current;
-  const barberTranslateY = React.useRef(new Animated.Value(selectedService ? 0 : 15)).current;
-
-  const dateTimeOpacity = React.useRef(new Animated.Value(selectedBarber ? 1 : 0.48)).current;
-  const dateTimeTranslateY = React.useRef(new Animated.Value(selectedBarber ? 0 : 15)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(barberOpacity, {
-        toValue: selectedService ? 1 : 0.48,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(barberTranslateY, {
-        toValue: selectedService ? 0 : 15,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [barberOpacity, barberTranslateY, selectedService]);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(dateTimeOpacity, {
-        toValue: selectedBarber ? 1 : 0.48,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(dateTimeTranslateY, {
-        toValue: selectedBarber ? 0 : 15,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [dateTimeOpacity, dateTimeTranslateY, selectedBarber]);
-  const loading = shopLoading || servicesLoading || teamLoading;
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const dateOptions = useMemo(() => Array.from({ length: 14 }, (_, index) => {
-    const date = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
-    date.setDate(date.getDate() + index);
-    return date;
-  }), [barbershop?.timezone]);
-
-  useEffect(() => {
-    if (barbershopId && barbershop?.timezone) {
-      setSelectedDate(getTodayInTimeZone(barbershop.timezone));
+    const custom = barberServices.find((bs) => bs.professionalId === professionalId && bs.serviceId === serviceId);
+    if (custom) {
+      return { price: custom.price, duration: custom.durationMinutes, isActive: custom.isActive };
     }
-  }, [barbershop?.timezone, barbershopId]);
 
+    return { price: globalSrv.price, duration: globalSrv.durationMinutes, isActive: true };
+  };
+
+  // Fetch barber custom services
   useEffect(() => {
-    if (selectedTime && !availabilityLoading && !availableSlots.some((slot) => slot.localTime === selectedTime)) {
-      setSelectedTime(null);
+    if (!barbershopId) return;
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('professional_services')
+        .select('professional_id, service_id, price, duration_minutes, is_active')
+        .eq('is_active', true);
+
+      if (error) return;
+      if (active && data) {
+        setBarberServices(
+          data.map((item) => ({
+            professionalId: item.professional_id,
+            serviceId: item.service_id,
+            price: Number(item.price),
+            durationMinutes: item.duration_minutes,
+            isActive: item.is_active,
+          }))
+        );
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [barbershopId]);
+
+  // Filtered barbers based on selected service
+  const filteredBarbers = useMemo(() => {
+    if (!selectedService) return barbers;
+    return barbers.filter((b) => {
+      const { isActive } = getServicePriceAndDuration(selectedService, b.id);
+      return isActive;
+    });
+  }, [barbers, selectedService, barberServices, services]);
+
+  const activeServiceObj = services.find((s) => s.id === selectedService);
+  const activeBarberObj = barbers.find((b) => b.id === selectedBarber);
+
+  const { price: summaryPrice } = getServicePriceAndDuration(selectedService, selectedBarber);
+
+  // Month navigation
+  const handlePrevMonth = () => {
+    const prev = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    if (prev.getFullYear() < today.getFullYear() || (prev.getFullYear() === today.getFullYear() && prev.getMonth() < today.getMonth())) {
+      return;
     }
-  }, [availabilityLoading, availableSlots, selectedTime]);
-
-  const currentService = services.find((service) => service.id === selectedService);
-  const currentBarber = barbers.find((barber) => barber.id === selectedBarber);
-  const activeStep = !selectedService ? 1 : !selectedBarber ? 2 : !selectedDate || !selectedTime ? 3 : 4;
-  const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
-
-  const chooseService = (id: string) => {
-    triggerHaptic();
-    setSelectedService(id);
-    setSelectedTime(null);
-    setError('');
+    setViewDate(prev);
   };
 
-  const chooseBarber = (id: string) => {
-    triggerHaptic();
-    setSelectedBarber(id);
-    setSelectedTime(null);
-    setError('');
+  const handleNextMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
 
-  const chooseDate = (date: Date) => {
-    setSelectedDate(date);
-    setSelectedTime(null);
-    setError('');
+  // Month Grid computation
+  const monthGrid = useMemo(() => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const grid: (Date | null)[] = [];
+    for (let i = 0; i < firstDay; i++) {
+      grid.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      grid.push(new Date(year, month, d));
+    }
+    return grid;
+  }, [viewDate]);
+
+  const isDateSelectable = (date: Date) => {
+    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(date);
+    target.setHours(0, 0, 0, 0);
+    return target >= today;
   };
 
-  const executeBooking = async (userId: string, clientName?: string | null) => {
+  const formattedMonthYearLabel = useMemo(() => {
+    return viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }, [viewDate]);
+
+  // Group slots by period
+  const groupedSlots = useMemo(() => {
+    const morning: typeof availableSlots = [];
+    const afternoon: typeof availableSlots = [];
+    const evening: typeof availableSlots = [];
+
+    availableSlots.forEach((slot) => {
+      const hour = parseInt(slot.localTime.split(':')[0], 10);
+      if (hour < 12) morning.push(slot);
+      else if (hour < 18) afternoon.push(slot);
+      else evening.push(slot);
+    });
+
+    return { morning, afternoon, evening };
+  }, [availableSlots]);
+
+  const primaryColor = barbershop?.primary_color || '#113939';
+
+  // Booking Execution
+  const executeBooking = async (userId: string) => {
     setBookingLoading(true);
+    setBookingError('');
+
     try {
-      const freshSlots = await refreshAvailability();
-      if (!freshSlots) throw new Error('availability_check_failed');
-      const confirmedSlot = freshSlots.find((slot) => slot.available && slot.localTime === selectedTime);
-      if (!confirmedSlot) throw new Error('appointment_conflict');
-      const appointmentDate = new Date(confirmedSlot.startsAt);
-      const { data: appointmentId, error: rpcError } = await supabase.rpc('create_appointment', {
-        target_establishment_id: barbershopId,
-        target_professional_id: selectedBarber,
-        target_service_id: selectedService,
-        target_date_time: appointmentDate.toISOString(),
-        target_client_name: clientName || profile?.name || null,
-        target_client_id: userId,
-      });
-      if (rpcError) throw rpcError;
-      if (barbershop?.name && appointmentId) {
-        await scheduleAppointmentNotification(appointmentId as string, barbershop.name, appointmentDate);
+      if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !barbershop) {
+        throw new Error('Preencha todas as etapas antes de confirmar.');
       }
-      router.replace({
-        pathname: '/(client)/appointments',
-        params: { feedback: 'appointment_created' },
-      });
-    } catch (err) {
-      console.error('[BookingExperience] create_appointment falhou:', err);
-      const message = getAppointmentErrorText(err);
-      if (message.includes('appointment_conflict') || message.includes('appointment_outside_availability')) {
-        setSelectedTime(null);
+
+      const dateStr = formatCalendarDate(selectedDate);
+      const chosenSlot = availableSlots.find((s) => s.localTime === selectedTime);
+      if (!chosenSlot) {
+        throw new Error('O horário selecionado não está mais disponível.');
       }
-      setError(translateAppointmentError(
-        err,
-        'Não foi possível concluir agora. Sua seleção foi mantida para tentar novamente.',
-      ));
+
+      const { error: insertError } = await supabase
+        .from('appointments')
+        .insert({
+          client_id: userId,
+          establishment_id: barbershop.id,
+          service_id: selectedService,
+          professional_id: selectedBarber,
+          appointment_date: dateStr,
+          start_time: selectedTime,
+          end_time: chosenSlot.endTime,
+          price: summaryPrice,
+          status: 'confirmed',
+        });
+
+      if (insertError) throw insertError;
+
+      tapSuccess();
+      void scheduleAppointmentNotification(
+        dateStr,
+        selectedTime,
+        activeServiceObj?.name || 'Serviço',
+        barbershop.name
+      );
+
+      displayAlert('Agendamento Confirmado!', 'Seu horário foi reservado com sucesso.');
+      router.replace('/appointments' as any);
+    } catch (err: any) {
+      console.error('Booking execution error:', err);
+      setBookingError(err.message || 'Erro ao processar agendamento.');
     } finally {
       setBookingLoading(false);
     }
   };
 
-  const confirmBooking = async () => {
-    setError('');
-    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
-      setError('Complete serviço, profissional, data e horário antes de confirmar.');
-      return;
-    }
-    if (!user) {
+  const handleConfirmBooking = () => {
+    if (user) {
+      void executeBooking(user.id);
+    } else {
       setIsAuthModalVisible(true);
-      return;
     }
-
-    await executeBooking(user.id);
   };
 
   const handleSendMagicLink = async () => {
-    if (!authEmail) {
-      displayAlert('E-mail obrigatório', 'Por favor, digite seu e-mail.');
+    if (!authEmail.trim()) {
+      displayAlert('Atenção', 'Informe seu e-mail.');
       return;
     }
-
     setAuthLoading(true);
     try {
-      const redirectUrl = Platform.OS === 'web' 
-        ? window.location.origin + `/(client)/booking?barbershopId=${barbershopId}`
-        : 'cutsync://(client)';
-
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: authEmail,
-        options: {
-          emailRedirectTo: redirectUrl,
-        }
-      });
-
-      if (otpError) throw otpError;
-
+      const { error } = await supabase.auth.signInWithOtp({ email: authEmail.trim() });
+      if (error) throw error;
       setMagicLinkSent(true);
-      displayAlert('Link enviado', 'Verifique sua caixa de entrada para o acesso rápido!');
-    } catch (err: unknown) {
-      displayAlert('Erro de conexão', getErrorMessage(err, 'Erro ao enviar link.'));
+    } catch (err: any) {
+      displayAlert('Erro', err.message || 'Erro ao enviar código.');
     } finally {
       setAuthLoading(false);
     }
   };
 
   const handleAuthSubmit = async () => {
-    if (!authEmail || !authPassword || (isRegisterMode && !authName)) {
-      displayAlert('Campos incompletos', 'Preencha todos os campos obrigatórios.');
+    if (!authEmail.trim() || !authPassword.trim()) {
+      displayAlert('Atenção', 'Preencha e-mail e senha.');
       return;
     }
-    if (isRegisterMode && !isStrongPassword(authPassword)) {
-      displayAlert('Senha fraca', passwordPolicyMessage);
-      return;
-    }
-    if (isRegisterMode && authPassword !== authPasswordConfirmation) {
-      displayAlert('Senhas diferentes', 'Digite a mesma senha nos dois campos.');
-      return;
+
+    if (isRegisterMode) {
+      if (!authName.trim()) {
+        displayAlert('Atenção', 'Informe seu nome completo.');
+        return;
+      }
+      if (authPassword !== authPasswordConfirmation) {
+        displayAlert('Atenção', 'As senhas não coincidem.');
+        return;
+      }
+      if (!isStrongPassword(authPassword)) {
+        displayAlert('Senha Fraca', passwordPolicyMessage);
+        return;
+      }
     }
 
     setAuthLoading(true);
     try {
       if (isRegisterMode) {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: authEmail,
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail.trim(),
           password: authPassword,
-          options: {
-            data: {
-              name: authName,
-            }
-          }
+          options: { data: { name: authName.trim(), role: 'client' } },
         });
-
-        if (signUpError) throw signUpError;
-        if (!data.user) throw new Error('Falha no cadastro.');
-
-        displayAlert('Sucesso', 'Conta criada! Agendamento sendo concluído.');
-        setIsAuthModalVisible(false);
-        await executeBooking(data.user.id, authName);
+        if (error) throw error;
+        if (data.user) {
+          setIsAuthModalVisible(false);
+          void executeBooking(data.user.id);
+        }
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: authEmail,
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authEmail.trim(),
           password: authPassword,
         });
-        if (signInError) throw signInError;
-        if (!data.user) throw new Error('Falha no login.');
-        setIsAuthModalVisible(false);
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', data.user.id)
-          .single();
-        await executeBooking(data.user.id, profileData?.name || null);
+        if (error) throw error;
+        if (data.user) {
+          setIsAuthModalVisible(false);
+          void executeBooking(data.user.id);
+        }
       }
-    } catch (err: unknown) {
-      displayAlert('Erro', getErrorMessage(err, 'Ocorreu um erro na autenticação.'));
+    } catch (err: any) {
+      displayAlert('Erro de Autenticação', err.message || 'Falha na autenticação.');
     } finally {
       setAuthLoading(false);
     }
@@ -311,201 +342,463 @@ export const BookingExperience = () => {
 
   if (loading) {
     return (
-      <ScreenBackground testID="booking-loading-screen" style={styles.center}>
-        <ActivityIndicator testID="booking-loading-indicator" color={colors.brand} size="large" />
-        <Text testID="booking-loading-text" style={styles.loadingText}>Preparando horários disponíveis...</Text>
-      </ScreenBackground>
-    );
-  }
-
-  const isInactive = barbershop && (barbershop.accountStatus === 'blocked' || barbershop.accountStatus === 'delinquent');
-
-  if (isInactive) {
-    return (
-      <ScreenBackground testID="booking-inactive-screen" style={styles.center}>
-        <AppCard testID="booking-inactive-card" style={styles.inactiveCard} elevated>
-          <Text style={styles.inactiveTitle}>Estabelecimento Indisponível</Text>
-          <Text style={styles.inactiveDesc}>
-            O estabelecimento {"\""}{barbershop?.name}{"\""} está temporariamente indisponível para agendamentos online.
-          </Text>
-          <AppButton 
-            testID="booking-back-to-explore"
-            label="Voltar para a Exploração" 
-            onPress={() => router.replace('/(client)')} 
-            fullWidth 
-          />
-        </AppCard>
-      </ScreenBackground>
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#113939" />
+        <Text style={styles.loadingText}>Carregando informações do agendamento...</Text>
+      </View>
     );
   }
 
   return (
-    <ScreenBackground testID="booking-screen">
+    <View style={styles.root}>
+      {/* ─── TOPBAR NAV ─────────────────────────────────────────────── */}
       <View style={styles.topbar}>
-        <Pressable testID="booking-back-button" onPress={() => router.canGoBack() ? router.back() : router.replace('/(client)')} style={styles.backButton}>
-          <ArrowLeft color={colors.text} size={19} />
-        </Pressable>
-        <BrandMark compact testID="booking-brand" />
-        <StatusBadge testID="booking-progress-status" label={`Etapa ${activeStep} de 4`} tone={activeStep === 4 ? 'success' : 'warning'} />
+        <View style={styles.topbarInner}>
+          <Pressable style={styles.backBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace('/(client)' as any))}>
+            <ArrowLeft size={16} color={colors.text} />
+            <Text style={styles.backBtnText}>Voltar</Text>
+          </Pressable>
+
+          <Text style={styles.topbarTitle} numberOfLines={1}>
+            {barbershop?.name || 'Novo Agendamento'}
+          </Text>
+
+          <View style={{ width: 60 }} />
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroRow}>
-          <View style={styles.heroCopy}>
-            <Text testID="booking-eyebrow" style={styles.eyebrow}>AGENDAMENTO ONLINE</Text>
-            <Text testID="booking-title" style={styles.title}>Seu próximo corte,{`\n`}sem espera.</Text>
-            <Text testID="booking-shop-name" style={styles.shopName}>{barbershop?.name || 'Barbearia'}</Text>
-          </View>
-          {isWide && (
-            <ImageBackground testID="booking-hero-image" source={{ uri: toolsImage }} imageStyle={styles.heroImage} style={styles.heroImageBox}>
-              <View style={styles.imageOverlay} />
-            </ImageBackground>
-          )}
-        </View>
+        <View style={styles.mainWrapper}>
+          {/* ─── SALON HERO CARD ────────────────────────────────────── */}
+          <View style={styles.heroCard}>
+            {barbershop?.banner_url ? (
+              <Image source={{ uri: barbershop.banner_url }} style={styles.heroImg} contentFit="cover" />
+            ) : (
+              <View style={styles.heroFallback}>
+                <Scissors size={28} color="#113939" />
+              </View>
+            )}
 
-        <View style={[styles.contentGrid, isWide && styles.contentGridWide]}>
-          <View style={styles.stepsColumn}>
-            {(isWide || activeStep === 1) ? <AppCard testID="booking-service-step" style={styles.stepCard}>
-              <StepHeader number="01" title="Escolha o serviço" active={activeStep === 1} complete={!!selectedService} />
-              {services.length === 0 ? (
-                <Text testID="booking-services-empty" style={styles.emptyText}>Nenhum serviço disponível no momento.</Text>
-              ) : (
-                <View style={styles.choiceGrid}>
-                  {services.map((service) => (
-                    <ChoiceCard
-                      key={service.id}
-                      testID={`booking-service-${service.id}`}
-                      title={service.name}
-                      subtitle={`${service.durationMinutes} minutos`}
-                      meta={currency(service.price)}
-                      selected={selectedService === service.id}
-                      onPress={() => chooseService(service.id)}
-                      icon={<Scissors color={colors.textSecondary} size={16} />}
-                      style={styles.choiceCard}
-                    />
-                  ))}
-                </View>
-              )}
-            </AppCard> : null}
-
-            {(isWide || activeStep === 2) ? <Animated.View style={{ opacity: barberOpacity, transform: [{ translateY: barberTranslateY }] }}>
-              <AppCard testID="booking-barber-step" style={[styles.stepCard, !selectedService && styles.stepDisabled]}>
-                <StepHeader number="02" title="Escolha o profissional" active={activeStep === 2} complete={!!selectedBarber} />
-                <View style={styles.choiceGrid}>
-                  {barbers.map((barber) => (
-                    <ChoiceCard
-                      key={barber.id}
-                      testID={`booking-barber-${barber.id}`}
-                      title={barber.name}
-                      subtitle={barber.role === 'admin' ? 'Proprietário' : 'Profissional'}
-                      selected={selectedBarber === barber.id}
-                      onPress={() => selectedService && chooseBarber(barber.id)}
-                      icon={<UserRound color={colors.textSecondary} size={16} />}
-                      style={styles.choiceCard}
-                    />
-                  ))}
-                </View>
-              </AppCard>
-            </Animated.View> : null}
-
-            {(isWide || activeStep >= 3) ? <Animated.View style={{ opacity: dateTimeOpacity, transform: [{ translateY: dateTimeTranslateY }] }}>
-              <AppCard testID="booking-datetime-step" style={[styles.stepCard, !selectedBarber && styles.stepDisabled]}>
-                <StepHeader number="03" title="Data e horário" active={activeStep === 3} complete={!!selectedTime} />
-                <Text style={styles.subsectionLabel}>Próximos 14 dias</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-                  {dateOptions.map((date) => {
-                    const id = formatCalendarDate(date);
-                    const selected = selectedDate?.toDateString() === date.toDateString();
-                    return (
-                      <Pressable
-                        key={id}
-                        testID={`booking-date-${id}`}
-                        disabled={!selectedBarber}
-                        onPress={() => chooseDate(date)}
-                        style={({ pressed }) => [styles.dateCard, selected && styles.dateCardSelected, pressed && styles.pressed]}
-                      >
-                        <Text style={[styles.dateWeek, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</Text>
-                        <Text style={[styles.dateDay, selected && styles.selectedInk]}>{date.getDate()}</Text>
-                        <Text style={[styles.dateMonth, selected && styles.selectedInk]}>{date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-
-                <Text style={[styles.subsectionLabel, styles.timeLabel]}>Horários disponíveis</Text>
-                <View style={styles.timeGrid}>
-                  {availabilityLoading ? (
-                    <ActivityIndicator testID="booking-availability-loading" color={colors.brand} />
-                  ) : availabilityError ? (
-                    <InlineNotice testID="booking-availability-error" tone="danger" message={availabilityError} />
-                  ) : availableSlots.length === 0 ? (
-                    <InlineNotice testID="booking-availability-empty" tone="info" message={emptyMessage} />
-                  ) : availableSlots.map((slot) => {
-                    const selected = selectedTime === slot.localTime;
-                    return (
-                      <Pressable
-                        key={slot.startsAt}
-                        testID={`booking-time-${slot.localTime.replace(':', '-')}`}
-                        onPress={() => { setSelectedTime(slot.localTime); setError(''); }}
-                        style={({ pressed }) => [
-                          styles.timeCard,
-                          selected && styles.timeCardSelected,
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <Clock3 color={selected ? colors.ink : colors.textMuted} size={14} />
-                        <Text testID={`booking-time-${slot.localTime.replace(':', '-')}-label`} style={[styles.timeText, selected && styles.selectedInk]}>{slot.localTime}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </AppCard>
-            </Animated.View> : null}
-          </View>
-
-          {(isWide || activeStep === 4) ? <View style={styles.summaryColumn}>
-            <AppCard testID="booking-summary-card" style={styles.summaryCard} elevated>
-              <Text testID="booking-summary-title" style={styles.summaryTitle}>Resumo do agendamento</Text>
-              <Text style={styles.summaryDescription}>Confira os detalhes antes de enviar sua solicitação.</Text>
-
-              <SummaryRow testID="booking-summary-service" label="Serviço" value={currentService?.name || 'Escolha um serviço'} />
-              <SummaryRow testID="booking-summary-professional" label="Profissional" value={currentBarber?.name || 'Escolha um profissional'} />
-              <SummaryRow
-                testID="booking-summary-date"
-                label="Data e hora"
-                value={selectedDate && selectedTime
-                  ? `${selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} às ${selectedTime}`
-                  : 'Escolha data e horário'}
-              />
-
-              <View style={styles.summaryTotal}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text testID="booking-summary-total" style={styles.totalValue}>{currentService ? currency(currentService.price) : '—'}</Text>
+            <View style={styles.heroInfoRow}>
+              <View style={styles.heroLogoCircle}>
+                {barbershop?.logo_url ? (
+                  <Image source={{ uri: barbershop.logo_url }} style={styles.logoImg} contentFit="cover" />
+                ) : (
+                  <Scissors size={20} color="#113939" />
+                )}
               </View>
 
-              {!!error && <InlineNotice testID="booking-error-message" tone="danger" message={error} />}
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.salonName}>{barbershop?.name}</Text>
+                <Text style={styles.salonAddress} numberOfLines={1}>
+                  {barbershop?.address || 'Endereço não informado'}
+                </Text>
+              </View>
 
-              {isWide ? <AppButton
-                label="Solicitar agendamento"
-                testID="booking-confirm-button"
-                onPress={confirmBooking}
-                loading={bookingLoading}
-                disabled={activeStep !== 4}
-                fullWidth
-                icon={<ChevronRight color={colors.ink} size={17} />}
-              /> : null}
-              <Text testID="booking-confirmation-note" style={styles.confirmationNote}>O horário ficará pendente até a confirmação da barbearia.</Text>
-            </AppCard>
-          </View> : null}
+              <View style={styles.ratingBadge}>
+                <Star size={11} color="#F5A524" fill="#F5A524" />
+                <Text style={styles.ratingText}>
+                  {barbershop?.average_rating ? Number(barbershop.average_rating).toFixed(1) : '4.9'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ─── INTERACTIVE 4-STEP WIZARD TRACKER ──────────────────── */}
+          <View style={styles.stepTracker}>
+            {[
+              { step: 1 as const, label: '1. Serviço', done: Boolean(selectedService) },
+              { step: 2 as const, label: '2. Profissional', done: Boolean(selectedBarber) },
+              { step: 3 as const, label: '3. Data & Horário', done: Boolean(selectedDate && selectedTime) },
+              { step: 4 as const, label: '4. Confirmação', done: wizardStep === 4 },
+            ].map((st) => (
+              <Pressable
+                key={st.step}
+                disabled={st.step > wizardStep && !st.done}
+                style={[
+                  styles.stepPill,
+                  wizardStep === st.step && styles.stepPillActive,
+                  st.done && styles.stepPillDone,
+                ]}
+                onPress={() => {
+                  tapLight();
+                  setWizardStep(st.step);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.stepPillText,
+                    (wizardStep === st.step || st.done) && styles.stepPillTextActive,
+                  ]}
+                >
+                  {st.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* ─── PASSO 1: ESCOLHA O SERVIÇO ───────────────────────────── */}
+          {wizardStep === 1 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 1 DE 4</Text>
+                <Text style={styles.stepTitle}>Qual serviço você deseja agendar?</Text>
+                <Text style={styles.stepSubtitle}>Selecione uma das opções abaixo para prosseguir.</Text>
+              </View>
+
+              <View style={styles.servicesGrid}>
+                {services.map((srv) => {
+                  const isSelected = selectedService === srv.id;
+                  return (
+                    <Pressable
+                      key={srv.id}
+                      style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
+                      onPress={() => {
+                        tapLight();
+                        setSelectedService(srv.id);
+                        setSelectedTime(null);
+                        // Auto advance to Step 2
+                        setWizardStep(2);
+                      }}
+                    >
+                      <View style={styles.serviceIconBox}>
+                        <Scissors size={16} color={isSelected ? '#113939' : colors.textMuted} />
+                      </View>
+
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.serviceName}>{srv.name}</Text>
+                        <Text style={styles.serviceMeta}>
+                          <Clock size={11} color={colors.textMuted} /> {srv.durationMinutes} min
+                        </Text>
+                      </View>
+
+                      <View style={styles.priceTag}>
+                        <Text style={styles.priceTagText}>R$ {Number(srv.price).toFixed(2)}</Text>
+                      </View>
+
+                      <ChevronRight size={16} color={colors.textMuted} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* ─── PASSO 2: ESCOLHA O PROFISSIONAL ────────────────────── */}
+          {wizardStep === 2 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 2 DE 4</Text>
+                <Text style={styles.stepTitle}>Com qual especialista prefere ser atendido?</Text>
+                <Text style={styles.stepSubtitle}>
+                  Serviço selecionado: <Text style={{ fontFamily: typography.bodyStrong, color: '#113939' }}>{activeServiceObj?.name}</Text>
+                </Text>
+              </View>
+
+              <View style={styles.barbersGrid}>
+                {filteredBarbers.length === 0 ? (
+                  <View style={styles.emptyNotice}>
+                    <Text style={styles.emptyNoticeText}>
+                      Sem profissionais cadastrados especificamente para este serviço.
+                    </Text>
+                  </View>
+                ) : (
+                  filteredBarbers.map((barber) => {
+                    const isSelected = selectedBarber === barber.id;
+                    const { price: customPrice } = getServicePriceAndDuration(selectedService, barber.id);
+
+                    return (
+                      <Pressable
+                        key={barber.id}
+                        style={[styles.barberCard, isSelected && styles.barberCardSelected]}
+                        onPress={() => {
+                          tapLight();
+                          setSelectedBarber(barber.id);
+                          setSelectedTime(null);
+                          // Auto advance to Step 3
+                          setWizardStep(3);
+                        }}
+                      >
+                        <View style={styles.barberAvatar}>
+                          {barber.fotoUrl ? (
+                            <Image source={{ uri: barber.fotoUrl }} style={styles.avatarImg} contentFit="cover" />
+                          ) : (
+                            <UserRound size={18} color="#113939" />
+                          )}
+                        </View>
+
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={styles.barberName}>{barber.name}</Text>
+                          <Text style={styles.barberRole}>
+                            {barber.tituloProfissional || 'Especialista'}
+                            {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
+                          </Text>
+                        </View>
+
+                        <ChevronRight size={16} color={colors.textMuted} />
+                      </Pressable>
+                    );
+                  })
+                )}
+              </View>
+
+              <View style={styles.navRow}>
+                <AppButton
+                  label="← Voltar aos Serviços"
+                  variant="ghost"
+                  onPress={() => setWizardStep(1)}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ─── PASSO 3: ESCOLHA A DATA E HORÁRIO ──────────────────── */}
+          {wizardStep === 3 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 3 DE 4</Text>
+                <Text style={styles.stepTitle}>Escolha a Data e o Horário</Text>
+                <Text style={styles.stepSubtitle}>
+                  Atendimento com{' '}
+                  <Text style={{ fontFamily: typography.bodyStrong, color: '#113939' }}>
+                    {activeBarberObj?.name || 'Profissional'}
+                  </Text>
+                </Text>
+              </View>
+
+              {/* Calendário Grid */}
+              <View style={styles.calendarCard}>
+                <View style={styles.calendarTitleRow}>
+                  <Text style={styles.calendarMonthTitle}>{formattedMonthYearLabel}</Text>
+                  <View style={styles.monthNav}>
+                    <Pressable onPress={handlePrevMonth} style={styles.monthNavBtn}>
+                      <ChevronLeft size={16} color={colors.text} />
+                    </Pressable>
+                    <Pressable onPress={handleNextMonth} style={styles.monthNavBtn}>
+                      <ChevronRight size={16} color={colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.weekHeaderRow}>
+                  {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                    <Text key={idx} style={styles.weekHeaderDay}>
+                      {day}
+                    </Text>
+                  ))}
+                </View>
+
+                <View style={styles.daysGrid}>
+                  {monthGrid.map((date, idx) => {
+                    if (!date) return <View key={`empty-${idx}`} style={styles.emptyDayCell} />;
+
+                    const selectable = isDateSelectable(date);
+                    const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+
+                    return (
+                      <Pressable
+                        key={date.toISOString()}
+                        disabled={!selectable}
+                        style={[
+                          styles.dayCell,
+                          !selectable && styles.dayCellDisabled,
+                          isSelected && styles.dayCellSelected,
+                        ]}
+                        onPress={() => {
+                          tapLight();
+                          setSelectedDate(date);
+                          setSelectedTime(null);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dayCellText,
+                            !selectable && styles.dayCellTextDisabled,
+                            isSelected && styles.dayCellTextSelected,
+                          ]}
+                        >
+                          {date.getDate()}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Time Slots */}
+              {selectedDate && (
+                <View style={styles.timeSlotsBox}>
+                  <Text style={styles.slotsTitle}>
+                    Horários disponíveis para{' '}
+                    {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}:
+                  </Text>
+
+                  {availabilityLoading ? (
+                    <ActivityIndicator color="#113939" style={{ marginVertical: 20 }} />
+                  ) : availabilityError ? (
+                    <InlineNotice tone="danger" message={availabilityError} />
+                  ) : availableSlots.length === 0 ? (
+                    <InlineNotice tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
+                  ) : (
+                    <View style={styles.timeSlotsContainer}>
+                      {groupedSlots.morning.length > 0 && (
+                        <View style={styles.periodGroup}>
+                          <Text style={styles.periodLabel}>🌅 Manhã</Text>
+                          <View style={styles.timeGrid}>
+                            {groupedSlots.morning.map((slot) => {
+                              const isSelected = selectedTime === slot.localTime;
+                              return (
+                                <Pressable
+                                  key={slot.startsAt}
+                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  onPress={() => {
+                                    tapLight();
+                                    setSelectedTime(slot.localTime);
+                                  }}
+                                >
+                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                    {slot.localTime}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+
+                      {groupedSlots.afternoon.length > 0 && (
+                        <View style={styles.periodGroup}>
+                          <Text style={styles.periodLabel}>☀️ Tarde</Text>
+                          <View style={styles.timeGrid}>
+                            {groupedSlots.afternoon.map((slot) => {
+                              const isSelected = selectedTime === slot.localTime;
+                              return (
+                                <Pressable
+                                  key={slot.startsAt}
+                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  onPress={() => {
+                                    tapLight();
+                                    setSelectedTime(slot.localTime);
+                                  }}
+                                >
+                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                    {slot.localTime}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+
+                      {groupedSlots.evening.length > 0 && (
+                        <View style={styles.periodGroup}>
+                          <Text style={styles.periodLabel}>🌙 Noite</Text>
+                          <View style={styles.timeGrid}>
+                            {groupedSlots.evening.map((slot) => {
+                              const isSelected = selectedTime === slot.localTime;
+                              return (
+                                <Pressable
+                                  key={slot.startsAt}
+                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  onPress={() => {
+                                    tapLight();
+                                    setSelectedTime(slot.localTime);
+                                  }}
+                                >
+                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                    {slot.localTime}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.navRowBetween}>
+                <AppButton label="← Voltar ao Profissional" variant="ghost" onPress={() => setWizardStep(2)} />
+
+                <AppButton
+                  label="Avançar para Revisão →"
+                  disabled={!selectedDate || !selectedTime}
+                  onPress={() => setWizardStep(4)}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* ─── PASSO 4: REVISÃO E CONFIRMAÇÃO ─────────────────────── */}
+          {wizardStep === 4 && (
+            <View style={styles.stepSection}>
+              <View style={styles.stepHeader}>
+                <Text style={styles.stepEyebrow}>PASSO 4 DE 4</Text>
+                <Text style={styles.stepTitle}>Revise e Confirme seu Agendamento</Text>
+                <Text style={styles.stepSubtitle}>Confira todos os dados antes de finalizar a reserva.</Text>
+              </View>
+
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Estabelecimento:</Text>
+                  <Text style={styles.summaryValue}>{barbershop?.name}</Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Serviço:</Text>
+                  <Text style={styles.summaryValue}>{activeServiceObj?.name}</Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Profissional:</Text>
+                  <Text style={styles.summaryValue}>{activeBarberObj?.name}</Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Data:</Text>
+                  <Text style={styles.summaryValue}>
+                    {selectedDate?.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Horário:</Text>
+                  <Text style={styles.summaryValue}>{selectedTime}</Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryTotalRow}>
+                  <Text style={styles.summaryTotalLabel}>Valor Total:</Text>
+                  <Text style={styles.summaryTotalValue}>R$ {summaryPrice.toFixed(2)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.navRowBetween}>
+                <AppButton label="← Alterar Data/Horário" variant="ghost" onPress={() => setWizardStep(3)} />
+
+                <AppButton
+                  label={bookingLoading ? 'Confirmando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
+                  style={styles.confirmBtn}
+                  disabled={bookingLoading}
+                  onPress={handleConfirmBooking}
+                />
+              </View>
+            </View>
+          )}
+
+          {!!bookingError && <InlineNotice tone="danger" message={bookingError} />}
         </View>
       </ScrollView>
-      {!isWide && activeStep === 4 ? (
-        <StickyActionBar
-          actions={<AppButton disabled={activeStep !== 4} label="Solicitar agendamento" loading={bookingLoading} onPress={confirmBooking} testID="booking-confirm-button-mobile" />}
-          message={error || 'Revise os dados e confirme o horário.'}
-          testID="booking-mobile-action-bar"
-        />
-      ) : null}
+
+      {/* ─── PUBLIC BOOKING AUTH MODAL ─────────────────────────────── */}
       <PublicBookingAuthModal
         visible={isAuthModalVisible}
         magicLinkSent={magicLinkSent}
@@ -515,94 +808,515 @@ export const BookingExperience = () => {
         name={authName}
         password={authPassword}
         passwordConfirmation={authPasswordConfirmation}
-        primaryColor={barbershop?.primaryColor || '#D4AF37'}
+        primaryColor={primaryColor}
         foregroundColor="#FFFFFF"
         onEmailChange={setAuthEmail}
         onNameChange={setAuthName}
         onPasswordChange={setAuthPassword}
         onPasswordConfirmationChange={setAuthPasswordConfirmation}
         onModeChange={setIsRegisterMode}
-        onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
+        onMagicLinkDismiss={() => {
+          setMagicLinkSent(false);
+          setIsAuthModalVisible(false);
+        }}
         onMagicLinkSubmit={handleSendMagicLink}
         onAuthSubmit={handleAuthSubmit}
         onClose={() => setIsAuthModalVisible(false)}
       />
-    </ScreenBackground>
+    </View>
   );
 };
 
-const StepHeader = ({ number, title, active, complete }: { number: string; title: string; active: boolean; complete: boolean }) => (
-  <View style={styles.stepHeader}>
-    <View style={[styles.stepNumber, active && styles.stepNumberActive, complete && styles.stepNumberComplete]}>
-      {complete ? <Check color={colors.ink} size={14} strokeWidth={3} /> : <Text style={[styles.stepNumberText, active && styles.stepNumberTextActive]}>{number}</Text>}
-    </View>
-    <Text style={styles.stepTitle}>{title}</Text>
-  </View>
-);
-
-const SummaryRow = ({ label, value, testID }: { label: string; value: string; testID: string }) => (
-  <View testID={testID} style={styles.summaryRow}>
-    <Text style={styles.summaryLabel}>{label}</Text>
-    <Text style={styles.summaryValue}>{value}</Text>
-  </View>
-);
+/* ────────────────────────────────────────────────────────────────────────────
+   STYLES — Off-White Premium Design System
+   ──────────────────────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
-  loadingText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
-  topbar: { minHeight: 70, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, zIndex: 2 },
-  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
-  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingBottom: 70 },
-  heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch', gap: 24, marginTop: 22, marginBottom: 26 },
-  heroCopy: { flex: 1, justifyContent: 'center', paddingVertical: 20 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4 },
-  title: { color: colors.text, fontFamily: typography.display, fontSize: 38, lineHeight: 42, letterSpacing: -1.8, marginTop: 12 },
-  shopName: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 12 },
-  heroImageBox: { width: '38%', minHeight: 170, borderRadius: radii.lg, overflow: 'hidden' },
-  heroImage: { borderRadius: radii.lg },
-  imageOverlay: { position: 'absolute', inset: 0, backgroundColor: '#00000040' } as any,
-  contentGrid: { gap: 18 },
-  contentGridWide: { flexDirection: 'row', alignItems: 'flex-start' },
-  stepsColumn: { flex: 1.7, gap: 14 },
-  summaryColumn: { flex: 0.85, minWidth: 300, ...Platform.select({ web: { position: 'sticky', top: 18 } as any, default: {} }) },
-  stepCard: { gap: 18 },
-  stepDisabled: { opacity: 0.48 },
-  stepHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepNumber: { width: 30, height: 30, borderRadius: radii.sm, backgroundColor: colors.surfacePressed, alignItems: 'center', justifyContent: 'center' },
-  stepNumberActive: { borderWidth: 1, borderColor: colors.brand },
-  stepNumberComplete: { backgroundColor: colors.brand },
-  stepNumberText: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11 },
-  stepNumberTextActive: { color: colors.brand },
-  stepTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.4 },
-  choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  choiceCard: { width: '48%', minWidth: 150, flexGrow: 1 },
-  emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
-  subsectionLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase' },
-  dateList: { gap: 8, paddingVertical: 2 },
-  dateCard: { width: 62, alignItems: 'center', paddingVertical: 10, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
-  dateCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
-  dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 3 },
-  dateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', marginTop: 2 },
-  selectedInk: { color: colors.ink },
-  timeLabel: { marginTop: 4 },
-  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  timeCard: { width: '23%', minWidth: 76, flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 44, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
-  timeCardSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  timeCardDisabled: { opacity: 0.25 },
-  timeText: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
-  summaryCard: { gap: 17 },
-  summaryTitle: { color: colors.text, fontFamily: typography.display, fontSize: 19, letterSpacing: -0.5 },
-  summaryDescription: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 17, marginTop: -8 },
-  summaryRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
-  summaryLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
-  summaryValue: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 5 },
-  summaryTotal: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.brandSoft, borderRadius: radii.md, padding: 14 },
-  totalLabel: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
-  totalValue: { color: colors.brand, fontFamily: typography.display, fontSize: 20 },
-  confirmationNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16, textAlign: 'center' },
-  inactiveCard: { width: '100%', maxWidth: 420, padding: 24, gap: 16, alignItems: 'center' },
-  inactiveTitle: { color: colors.danger, fontFamily: typography.display, fontSize: 20, textAlign: 'center' },
-  inactiveDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  root: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontFamily: typography.body,
+    color: colors.textSecondary,
+  },
+  topbar: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E5DF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    zIndex: 10,
+  },
+  topbarInner: {
+    maxWidth: layout.formMax,
+    alignSelf: 'center',
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backBtnText: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: colors.text,
+  },
+  topbarTitle: {
+    fontSize: 15,
+    fontFamily: typography.display,
+    color: '#113939',
+  },
+  scroll: {
+    paddingBottom: 80,
+  },
+  mainWrapper: {
+    maxWidth: layout.formMax,
+    alignSelf: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 20,
+  },
+
+  /* Hero Card */
+  heroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    overflow: 'hidden',
+  },
+  heroImg: {
+    height: 110,
+    width: '100%',
+  },
+  heroFallback: {
+    height: 90,
+    backgroundColor: '#F0ECE0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroInfoRow: {
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  heroLogoCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: '#F0ECE0',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  salonName: {
+    fontSize: 15,
+    fontFamily: typography.display,
+    color: '#1A1A1E',
+  },
+  salonAddress: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+  },
+  ratingText: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+
+  /* Interactive Step Tracker */
+  stepTracker: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  stepPill: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    borderRadius: radii.sm,
+    alignItems: 'center',
+  },
+  stepPillActive: {
+    borderColor: '#113939',
+    backgroundColor: '#F4F7F5',
+    borderWidth: 1.5,
+  },
+  stepPillDone: {
+    borderColor: '#3F7A4C',
+    backgroundColor: '#E9F2EA',
+  },
+  stepPillText: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  stepPillTextActive: {
+    fontFamily: typography.bodyStrong,
+    color: '#113939',
+  },
+
+  /* Step Section */
+  stepSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 20,
+    gap: 16,
+  },
+  stepHeader: {
+    gap: 4,
+  },
+  stepEyebrow: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: '#F5A524',
+    letterSpacing: 1.4,
+  },
+  stepTitle: {
+    fontSize: 18,
+    fontFamily: typography.display,
+    color: '#1A1A1E',
+  },
+  stepSubtitle: {
+    fontSize: 12,
+    fontFamily: typography.body,
+    color: colors.textSecondary,
+  },
+
+  /* Services Grid */
+  servicesGrid: {
+    gap: 8,
+  },
+  serviceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 14,
+  },
+  serviceCardSelected: {
+    borderColor: '#113939',
+    borderWidth: 2,
+    backgroundColor: '#F4F7F5',
+  },
+  serviceIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceName: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  serviceMeta: {
+    fontSize: 11,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  priceTag: {
+    backgroundColor: '#F0ECE0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  priceTagText: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: '#113939',
+  },
+
+  /* Barbers Grid */
+  barbersGrid: {
+    gap: 8,
+  },
+  barberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 12,
+  },
+  barberCardSelected: {
+    borderColor: '#113939',
+    borderWidth: 2,
+    backgroundColor: '#F4F7F5',
+  },
+  barberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0ECE0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  barberName: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  barberRole: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: typography.body,
+  },
+  emptyNotice: {
+    padding: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+  },
+  emptyNoticeText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+
+  /* Calendar Card */
+  calendarCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 14,
+    gap: 10,
+  },
+  calendarTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calendarMonthTitle: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+    textTransform: 'capitalize',
+  },
+  monthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  monthNavBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.sm,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E5DF',
+    paddingBottom: 6,
+  },
+  weekHeaderDay: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: colors.textMuted,
+    textAlign: 'center',
+    width: 34,
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    rowGap: 6,
+  },
+  emptyDayCell: {
+    width: 34,
+    height: 34,
+  },
+  dayCell: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  dayCellDisabled: {
+    opacity: 0.3,
+  },
+  dayCellSelected: {
+    backgroundColor: '#113939',
+  },
+  dayCellText: {
+    fontSize: 12,
+    fontFamily: typography.body,
+    color: '#1A1A1E',
+  },
+  dayCellTextDisabled: {
+    color: colors.textMuted,
+  },
+  dayCellTextSelected: {
+    fontFamily: typography.bodyStrong,
+    color: '#FFFFFF',
+  },
+
+  /* Time Slots */
+  timeSlotsBox: {
+    gap: 10,
+    marginTop: 4,
+  },
+  slotsTitle: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  timeSlotsContainer: {
+    gap: 12,
+  },
+  periodGroup: {
+    gap: 6,
+  },
+  periodLabel: {
+    fontSize: 11,
+    fontFamily: typography.bodyStrong,
+    color: '#113939',
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    borderRadius: radii.sm,
+  },
+  timeChipSelected: {
+    backgroundColor: '#113939',
+    borderColor: '#113939',
+  },
+  timeChipText: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  timeChipTextSelected: {
+    color: '#FFFFFF',
+  },
+
+  /* Nav Buttons Row */
+  navRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  navRowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+
+  /* Summary Card */
+  summaryCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#E4E5DF',
+    padding: 16,
+    gap: 10,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: '#1A1A1E',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#E4E5DF',
+    marginVertical: 2,
+  },
+  summaryTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  summaryTotalLabel: {
+    fontSize: 14,
+    fontFamily: typography.display,
+    color: '#1A1A1E',
+  },
+  summaryTotalValue: {
+    fontSize: 18,
+    fontFamily: typography.display,
+    color: '#113939',
+  },
+  confirmBtn: {
+    backgroundColor: '#113939',
+    paddingHorizontal: 24,
+  },
 });
