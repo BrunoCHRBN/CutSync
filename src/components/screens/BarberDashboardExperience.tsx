@@ -198,6 +198,10 @@ export const BarberDashboardExperience = () => {
   const completed = visibleAppointments.filter((item) => item.status === 'completed');
   const revenue = completed.reduce((sum, item) => sum + item.price, 0);
   const commission = revenue * (profile?.commission_rate ?? 0.5);
+  const projectedRevenue = visibleAppointments
+    .filter((item) => ['completed', 'confirmed'].includes(item.status))
+    .reduce((sum, item) => sum + item.price, 0);
+  const projectedCommission = projectedRevenue * (profile?.commission_rate ?? 0.5);
   const currency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: barbershop?.currency || 'BRL' }).format(value);
   const primaryColor = barbershop?.primaryColor || colors.brand;
   const primaryForeground = readableForeground(primaryColor);
@@ -222,6 +226,7 @@ export const BarberDashboardExperience = () => {
       endsAt: new Date(item.dateTime.getTime() + (item.service?.durationMinutes || 30) * 60_000),
       status: item.status,
       price: item.service?.price,
+      clientPhone: item.client?.phone || '',
     })),
     [appointmentRecords],
   );
@@ -493,7 +498,7 @@ export const BarberDashboardExperience = () => {
           testID="barber-metrics"
           items={[
             { key: 'completed', testID: 'barber-completed-metric', label: 'Concluídos', value: String(completed.length), note: `${visibleAppointments.length} horários na agenda`, icon: <Check color={colors.success} size={18} /> },
-            { key: 'commission', testID: 'barber-commission-metric', label: 'Meu ganho no dia', value: currency(commission), note: `${Math.round((profile?.commission_rate ?? 0.5) * 100)}% de comissão`, icon: <WalletCards color={colors.info} size={18} /> },
+            { key: 'commission', testID: 'barber-commission-metric', label: 'Meu ganho no dia', value: currency(commission), note: `${currency(projectedCommission)} projetado (${Math.round((profile?.commission_rate ?? 0.5) * 100)}% comissão)`, icon: <WalletCards color={colors.info} size={18} /> },
           ]}
         />
 

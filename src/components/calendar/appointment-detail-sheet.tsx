@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CalendarClock, Scissors, UserRound, X } from 'lucide-react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, Linking } from 'react-native';
+import { CalendarClock, Scissors, UserRound, X, MessageCircle } from 'lucide-react-native';
 import { colors, elevations, layout, radii, spacing, typeScale } from '../../theme/tokens';
 import { CalendarAppointment } from './operational-calendar';
 import { AppButton } from '../ui/AppButton';
@@ -59,6 +59,27 @@ export const AppointmentDetailSheet = ({
     minute: '2-digit',
   }).format(appointment.startsAt);
 
+  const handleWhatsApp = () => {
+    if (!appointment.clientPhone) return;
+    const cleanPhone = appointment.clientPhone.replace(/\D/g, '');
+    const message = encodeURIComponent(
+      `Olá ${appointment.clientName}, aqui é o profissional ${professionalName || ''}. Confirmamos seu agendamento de ${appointment.serviceName} para ${time}. Tudo certo para o atendimento?`
+    );
+    const phoneWithDdi = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const url = `whatsapp://send?phone=${phoneWithDdi}&text=${message}`;
+    const webUrl = `https://wa.me/${phoneWithDdi}?text=${message}`;
+
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(url);
+        } else {
+          return Linking.openURL(webUrl);
+        }
+      })
+      .catch((err) => console.warn('Erro ao abrir WhatsApp:', err));
+  };
+
   return (
     <Modal animationType={Platform.OS === 'web' ? 'fade' : 'slide'} onRequestClose={onClose} transparent visible={visible}>
       <Pressable accessibilityLabel="Fechar detalhes" onPress={onClose} style={styles.backdrop}>
@@ -82,6 +103,12 @@ export const AppointmentDetailSheet = ({
             <View style={styles.detailRow}><CalendarClock color={colors.textMuted} size={18} /><Text style={styles.detailText}>{time}</Text></View>
             <View style={styles.detailRow}><Scissors color={colors.textMuted} size={18} /><Text style={styles.detailText}>{appointment.serviceName}</Text></View>
             {professionalName ? <View style={styles.detailRow}><UserRound color={colors.textMuted} size={18} /><Text style={styles.detailText}>{professionalName}</Text></View> : null}
+            {appointment.clientPhone ? (
+              <Pressable accessibilityLabel="Enviar WhatsApp para cliente" onPress={handleWhatsApp} style={styles.whatsappRow}>
+                <MessageCircle color="#2E7D32" size={18} />
+                <Text style={styles.whatsappText}>WhatsApp ({appointment.clientPhone})</Text>
+              </Pressable>
+            ) : null}
           </View>
           <View style={styles.actions}>
             {canReschedule && onReschedule ? <AppButton label="Reagendar" onPress={() => onReschedule(appointment)} testID="appointment-detail-reschedule" variant="secondary" /> : null}
@@ -108,4 +135,6 @@ const styles = StyleSheet.create({
   detailRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   detailText: { ...typeScale.body, color: colors.textSecondary, flex: 1 },
   actions: { gap: spacing.sm, marginTop: 'auto' },
+  whatsappRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: '#E8F5E9', padding: spacing.md, borderRadius: radii.md, marginTop: spacing.sm, borderWidth: 1, borderColor: '#C8E6C9' },
+  whatsappText: { ...typeScale.bodyStrong, color: '#2E7D32', flex: 1 },
 });

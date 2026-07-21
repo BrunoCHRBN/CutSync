@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -41,6 +41,7 @@ export interface CalendarAppointment {
   endsAt: Date;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   price?: number;
+  clientPhone?: string;
 }
 
 export interface CalendarBlock {
@@ -164,10 +165,22 @@ export const OperationalCalendar = ({
   const desktop = width >= layout.desktopBreakpoint;
   const verticalScrollRef = useRef<ScrollView>(null);
 
+  const [selectedProfessionalFilter, setSelectedProfessionalFilter] = useState<string>('all');
+
+  useEffect(() => {
+    if (view === 'mine') {
+      setSelectedProfessionalFilter('all');
+    }
+  }, [view]);
+
   const visibleResources = useMemo(() => {
-    if (view === 'team' || !ownProfessionalId) return resources;
+    if (view === 'team') {
+      if (selectedProfessionalFilter === 'all') return resources;
+      return resources.filter((resource) => resource.id === selectedProfessionalFilter);
+    }
+    if (!ownProfessionalId) return resources;
     return resources.filter((resource) => resource.id === ownProfessionalId);
-  }, [ownProfessionalId, resources, view]);
+  }, [ownProfessionalId, resources, view, selectedProfessionalFilter]);
 
   const visibleAppointments = useMemo(
     () =>
@@ -274,10 +287,55 @@ export const OperationalCalendar = ({
     </View>
   );
 
+  const filterChips = view === 'team' && resources.length > 1 ? (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filterScroll}
+    >
+      <Pressable
+        onPress={() => setSelectedProfessionalFilter('all')}
+        style={[
+          styles.filterChip,
+          selectedProfessionalFilter === 'all' && styles.filterChipActive
+        ]}
+      >
+        <Text
+          style={[
+            styles.filterChipText,
+            selectedProfessionalFilter === 'all' && styles.filterChipTextActive
+          ]}
+        >
+          Todos
+        </Text>
+      </Pressable>
+      {resources.map((resource) => (
+        <Pressable
+          key={resource.id}
+          onPress={() => setSelectedProfessionalFilter(resource.id)}
+          style={[
+            styles.filterChip,
+            selectedProfessionalFilter === resource.id && styles.filterChipActive
+          ]}
+        >
+          <Text
+            style={[
+              styles.filterChipText,
+              selectedProfessionalFilter === resource.id && styles.filterChipTextActive
+            ]}
+          >
+            {resource.name}
+          </Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  ) : null;
+
   if (error) {
     return (
       <View style={styles.container} testID={legacyTestIDs?.panel || testID}>
         {toolbar}
+        {filterChips}
         <InlineNotice
           action={onRetry ? <AppButton label="Tentar novamente" onPress={onRetry} size="sm" testID={`${testID}-retry`} variant="secondary" /> : null}
           message={error}
@@ -308,6 +366,7 @@ export const OperationalCalendar = ({
   return (
     <View style={styles.container} testID={legacyTestIDs?.panel || testID}>
       {toolbar}
+      {filterChips}
       {!loading && !closed && visibleAppointments.length === 0 && visibleBlocks.length === 0 ? (
         <View style={styles.freeState} testID={legacyTestIDs?.empty || `${testID}-empty`}>
           <Text style={styles.freeStateText}>Agenda livre — selecione um horário para começar.</Text>
@@ -649,4 +708,9 @@ const styles = StyleSheet.create({
   skeletonGrid: { backgroundColor: colors.canvasSubtle, borderRadius: radii.md, flex: 1, marginTop: spacing.md, minHeight: 220, opacity: 0.8, width: '100%' },
   emptyTitle: { ...typeScale.cardTitle, color: colors.textPrimary, textAlign: 'center' },
   emptyText: { ...typeScale.small, color: colors.textSecondary, textAlign: 'center' },
+  filterScroll: { flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.xs },
+  filterChip: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle, borderRadius: radii.pill, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: 6 },
+  filterChipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  filterChipText: { ...typeScale.small, color: colors.textSecondary },
+  filterChipTextActive: { ...typeScale.smallStrong, color: colors.surface },
 });
