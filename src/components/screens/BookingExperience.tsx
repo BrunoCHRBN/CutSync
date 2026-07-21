@@ -11,10 +11,14 @@ import {
   Animated,
   Vibration,
   Platform,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Check, ChevronRight, Clock3, Scissors, UserRound } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
+import { isStrongPassword, passwordPolicyMessage } from '../../utils/passwordPolicy';
+import { getErrorMessage } from '../../utils/errors';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -48,6 +52,24 @@ export const BookingExperience = () => {
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  // Auth states for visitors/unauthenticated bookings
+  const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authPasswordConfirmation, setAuthPasswordConfirmation] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+
+  const displayAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
   const {
     availableSlots,
     loading: availabilityLoading,
@@ -149,17 +171,7 @@ export const BookingExperience = () => {
     setError('');
   };
 
-  const confirmBooking = async () => {
-    setError('');
-    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
-      setError('Complete serviço, profissional, data e horário antes de confirmar.');
-      return;
-    }
-    if (!user) {
-      setError('Sua sessão expirou. Entre novamente para concluir o agendamento.');
-      return;
-    }
-
+  const executeBooking = async (userId: string, clientName?: string | null) => {
     setBookingLoading(true);
     try {
       const freshSlots = await refreshAvailability();
@@ -172,8 +184,8 @@ export const BookingExperience = () => {
         target_professional_id: selectedBarber,
         target_service_id: selectedService,
         target_date_time: appointmentDate.toISOString(),
-        target_client_name: profile?.name ?? null,
-        target_client_id: user.id,
+        target_client_name: clientName || profile?.name || null,
+        target_client_id: userId,
       });
       if (rpcError) throw rpcError;
       if (barbershop?.name && appointmentId) {
@@ -195,6 +207,105 @@ export const BookingExperience = () => {
       ));
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  const confirmBooking = async () => {
+    setError('');
+    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
+      setError('Complete serviço, profissional, data e horário antes de confirmar.');
+      return;
+    }
+    if (!user) {
+      setIsAuthModalVisible(true);
+      return;
+    }
+
+    await executeBooking(user.id);
+  };
+
+  const handleSendMagicLink = async () => {
+    if (!authEmail) {
+      displayAlert('E-mail obrigatório', 'Por favor, digite seu e-mail.');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const redirectUrl = Platform.OS === 'web' 
+        ? window.location.origin + `/(client)/booking?barbershopId=${barbershopId}`
+        : 'cutsync://(client)';
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: authEmail,
+        options: {
+          emailRedirectTo: redirectUrl,
+        }
+      });
+
+      if (otpError) throw otpError;
+
+      setMagicLinkSent(true);
+      displayAlert('Link enviado', 'Verifique sua caixa de entrada para o acesso rápido!');
+    } catch (err: unknown) {
+      displayAlert('Erro de conexão', getErrorMessage(err, 'Erro ao enviar link.'));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleAuthSubmit = async () => {
+    if (!authEmail || !authPassword || (isRegisterMode && !authName)) {
+      displayAlert('Campos incompletos', 'Preencha todos os campos obrigatórios.');
+      return;
+    }
+    if (isRegisterMode && !isStrongPassword(authPassword)) {
+      displayAlert('Senha fraca', passwordPolicyMessage);
+      return;
+    }
+    if (isRegisterMode && authPassword !== authPasswordConfirmation) {
+      displayAlert('Senhas diferentes', 'Digite a mesma senha nos dois campos.');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      if (isRegisterMode) {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: {
+            data: {
+              name: authName,
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+        if (!data.user) throw new Error('Falha no cadastro.');
+
+        displayAlert('Sucesso', 'Conta criada! Agendamento sendo concluído.');
+        setIsAuthModalVisible(false);
+        await executeBooking(data.user.id, authName);
+      } else {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword,
+        });
+        if (signInError) throw signInError;
+        if (!data.user) throw new Error('Falha no login.');
+        setIsAuthModalVisible(false);
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', data.user.id)
+          .single();
+        await executeBooking(data.user.id, profileData?.name || null);
+      }
+    } catch (err: unknown) {
+      displayAlert('Erro', getErrorMessage(err, 'Ocorreu um erro na autenticação.'));
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -395,6 +506,27 @@ export const BookingExperience = () => {
           testID="booking-mobile-action-bar"
         />
       ) : null}
+      <PublicBookingAuthModal
+        visible={isAuthModalVisible}
+        magicLinkSent={magicLinkSent}
+        registerMode={isRegisterMode}
+        loading={authLoading}
+        email={authEmail}
+        name={authName}
+        password={authPassword}
+        passwordConfirmation={authPasswordConfirmation}
+        primaryColor={barbershop?.primaryColor || '#D4AF37'}
+        foregroundColor="#FFFFFF"
+        onEmailChange={setAuthEmail}
+        onNameChange={setAuthName}
+        onPasswordChange={setAuthPassword}
+        onPasswordConfirmationChange={setAuthPasswordConfirmation}
+        onModeChange={setIsRegisterMode}
+        onMagicLinkDismiss={() => { setMagicLinkSent(false); setIsAuthModalVisible(false); }}
+        onMagicLinkSubmit={handleSendMagicLink}
+        onAuthSubmit={handleAuthSubmit}
+        onClose={() => setIsAuthModalVisible(false)}
+      />
     </ScreenBackground>
   );
 };
