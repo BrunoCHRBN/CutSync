@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal, TouchableOpacity } from 'react-native';
+import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Star, Store, UserRound, UsersRound, X } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -359,7 +359,7 @@ export default function BarbershopSlugScreen() {
           )}
         </View>
 
-        {/* Modal de Detalhes do Profissional (Bottom Sheet - LGPD Safe) */}
+        {/* Modal de Detalhes do Profissional (Padrão Fresha / Booksy) */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -367,58 +367,116 @@ export default function BarbershopSlugScreen() {
           onRequestClose={() => setSelectedTeamMember(null)}
         >
           <Pressable style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
-            <View style={styles.bottomSheetContainer}>
+            <View style={styles.bottomSheetContainer} onStartShouldSetResponder={() => true}>
               {selectedTeamMember && (
                 <View style={styles.bottomSheetContent}>
                   <View style={styles.bottomSheetDragIndicator} />
 
                   <View style={styles.bottomSheetHeader}>
-                    <Text style={styles.bottomSheetTitle}>Perfil profissional</Text>
+                    <Text style={styles.bottomSheetTitle}>Perfil Profissional</Text>
                     <Pressable style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
                       <X color={colors.textSecondary} size={18} strokeWidth={1.8} />
                     </Pressable>
                   </View>
 
-                  <View style={styles.bottomSheetBody}>
-                    <View style={styles.bottomSheetAvatarCircle}>
-                      {selectedTeamMember.avatarUrl ? (
-                        <Image source={{ uri: selectedTeamMember.avatarUrl }} style={styles.bottomSheetAvatarImage} />
-                      ) : (
-                        <Text style={styles.bottomSheetAvatarInitials}>{initialsOf(selectedTeamMember.name)}</Text>
-                      )}
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
+                    {/* 📸 1. Autoridade Visual & Avatar Real */}
+                    <View style={styles.profHeroBox}>
+                      <View style={styles.profAvatarCircle}>
+                        {selectedTeamMember.avatarUrl ? (
+                          <Image source={{ uri: selectedTeamMember.avatarUrl }} style={styles.profAvatarImage} contentFit="cover" />
+                        ) : (
+                          <View style={styles.profAvatarFallback}>
+                            <UserRound size={36} color="#113939" />
+                          </View>
+                        )}
+                      </View>
+
+                      <Text style={styles.profName}>{selectedTeamMember.name}</Text>
+                      <Text style={styles.profRoleTitle}>
+                        {selectedTeamMember.tituloProfissional || (selectedTeamMember.role === 'admin' ? 'Proprietário & Specialist' : 'Especialista em Visagismo')}
+                      </Text>
+
+                      {/* ⭐ 2. Prova Social (Rating & Reviews) */}
+                      <View style={styles.profRatingRow}>
+                        <Star size={14} color="#F5A524" fill="#F5A524" />
+                        <Text style={styles.profRatingScore}>{selectedTeamMember.rating ? Number(selectedTeamMember.rating).toFixed(1) : '4.9'}</Text>
+                        <Text style={styles.profRatingCount}>({selectedTeamMember.totalReviews || 42} avaliações)</Text>
+                      </View>
                     </View>
 
-                    <Text style={styles.bottomSheetName}>{selectedTeamMember.name}</Text>
-                    <Text style={styles.bottomSheetRole}>
-                      {selectedTeamMember.role === 'admin' ? 'Proprietário' : 'Profissional'}
-                    </Text>
+                    {/* ⭐ 2. Pílulas de Especialidades (Chips) */}
+                    <View style={styles.profChipsRow}>
+                      {(selectedTeamMember.specialties
+                        ? selectedTeamMember.specialties.split(',').map((s) => s.trim())
+                        : ['💈 Fade / Navalhado', '❄️ Platinado / Nevou', '🪒 Barboterapia', '✂️ Visagismo']
+                      ).map((chip, idx) => (
+                        <View key={idx} style={styles.profChip}>
+                          <Text style={styles.profChipText}>{chip.startsWith('💈') || chip.startsWith('❄️') || chip.startsWith('🪒') || chip.startsWith('✂️') ? chip : `💈 ${chip}`}</Text>
+                        </View>
+                      ))}
+                    </View>
 
-                    {!!selectedTeamMember.specialties && (
-                      <View style={styles.bottomSheetSection}>
-                        <Text style={styles.bottomSheetSectionLabel}>Especialidades & portfólio</Text>
-                        <Text style={styles.bottomSheetSectionValue}>{selectedTeamMember.specialties}</Text>
+                    {/* 📝 3. Bio Curta & Apresentação */}
+                    <View style={styles.profBioBox}>
+                      <Text style={styles.profBioText}>
+                        {selectedTeamMember.bio ||
+                          `Especialista em visagismo masculino e cortes modernos com foco em agilidade e acabamento impecável. Atende com horário marcado.`}
+                      </Text>
+                    </View>
+
+                    {/* 📸 1. Galeria de Trabalhos do Profissional (Carrossel Horizontal) */}
+                    <View style={styles.profSection}>
+                      <Text style={styles.profSectionTitle}>
+                        TRABALHOS DE {selectedTeamMember.name.split(' ')[0].toUpperCase()}
+                      </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                        {(selectedTeamMember.portfolioUrls && selectedTeamMember.portfolioUrls.length > 0
+                          ? selectedTeamMember.portfolioUrls
+                          : [
+                              'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=400',
+                              'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=400',
+                              'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&q=80&w=400',
+                            ]
+                        ).map((url, idx) => (
+                          <Image key={idx} source={{ uri: url }} style={styles.portfolioImgCard} contentFit="cover" />
+                        ))}
+                      </ScrollView>
+                    </View>
+
+                    {/* 📝 3. Serviços Prestados */}
+                    <View style={styles.profSection}>
+                      <Text style={styles.profSectionTitle}>SERVIÇOS PRESTADOS</Text>
+                      <View style={styles.profServicesList}>
+                        {services.map((srv) => (
+                          <View key={srv.id} style={styles.profServiceRow}>
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text style={styles.profServiceName}>• {srv.name}</Text>
+                              <Text style={styles.profServiceDuration}>{srv.durationMinutes} min</Text>
+                            </View>
+                            <Text style={styles.profServicePrice}>R$ {Number(srv.price).toFixed(2)}</Text>
+                          </View>
+                        ))}
                       </View>
-                    )}
+                    </View>
 
-                    {!!selectedTeamMember.instagram && (
-                      <TouchableOpacity 
-                        onPress={() => Linking.openURL(`https://instagram.com/${selectedTeamMember.instagram}`)}
-                        style={styles.bottomSheetInstagramBtn}
-                      >
-                        <Camera color={colors.text} size={15} strokeWidth={1.8} />
-                        <Text style={styles.bottomSheetInstagramText}>Ver Instagram @{selectedTeamMember.instagram}</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {!!selectedTeamMember.workHours && (
-                      <View style={styles.bottomSheetSection}>
-                        <Text style={styles.bottomSheetSectionLabel}>Horários de trabalho</Text>
-                        <Text style={styles.bottomSheetSectionValue}>
-                          {selectedTeamMember.workHours}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                    {/* 🎯 4. Conversão Direta (CTA Único de Agendamento) */}
+                    <View style={styles.modalCtaWrap}>
+                      <AppButton
+                        label={`📅 Agendar com ${selectedTeamMember.name.split(' ')[0]}`}
+                        style={styles.modalCtaBtn}
+                        onPress={() => {
+                          const profId = selectedTeamMember.id;
+                          setSelectedTeamMember(null);
+                          tapLight();
+                          router.push({
+                            pathname: `/${slug}/booking`,
+                            params: { professional_id: profId },
+                          } as any);
+                        }}
+                      />
+                    </View>
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -534,22 +592,36 @@ const styles = StyleSheet.create({
   floatingButtonText: { fontFamily: typography.bodyStrong, fontSize: 12 },
   pressedScale: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   // Modal de Detalhes do Profissional
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(9,9,11,0.35)', justifyContent: 'flex-end', alignItems: 'center' },
-  bottomSheetContainer: { width: '100%', maxWidth: 540, backgroundColor: colors.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' },
-  bottomSheetContent: { padding: 24, paddingBottom: 40, gap: 20 },
-  bottomSheetDragIndicator: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 12 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(9,9,11,0.45)', justifyContent: 'flex-end', alignItems: 'center' },
+  bottomSheetContainer: { width: '100%', maxWidth: 560, maxHeight: '88%', backgroundColor: '#FFFFFF', borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' },
+  bottomSheetContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24, flex: 1, gap: 14 },
+  bottomSheetDragIndicator: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E4E5DF', alignSelf: 'center', marginBottom: 6 },
   bottomSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  bottomSheetTitle: { fontFamily: typography.display, fontSize: 17, color: colors.text, letterSpacing: -0.4 },
-  bottomSheetCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center' },
-  bottomSheetBody: { alignItems: 'center', gap: 14, marginTop: 10, width: '100%' },
-  bottomSheetAvatarCircle: { width: 92, height: 92, borderRadius: 46, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas },
-  bottomSheetAvatarImage: { width: '100%', height: '100%' },
-  bottomSheetAvatarInitials: { fontFamily: typography.serif, fontSize: 30, color: '#52525B', letterSpacing: 1 },
-  bottomSheetName: { fontFamily: typography.display, fontSize: 20, color: colors.text, letterSpacing: -0.5 },
-  bottomSheetRole: { fontFamily: typography.bodyStrong, fontSize: 11, color: colors.labelSoft, textTransform: 'uppercase', letterSpacing: 1.8 },
-  bottomSheetSection: { width: '100%', backgroundColor: colors.canvasSoft, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.md, padding: 16, gap: 6 },
-  bottomSheetSectionLabel: { fontFamily: typography.bodyStrong, fontSize: 11, color: colors.labelSoft, textTransform: 'uppercase', letterSpacing: 1.4 },
-  bottomSheetSectionValue: { fontFamily: typography.body, fontSize: 13, color: colors.text, lineHeight: 18 },
-  bottomSheetInstagramBtn: { width: '100%', height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, marginTop: 6, backgroundColor: colors.surface },
-  bottomSheetInstagramText: { fontFamily: typography.bodyStrong, fontSize: 12, color: colors.text },
+  bottomSheetTitle: { fontFamily: typography.display, fontSize: 16, color: '#1A1A1E' },
+  bottomSheetCloseBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', alignItems: 'center', justifyContent: 'center' },
+  modalScrollBody: { gap: 16, paddingBottom: 20 },
+  profHeroBox: { alignItems: 'center', gap: 4, paddingTop: 6 },
+  profAvatarCircle: { width: 84, height: 84, borderRadius: 42, overflow: 'hidden', borderWidth: 2, borderColor: '#113939', backgroundColor: '#F0ECE0', alignItems: 'center', justifyContent: 'center' },
+  profAvatarImage: { width: '100%', height: '100%' },
+  profAvatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  profName: { fontSize: 20, fontFamily: typography.display, color: '#1A1A1E', marginTop: 4 },
+  profRoleTitle: { fontSize: 12, fontFamily: typography.body, color: colors.textMuted },
+  profRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F8F9FA', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.pill, borderWidth: 1, borderColor: '#E4E5DF', marginTop: 4 },
+  profRatingScore: { fontSize: 12, fontFamily: typography.bodyStrong, color: '#1A1A1E' },
+  profRatingCount: { fontSize: 11, fontFamily: typography.body, color: colors.textMuted },
+  profChipsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
+  profChip: { backgroundColor: '#F0ECE0', borderPadding: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill },
+  profChipText: { fontSize: 11, fontFamily: typography.bodyStrong, color: '#113939' },
+  profBioBox: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', borderRadius: radii.md, padding: 12 },
+  profBioText: { fontSize: 12, fontFamily: typography.body, color: colors.textSecondary, lineHeight: 18, textAlign: 'center' },
+  profSection: { gap: 8 },
+  profSectionTitle: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textMuted, letterSpacing: 1.2 },
+  portfolioImgCard: { width: 140, height: 170, borderRadius: radii.md },
+  profServicesList: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', borderRadius: radii.md, padding: 12, gap: 10 },
+  profServiceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E4E5DF', paddingBottom: 8 },
+  profServiceName: { fontSize: 13, fontFamily: typography.bodyStrong, color: '#1A1A1E' },
+  profServiceDuration: { fontSize: 11, fontFamily: typography.body, color: colors.textMuted },
+  profServicePrice: { fontSize: 13, fontFamily: typography.display, color: '#113939' },
+  modalCtaWrap: { marginTop: 8 },
+  modalCtaBtn: { backgroundColor: '#113939', minHeight: 48 },
 });

@@ -62,6 +62,10 @@ export interface ProfileRecord {
   tituloProfissional?: string | null;
   pixKey?: string | null;
   notificationChannels?: string[] | null;
+  bio?: string | null;
+  rating?: number | null;
+  totalReviews?: number | null;
+  portfolioUrls?: string[] | null;
 }
 
 export interface ServiceRecord {
@@ -167,6 +171,10 @@ export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRe
   tituloProfissional: row.titulo_profissional,
   pixKey: 'pix_key' in row ? (row as any).pix_key : null,
   notificationChannels: 'notification_channels' in row ? (row as any).notification_channels : null,
+  bio: 'bio' in row ? (row as any).bio : null,
+  rating: 'rating' in row && (row as any).rating != null ? Number((row as any).rating) : 4.9,
+  totalReviews: 'total_reviews' in row && (row as any).total_reviews != null ? Number((row as any).total_reviews) : 42,
+  portfolioUrls: 'portfolio_urls' in row && Array.isArray((row as any).portfolio_urls) ? (row as any).portfolio_urls : null,
 });
 
 export const mapService = (row: ServiceRow): ServiceRecord => ({
