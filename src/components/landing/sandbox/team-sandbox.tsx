@@ -67,7 +67,7 @@ export const TeamSandbox = () => {
 };
 
 const styles = StyleSheet.create({
-  card: { padding: 22, gap: 18, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, boxShadow: '0 2px 8px rgba(19,32,25,0.05)' },
+  card: { padding: 22, gap: 18, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, boxShadow: '0 2px 8px rgba(20,33,25,0.05)' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18 },
   headerStacked: { flexDirection: 'column' },
   headerCopy: { flex: 1, gap: 7 },
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.inkSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
   availableBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.successSoft },
   availableBadgeText: { color: colors.success, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.5 },
-  inviteCard: { padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: '#E4C79D', borderRadius: radii.md, backgroundColor: colors.warningSoft },
+  inviteCard: { padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: colors.warningBorder, borderRadius: radii.md, backgroundColor: colors.warningSoft },
   inviteCardStacked: { alignItems: 'flex-start', flexWrap: 'wrap' },
   inviteIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: colors.surface },
   inviteCopy: { flex: 1, minWidth: 170, gap: 2 },

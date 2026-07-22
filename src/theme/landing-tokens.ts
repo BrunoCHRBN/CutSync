@@ -1,28 +1,32 @@
 import { Platform } from 'react-native';
 
 export const landingColors = {
-  canvas: '#F4F3EE',
-  canvasWarm: '#ECE9DF',
-  surface: '#FFFFFF',
-  surfaceSoft: '#F8F7F2',
-  ink: '#132019',
-  inkSecondary: '#4F5D55',
+  canvas: '#F7F6F2',
+  canvasWarm: '#EEEAE1',
+  surface: '#FFFEFC',
+  surfaceSoft: '#F4F2EC',
+  ink: '#142119',
+  inkSecondary: '#526057',
   inkMuted: '#748078',
-  textSecondary: '#4F5D55',
+  textSecondary: '#526057',
   textMuted: '#748078',
   brand: '#294B3A',
   brandStrong: '#193628',
-  brandSoft: '#DCE8E0',
-  accent: '#C7A96B',
-  accentSoft: '#F1E9D8',
-  border: '#DADDD6',
-  borderStrong: '#B8C0B9',
+  brandSoft: '#E3ECE6',
+  accent: '#C5A66D',
+  accentSoft: '#F3EBDD',
+  border: '#DCDED8',
+  borderStrong: '#BBC2BC',
   success: '#2E7148',
   successSoft: '#E4F1E8',
   warning: '#9A5B13',
   warningSoft: '#F8EEDD',
+  warningBorder: '#E4C79D',
   danger: '#A53E3E',
   focus: '#275C46',
+  onBrand: '#DCE8E0',
+  onBrandMuted: '#BFD5C8',
+  onBrandSubtle: '#9EB9AA',
   white: '#FFFFFF',
 } as const;
 
@@ -71,7 +75,7 @@ export const landingGlassStyle = (variant: LandingGlassVariant) => {
   const token = glassMap[variant];
   return Platform.select({
     web: {
-      backgroundColor: `rgba(255,255,255,${token.alpha})`,
+      backgroundColor: `rgba(255,254,252,${token.alpha})`,
       backdropFilter: `blur(${token.blur}px)`,
       WebkitBackdropFilter: `blur(${token.blur}px)`,
       borderColor: `rgba(41,75,58,${token.borderAlpha})`,
@@ -84,6 +88,6 @@ export const landingGlassStyle = (variant: LandingGlassVariant) => {
 };
 
 export const landingShadows = {
-  soft: { boxShadow: '0 10px 36px rgba(19,32,25,0.08)' } as never,
-  raised: { boxShadow: '0 24px 70px rgba(19,32,25,0.13)' } as never,
+  soft: { boxShadow: '0 10px 36px rgba(20,33,25,0.06)' } as never,
+  raised: { boxShadow: '0 24px 70px rgba(20,33,25,0.11)' } as never,
 } as const;

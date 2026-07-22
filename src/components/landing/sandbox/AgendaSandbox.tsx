@@ -92,7 +92,7 @@ export const AgendaSandbox = () => {
 };
 
 const styles = StyleSheet.create({
-  card: { padding: 22, gap: 18, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, boxShadow: '0 2px 8px rgba(19,32,25,0.05)' },
+  card: { padding: 22, gap: 18, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, boxShadow: '0 2px 8px rgba(20,33,25,0.05)' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18 },
   headerStacked: { flexDirection: 'column' },
   headerCopy: { flex: 1, gap: 7 },

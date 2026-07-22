@@ -91,9 +91,9 @@ const styles = StyleSheet.create({
     backgroundColor: landingColors.brandStrong,
   },
   editorialCopy: { maxWidth: 720, gap: 11 },
-  editorialEyebrow: { color: '#BFD5C8', fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
+  editorialEyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
   editorialTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 47, letterSpacing: -1.4 },
-  editorialDescription: { maxWidth: 650, color: '#DCE8E0', fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
+  editorialDescription: { maxWidth: 650, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
   productStory: {
     flex: 1,
     minHeight: 88,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   media: { overflow: 'hidden', backgroundColor: landingColors.brandSoft },
   mediaImage: { width: '100%', height: '100%' },
   mediaFallback: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: landingColors.brandSoft },
-  fallbackOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(199,169,107,0.22)' },
+  fallbackOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(197,166,109,0.22)' },
   mediaInitials: { color: landingColors.brand, fontFamily: landingTypography.displayBold, fontSize: 40 },
   mediaCaption: { maxWidth: '80%', color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 11 },
 });

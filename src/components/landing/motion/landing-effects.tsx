@@ -78,7 +78,7 @@ export const TiltCard = ({ children, style, testID }: { children: React.ReactNod
 export const SpotlightSection = ({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) => {
   const { position, handlers } = useSpotlight();
   const backgroundImage = process.env.EXPO_OS === 'web' && position.active
-    ? `radial-gradient(420px circle at ${position.x}px ${position.y}px, rgba(199,169,107,0.18), transparent 65%)`
+    ? `radial-gradient(420px circle at ${position.x}px ${position.y}px, rgba(197,166,109,0.18), transparent 65%)`
     : undefined;
   return (
     <View {...handlers as any} style={[styles.spotlight, style, backgroundImage ? ({ backgroundImage } as never) : null]}>
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(199,169,107,0.65)',
-    backgroundColor: 'rgba(199,169,107,0.11)',
+    borderColor: 'rgba(197,166,109,0.65)',
+    backgroundColor: 'rgba(197,166,109,0.11)',
   },
 });

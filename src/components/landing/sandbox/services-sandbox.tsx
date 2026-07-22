@@ -111,7 +111,7 @@ export const ServicesSandbox = () => {
 };
 
 const styles = StyleSheet.create({
-  card: { padding: 22, gap: 18, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, boxShadow: '0 2px 8px rgba(19,32,25,0.05)' },
+  card: { padding: 22, gap: 18, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, boxShadow: '0 2px 8px rgba(20,33,25,0.05)' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18 },
   headerStacked: { flexDirection: 'column' },
   headerCopy: { flex: 1, gap: 7 },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   actionButton: { minHeight: 40, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: radii.sm, backgroundColor: colors.surface },
   actionText: { color: colors.brand, fontFamily: typography.bodySemiBold, fontSize: 12 },
   dangerText: { color: colors.danger, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  warning: { padding: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, borderWidth: 1, borderColor: '#E4C79D', borderRadius: radii.md, backgroundColor: colors.warningSoft },
+  warning: { padding: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, borderWidth: 1, borderColor: colors.warningBorder, borderRadius: radii.md, backgroundColor: colors.warningSoft },
   warningCopy: { flex: 1, minWidth: 180, gap: 2 },
   warningTitle: { color: colors.ink, fontFamily: typography.bodySemiBold, fontSize: 13 },
   warningText: { color: colors.inkSecondary, fontFamily: typography.body, fontSize: 12 },
@@ -143,4 +143,3 @@ const styles = StyleSheet.create({
   confirmButton: { minHeight: 40, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, backgroundColor: colors.brand },
   confirmText: { color: colors.white, fontFamily: typography.bodySemiBold, fontSize: 12 },
 });
-

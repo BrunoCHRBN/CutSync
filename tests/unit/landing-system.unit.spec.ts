@@ -34,12 +34,25 @@ const contrast = (foreground: string, background: string) => {
 };
 
 test('mantém os tokens claros e os pares principais em contraste AA', () => {
-  expect(tokens).toContain("canvas: '#F4F3EE'");
-  expect(tokens).toContain("surface: '#FFFFFF'");
+  expect(tokens).toContain("canvas: '#F7F6F2'");
+  expect(tokens).toContain("canvasWarm: '#EEEAE1'");
+  expect(tokens).toContain("surface: '#FFFEFC'");
+  expect(tokens).toContain("surfaceSoft: '#F4F2EC'");
+  expect(tokens).toContain("brandSoft: '#E3ECE6'");
+  expect(tokens).toContain("accent: '#C5A66D'");
+  expect(tokens).toContain('rgba(255,254,252');
   expect(tokens).not.toContain('dark:');
-  expect(contrast('#132019', '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
-  expect(contrast('#4F5D55', '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
+  expect(contrast('#142119', '#FFFEFC')).toBeGreaterThanOrEqual(4.5);
+  expect(contrast('#526057', '#FFFEFC')).toBeGreaterThanOrEqual(4.5);
   expect(contrast('#FFFFFF', '#294B3A')).toBeGreaterThanOrEqual(4.5);
+});
+
+test('aplica a hierarquia de superfícies sem transformar tudo em cards', () => {
+  expect(clientLanding).toContain('searchSection: { padding: 22, gap: 20, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm');
+  expect(clientLanding).toContain('resultsSection: { padding: 28, gap: 24, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface }');
+  expect(businessLanding).toContain('heroOuter: { backgroundColor: landingColors.brandStrong }');
+  expect(businessLanding).toContain('sandboxSection: { padding: 30, gap: 22, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface');
+  expect(businessLanding).toContain('roleSection: { padding: 38, flexDirection: \'row\', alignItems: \'center\', gap: 40, borderRadius: landingRadii.xl, backgroundColor: landingColors.brandSoft }');
 });
 
 test('mantém rotas finas e dois caminhos públicos claros', () => {

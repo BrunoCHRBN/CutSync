@@ -123,7 +123,7 @@ const BusinessLandingContent = () => {
           <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
             <View style={styles.heroGlow} />
             <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
-              <View style={styles.heroBadge}><Sparkles size={14} color="#D8C28E" /><Text style={styles.heroBadgeText}>VITRINE E OPERAÇÃO CONECTADAS</Text></View>
+              <View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>VITRINE E OPERAÇÃO CONECTADAS</Text></View>
               <Text style={styles.heroTitle}>Do serviço publicado{`\n`}à agenda organizada.</Text>
               <Text style={styles.heroDescription}>Apresente seu negócio, receba agendamentos e conduza a rotina da equipe em uma experiência conectada.</Text>
               <View style={styles.heroActions}>
@@ -167,7 +167,7 @@ const BusinessLandingContent = () => {
 
           <RevealOnScroll
             onLayout={(event) => { sandboxSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
-            style={styles.sandboxSection}
+            style={[styles.sandboxSection, landingShadows.soft]}
           >
             <SectionHeading
               eyebrow="PRODUTO DISPONÍVEL"
@@ -261,7 +261,7 @@ const BusinessLandingContent = () => {
                   ['04', 'Equipe', 'Convites, jornadas e responsabilidades.'],
                 ].map(([step, title, description]) => (
                   <View key={step} style={styles.onboardingItem}>
-                    <View style={styles.onboardingStep}><Text style={styles.onboardingStepText}>{step}</Text><Check size={15} color="#BFD5C8" /></View>
+                    <View style={styles.onboardingStep}><Text style={styles.onboardingStepText}>{step}</Text><Check size={15} color={landingColors.onBrandMuted} /></View>
                     <Text style={styles.onboardingTitle}>{title}</Text>
                     <Text style={styles.onboardingText}>{description}</Text>
                   </View>
@@ -319,17 +319,17 @@ const styles = StyleSheet.create({
   heroOuter: { backgroundColor: landingColors.brandStrong },
   hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 540, paddingHorizontal: 20, paddingVertical: 56, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 50 },
   heroStacked: { minHeight: 0, paddingVertical: 44, flexDirection: 'column', alignItems: 'stretch' },
-  heroGlow: { position: 'absolute', width: 520, height: 520, top: 20, right: -60, borderRadius: 260, backgroundColor: 'rgba(199,169,107,0.13)' },
+  heroGlow: { position: 'absolute', width: 520, height: 520, top: 20, right: -60, borderRadius: 260, backgroundColor: 'rgba(197,166,109,0.13)' },
   heroCopy: { flex: 1, minWidth: 280, gap: 18 },
   heroBadge: { alignSelf: 'flex-start', paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: landingRadii.pill, backgroundColor: 'rgba(255,255,255,0.09)' },
-  heroBadgeText: { color: '#DCE8E0', fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
+  heroBadgeText: { color: landingColors.onBrand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
   heroTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 57, lineHeight: 61, letterSpacing: -2.3 },
-  heroDescription: { maxWidth: 560, color: '#DCE8E0', fontFamily: landingTypography.body, fontSize: 17, lineHeight: 27 },
+  heroDescription: { maxWidth: 560, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 27 },
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   heroSecondaryButton: { minHeight: 48, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: landingRadii.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
   heroSecondaryLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
-  heroNote: { maxWidth: 530, color: '#9EB9AA', fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },
-  heroPreviewFrame: { width: '47%', maxWidth: 570, padding: 14, borderRadius: landingRadii.xl, backgroundColor: 'rgba(244,243,238,0.10)' },
+  heroNote: { maxWidth: 530, color: landingColors.onBrandSubtle, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },
+  heroPreviewFrame: { width: '47%', maxWidth: 570, padding: 14, borderRadius: landingRadii.xl, backgroundColor: 'rgba(247,246,242,0.10)' },
   heroPreview: { width: '100%' },
   fullWidth: { width: '100%', maxWidth: '100%' },
   content: { width: '100%', maxWidth: landingLayout.maxWidth, paddingHorizontal: 20, paddingTop: 64, alignSelf: 'center', gap: 72 },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   connectionIndex: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 12 },
   connectionTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   connectionText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  sandboxSection: { gap: 22 },
+  sandboxSection: { padding: 30, gap: 22, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface },
   tabsFrame: { borderRadius: landingRadii.md },
   tabs: { position: 'relative', flexDirection: 'row' },
   tab: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
@@ -362,10 +362,10 @@ const styles = StyleSheet.create({
   storyIcon: { width: 38, height: 38, marginRight: 7, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
   storyIconActive: { backgroundColor: landingColors.brand },
   sandboxFrame: { flex: 1, minWidth: 0, borderRadius: landingRadii.xl },
-  roleSection: { padding: 38, flexDirection: 'row', alignItems: 'center', gap: 40, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface },
+  roleSection: { padding: 38, flexDirection: 'row', alignItems: 'center', gap: 40, borderRadius: landingRadii.xl, backgroundColor: landingColors.brandSoft },
   roleSectionStacked: { flexDirection: 'column', alignItems: 'stretch' },
   roleCopy: { flex: 1, minWidth: 280, gap: 14 },
-  roleToggle: { alignSelf: 'flex-start', padding: 4, flexDirection: 'row', gap: 4, borderRadius: landingRadii.pill, backgroundColor: landingColors.canvasWarm },
+  roleToggle: { alignSelf: 'flex-start', padding: 4, flexDirection: 'row', gap: 4, borderRadius: landingRadii.pill, backgroundColor: landingColors.surface },
   roleButton: { minHeight: 44, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', borderRadius: landingRadii.pill },
   roleButtonSelected: { backgroundColor: landingColors.brand },
   roleButtonText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   onboardingStep: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   onboardingStepText: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 13 },
   onboardingTitle: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
-  onboardingText: { color: '#BFD5C8', fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
+  onboardingText: { color: landingColors.onBrandMuted, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
   faqSection: { gap: 25 },
   faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
   faqItem: { flex: 1, minWidth: 250, paddingTop: 18, gap: 8, borderTopWidth: 1, borderTopColor: landingColors.border },

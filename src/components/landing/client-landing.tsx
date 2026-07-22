@@ -387,7 +387,7 @@ const ClientLandingContent = () => {
                   <View key={label} style={styles.platformStep}>
                     <Text style={styles.platformIndex}>0{index + 1}</Text>
                     <Text style={styles.platformLabel}>{label}</Text>
-                    {index < 3 && <ArrowRight size={16} color="#9EB9AA" />}
+                    {index < 3 && <ArrowRight size={16} color={landingColors.onBrandSubtle} />}
                   </View>
                 ))}
               </View>
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 36 },
   heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 420, paddingHorizontal: 20, paddingTop: 44, paddingBottom: 70, flexDirection: 'row', alignItems: 'center', gap: 46 },
   heroSectionStacked: { minHeight: 0, paddingTop: 38, paddingBottom: 64, flexDirection: 'column', alignItems: 'stretch' },
-  heroGlow: { position: 'absolute', width: 440, height: 440, borderRadius: 220, right: 10, top: 20, backgroundColor: 'rgba(199,169,107,0.14)' },
+  heroGlow: { position: 'absolute', width: 440, height: 440, borderRadius: 220, right: 10, top: 20, backgroundColor: 'rgba(197,166,109,0.14)' },
   heroCopy: { flex: 1, minWidth: 280, gap: 17 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, paddingVertical: 7, borderRadius: landingRadii.pill, backgroundColor: landingColors.brandSoft },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 39, lineHeight: 44, letterSpacing: -1.3 },
   sectionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
   searchSection: { padding: 22, gap: 20, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm, transform: [{ translateY: -34 }] },
-  searchPanel: { padding: 14, gap: 12, borderRadius: landingRadii.lg, boxShadow: '0 18px 52px rgba(19,32,25,0.11)' },
+  searchPanel: { padding: 14, gap: 12, borderRadius: landingRadii.lg, boxShadow: '0 18px 52px rgba(20,33,25,0.09)' },
   searchFields: { flexDirection: 'row', gap: 10 },
   searchFieldsStacked: { flexDirection: 'column' },
   inputShell: { flex: 1, minHeight: 52, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.md, backgroundColor: landingColors.surface },
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   resultsHeadingRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 18 },
   resultsCount: { color: landingColors.brand, fontFamily: landingTypography.mono, fontSize: 13, fontVariant: ['tabular-nums'] },
   establishmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  establishmentCard: { overflow: 'hidden', borderRadius: landingRadii.lg, backgroundColor: landingColors.surfaceSoft, boxShadow: '0 8px 28px rgba(19,32,25,0.08)' },
+  establishmentCard: { overflow: 'hidden', borderRadius: landingRadii.lg, backgroundColor: landingColors.surfaceSoft, boxShadow: '0 8px 28px rgba(20,33,25,0.06)' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.995 }] },
   cover: { height: 190 },
   cardBody: { padding: 17, gap: 10 },
