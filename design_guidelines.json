@@ -1,54 +1,92 @@
 {
   "typography": {
-    "headings": "Montserrat_700Bold",
-    "body": "Inter_400Regular",
-    "bodyStrong": "Inter_600SemiBold",
-    "hierarchy_rules": "Use large prominent text (text-xl to text-2xl) for the Next Appointment time to create a 'Next Best Action' focal point. Ensure high-contrast. Never default to generic sans for large focal numbers if a display font is available."
+    "strategy": "The 'Editorial Future' Approach - Preserve existing fonts but radically change how they are typeset to kill the 'AI look'.",
+    "rules": {
+      "headings": "Use fluid typography up to text-5xl/text-6xl. Apply 'tracking-tighter' and 'leading-[1.1]' for a dense, premium editorial feel (like Superhuman). Never center-align by default.",
+      "overlines": "Use text-xs to text-sm, uppercase, with massive tracking 'tracking-[0.2em]' (e.g., 'FOR PROFESSIONALS').",
+      "body": "Use text-base to text-lg with 'leading-relaxed'. Left-aligned for optimal readability.",
+      "contrast": "Ensure steep hierarchy contrast. If H2 is text-5xl, the supporting body must be text-lg. Skip middle sizes."
+    }
   },
   "colors": {
-    "primary": "Use existing CutSync colors.brand (#F5A524) for the active accent on the Next Appointment Card.",
-    "background": "colors.surface (#FFFFFF) or colors.surfaceRaised (#F9FAFB) based on tokens.",
-    "states": {
-      "loading": "Use colors.canvasSoft or a skeleton pulse with colors.border",
-      "free": "colors.canvasSoft with colors.textMuted to indicate empty state. Vibe: approachable, calm.",
-      "error": "colors.dangerSoft for background, colors.danger for text"
-    },
-    "rules": "Avoid generic SaaS Blue. Apply the 'Tinted Grey' rule implicitly by using existing theme tokens."
+    "strategy": "The 'Organic & Earthy' meets 'Swiss High-Contrast'. Preserve the existing brand green but surround it with architectural neutrals.",
+    "rules": {
+      "primary": "Preserve exact existing brand green. Use it intentionally for key actions and active states. Do not spray it everywhere.",
+      "backgrounds": "Use Off-White (#FAF9F6) or Deep Obsidian (#0A0A0A). Never use pure #FFFFFF or #000000. Tint grays slightly with the brand green.",
+      "surfaces": "Use pure contrasting values to background (e.g., 5% white over obsidian) rather than flat mid-grays.",
+      "gradients": "BANNED: Generic linear gradients. ALLOWED: Extremely soft, blurry radial glows (blur-[100px] to blur-[140px]) acting as ambient light."
+    }
   },
   "visual enhancers": {
-    "shadows": "Use atmosphericShadow and elevated shadow styles for the Next Appointment Card. Mix soft shadows with crisp inner borders.",
-    "borders": "1px hairline border (colors.hairline) with radii.lg for structural clarity.",
-    "empty_states": "Do not leave a blank space. If there is no appointment, show a clear 'Agenda Livre' state with a friendly icon. Empty spaces feel like a bug; make them feel intentional."
+    "glassmorphism": {
+      "concept": "The 'Crystal' Variant. No muddy grays. It must feel like milled glass.",
+      "implementation": "Background: bg-white/70 (Light) or bg-black/60 (Dark). Blur: backdrop-blur-xl or backdrop-blur-2xl. Saturation: backdrop-saturate-150 (CRITICAL for the Apple/Superhuman feel). Border: 1px delicate inner stroke (border-white/40 or border-white/10 for dark). Shadow: ambient diffuse shadow (shadow-[0_8px_32px_rgba(0,0,0,0.12)])."
+    },
+    "textures": "Apply a subtle SVG noise overlay fixed to the viewport to kill 'digital flatness'. Mix with opacity-5."
   },
-  "component name": "NextAppointmentCard, GlobalNextAppointmentCard, useNextAppointment",
   "grids": {
-    "layout_mode": "High Density Grid (For Dashboards / Analytics) modified for Mobile-First.",
-    "rules": "Grid items must be direct children. The Next Appointment Card spans full width at the top of the dashboard to serve as the 'Hero' widget."
+    "marketing_bento": "MODE A: The 'Tetris' Grid. Base: grid-cols-1 md:grid-cols-12. Gap: gap-8 to gap-16. Never fill 100% of the grid perfectly. Mix spans (e.g., col-span-8 row-span-2 for hero image, col-span-4 row-span-1 for text block) to create asymmetry and negative space."
   },
   "layouts": {
-    "spacing": "Generous Spacing Philosophy. Use p-4 to p-6 (padding 16 to 24) inside the card. Ensure distinct visual separation between the Admin's Daily Panel and the Global Next Appointment Card (Admin).",
-    "alignment": "Optical alignment over geometrical alignment. Left-align text, but ensure icon spacing feels balanced. Asymmetry creates tension and interest."
+    "overall": "Generous Spacing Philosophy. Use 2-3x more spacing than typical designs (p-12, p-16, py-24, py-32).",
+    "client_landing": "Focus on emotion, ease of use, and visual discovery (Fresha vibe). Use large immersive image containers with offset typography.",
+    "owner_landing": "Focus on control, metrics, and premium tech (Mercury vibe). Use 'Grid Borders' layout where the skeleton of the layout is visible through subtle borders (border-collapse style).",
+    "transitions": "Avoid hard horizontal lines between sections. Use overlapping cards (margin-top negative), color bleeding (soft radial gradients connecting sections), or sticky scroll sections to create fluid narrative transitions."
   },
   "motion": {
-    "transitions": "Add smooth opacity transitions when the Realtime update swaps the appointment data.",
-    "micro_interactions": "Subtle scale-down on press (if the card is actionable). Avoid default 'all' transitions.",
-    "accessibility": "Respect prefers-reduced-motion."
+    "strategy": "Cinematic and Restrained. No bouncing or generic 'fade up' on everything.",
+    "libraries": "framer-motion for interactions, lenis for momentum smooth scrolling.",
+    "interactions": "Hover states must feel tactile: subtle scale (scale-[1.02]), shadow lift, and color tint. Use 'layout' animations for list sorting or tab switching. Entrance animations should be staggered and slight (y: 20, opacity: 0)."
   },
   "accessibility": {
-    "contrast": "Ensure minimum 4.5:1 ratio. Text colors from tokens should be strictly used.",
-    "test_ids": "MUST include data-testid='next-appointment-card', data-testid='global-next-appointment-card', data-testid='next-appointment-time', data-testid='next-appointment-free', data-testid='next-appointment-error'"
+    "contrast": "Minimum 4.5:1 for normal text, 3:1 for large text. ALWAYS check text over gradients/glassmorphism.",
+    "focus": "Use explicit ring outlines for focus states (focus:ring-2 focus:ring-green-500/50 focus:outline-none).",
+    "testing": "All interactive elements MUST include data-testid attributes (e.g., data-testid=\"hero-cta-button\")."
   },
-  "media": "Not applicable for this specific feature.",
-  "3d libraries": "Not required.",
-  "image_urls": {},
-  "component_path": "/app/src/components/booking/NextAppointmentCard.js, /app/src/components/admin/GlobalNextAppointmentCard.js, /app/src/hooks/useNextAppointment.js",
+  "media": {
+    "strategy": "Close-ups and bold focus. If using device mockups, show half the device, bleed it off the edge of the screen.",
+    "overlays": "Hero images must NOT have heavy black blankets. Max overlay bg-black/40. If more contrast needed, use a gradient that fades to transparent."
+  },
+  "3d libraries": {
+    "strategy": "Only use if it enhances the product story.",
+    "recommendation": "Use framer-motion 3D for simple 2.5D card tilts. No complex R3F scenes unless the user requests a deep interactive element, keep it clean and fast."
+  },
+  "image_urls": {
+    "hero_client": {
+      "url": "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80",
+      "description": "High-end salon interior or person getting a haircut, close up, soft lighting.",
+      "category": "hero"
+    },
+    "hero_owner": {
+      "url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80",
+      "description": "Professional looking at a tablet or managing a desk, premium lighting.",
+      "category": "hero"
+    }
+  },
+  "component_path": {
+    "ui": "/app/frontend/src/components/ui",
+    "pages": "/app/frontend/src/pages"
+  },
   "instructions_to_main_agent": [
-    "Create a shared hook `useNextAppointment.js` in `/app/src/hooks/` using Supabase Realtime to subscribe to 'appointments' table changes (INSERT, UPDATE, DELETE). This ensures updates are immediate after any action.",
-    "Implement `NextAppointmentCard.js` for the professional dashboard. It must show distinct states: Loading (skeleton/spinner), Free Schedule (Agenda livre), Error, and Active Appointment.",
-    "Implement `GlobalNextAppointmentCard.js` for the Admin dashboard. This must show the very next appointment across the entire unit, remaining completely independent from the admin daily panel.",
-    "Integrate the professional card into the Barber/Professional dashboard. Replace the existing static 'Próximo atendimento' metric with this new robust, real-time component.",
-    "Integrate the admin global card into the Admin dashboard.",
-    "Preserve the strict visual system of CutSync, utilizing AppCard, StatusBadge, and tokens."
+    "PRESERVE EXACT TEXT AND FUNCTIONALITIES: Do not alter the copy. Do not remove any existing navigation or CTAs.",
+    "PRESERVE BRAND ASSETS: Identify and use the existing brand green and fonts. Apply them using the new typographic scales and layout rules.",
+    "IMPLEMENT DUAL PAGES: Ensure the Client page leans into the Fresha/Superhuman aesthetic (discovery, emotion, clean glass) and the Owner page leans into Mercury (premium fintech, structural, metric-driven).",
+    "APPLY FLUID TRANSITIONS: Connect sections smoothly. Overlap containers using negative margins, or use soft gradient backgrounds that flow from one section to the next.",
+    "EXECUTE GLASSMORPHISM: strictly follow the 'Crystal Variant' rules in this JSON. No transparent dropdowns."
   ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "GENERAL UI UX DESIGN GUIDELINES: You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight. Create depth through layered design elements with z-index hierarchy. Every interaction needs micro-animations - hover states, transitions. Use 2-3x more spacing than feels comfortable. Subtle grain textures or custom cursors separate good from extraordinary. ALWAYS add data-testid attributes to interactive and informational elements to facilitate robust automated testing."
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid the 'AI slop' aesthetic. Create distinctive frontends.",
+    "Don't make generic centered layouts. Use asymmetrical bento grids.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) combined with 1px borders.",
+    "NEVER apply universal transition ('transition: all').",
+    "NEVER center align the app container (.App { text-align: center; }).",
+    "Use modern button styles (pill-shaped or sharp) with interaction animations.",
+    "NEVER use AI assistant emojis (🤖🧠💭) for icons.",
+    "Every interaction needs micro-animations (hover states, transitions).",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Add subtle grain textures and custom selection states.",
+    "Missing categories for images MUST NOT use placeholder text.",
+    "All interactive elements MUST include a data-testid attribute."
+  ]
 }
