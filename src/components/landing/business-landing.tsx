@@ -1,17 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { CalendarRange, Check, ClipboardCheck, LogIn, Scissors, Sparkles, UsersRound } from 'lucide-react-native';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import {
+  ArrowRight,
+  CalendarRange,
+  Check,
+  LogIn,
+  Scissors,
+  Sparkles,
+  Store,
+  UsersRound,
+} from 'lucide-react-native';
+import { landingColors, landingLayout, landingRadii, landingShadows, landingTypography } from '../../theme/landing-tokens';
+import { LANDING_CAPABILITIES, LandingCapabilityId } from './landing-capabilities';
+import { trackLandingEvent } from './landing-analytics';
+import { EditorialBand, ProductStory } from './landing-primitives';
+import { CustomCursor, GlassSurface, MagneticButton, RevealOnScroll, SpotlightSection } from './motion/landing-effects';
+import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
+import { ProductPreview } from './product-preview';
 import { AgendaSandbox } from './sandbox/AgendaSandbox';
 import { ServicesSandbox } from './sandbox/services-sandbox';
 import { TeamSandbox } from './sandbox/team-sandbox';
-import { LANDING_CAPABILITIES, LandingCapabilityId } from './landing-capabilities';
-import { trackLandingEvent } from './landing-analytics';
-import { ProductPreview } from './product-preview';
-import { CustomCursor, GlassSurface, MagneticButton, RevealOnScroll, SpotlightSection } from './motion/landing-effects';
-import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
-import { landingColors, landingLayout, landingRadii, landingShadows, landingTypography } from '../../theme/landing-tokens';
 
 const capabilityComponents: Record<LandingCapabilityId, React.ComponentType> = {
   agenda: AgendaSandbox,
@@ -45,6 +55,7 @@ const BusinessLandingContent = () => {
   const reducedMotion = useReducedMotion();
   const isDesktop = width >= landingLayout.desktopBreakpoint;
   const scrollRef = useRef<ScrollView>(null);
+  const contentY = useRef(0);
   const sandboxSectionY = useRef(0);
   const [activeTab, setActiveTab] = useState<LandingCapabilityId>('agenda');
   const [trackWidth, setTrackWidth] = useState(0);
@@ -99,7 +110,7 @@ const BusinessLandingContent = () => {
             <View><Text style={styles.brand}>CutSync</Text><Text style={styles.brandCaption}>PARA NEGÓCIOS</Text></View>
           </Pressable>
           <View style={styles.headerActions}>
-            {isDesktop && <Pressable accessibilityRole="link" onPress={() => router.push('/' as never)} style={styles.headerLink}><Text style={styles.headerLinkText}>Sou cliente</Text></Pressable>}
+            {isDesktop && <Pressable accessibilityRole="link" onPress={() => router.push('/' as never)} style={styles.headerLink}><Text style={styles.headerLinkText}>Encontrar um serviço</Text></Pressable>}
             <Pressable testID="business-login-button" accessibilityRole="button" onPress={() => router.push('/login' as never)} style={styles.accountButton}>
               <LogIn size={16} color={landingColors.brand} /><Text style={styles.accountButtonText}>Acessar painel</Text>
             </Pressable>
@@ -108,40 +119,61 @@ const BusinessLandingContent = () => {
       </GlassSurface>
 
       <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
-          <View style={styles.heroGlow} />
-          <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
-            <View style={styles.heroBadge}><Sparkles size={14} color={landingColors.brand} /><Text style={styles.heroBadgeText}>OPERAÇÃO CONECTADA À AGENDA</Text></View>
-            <Text style={styles.heroTitle}>Menos ruído na recepção.{`\n`}Mais clareza na operação.</Text>
-            <Text style={styles.heroDescription}>Organize agenda, serviços e equipe em uma experiência alinhada ao que o CutSync já entrega hoje.</Text>
-            <View style={styles.heroActions}>
-              <MagneticButton label="Cadastrar estabelecimento" onPress={startRegistration} testID="business-primary-cta" />
-              <MagneticButton label="Experimentar demonstração" secondary onPress={scrollToSandbox} testID="business-demo-cta" />
+        <View style={styles.heroOuter}>
+          <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
+            <View style={styles.heroGlow} />
+            <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
+              <View style={styles.heroBadge}><Sparkles size={14} color="#D8C28E" /><Text style={styles.heroBadgeText}>VITRINE E OPERAÇÃO CONECTADAS</Text></View>
+              <Text style={styles.heroTitle}>Do serviço publicado{`\n`}à agenda organizada.</Text>
+              <Text style={styles.heroDescription}>Apresente seu negócio, receba agendamentos e conduza a rotina da equipe em uma experiência conectada.</Text>
+              <View style={styles.heroActions}>
+                <MagneticButton label="Cadastrar estabelecimento" inverse onPress={startRegistration} testID="business-primary-cta" />
+                <Pressable testID="business-demo-cta" accessibilityRole="button" onPress={scrollToSandbox} style={styles.heroSecondaryButton}>
+                  <Text style={styles.heroSecondaryLabel}>Ver o produto em ação</Text><ArrowRight size={16} color={landingColors.white} />
+                </Pressable>
+              </View>
+              <Text style={styles.heroNote}>Demonstrações baseadas em funcionalidades disponíveis, com dados fictícios.</Text>
             </View>
-            <Text style={styles.heroNote}>As demonstrações usam dados fictícios e reproduzem funcionalidades disponíveis no produto.</Text>
-          </View>
-          {isDesktop && <ProductPreview variant="owner" accessibilityLabel="Prévia ilustrativa da visão operacional do dono" style={styles.heroPreview} />}
-        </SpotlightSection>
+            {isDesktop && (
+              <View style={styles.heroPreviewFrame}>
+                <ProductPreview variant="owner" accessibilityLabel="Prévia ilustrativa da visão operacional do dono" style={styles.heroPreview} />
+              </View>
+            )}
+          </SpotlightSection>
+        </View>
 
-        <View style={styles.content}>
-          <RevealOnScroll style={styles.capabilitiesSection}>
-            <SectionHeading eyebrow="PRODUTO DISPONÍVEL" title="O essencial da operação, sem promessas futuras." description="Cada demonstração abaixo corresponde a um fluxo presente na área administrativa." centered />
-            <View style={styles.capabilityGrid}>
-              {LANDING_CAPABILITIES.map((capability) => {
-                const Icon = capabilityIcons[capability.id];
-                return (
-                  <View key={capability.id} style={styles.capabilityCard}>
-                    <View style={styles.capabilityIcon}><Icon size={21} color={landingColors.brand} /></View>
-                    <Text style={styles.capabilityTitle}>{capability.title}</Text>
-                    <Text style={styles.capabilityText}>{capability.description}</Text>
-                  </View>
-                );
-              })}
+        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
+          <RevealOnScroll style={styles.connectionSection}>
+            <SectionHeading
+              eyebrow="UM CAMINHO CONTÍNUO"
+              title="A presença pública alimenta a rotina do negócio."
+              description="O cliente encontra a vitrine; o estabelecimento recebe a decisão dentro da agenda que já organiza."
+            />
+            <View style={styles.connectionFlow}>
+              {[
+                ['01', 'Cadastre os serviços', 'Defina nome, duração e preço.'],
+                ['02', 'Publique a vitrine', 'Apresente as informações do estabelecimento.'],
+                ['03', 'Receba agendamentos', 'O cliente consulta a agenda da unidade.'],
+                ['04', 'Organize a operação', 'Acompanhe agenda, serviços e equipe.'],
+              ].map(([step, title, description], index) => (
+                <View key={step} style={styles.connectionItem}>
+                  <View style={styles.connectionTop}><Text style={styles.connectionIndex}>{step}</Text>{index < 3 && <ArrowRight size={16} color={landingColors.borderStrong} />}</View>
+                  <Text style={styles.connectionTitle}>{title}</Text>
+                  <Text style={styles.connectionText}>{description}</Text>
+                </View>
+              ))}
             </View>
           </RevealOnScroll>
 
-          <RevealOnScroll onLayout={(event) => { sandboxSectionY.current = event.nativeEvent.layout.y; }} style={styles.sandboxSection}>
-            <SectionHeading eyebrow="DEMONSTRAÇÃO INTERATIVA" title="Toque na operação antes de começar." description="Demonstração baseada em funcionalidades disponíveis, com dados fictícios." />
+          <RevealOnScroll
+            onLayout={(event) => { sandboxSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            style={styles.sandboxSection}
+          >
+            <SectionHeading
+              eyebrow="PRODUTO DISPONÍVEL"
+              title="Veja como cada parte sustenta a operação."
+              description="Demonstração baseada em funcionalidades disponíveis, com dados fictícios."
+            />
             <GlassSurface variant="control" style={styles.tabsFrame}>
               <View accessibilityRole="tablist" onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)} style={styles.tabs}>
                 {LANDING_CAPABILITIES.map((capability, index) => {
@@ -165,14 +197,32 @@ const BusinessLandingContent = () => {
                 </View>
               </View>
             </GlassSurface>
-            <CustomCursor style={[styles.sandboxFrame, landingShadows.raised]}><ActiveSandbox /></CustomCursor>
+
+            <View style={[styles.sandboxStoryLayout, !isDesktop && styles.sandboxStoryLayoutStacked]}>
+              <View style={[styles.storyRail, !isDesktop && styles.storyRailStacked]}>
+                {LANDING_CAPABILITIES.map((capability, index) => {
+                  const Icon = capabilityIcons[capability.id];
+                  return (
+                    <Pressable key={capability.id} accessibilityRole="button" onPress={() => selectTab(capability.id)} style={styles.storyButton}>
+                      <View style={[styles.storyIcon, activeTab === capability.id && styles.storyIconActive]}><Icon size={18} color={activeTab === capability.id ? landingColors.white : landingColors.brand} /></View>
+                      <ProductStory index={`0${index + 1}`} title={capability.title} description={capability.description} active={activeTab === capability.id} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <CustomCursor style={[styles.sandboxFrame, landingShadows.raised]}>
+                <Animated.View key={activeTab} entering={quality === 'off' ? undefined : FadeIn.duration(180)}>
+                  <ActiveSandbox />
+                </Animated.View>
+              </CustomCursor>
+            </View>
           </RevealOnScroll>
 
           <RevealOnScroll style={[styles.roleSection, !isDesktop && styles.roleSectionStacked]}>
             <View style={[styles.roleCopy, !isDesktop && styles.fullWidth]}>
               <Text style={styles.eyebrow}>DUAS ROTINAS, UMA OPERAÇÃO</Text>
-              <Text style={styles.sectionTitle}>A informação certa para cada papel.</Text>
-              <Text style={styles.sectionDescription}>A visão do dono acompanha a unidade; a visão profissional mantém o foco na agenda e na própria produção.</Text>
+              <Text style={styles.sectionTitle}>Cada pessoa vê o que precisa para agir.</Text>
+              <Text style={styles.sectionDescription}>A visão do dono acompanha a unidade; a visão profissional mantém o foco na própria agenda e produção.</Text>
               <View style={styles.roleToggle}>
                 {(['owner', 'professional'] as const).map((role) => {
                   const selected = preview === role;
@@ -197,41 +247,46 @@ const BusinessLandingContent = () => {
             <ProductPreview variant={preview} accessibilityLabel={`Prévia ilustrativa da ${preview === 'owner' ? 'visão do dono' : 'visão profissional'}`} style={[styles.rolePreview, !isDesktop && styles.fullWidth]} />
           </RevealOnScroll>
 
-          <RevealOnScroll style={styles.onboardingSection}>
-            <SectionHeading eyebrow="PRIMEIROS PASSOS" title="Da configuração à vitrine publicada." description="Uma jornada direta, baseada nas configurações que já existem no CutSync." centered />
-            <View style={styles.onboardingGrid}>
-              {[
-                ['01', 'Cadastre os serviços', 'Defina nome, duração e preço do catálogo.'],
-                ['02', 'Configure os horários', 'Informe os horários da unidade e as jornadas.'],
-                ['03', 'Convide a equipe', 'Vincule profissionais e ajuste suas responsabilidades.'],
-                ['04', 'Publique a vitrine', 'Revise o perfil que será apresentado aos clientes.'],
-              ].map(([step, title, description]) => (
-                <View key={step} style={styles.onboardingCard}>
-                  <View style={styles.onboardingStep}><Text style={styles.onboardingStepText}>{step}</Text><Check size={15} color={landingColors.success} /></View>
-                  <Text style={styles.onboardingTitle}>{title}</Text>
-                  <Text style={styles.onboardingText}>{description}</Text>
-                </View>
-              ))}
-            </View>
+          <RevealOnScroll>
+            <EditorialBand
+              eyebrow="CONFIGURAÇÃO COM PROPÓSITO"
+              title="Comece pelo que o cliente precisa ver. Organize o que a equipe precisa usar."
+              description="Uma jornada baseada nas configurações disponíveis hoje no CutSync."
+            >
+              <View style={styles.onboardingGrid}>
+                {[
+                  ['01', 'Serviços', 'Nome, duração e preço do catálogo.'],
+                  ['02', 'Vitrine', 'Informações públicas do estabelecimento.'],
+                  ['03', 'Agenda', 'Horários da unidade e atendimentos.'],
+                  ['04', 'Equipe', 'Convites, jornadas e responsabilidades.'],
+                ].map(([step, title, description]) => (
+                  <View key={step} style={styles.onboardingItem}>
+                    <View style={styles.onboardingStep}><Text style={styles.onboardingStepText}>{step}</Text><Check size={15} color="#BFD5C8" /></View>
+                    <Text style={styles.onboardingTitle}>{title}</Text>
+                    <Text style={styles.onboardingText}>{description}</Text>
+                  </View>
+                ))}
+              </View>
+            </EditorialBand>
           </RevealOnScroll>
 
           <RevealOnScroll style={styles.faqSection}>
-            <SectionHeading eyebrow="PERGUNTAS FREQUENTES" title="Para avaliar com calma." description="Informações diretas sobre demonstração, cadastro e condições comerciais." />
+            <SectionHeading eyebrow="PERGUNTAS FREQUENTES" title="Para avaliar com calma." description="Informações diretas sobre cadastro, demonstração e condições comerciais." />
             <View style={styles.faqGrid}>
               {[
                 ['A demonstração usa dados reais?', 'Não. Os dados são fictícios, mas as ações representam fluxos disponíveis no produto.'],
                 ['Os preços já estão definidos?', 'As condições comerciais ainda estão em validação e não representam uma oferta publicada.'],
                 ['Posso começar com uma equipe pequena?', 'Sim. O cadastro contempla profissionais autônomos e estabelecimentos com equipe.'],
-              ].map(([question, answer]) => <View key={question} style={styles.faqCard}><Text style={styles.faqQuestion}>{question}</Text><Text style={styles.faqAnswer}>{answer}</Text></View>)}
+              ].map(([question, answer]) => <View key={question} style={styles.faqItem}><Text style={styles.faqQuestion}>{question}</Text><Text style={styles.faqAnswer}>{answer}</Text></View>)}
             </View>
           </RevealOnScroll>
 
           <RevealOnScroll style={styles.finalCta}>
-            <ClipboardCheck size={24} color={landingColors.accent} />
-            <Text style={styles.finalCtaEyebrow}>CONHEÇA O CUTSYNC</Text>
-            <Text style={styles.finalCtaTitle}>Organize a operação a partir da agenda.</Text>
-            <Text style={styles.finalCtaText}>Crie seu acesso e siga para a configuração assistida do estabelecimento.</Text>
-            <MagneticButton label="Iniciar cadastro" onPress={startRegistration} />
+            <View style={styles.finalCtaIcon}><Store size={23} color={landingColors.brand} /></View>
+            <Text style={styles.finalCtaEyebrow}>SUA VITRINE, SUA OPERAÇÃO</Text>
+            <Text style={styles.finalCtaTitle}>Comece a organizar o negócio a partir do que você já oferece.</Text>
+            <Text style={styles.finalCtaText}>Crie seu acesso e siga para a configuração do estabelecimento.</Text>
+            <MagneticButton label="Criar meu estabelecimento" onPress={startRegistration} />
           </RevealOnScroll>
 
           <View style={styles.footer}>
@@ -261,65 +316,77 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 44, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.pill, backgroundColor: landingColors.surface },
   accountButtonText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   scroll: { paddingBottom: 36 },
-  hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 520, paddingHorizontal: 20, paddingVertical: 52, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 42 },
-  heroStacked: { minHeight: 0, paddingVertical: 40, flexDirection: 'column', alignItems: 'stretch' },
-  heroGlow: { position: 'absolute', width: 430, height: 430, top: 40, right: 0, borderRadius: 215, backgroundColor: 'rgba(199,169,107,0.13)' },
-  heroCopy: { flex: 1, minWidth: 280, gap: 17 },
-  heroBadge: { alignSelf: 'flex-start', paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: landingRadii.pill, backgroundColor: landingColors.brandSoft },
-  heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
-  heroTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 54, lineHeight: 59, letterSpacing: -2.1 },
-  heroDescription: { maxWidth: 560, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 27 },
-  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  heroNote: { maxWidth: 530, color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },
-  heroPreview: { width: '46%', maxWidth: 550 },
+  heroOuter: { backgroundColor: landingColors.brandStrong },
+  hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 540, paddingHorizontal: 20, paddingVertical: 56, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 50 },
+  heroStacked: { minHeight: 0, paddingVertical: 44, flexDirection: 'column', alignItems: 'stretch' },
+  heroGlow: { position: 'absolute', width: 520, height: 520, top: 20, right: -60, borderRadius: 260, backgroundColor: 'rgba(199,169,107,0.13)' },
+  heroCopy: { flex: 1, minWidth: 280, gap: 18 },
+  heroBadge: { alignSelf: 'flex-start', paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: landingRadii.pill, backgroundColor: 'rgba(255,255,255,0.09)' },
+  heroBadgeText: { color: '#DCE8E0', fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
+  heroTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 57, lineHeight: 61, letterSpacing: -2.3 },
+  heroDescription: { maxWidth: 560, color: '#DCE8E0', fontFamily: landingTypography.body, fontSize: 17, lineHeight: 27 },
+  heroActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+  heroSecondaryButton: { minHeight: 48, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: landingRadii.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  heroSecondaryLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
+  heroNote: { maxWidth: 530, color: '#9EB9AA', fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },
+  heroPreviewFrame: { width: '47%', maxWidth: 570, padding: 14, borderRadius: landingRadii.xl, backgroundColor: 'rgba(244,243,238,0.10)' },
+  heroPreview: { width: '100%' },
   fullWidth: { width: '100%', maxWidth: '100%' },
-  content: { width: '100%', maxWidth: landingLayout.maxWidth, paddingHorizontal: 20, alignSelf: 'center', gap: 68 },
+  content: { width: '100%', maxWidth: landingLayout.maxWidth, paddingHorizontal: 20, paddingTop: 64, alignSelf: 'center', gap: 72 },
   sectionHeading: { maxWidth: landingLayout.copyWidth, gap: 9 },
   centered: { alignSelf: 'center', alignItems: 'center' },
   centerText: { textAlign: 'center' },
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
-  sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 38, lineHeight: 43, letterSpacing: -1.2 },
-  sectionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 23 },
-  capabilitiesSection: { gap: 25 },
-  capabilityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  capabilityCard: { flex: 1, minWidth: 230, padding: 22, gap: 10, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface },
-  capabilityIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: landingColors.brandSoft },
-  capabilityTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 16 },
-  capabilityText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 21 },
-  sandboxSection: { gap: 20 },
+  sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 40, lineHeight: 45, letterSpacing: -1.3 },
+  sectionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
+  connectionSection: { padding: 34, gap: 30, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm },
+  connectionFlow: { flexDirection: 'row', flexWrap: 'wrap' },
+  connectionItem: { flex: 1, minWidth: 220, paddingHorizontal: 18, paddingVertical: 20, gap: 9, borderTopWidth: 1, borderTopColor: landingColors.borderStrong },
+  connectionTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  connectionIndex: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 12 },
+  connectionTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
+  connectionText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
+  sandboxSection: { gap: 22 },
   tabsFrame: { borderRadius: landingRadii.md },
   tabs: { position: 'relative', flexDirection: 'row' },
-  tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  tab: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
   tabText: { color: landingColors.inkMuted, fontFamily: landingTypography.bodyMedium, fontSize: 13 },
   tabTextSelected: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold },
   track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, backgroundColor: landingColors.border },
   trackThumb: { height: 3, backgroundColor: landingColors.brand },
-  sandboxFrame: { borderRadius: landingRadii.xl },
-  roleSection: { padding: 34, flexDirection: 'row', alignItems: 'center', gap: 38, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm },
+  sandboxStoryLayout: { flexDirection: 'row', alignItems: 'stretch', gap: 24 },
+  sandboxStoryLayoutStacked: { flexDirection: 'column' },
+  storyRail: { width: 310, gap: 5 },
+  storyRailStacked: { width: '100%' },
+  storyButton: { flexDirection: 'row', alignItems: 'center' },
+  storyIcon: { width: 38, height: 38, marginRight: 7, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
+  storyIconActive: { backgroundColor: landingColors.brand },
+  sandboxFrame: { flex: 1, minWidth: 0, borderRadius: landingRadii.xl },
+  roleSection: { padding: 38, flexDirection: 'row', alignItems: 'center', gap: 40, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface },
   roleSectionStacked: { flexDirection: 'column', alignItems: 'stretch' },
-  roleCopy: { flex: 1, minWidth: 280, gap: 13 },
-  roleToggle: { alignSelf: 'flex-start', padding: 4, flexDirection: 'row', gap: 4, borderRadius: landingRadii.pill, backgroundColor: landingColors.surface },
+  roleCopy: { flex: 1, minWidth: 280, gap: 14 },
+  roleToggle: { alignSelf: 'flex-start', padding: 4, flexDirection: 'row', gap: 4, borderRadius: landingRadii.pill, backgroundColor: landingColors.canvasWarm },
   roleButton: { minHeight: 44, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', borderRadius: landingRadii.pill },
   roleButtonSelected: { backgroundColor: landingColors.brand },
   roleButtonText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
   roleButtonTextSelected: { color: landingColors.white },
   rolePreview: { flex: 1, minWidth: 320 },
-  onboardingSection: { padding: 36, gap: 26, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface },
-  onboardingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  onboardingCard: { flex: 1, minWidth: 210, padding: 18, gap: 9, borderTopWidth: 2, borderTopColor: landingColors.accent, backgroundColor: landingColors.surfaceSoft },
+  onboardingGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  onboardingItem: { flex: 1, minWidth: 210, padding: 18, gap: 9, borderTopWidth: 1, borderTopColor: 'rgba(220,232,224,0.25)' },
   onboardingStep: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   onboardingStepText: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 13 },
-  onboardingTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
-  onboardingText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  faqSection: { gap: 23 },
-  faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  faqCard: { flex: 1, minWidth: 250, padding: 22, gap: 8, borderTopWidth: 1, borderTopColor: landingColors.border },
+  onboardingTitle: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
+  onboardingText: { color: '#BFD5C8', fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
+  faqSection: { gap: 25 },
+  faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
+  faqItem: { flex: 1, minWidth: 250, paddingTop: 18, gap: 8, borderTopWidth: 1, borderTopColor: landingColors.border },
   faqQuestion: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   faqAnswer: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  finalCta: { padding: 44, alignItems: 'center', gap: 12, borderRadius: landingRadii.xl, backgroundColor: landingColors.brand },
-  finalCtaEyebrow: { color: '#BFD5C8', fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
-  finalCtaTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 39, lineHeight: 44, textAlign: 'center' },
-  finalCtaText: { maxWidth: 570, color: '#DCE8E0', fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22, textAlign: 'center' },
+  finalCta: { padding: 48, alignItems: 'center', gap: 13, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm },
+  finalCtaIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: landingColors.surface },
+  finalCtaEyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
+  finalCtaTitle: { maxWidth: 760, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 40, lineHeight: 45, textAlign: 'center' },
+  finalCtaText: { maxWidth: 570, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22, textAlign: 'center' },
   footer: { minHeight: 92, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTopWidth: 1, borderTopColor: landingColors.border },
   footerBrand: { color: landingColors.ink, fontFamily: landingTypography.displayBold, fontSize: 20 },
   footerText: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12 },

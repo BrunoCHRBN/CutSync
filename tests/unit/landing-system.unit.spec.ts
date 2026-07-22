@@ -10,6 +10,7 @@ const tokens = fs.readFileSync(path.join(root, 'src/theme/landing-tokens.ts'), '
 const clientLanding = fs.readFileSync(path.join(root, 'src/components/landing/client-landing.tsx'), 'utf8');
 const businessLanding = fs.readFileSync(path.join(root, 'src/components/landing/business-landing.tsx'), 'utf8');
 const capabilities = fs.readFileSync(path.join(root, 'src/components/landing/landing-capabilities.ts'), 'utf8');
+const primitives = fs.readFileSync(path.join(root, 'src/components/landing/landing-primitives.tsx'), 'utf8');
 const landingDirectory = path.join(root, 'src/components/landing');
 
 const readSourceTree = (directory: string): string => fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
@@ -41,24 +42,40 @@ test('mantém os tokens claros e os pares principais em contraste AA', () => {
   expect(contrast('#FFFFFF', '#294B3A')).toBeGreaterThanOrEqual(4.5);
 });
 
-test('mantém rotas finas e a segmentação pública contratada', () => {
+test('mantém rotas finas e dois caminhos públicos claros', () => {
   const rootRoute = fs.readFileSync(path.join(root, 'src/app/index.tsx'), 'utf8');
   const businessRoute = fs.readFileSync(path.join(root, 'src/app/para-estabelecimentos.tsx'), 'utf8');
   expect(rootRoute).toContain('ClientLanding');
   expect(rootRoute.split('\n').length).toBeLessThan(10);
   expect(businessRoute).toContain('BusinessLanding');
   expect(businessRoute.split('\n').length).toBeLessThan(10);
-  for (const audience of ['client', 'business', 'observer']) expect(clientLanding).toContain(`'${audience}'`);
+  expect(clientLanding).not.toContain('AudienceSelector');
+  expect(clientLanding).not.toContain("name: 'audience_selected'");
+  expect(clientLanding).toContain("legacyAudience === 'business'");
+  expect(clientLanding).toContain("router.replace('/para-estabelecimentos'");
+  for (const audience of ['client', 'observer']) expect(clientLanding).toContain(`legacyAudience === '${audience}'`);
 });
 
 test('não publica disponibilidade, popularidade ou preço comercial inventado', () => {
   expect(clientLanding).not.toContain('Horário livre nas próximas 2 horas');
   expect(clientLanding).not.toContain('Populares perto de ti');
+  expect(clientLanding).not.toMatch(/recomendad[oa]s?/i);
+  expect(clientLanding).not.toMatch(/popular(?:es)?/i);
   expect(clientLanding).not.toContain('reviews_count: shop.average_rating ? 1 : 0');
   expect(businessLanding).not.toContain('R$ 49');
   expect(businessLanding).not.toContain('R$ 119');
   expect(businessLanding).not.toContain('PREÇO EM VALIDAÇÃO');
   expect(businessLanding).not.toContain('MODELO COMERCIAL EM VALIDAÇÃO');
+});
+
+test('usa mídia real somente nos resultados e fornece fallback visual', () => {
+  expect(clientLanding).toContain('<EstablishmentMedia');
+  expect(clientLanding).toContain('uri={establishment.bannerUrl || establishment.logoUrl}');
+  expect(clientLanding).not.toContain('<EstablishmentMedia name="hero"');
+  expect(primitives).toContain('cachePolicy="memory-disk"');
+  expect(primitives).toContain('onError={() => setFailed(true)}');
+  expect(primitives).toContain('mediaFallback');
+  expect(clientLanding).toContain('Math.min(maximumResultColumns, Math.max(filtered.length, 1))');
 });
 
 test('limita as demonstrações públicas às capacidades disponíveis', () => {
@@ -88,5 +105,6 @@ test('analytics usa adaptador neutro e payload sem dados pessoais', () => {
     { name: 'search_started', filterCount: 2 },
   ]);
   expect(JSON.stringify(events)).not.toMatch(/email|phone|address|query/i);
+  expect(clientLanding + businessLanding).not.toContain("name: 'audience_selected'");
   configureLandingAnalytics();
 });

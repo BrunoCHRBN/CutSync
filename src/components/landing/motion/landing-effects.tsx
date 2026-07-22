@@ -30,11 +30,12 @@ export const GlassSurface = ({
   return <View style={composed}>{children}</View>;
 };
 
-export const MagneticButton = ({ label, onPress, testID, secondary = false }: {
+export const MagneticButton = ({ label, onPress, testID, secondary = false, inverse = false }: {
   label: string;
   onPress: () => void;
   testID?: string;
   secondary?: boolean;
+  inverse?: boolean;
 }) => {
   const { offset, handlers, onLayout } = useMagneticHover();
   return (
@@ -48,10 +49,11 @@ export const MagneticButton = ({ label, onPress, testID, secondary = false }: {
       style={({ pressed }) => [
         styles.magneticButton,
         secondary && styles.magneticButtonSecondary,
+        inverse && styles.magneticButtonInverse,
         { transform: [{ translateX: offset.x }, { translateY: offset.y }, { scale: pressed ? 0.98 : 1 }] },
       ]}
     >
-      <Text style={[styles.magneticLabel, secondary && styles.magneticLabelSecondary]}>{label}</Text>
+      <Text style={[styles.magneticLabel, secondary && styles.magneticLabelSecondary, inverse && styles.magneticLabelInverse]}>{label}</Text>
     </Pressable>
   );
 };
@@ -158,8 +160,10 @@ const styles = StyleSheet.create({
     borderColor: landingColors.brand,
   },
   magneticButtonSecondary: { backgroundColor: landingColors.surface, borderColor: landingColors.borderStrong },
+  magneticButtonInverse: { backgroundColor: landingColors.white, borderColor: landingColors.white },
   magneticLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
   magneticLabelSecondary: { color: landingColors.ink },
+  magneticLabelInverse: { color: landingColors.brandStrong },
   spotlight: { position: 'relative', overflow: 'hidden' },
   metric: { color: landingColors.ink, fontFamily: landingTypography.mono, fontSize: 28, fontVariant: ['tabular-nums'] },
   revealPending: { opacity: 0.96, transform: [{ translateY: 6 }] },
