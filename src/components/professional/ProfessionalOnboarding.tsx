@@ -127,7 +127,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
       });
 
       const { error: shiftsError } = await supabase.from('work_shifts')
-        .insert(shifts);
+        .upsert(shifts, { onConflict: 'profile_id, day_of_week' });
 
       if (shiftsError) {
         console.warn('Erro ao salvar turnos de trabalho:', shiftsError);

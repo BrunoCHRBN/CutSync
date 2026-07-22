@@ -209,7 +209,7 @@ CREATE POLICY "Usuário atualiza próprio perfil" ON public.profiles
 
 REVOKE INSERT ON public.establishments FROM anon, authenticated;
 REVOKE UPDATE ON public.profiles FROM authenticated;
-GRANT UPDATE (name, phone, avatar_url, push_token) ON public.profiles TO authenticated;
+GRANT UPDATE (name, phone, avatar_url, push_token, work_hours, specialties, instagram, titulo_profissional, notification_channels, pix_key, lgpd_terms_accepted, lgpd_marketing_accepted, lgpd_accepted_at, updated_at) ON public.profiles TO authenticated;
 
 -- POLÍTICAS PARA: profile_establishments
 -- Usuários podem ler seus próprios vínculos
