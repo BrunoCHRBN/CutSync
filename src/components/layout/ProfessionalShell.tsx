@@ -7,7 +7,7 @@ interface ProfessionalShellProps {
   name?: string;
   shopName?: string;
   onSignOut: () => void;
-  testID: string;
+  testID?: string;
   isOffline?: boolean;
   activeRoute?: 'agenda' | 'profile' | 'security';
   contentMode?: 'standard' | 'wide' | 'fixed';
@@ -25,7 +25,7 @@ export const ProfessionalShell = ({
   name,
   shopName,
   onSignOut,
-  testID,
+  testID = 'professional-shell',
   isOffline = false,
   activeRoute = 'agenda',
   contentMode = 'wide',

@@ -13,10 +13,10 @@ export interface MetricStripItem {
 
 interface MetricStripProps {
   items: MetricStripItem[];
-  testID: string;
+  testID?: string;
 }
 
-export const MetricStrip = ({ items, testID }: MetricStripProps) => (
+export const MetricStrip = ({ items, testID = 'metric-strip' }: MetricStripProps) => (
   <View testID={testID} style={styles.container}>
     {items.map((item) => (
       <View key={item.key} testID={item.testID || `${testID}-${item.key}`} style={styles.item}>

@@ -17,7 +17,7 @@ interface AdminShellProps {
   shopName: string;
   userName?: string;
   onSignOut: () => void;
-  testID: string;
+  testID?: string;
   contentMode?: 'standard' | 'wide' | 'fixed';
   scroll?: boolean;
 }
@@ -30,7 +30,7 @@ const navItems = [
   { key: 'settings', label: 'Configurações', path: '/(admin)/settings', icon: Settings },
 ] as const;
 
-export const AdminShell = ({ children, activeRoute, shopName, userName, onSignOut, testID, contentMode = 'standard', scroll = false }: AdminShellProps) => {
+export const AdminShell = ({ children, activeRoute, shopName, userName, onSignOut, testID = 'admin-shell', contentMode = 'standard', scroll = false }: AdminShellProps) => {
   const [availableShops, setAvailableShops] = React.useState<Establishment[]>([]);
   const [switching, setSwitching] = React.useState(false);
   const { profile, refreshProfile } = useAuth();

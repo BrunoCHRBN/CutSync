@@ -11,11 +11,11 @@ interface SegmentedControlProps<T extends string> {
   value: T;
   options: Segment<T>[];
   onChange: (value: T) => void;
-  testID: string;
+  testID?: string;
   activeColor?: string;
 }
 
-export const SegmentedControl = <T extends string>({ value, options, onChange, testID, activeColor = colors.text }: SegmentedControlProps<T>) => (
+export const SegmentedControl = <T extends string>({ value, options, onChange, testID = 'segmented-control', activeColor = colors.text }: SegmentedControlProps<T>) => (
   <View testID={testID} style={styles.container}>
     {options.map((option) => {
       const active = option.value === value;

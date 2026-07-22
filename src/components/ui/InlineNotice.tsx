@@ -8,7 +8,7 @@ type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
 interface InlineNoticeProps {
   title?: string;
   message: string;
-  testID: string;
+  testID?: string;
   tone?: NoticeTone;
   action?: ReactNode;
 }
@@ -20,7 +20,7 @@ const config = {
   danger: { color: colors.danger, background: colors.dangerSoft, Icon: CircleAlert },
 };
 
-export const InlineNotice = ({ title, message, testID, tone = 'info', action }: InlineNoticeProps) => {
+export const InlineNotice = ({ title, message, testID = 'inline-notice', tone = 'info', action }: InlineNoticeProps) => {
   const { color, background, Icon } = config[tone];
   return (
     <View testID={testID} style={[styles.container, { backgroundColor: background, borderColor: `${color}44` }]}>

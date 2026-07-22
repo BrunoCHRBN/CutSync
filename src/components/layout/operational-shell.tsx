@@ -21,7 +21,7 @@ interface OperationalShellProps {
   userName?: string;
   roleLabel: string;
   onSignOut: () => void;
-  testID: string;
+  testID?: string;
   idPrefix?: 'admin' | 'professional';
   isOffline?: boolean;
   loading?: boolean;
@@ -38,7 +38,7 @@ export const OperationalShell = ({
   userName,
   roleLabel,
   onSignOut,
-  testID,
+  testID = 'operational-shell',
   idPrefix,
   isOffline = false,
   loading = false,

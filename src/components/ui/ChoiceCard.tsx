@@ -9,7 +9,7 @@ interface ChoiceCardProps {
   meta?: string;
   selected: boolean;
   onPress: () => void;
-  testID: string;
+  testID?: string;
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
   activeColor?: string;
@@ -22,7 +22,7 @@ export const ChoiceCard = ({
   meta,
   selected,
   onPress,
-  testID,
+  testID = 'choice-card',
   icon,
   style,
   activeColor = colors.brand,

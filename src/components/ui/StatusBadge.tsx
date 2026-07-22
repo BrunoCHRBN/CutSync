@@ -7,7 +7,7 @@ type StatusTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral';
 interface StatusBadgeProps {
   label: string;
   tone?: StatusTone;
-  testID: string;
+  testID?: string;
   showDot?: boolean;
 }
 
@@ -19,7 +19,7 @@ const toneMap = {
   neutral: { backgroundColor: colors.surfacePressed, color: colors.textSecondary },
 };
 
-export const StatusBadge = ({ label, tone = 'neutral', testID, showDot = false }: StatusBadgeProps) => (
+export const StatusBadge = ({ label, tone = 'neutral', testID = 'status-badge', showDot = false }: StatusBadgeProps) => (
   <View testID={testID} style={[styles.badge, { backgroundColor: toneMap[tone].backgroundColor }]}>
     {showDot && <View style={[styles.dot, { backgroundColor: toneMap[tone].color }]} />}
     <Text testID={`${testID}-label`} style={[styles.label, { color: toneMap[tone].color }]}>{label}</Text>

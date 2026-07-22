@@ -6,13 +6,13 @@ type AppCardVariant = 'flat' | 'outlined' | 'raised';
 
 interface AppCardProps {
   children: ReactNode;
-  testID: string;
+  testID?: string;
   style?: StyleProp<ViewStyle>;
   elevated?: boolean;
   variant?: AppCardVariant;
 }
 
-export const AppCard = ({ children, testID, style, elevated = false, variant = 'outlined' }: AppCardProps) => (
+export const AppCard = ({ children, testID = 'app-card', style, elevated = false, variant = 'outlined' }: AppCardProps) => (
   <View testID={testID} style={[styles.card, styles[variant], elevated && styles.raised, style]}>
     {children}
   </View>
