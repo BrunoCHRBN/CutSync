@@ -1,6 +1,6 @@
 # Preparação do backend para múltiplos aplicativos
 
-Status: contratos locais concluídos; implantação remota pendente
+Status: migration publicada e schema remoto confirmado; validação autenticada pendente
 
 Data da verificação: 2026-07-22
 
@@ -28,9 +28,11 @@ Sondagem remota somente leitura, usando a chave pública configurada no ambiente
 | --- | --- |
 | Catálogo público REST | HTTP 200 |
 | `get_available_slots` publicado | Sim; retornou `establishment_not_found` para o UUID sentinela |
-| `get_my_operational_contexts` publicado | Não; `PGRST202`, conforme esperado antes da nova migration |
+| `get_my_operational_contexts` publicado | Sim; chamada anônima bloqueada com `authentication_required` |
+| `register_push_device` publicado | Sim; chamada anônima bloqueada com `authentication_required` |
+| Leitura anônima de `push_devices` | Bloqueada com `permission denied` |
 
-A sondagem confirma que o contrato central de disponibilidade está no schema remoto. Ela não comprova os fluxos autenticados nem aplica a nova migration.
+A sondagem confirma que o contrato central de disponibilidade e os novos contratos multiapp estão no schema remoto. Ela não comprova os fluxos autenticados.
 
 ## Validações locais executadas
 
@@ -46,29 +48,27 @@ O teste transacional completo está em `supabase/tests/multi_app_identity_and_pu
 - Docker está instalado, mas o mecanismo está indisponível;
 - `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_ID` não estão configurados no processo;
 - não há credenciais E2E de cliente, profissional ou administrador configuradas;
-- a migration multiapp ainda não foi aplicada no ambiente remoto;
 - o teste SQL transacional ainda não foi executado;
 - os tipos gerados ainda não incluem os novos contratos.
 
 ## Checklist de implantação controlada
 
-1. Confirmar o projeto e o ambiente Supabase alvo.
-2. Verificar a lista de migrations remotas antes de qualquer aplicação.
-3. Fazer dry run ou revisar o SQL exato da migration multiapp.
-4. Aplicar a migration no ambiente de homologação.
-5. Recarregar o schema do PostgREST quando necessário.
+1. Confirmar o projeto e o ambiente Supabase alvo. — informado como concluído pelo responsável pela aplicação
+2. Verificar a lista de migrations remotas antes de qualquer aplicação. — executado fora deste agente
+3. Fazer dry run ou revisar o SQL exato da migration multiapp. — executado fora deste agente
+4. Aplicar a migration no ambiente alvo. — concluído em 2026-07-22
+5. Confirmar publicação dos RPCs e proteção anônima. — concluído em 2026-07-22
 6. Executar `supabase/tests/multi_app_identity_and_push_devices.sql` em homologação ou banco local descartável.
 7. Gerar novamente `src/types/supabase.generated.ts` pelo Supabase CLI.
-8. Confirmar que `get_my_operational_contexts` deixou de retornar `PGRST202`.
-9. Testar registro e desregistro de tokens com usuários autenticados distintos.
-10. Repetir agendamento e reagendamento como cliente e profissional.
-11. Somente depois promover a migration para produção.
+8. Testar registro e desregistro de tokens com usuários autenticados distintos.
+9. Repetir agendamento e reagendamento como cliente e profissional.
+10. Promover para produção somente se o ambiente verificado ainda for homologação.
 
 ## Condição para consumo pelo frontend
 
-O frontend atual não deve chamar os novos RPCs antes da implantação remota. A migração do `AuthContext` e do serviço de notificações ocorrerá depois que:
+O frontend atual ainda não deve chamar os novos RPCs. A migração do `AuthContext` e do serviço de notificações ocorrerá depois que:
 
-- a migration estiver aplicada;
+- a migration estiver aplicada; — concluído
 - os tipos estiverem regenerados;
 - o teste SQL tiver passado;
 - os testes autenticados tiverem sido executados.
