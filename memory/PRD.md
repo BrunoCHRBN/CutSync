@@ -1,3 +1,33 @@
+# Atualização — Landing pages premium e minimalistas (CutSync)
+
+## Problema original
+Redesenhar as landing pages de clientes e estabelecimentos do CutSync com referências em Superhuman, Fresha e Mercury, eliminando aparência genérica de IA, preservando textos, funcionalidades, verde da marca e criando transições fluidas com glassmorphism. Refinamento posterior solicitado: usar exclusivamente Inter, ampliar espaços em branco e remover elementos visuais sem função.
+
+## Decisões de arquitetura e design
+- Mantida a arquitetura Expo Router e os componentes separados `client-landing.tsx` e `business-landing.tsx`.
+- Sistema tipográfico das landing pages unificado em Inter 400, 500, 600 e 700, carregado via `expo-font`.
+- Componentes compartilhados de vidro, movimento e preview foram preservados, com sombras, raios e ornamentos reduzidos.
+- Conteúdo e fluxos existentes foram mantidos; mudanças ficaram concentradas na camada visual e de interação.
+
+## Implementado
+- Hero sections com escala editorial, mais espaço negativo e hierarquia direta em desktop e mobile.
+- Cabeçalhos, buscas, CTAs, demonstrações, FAQs e rodapés simplificados, removendo glows, órbitas, rotações e excesso de cards.
+- Transições de entrada e interações preservadas com duração mais fluida e menos ornamentação.
+- `data-testid` adicionado aos principais links, filtros e ações para garantir rastreabilidade.
+- Exportação web concluída; Inter confirmada pelo navegador nas duas páginas; fluxos principais e ausência de overflow validados em 1920×800 e 390×800.
+
+## Backlog priorizado
+- **P0:** nenhum item aberto para o redesign atual.
+- **P1:** avaliar métricas reais de clique nos CTAs para calibrar posição e contraste.
+- **P2:** considerar imagens reais de estabelecimentos como prova visual quando houver acervo aprovado.
+
+## Próximos passos
+1. Revisar o redesign com usuários reais dos dois públicos.
+2. Medir conversão dos CTAs de busca e cadastro.
+3. Ajustar microcopy apenas em uma futura etapa explicitamente aprovada.
+
+---
+
 # PRD — Plano técnico de correções do CutSync
 
 ## Solicitação original

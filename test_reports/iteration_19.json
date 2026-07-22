@@ -1,0 +1,64 @@
+{
+  "summary": "Frontend-only landing validation completed on http://localhost:8082 for client and business pages (desktop/mobile). Core navigation and primary CTA interactions were tested, overflow checks passed, but typography requirement (Inter-only visible marketing content) is not met in runtime rendering.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Client + Business landing hero typography",
+        "issue": "Runtime font probe returned fallback serif (\"Times New Roman\") on visible hero marketing text instead of Inter.",
+        "selector": "client-public-landing / business-public-landing hero copy",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Business footer back-to-client navigation on mobile",
+        "issue": "Could not locate footer link selector during automated mobile run; needs manual confirmation that footer CTA is reachable/clickable on 390x800.",
+        "affected_selectors": [
+          "business-footer-client-link"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Both landing pages",
+        "issues": [
+          "Decorative glow/spotlight effects are still present (hero glow/orb/radial effects), which may conflict with the requested stricter minimal high-end aesthetic if the target is further ornament reduction."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/src/app/_layout.tsx",
+    "/app/src/theme/landing-tokens.ts",
+    "/app/src/components/landing/client-landing.tsx",
+    "/app/src/components/landing/business-landing.tsx",
+    "/app/src/components/landing/landing-primitives.tsx",
+    "/app/src/components/landing/product-preview.tsx",
+    "/app/src/components/landing/motion/landing-effects.tsx"
+  ],
+  "action_items": [
+    "Fix landing typography runtime so visible marketing text resolves to Inter across both pages (not fallback serif).",
+    "Verify mobile footer CTA visibility/clickability for business page at 390x800 and add/adjust stable test target if needed.",
+    "If strict minimal direction is required, remove remaining decorative glow/spotlight layers for cleaner visual hierarchy."
+  ],
+  "critical_code_review_comments": [
+    "_layout.tsx still loads non-Inter families (Fraunces/Geist) globally while landing spec requires Inter-only visible marketing typography; ensure landing-visible text cannot fall back outside Inter.",
+    "Landing motion/effects stack still includes spotlight/tilt/glass decorative layers; this can drift from the requested minimal Superhuman/Mercury direction if not intentionally constrained."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_19.json"
+  ],
+  "success_rate": {
+    "backend": "N/A",
+    "frontend": "78%"
+  },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Validated: client hero CTA scroll/focus to search input works, client->business navigation works, business login CTA routes to /login, sandbox tabs and role selector interactions work, no horizontal overflow at 1920x800 and 390x800 for tested pages. Fresh screenshots were captured under /app/test_reports/artifacts_iteration_19.",
+  "rca of the issue": "Typography mismatch likely comes from runtime font mapping/fallback: landing components specify Inter token families (Inter_600SemiBold/Inter_700Bold), but computed style probes in browser returned fallback serif for hero text. Repro: open / and /para-estabelecimentos in preview, inspect hero heading computed font-family. Mitigation: confirm expo-font registration to RN web style mapping for Inter token names and enforce explicit web-safe Inter stack for landing-marketing text nodes."
+}

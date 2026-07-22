@@ -85,14 +85,15 @@ export const EstablishmentMedia = ({ name, uri, style }: EstablishmentMediaProps
 const styles = StyleSheet.create({
   editorialBand: {
     overflow: 'hidden',
-    padding: 40,
-    gap: 30,
+    paddingVertical: 64,
+    paddingHorizontal: 48,
+    gap: 40,
     borderRadius: landingRadii.xl,
     backgroundColor: landingColors.brandStrong,
   },
   editorialCopy: { maxWidth: 720, gap: 11 },
   editorialEyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
-  editorialTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 47, letterSpacing: -1.4 },
+  editorialTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 48, letterSpacing: -1.8 },
   editorialDescription: { maxWidth: 650, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
   productStory: {
     flex: 1,
