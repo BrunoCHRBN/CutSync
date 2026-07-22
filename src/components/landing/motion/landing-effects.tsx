@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInUp, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import {
   LandingGlassVariant,
   landingColors,
@@ -23,7 +23,13 @@ export const GlassSurface = ({
   style?: StyleProp<ViewStyle>;
   interactive?: boolean;
 }) => {
-  const composed = [styles.glass, landingGlassStyle(variant), style];
+  const glassVariantStyles = {
+    header: styles.glass_header,
+    search: styles.glass_search,
+    preview: styles.glass_preview,
+    control: styles.glass_control,
+  };
+  const composed = [styles.glass, landingGlassStyle(variant), glassVariantStyles[variant], style];
   if (process.env.EXPO_OS === 'ios' && isLiquidGlassAvailable()) {
     return <GlassView isInteractive={interactive} style={composed}>{children}</GlassView>;
   }
@@ -38,9 +44,20 @@ export const MagneticButton = ({ label, onPress, testID, secondary = false, inve
   inverse?: boolean;
 }) => {
   const { offset, handlers, onLayout } = useMagneticHover();
+  const hover = useSharedValue(0);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: offset.x },
+      { translateY: offset.y - interpolate(hover.value, [0, 1], [0, 2]) },
+      { scale: interpolate(hover.value, [0, 1], [1, 1.018]) },
+    ],
+  }));
   return (
+    <Animated.View style={animatedStyle}>
     <Pressable
       {...handlers as any}
+      onHoverIn={() => { hover.value = withSpring(1, { damping: 18, stiffness: 220 }); }}
+      onHoverOut={() => { hover.value = withSpring(0, { damping: 18, stiffness: 220 }); }}
       onLayout={onLayout}
       onPress={onPress}
       testID={testID}
@@ -50,11 +67,15 @@ export const MagneticButton = ({ label, onPress, testID, secondary = false, inve
         styles.magneticButton,
         secondary && styles.magneticButtonSecondary,
         inverse && styles.magneticButtonInverse,
-        { transform: [{ translateX: offset.x }, { translateY: offset.y }, { scale: pressed ? 0.98 : 1 }] },
+        pressed && styles.buttonPressed,
       ]}
     >
       <Text style={[styles.magneticLabel, secondary && styles.magneticLabelSecondary, inverse && styles.magneticLabelInverse]}>{label}</Text>
+      <View style={[styles.buttonArrow, secondary && styles.buttonArrowSecondary, inverse && styles.buttonArrowInverse]}>
+        <Text style={[styles.buttonArrowText, secondary && styles.magneticLabelSecondary, inverse && styles.magneticLabelInverse]}>↗</Text>
+      </View>
     </Pressable>
+    </Animated.View>
   );
 };
 
@@ -118,7 +139,7 @@ export const RevealOnScroll = ({ children, style, delay = 0, onLayout }: {
     <Animated.View
       ref={ref as never}
       onLayout={onLayout}
-      entering={quality === 'off' ? undefined : FadeInUp.duration(landingMotion.standard).delay(delay)}
+      entering={quality === 'off' ? undefined : FadeInUp.duration(landingMotion.editorial).delay(delay)}
       style={[style, !revealed && quality !== 'off' && styles.revealPending]}
     >
       {children}
@@ -149,9 +170,16 @@ export const CustomCursor = ({ children, style }: { children: React.ReactNode; s
 
 const styles = StyleSheet.create({
   glass: { borderWidth: 1, overflow: 'hidden' },
+  glass_header: { boxShadow: '0 10px 40px rgba(20,33,25,0.05)' } as never,
+  glass_search: { boxShadow: '0 22px 60px rgba(20,33,25,0.09)' } as never,
+  glass_preview: { boxShadow: '0 34px 90px rgba(20,33,25,0.14)' } as never,
+  glass_control: { boxShadow: '0 12px 34px rgba(20,33,25,0.06)' } as never,
   magneticButton: {
-    minHeight: 48,
-    paddingHorizontal: 20,
+    minHeight: 54,
+    paddingLeft: 22,
+    paddingRight: 7,
+    flexDirection: 'row',
+    gap: 14,
     borderRadius: landingRadii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -159,6 +187,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: landingColors.brand,
   },
+  buttonPressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
+  buttonArrow: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
+  buttonArrowSecondary: { backgroundColor: landingColors.brandSoft },
+  buttonArrowInverse: { backgroundColor: landingColors.brandSoft },
+  buttonArrowText: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
   magneticButtonSecondary: { backgroundColor: landingColors.surface, borderColor: landingColors.borderStrong },
   magneticButtonInverse: { backgroundColor: landingColors.white, borderColor: landingColors.white },
   magneticLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },

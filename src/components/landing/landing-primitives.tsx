@@ -14,6 +14,8 @@ interface EditorialBandProps {
 
 export const EditorialBand = ({ eyebrow, title, description, children, style, testID }: EditorialBandProps) => (
   <View testID={testID} style={[styles.editorialBand, style]}>
+    <View pointerEvents="none" style={styles.editorialGlow} />
+    <View pointerEvents="none" style={styles.editorialRing} />
     <View style={styles.editorialCopy}>
       <Text style={styles.editorialEyebrow}>{eyebrow}</Text>
       <Text style={styles.editorialTitle}>{title}</Text>
@@ -90,6 +92,8 @@ const styles = StyleSheet.create({
     borderRadius: landingRadii.xl,
     backgroundColor: landingColors.brandStrong,
   },
+  editorialGlow: { position: 'absolute', width: 460, height: 460, borderRadius: 230, right: -140, top: -230, backgroundColor: 'rgba(197,166,109,0.14)' },
+  editorialRing: { position: 'absolute', width: 260, height: 260, borderRadius: 130, right: 42, bottom: -160, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   editorialCopy: { maxWidth: 720, gap: 11 },
   editorialEyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
   editorialTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 47, letterSpacing: -1.4 },
