@@ -81,6 +81,7 @@ export const TeamExperience = () => {
     return 'Revogado';
   };
 
+
   const loadInvitations = React.useCallback(async () => {
     if (!profile?.establishment_id) return;
     const { data } = await supabase.rpc('list_establishment_invitations', { target_establishment_id: profile.establishment_id });

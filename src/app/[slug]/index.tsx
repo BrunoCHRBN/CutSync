@@ -397,52 +397,55 @@ export default function BarbershopSlugScreen() {
                         {selectedTeamMember.tituloProfissional || (selectedTeamMember.role === 'admin' ? 'Proprietário & Specialist' : 'Especialista em Visagismo')}
                       </Text>
 
-                      {/* ⭐ 2. Prova Social (Rating & Reviews) */}
-                      <View style={styles.profRatingRow}>
-                        <Star size={14} color="#F5A524" fill="#F5A524" />
-                        <Text style={styles.profRatingScore}>{selectedTeamMember.rating ? Number(selectedTeamMember.rating).toFixed(1) : '4.9'}</Text>
-                        <Text style={styles.profRatingCount}>({selectedTeamMember.totalReviews || 42} avaliações)</Text>
-                      </View>
+                    {/* ⭐ 2. Prova Social (Rating & Reviews) */}
+                    <View style={styles.profRatingRow}>
+                      <Star size={14} color="#F5A524" fill="#F5A524" />
+                      {selectedTeamMember.totalReviews && selectedTeamMember.totalReviews > 0 ? (
+                        <>
+                          <Text style={styles.profRatingScore}>{Number(selectedTeamMember.rating || 5).toFixed(1)}</Text>
+                          <Text style={styles.profRatingCount}>({selectedTeamMember.totalReviews} avaliações)</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.profRatingScore}>Novo</Text>
+                      )}
                     </View>
+                  </View>
 
-                    {/* ⭐ 2. Pílulas de Especialidades (Chips) */}
+                  {/* ⭐ 2. Pílulas de Especialidades (Chips - Apenas se cadastradas) */}
+                  {!!selectedTeamMember.specialties && (
                     <View style={styles.profChipsRow}>
-                      {(selectedTeamMember.specialties
-                        ? selectedTeamMember.specialties.split(',').map((s) => s.trim())
-                        : ['💈 Fade / Navalhado', '❄️ Platinado / Nevou', '🪒 Barboterapia', '✂️ Visagismo']
-                      ).map((chip, idx) => (
-                        <View key={idx} style={styles.profChip}>
-                          <Text style={styles.profChipText}>{chip.startsWith('💈') || chip.startsWith('❄️') || chip.startsWith('🪒') || chip.startsWith('✂️') ? chip : `💈 ${chip}`}</Text>
-                        </View>
-                      ))}
+                      {selectedTeamMember.specialties.split(',').map((chip, idx) => {
+                        const trimmed = chip.trim();
+                        if (!trimmed) return null;
+                        return (
+                          <View key={idx} style={styles.profChip}>
+                            <Text style={styles.profChipText}>💈 {trimmed}</Text>
+                          </View>
+                        );
+                      })}
                     </View>
+                  )}
 
-                    {/* 📝 3. Bio Curta & Apresentação */}
+                  {/* 📝 3. Bio Curta & Apresentação (Apenas se cadastrada) */}
+                  {!!selectedTeamMember.bio && (
                     <View style={styles.profBioBox}>
-                      <Text style={styles.profBioText}>
-                        {selectedTeamMember.bio ||
-                          `Especialista em visagismo masculino e cortes modernos com foco em agilidade e acabamento impecável. Atende com horário marcado.`}
-                      </Text>
+                      <Text style={styles.profBioText}>{selectedTeamMember.bio}</Text>
                     </View>
+                  )}
 
-                    {/* 📸 1. Galeria de Trabalhos do Profissional (Carrossel Horizontal) */}
+                  {/* 📸 1. Galeria de Trabalhos do Profissional (Apenas se houver fotos cadastradas) */}
+                  {Boolean(selectedTeamMember.portfolioUrls && selectedTeamMember.portfolioUrls.length > 0) && (
                     <View style={styles.profSection}>
                       <Text style={styles.profSectionTitle}>
                         TRABALHOS DE {selectedTeamMember.name.split(' ')[0].toUpperCase()}
                       </Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                        {(selectedTeamMember.portfolioUrls && selectedTeamMember.portfolioUrls.length > 0
-                          ? selectedTeamMember.portfolioUrls
-                          : [
-                              'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=400',
-                              'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=400',
-                              'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&q=80&w=400',
-                            ]
-                        ).map((url, idx) => (
+                        {selectedTeamMember.portfolioUrls!.map((url, idx) => (
                           <Image key={idx} source={{ uri: url }} style={styles.portfolioImgCard} contentFit="cover" />
                         ))}
                       </ScrollView>
                     </View>
+                  )}
 
                     {/* 📝 3. Serviços Prestados */}
                     <View style={styles.profSection}>
