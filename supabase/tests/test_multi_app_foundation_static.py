@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATION = ROOT / "supabase/migrations/20260722000000_multi_app_identity_and_push_devices.sql"
+HARDENING_MIGRATION = ROOT / "supabase/migrations/20260722153015_harden_multi_app_rpc_grants.sql"
 SQL_MATRIX = ROOT / "supabase/tests/multi_app_identity_and_push_devices.sql"
 
 
@@ -38,6 +39,18 @@ def test_push_device_mutations_use_hardened_rpcs():
     assert "RAISE EXCEPTION 'push_token_registered'" in sql
     assert "REVOKE ALL ON FUNCTION public.register_push_device" in sql
     assert "REVOKE ALL ON FUNCTION public.unregister_push_device" in sql
+
+
+def test_multi_app_rpcs_explicitly_revoke_anon_execution():
+    sql = _read(HARDENING_MIGRATION)
+    for signature in (
+        "public.register_push_device(text, text, text)",
+        "public.unregister_push_device(text)",
+        "public.get_my_operational_contexts()",
+    ):
+        assert f"REVOKE ALL ON FUNCTION {signature} FROM PUBLIC" in sql
+        assert f"REVOKE ALL ON FUNCTION {signature} FROM anon" in sql
+        assert f"GRANT EXECUTE ON FUNCTION {signature} TO authenticated, service_role" in sql
 
 
 def test_business_contexts_come_from_active_memberships():

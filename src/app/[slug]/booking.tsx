@@ -493,6 +493,7 @@ export default function BookingSlugScreen() {
                   return (
                     <Pressable
                       key={srv.id}
+                      testID={`booking-service-${srv.id}`}
                       style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
                       onPress={() => {
                         tapLight();
@@ -551,6 +552,7 @@ export default function BookingSlugScreen() {
                     return (
                       <Pressable
                         key={barber.id}
+                        testID={`booking-professional-${barber.id}`}
                         style={[styles.barberCard, isSelected && styles.barberCardSelected]}
                         onPress={() => {
                           tapLight();
@@ -639,6 +641,7 @@ export default function BookingSlugScreen() {
                     return (
                       <Pressable
                         key={date.toISOString()}
+                        testID={`booking-date-${date.toISOString().slice(0, 10)}`}
                         disabled={!selectable}
                         style={[
                           styles.dayCell,
@@ -668,20 +671,20 @@ export default function BookingSlugScreen() {
 
               {/* Time Slots */}
               {selectedDate && (
-                <View style={styles.timeSlotsBox}>
+                <View testID="booking-time-slots-box" style={styles.timeSlotsBox}>
                   <Text style={styles.slotsTitle}>
                     Horários disponíveis para{' '}
                     {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}:
                   </Text>
 
                   {availabilityLoading ? (
-                    <ActivityIndicator color="#113939" style={{ marginVertical: 20 }} />
+                    <ActivityIndicator testID="booking-availability-loading" color="#113939" style={{ marginVertical: 20 }} />
                   ) : availabilityError ? (
-                    <InlineNotice tone="danger" message={availabilityError} />
+                    <InlineNotice testID="booking-availability-error" tone="danger" message={availabilityError} />
                   ) : availableSlots.length === 0 ? (
-                    <InlineNotice tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
+                    <InlineNotice testID="booking-availability-empty" tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
                   ) : (
-                    <View style={styles.timeSlotsContainer}>
+                    <View testID="booking-time-slots" style={styles.timeSlotsContainer}>
                       {groupedSlots.morning.length > 0 && (
                         <View style={styles.periodGroup}>
                           <Text style={styles.periodLabel}>🌅 Manhã</Text>
@@ -691,6 +694,7 @@ export default function BookingSlugScreen() {
                               return (
                                 <Pressable
                                   key={slot.startsAt}
+                                  testID={`booking-time-${slot.localTime.replace(':', '-')}`}
                                   style={[styles.timeChip, isSelected && styles.timeChipSelected]}
                                   onPress={() => {
                                     tapLight();
@@ -716,6 +720,7 @@ export default function BookingSlugScreen() {
                               return (
                                 <Pressable
                                   key={slot.startsAt}
+                                  testID={`booking-time-${slot.localTime.replace(':', '-')}`}
                                   style={[styles.timeChip, isSelected && styles.timeChipSelected]}
                                   onPress={() => {
                                     tapLight();
@@ -741,6 +746,7 @@ export default function BookingSlugScreen() {
                               return (
                                 <Pressable
                                   key={slot.startsAt}
+                                  testID={`booking-time-${slot.localTime.replace(':', '-')}`}
                                   style={[styles.timeChip, isSelected && styles.timeChipSelected]}
                                   onPress={() => {
                                     tapLight();
