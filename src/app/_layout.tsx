@@ -89,7 +89,7 @@ function RootLayoutNavigation() {
           router.replace('/(admin)');
         }
       } else if (profile.role === 'professional') {
-        if (!inProfessionalGroup && !isPublicProfessionalProfile && !isProfessionalProfileEditor) {
+        if (!inProfessionalGroup && !isPublicProfessionalProfile && !isProfessionalProfileEditor && !isDynamicSlug && !isPublicSalon) {
           router.replace('/(professional)');
         }
       } else {

@@ -7,7 +7,7 @@ interface SectionHeadingProps {
   title: string;
   description?: string;
   action?: ReactNode;
-  testID: string;
+  testID?: string;
   variant?: 'page' | 'section';
 }
 

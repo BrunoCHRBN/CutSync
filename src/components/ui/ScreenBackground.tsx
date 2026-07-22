@@ -5,7 +5,7 @@ import { colors } from '../../theme/tokens';
 
 interface ScreenBackgroundProps {
   children: ReactNode;
-  testID: string;
+  testID?: string;
   style?: StyleProp<ViewStyle>;
 }
 

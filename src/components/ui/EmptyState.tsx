@@ -5,7 +5,7 @@ import { colors, radii, typography } from '../../theme/tokens';
 interface EmptyStateProps {
   title: string;
   description: string;
-  testID: string;
+  testID?: string;
   icon?: ReactNode;
   action?: ReactNode;
 }

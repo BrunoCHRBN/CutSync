@@ -16,7 +16,7 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 export interface AppButtonProps {
   label: string;
   onPress: () => void;
-  testID: string;
+  testID?: string;
   variant?: ButtonVariant;
   loading?: boolean;
   disabled?: boolean;
