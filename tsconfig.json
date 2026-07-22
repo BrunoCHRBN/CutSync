@@ -2,22 +2,24 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "noEmit": true,
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/assets/*": [
-        "./assets/*"
-      ]
+      "@cutsync/brand": ["./packages/brand/src/index.ts"],
+      "@cutsync/database": ["./packages/database/src/index.ts"],
+      "@cutsync/domain": ["./packages/domain/src/index.ts"],
+      "@cutsync/validation": ["./packages/validation/src/index.ts"]
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "playwright.config.ts",
+    "tests/**/*.ts",
+    "packages/**/*.ts"
   ],
-  "exclude": ["node_modules", "supabase/functions", "example"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "apps/*/dist",
+    "supabase/functions",
+    "example"
+  ]
 }

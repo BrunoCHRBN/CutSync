@@ -3,14 +3,15 @@
 from pathlib import Path
 
 
-MIGRATION = Path("/app/supabase/migrations/20260719000000_centralized_availability.sql")
-HOOK = Path("/app/src/hooks/useAvailableSlots.ts")
-CLIENT_BOOKING = Path("/app/src/components/screens/BookingExperience.tsx")
-PUBLIC_BOOKING = Path("/app/src/app/[slug]/booking.tsx")
-GENERATED_TYPES = Path("/app/src/types/supabase.generated.ts")
-LEGACY_FALLBACK = Path("/app/src/services/legacyAvailability.ts")
-PROFESSIONAL_DASHBOARD = Path("/app/src/components/screens/BarberDashboardExperience.tsx")
-PROFESSIONAL_RESCHEDULE = Path("/app/src/components/professional/ProfessionalReschedule.tsx")
+ROOT = Path(__file__).resolve().parents[2]
+MIGRATION = ROOT / "supabase/migrations/20260719000000_centralized_availability.sql"
+HOOK = ROOT / "apps/web/src/hooks/useAvailableSlots.ts"
+CLIENT_BOOKING = ROOT / "apps/web/src/components/screens/BookingExperience.tsx"
+PUBLIC_BOOKING = ROOT / "apps/web/src/app/[slug]/booking.tsx"
+GENERATED_TYPES = ROOT / "packages/database/src/supabase.generated.ts"
+LEGACY_FALLBACK = ROOT / "apps/web/src/services/legacyAvailability.ts"
+PROFESSIONAL_DASHBOARD = ROOT / "apps/web/src/components/screens/BarberDashboardExperience.tsx"
+PROFESSIONAL_RESCHEDULE = ROOT / "apps/web/src/components/professional/ProfessionalReschedule.tsx"
 
 
 def _read(path: Path) -> str:

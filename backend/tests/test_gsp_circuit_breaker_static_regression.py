@@ -3,18 +3,18 @@
 from pathlib import Path
 
 
-ROOT = Path("/app")
+ROOT = Path(__file__).resolve().parents[2]
 
 MIGRATION_GSP = ROOT / "supabase/migrations/20260720000000_gsp_governance_and_circuit_breaker.sql"
 MIGRATION_INVITES = ROOT / "supabase/migrations/20260720001000_secure_invites_matching.sql"
 MIGRATION_CNPJ_RPC = ROOT / "supabase/migrations/20260720002000_cnpj_auto_promotion_rpc.sql"
 MIGRATION_TRIGGERS = ROOT / "supabase/migrations/20260720003000_governance_audit_triggers.sql"
 
-SUPABASE_GOVERNANCE_SERVICE = ROOT / "src/services/supabaseGovernance.ts"
-GOVERNANCE_SCREEN = ROOT / "src/app/governance/index.tsx"
-REQUEST_SCREEN = ROOT / "src/components/screens/RequestEstablishmentExperience.tsx"
-AUTH_CONTEXT = ROOT / "src/contexts/AuthContext.tsx"
-APP_LAYOUT = ROOT / "src/app/_layout.tsx"
+SUPABASE_GOVERNANCE_SERVICE = ROOT / "apps/web/src/services/supabaseGovernance.ts"
+GOVERNANCE_SCREEN = ROOT / "apps/web/src/app/governance/index.tsx"
+REQUEST_SCREEN = ROOT / "apps/web/src/components/screens/RequestEstablishmentExperience.tsx"
+AUTH_CONTEXT = ROOT / "apps/web/src/contexts/AuthContext.tsx"
+APP_LAYOUT = ROOT / "apps/web/src/app/_layout.tsx"
 
 
 def _read(path: Path) -> str:

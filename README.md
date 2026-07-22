@@ -1,79 +1,83 @@
-# Welcome to your Expo app 👋
+# CutSync
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Monorepo dos três produtos CutSync, construídos com Expo SDK 57 e um backend Supabase compartilhado.
 
-## Get started
+## Estrutura
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+apps/
+  web/        CutSync Web: aquisição, booking público e operação web completa
+  client/     CutSync: aplicativo mobile do cliente
+  business/   CutSync Business: aplicativo mobile operacional
+packages/
+  brand/      identidade básica e metadados dos produtos
+  database/   tipos gerados do Supabase e modelos compartilhados
+  domain/     datas, agenda e mensagens de domínio puras
+  validation/ validações reutilizáveis
+supabase/     migrations e testes SQL do backend compartilhado
+tests/        testes unitários e E2E do repositório
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+As telas, árvores de navegação e componentes complexos pertencem a cada aplicativo. Somente contratos comprovadamente comuns devem entrar em `packages/*`.
 
-### Other setup steps
+## Instalação
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Use Node.js 22 e instale todas as workspaces a partir da raiz:
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
-## Supabase schema types
-
-The generated database contract is versioned at `src/types/supabase.generated.ts`.
-
-Generate the latest types from the remote project:
-
-```bash
-SUPABASE_ACCESS_TOKEN=your-token SUPABASE_PROJECT_ID=your-project-ref yarn types:supabase
+```powershell
+npm install
 ```
 
-Check whether the remote schema differs from the versioned contract:
+## Desenvolvimento
 
-```bash
-SUPABASE_ACCESS_TOKEN=your-token SUPABASE_PROJECT_ID=your-project-ref yarn check:supabase-schema
+```powershell
+npm run start:web
+npm run start:client
+npm run start:business
 ```
 
-`SUPABASE_PROJECT_ID` may be omitted when `EXPO_PUBLIC_SUPABASE_URL` is exported. The check exits with code `1` and prints a unified diff when drift is detected.
+Atalhos mobile:
 
-The GitHub Actions workflow `.github/workflows/supabase-schema-drift.yml` runs this check on pull requests, pushes to the main branch, daily schedules, and manual dispatches. Configure these repository secrets:
+```powershell
+npm run android:client
+npm run android:business
+npm run ios:client
+npm run ios:business
+```
 
-- `SUPABASE_ACCESS_TOKEN`: Supabase personal access token with access to the project.
-- `SUPABASE_PROJECT_ID`: project reference from Supabase project settings.
+## Validação
+
+```powershell
+npm run lint
+npm run typecheck:new-apps
+npm run test:e2e -- --project=unit
+npm run build:web
+```
+
+O typecheck do Web legado permanece separado em `npm run typecheck:web` enquanto as incompatibilidades preexistentes são corrigidas incrementalmente.
+
+## Supabase
+
+O contrato gerado do banco fica em `packages/database/src/supabase.generated.ts`.
+
+Gerar os tipos do projeto remoto:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'seu-token-local'
+$env:SUPABASE_PROJECT_ID = 'referência-do-projeto'
+npm run types:supabase
+```
+
+Verificar divergência entre o schema remoto e o contrato versionado:
+
+```powershell
+npm run check:supabase-schema
+```
+
+Tokens e credenciais permanecem apenas em variáveis de ambiente e nunca devem ser versionados.
+
+## Documentação da separação
+
+- `docs/architecture/MULTI_APP_PRODUCT_CONTRACT.md`: responsabilidades de Web, Client e Business.
+- `docs/architecture/MULTI_APP_BACKEND_READINESS.md`: contratos e validações do backend compartilhado.
+- `docs/architecture/MONOREPO_FOUNDATION.md`: estrutura, validações e pendências da Fase 2.

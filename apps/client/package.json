@@ -1,0 +1,26 @@
+{
+  "name": "@cutsync/client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "lint": "expo lint"
+  },
+  "dependencies": {
+    "@cutsync/brand": "*",
+    "@cutsync/domain": "*",
+    "@cutsync/validation": "*",
+    "expo": "~57.0.7",
+    "expo-constants": "~57.0.6",
+    "expo-linking": "~57.0.3",
+    "expo-router": "~57.0.7",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.25.2"
+  }
+}

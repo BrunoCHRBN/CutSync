@@ -7,15 +7,15 @@ import re
 from pathlib import Path
 
 
-ROOT = Path("/app")
+ROOT = Path(__file__).resolve().parents[2]
 
-BOOKING_FILE = ROOT / "src/app/[slug]/booking.tsx"
-AUTH_MODAL_FILE = ROOT / "src/components/booking/PublicBookingAuthModal.tsx"
-APP_INPUT_FILE = ROOT / "src/components/ui/AppInput.tsx"
-PASSWORD_INPUT_FILE = ROOT / "src/components/ui/PasswordInput.tsx"
-PASSWORD_CHECKLIST_FILE = ROOT / "src/components/ui/PasswordStrengthChecklist.tsx"
-PASSWORD_POLICY_FILE = ROOT / "src/utils/passwordPolicy.ts"
-SUPABASE_TYPES_FILE = ROOT / "src/types/supabase.generated.ts"
+BOOKING_FILE = ROOT / "apps/web/src/app/[slug]/booking.tsx"
+AUTH_MODAL_FILE = ROOT / "apps/web/src/components/booking/PublicBookingAuthModal.tsx"
+APP_INPUT_FILE = ROOT / "apps/web/src/components/ui/AppInput.tsx"
+PASSWORD_INPUT_FILE = ROOT / "apps/web/src/components/ui/PasswordInput.tsx"
+PASSWORD_CHECKLIST_FILE = ROOT / "apps/web/src/components/ui/PasswordStrengthChecklist.tsx"
+PASSWORD_POLICY_FILE = ROOT / "packages/validation/src/password-policy.ts"
+SUPABASE_TYPES_FILE = ROOT / "packages/database/src/supabase.generated.ts"
 MIGRATION_FILE = ROOT / "supabase/migrations/20260716057000_transactional_appointment_creation.sql"
 VERCEL_FILE = ROOT / "vercel.json"
 
@@ -96,7 +96,7 @@ def test_booking_uses_expected_rpcs() -> None:
     for rpc_name in ["create_appointment", "reschedule_appointment"]:
         assert f"rpc('{rpc_name}'" in content
 
-    availability_hook = _read(Path("/app/src/hooks/useAvailableSlots.ts"))
+    availability_hook = _read(ROOT / "apps/web/src/hooks/useAvailableSlots.ts")
     assert "rpc('get_available_slots'" in availability_hook
 
 

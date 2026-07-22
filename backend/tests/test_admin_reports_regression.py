@@ -7,10 +7,10 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT_SQL = ROOT / "supabase/migrations/20260720004000_admin_reports.sql"
 CATALOG_SQL = ROOT / "supabase/migrations/20260720004100_service_catalog_management.sql"
 REPORT_COMPAT_SQL = ROOT / "supabase/migrations/20260720004200_admin_reports_optional_schedule_blocks.sql"
-REPORT_SCREEN = ROOT / "src/components/screens/AdminReportsExperience.tsx"
-REPORT_HOOK = ROOT / "src/hooks/use-admin-report.ts"
-SERVICES_SCREEN = ROOT / "src/components/screens/ServicesExperience.tsx"
-TEAM_SCREEN = ROOT / "src/components/screens/TeamExperience.tsx"
+REPORT_SCREEN = ROOT / "apps/web/src/components/screens/AdminReportsExperience.tsx"
+REPORT_HOOK = ROOT / "apps/web/src/hooks/use-admin-report.ts"
+SERVICES_SCREEN = ROOT / "apps/web/src/components/screens/ServicesExperience.tsx"
+TEAM_SCREEN = ROOT / "apps/web/src/components/screens/TeamExperience.tsx"
 
 
 def test_report_rpc_is_tenant_scoped_and_admin_only() -> None:

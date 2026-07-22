@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "CutSync",
+    "slug": "cutsync-client",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "cutsync",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.cutsync.client",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.cutsync.client"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {}
+    }
+  }
+}

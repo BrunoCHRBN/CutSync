@@ -3,10 +3,11 @@
 from pathlib import Path
 
 
-DASHBOARD = Path("/app/src/components/screens/BarberDashboardExperience.tsx")
-MODAL = Path("/app/src/components/professional/ProfessionalQuickBook.tsx")
-AVAILABILITY_HOOK = Path("/app/src/hooks/useAvailableSlots.ts")
-ERRORS = Path("/app/src/utils/appointmentErrors.ts")
+ROOT = Path(__file__).resolve().parents[2]
+DASHBOARD = ROOT / "apps/web/src/components/screens/BarberDashboardExperience.tsx"
+MODAL = ROOT / "apps/web/src/components/professional/ProfessionalQuickBook.tsx"
+AVAILABILITY_HOOK = ROOT / "apps/web/src/hooks/useAvailableSlots.ts"
+ERRORS = ROOT / "packages/domain/src/appointment-errors.ts"
 
 
 def _read(path: Path) -> str:

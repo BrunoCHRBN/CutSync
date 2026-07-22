@@ -5,7 +5,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 const root = process.cwd();
-const tokens = fs.readFileSync(path.join(root, 'src/theme/tokens.ts'), 'utf8');
+const tokens = fs.readFileSync(path.join(root, 'apps/web/src/theme/tokens.ts'), 'utf8');
 
 const luminance = (hex: string) => {
   const channels = [1, 3, 5]
@@ -50,7 +50,9 @@ test('não deixa fonte funcional literal abaixo de 11 px em src', () => {
       else if (/\.(ts|tsx)$/.test(entry.name)) files.push(absolute);
     }
   };
-  visit(path.join(root, 'src'));
+  for (const app of ['web', 'client', 'business']) {
+    visit(path.join(root, 'apps', app, 'src'));
+  }
   const violations = files.flatMap((file) => {
     const content = fs.readFileSync(file, 'utf8');
     return [...content.matchAll(/fontSize:\s*(\d+(?:\.\d+)?)/g)]

@@ -10,7 +10,7 @@ import yaml
 
 
 # Supabase schema drift scripts/workflow regression tests
-REPO_ROOT = Path("/app")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 GENERATE_SCRIPT = REPO_ROOT / "scripts" / "generate-supabase-types.sh"
 CHECK_SCRIPT = REPO_ROOT / "scripts" / "check-supabase-schema.sh"
 WORKFLOW_FILE = REPO_ROOT / ".github" / "workflows" / "supabase-schema-drift.yml"
@@ -25,11 +25,11 @@ def _write_executable(path: Path, content: str) -> None:
 def _make_repo_fixture(tmp_path: Path, committed_types: str) -> Path:
     repo = tmp_path / "repo"
     (repo / "scripts").mkdir(parents=True)
-    (repo / "src" / "types").mkdir(parents=True)
+    (repo / "packages" / "database" / "src").mkdir(parents=True)
 
     shutil.copy(GENERATE_SCRIPT, repo / "scripts" / "generate-supabase-types.sh")
     shutil.copy(CHECK_SCRIPT, repo / "scripts" / "check-supabase-schema.sh")
-    (repo / "src" / "types" / "supabase.generated.ts").write_text(committed_types, encoding="utf-8")
+    (repo / "packages" / "database" / "src" / "supabase.generated.ts").write_text(committed_types, encoding="utf-8")
     return repo
 
 
@@ -140,7 +140,7 @@ def test_generator_failure_does_not_corrupt_default_versioned_file(tmp_path: Pat
     env["SUPABASE_PROJECT_ID"] = "proj_123"
 
     result = _run(["bash", "scripts/generate-supabase-types.sh"], cwd=repo, env=env)
-    versioned_file = repo / "src" / "types" / "supabase.generated.ts"
+    versioned_file = repo / "packages" / "database" / "src" / "supabase.generated.ts"
     assert result.returncode != 0
     assert versioned_file.read_text(encoding="utf-8") == original
 

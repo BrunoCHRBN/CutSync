@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-output_path="${1:-$repo_root/src/types/supabase.generated.ts}"
+output_path="${1:-$repo_root/packages/database/src/supabase.generated.ts}"
 project_id="${SUPABASE_PROJECT_ID:-}"
 
 if [[ -z "$project_id" && -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]]; then

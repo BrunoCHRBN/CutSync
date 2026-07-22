@@ -3,15 +3,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { configureLandingAnalytics, trackLandingEvent } from '../../src/components/landing/landing-analytics';
+import { configureLandingAnalytics, trackLandingEvent } from '../../apps/web/src/components/landing/landing-analytics';
 
 const root = process.cwd();
-const tokens = fs.readFileSync(path.join(root, 'src/theme/landing-tokens.ts'), 'utf8');
-const clientLanding = fs.readFileSync(path.join(root, 'src/components/landing/client-landing.tsx'), 'utf8');
-const businessLanding = fs.readFileSync(path.join(root, 'src/components/landing/business-landing.tsx'), 'utf8');
-const capabilities = fs.readFileSync(path.join(root, 'src/components/landing/landing-capabilities.ts'), 'utf8');
-const primitives = fs.readFileSync(path.join(root, 'src/components/landing/landing-primitives.tsx'), 'utf8');
-const landingDirectory = path.join(root, 'src/components/landing');
+const tokens = fs.readFileSync(path.join(root, 'apps/web/src/theme/landing-tokens.ts'), 'utf8');
+const clientLanding = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/client-landing.tsx'), 'utf8');
+const businessLanding = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/business-landing.tsx'), 'utf8');
+const capabilities = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/landing-capabilities.ts'), 'utf8');
+const primitives = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/landing-primitives.tsx'), 'utf8');
+const landingDirectory = path.join(root, 'apps/web/src/components/landing');
 
 const readSourceTree = (directory: string): string => fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
   const target = path.join(directory, entry.name);
@@ -56,8 +56,8 @@ test('aplica a hierarquia de superfícies sem transformar tudo em cards', () => 
 });
 
 test('mantém rotas finas e dois caminhos públicos claros', () => {
-  const rootRoute = fs.readFileSync(path.join(root, 'src/app/index.tsx'), 'utf8');
-  const businessRoute = fs.readFileSync(path.join(root, 'src/app/para-estabelecimentos.tsx'), 'utf8');
+  const rootRoute = fs.readFileSync(path.join(root, 'apps/web/src/app/index.tsx'), 'utf8');
+  const businessRoute = fs.readFileSync(path.join(root, 'apps/web/src/app/para-estabelecimentos.tsx'), 'utf8');
   expect(rootRoute).toContain('ClientLanding');
   expect(rootRoute.split('\n').length).toBeLessThan(10);
   expect(businessRoute).toContain('BusinessLanding');

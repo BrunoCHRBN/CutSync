@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "CutSync Business",
+    "slug": "cutsync-business",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "cutsync-business",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.cutsync.business",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.cutsync.business"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {}
+    }
+  }
+}

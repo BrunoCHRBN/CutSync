@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { isEditableCommandTarget } from '../../src/components/command/command-utils';
+import { isEditableCommandTarget } from '../../apps/web/src/components/command/command-utils';
 
 test('bloqueia atalhos de uma tecla em campos editáveis', () => {
   expect(isEditableCommandTarget({ tagName: 'INPUT' })).toBe(true);

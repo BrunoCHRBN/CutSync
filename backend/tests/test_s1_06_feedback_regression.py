@@ -4,13 +4,13 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ERRORS = PROJECT_ROOT / "src/utils/appointmentErrors.ts"
-AVAILABILITY_HOOK = PROJECT_ROOT / "src/hooks/useAvailableSlots.ts"
-NEXT_APPOINTMENT_HOOK = PROJECT_ROOT / "src/hooks/useNextAppointment.ts"
-CLIENT_BOOKING = PROJECT_ROOT / "src/components/screens/BookingExperience.tsx"
-PUBLIC_BOOKING = PROJECT_ROOT / "src/app/[slug]/booking.tsx"
-CLIENT_APPOINTMENTS = PROJECT_ROOT / "src/components/screens/AppointmentsExperience.tsx"
-PRO_DASHBOARD = PROJECT_ROOT / "src/components/screens/BarberDashboardExperience.tsx"
+ERRORS = PROJECT_ROOT / "packages/domain/src/appointment-errors.ts"
+AVAILABILITY_HOOK = PROJECT_ROOT / "apps/web/src/hooks/useAvailableSlots.ts"
+NEXT_APPOINTMENT_HOOK = PROJECT_ROOT / "apps/web/src/hooks/useNextAppointment.ts"
+CLIENT_BOOKING = PROJECT_ROOT / "apps/web/src/components/screens/BookingExperience.tsx"
+PUBLIC_BOOKING = PROJECT_ROOT / "apps/web/src/app/[slug]/booking.tsx"
+CLIENT_APPOINTMENTS = PROJECT_ROOT / "apps/web/src/components/screens/AppointmentsExperience.tsx"
+PRO_DASHBOARD = PROJECT_ROOT / "apps/web/src/components/screens/BarberDashboardExperience.tsx"
 
 
 def _read(path: Path) -> str:

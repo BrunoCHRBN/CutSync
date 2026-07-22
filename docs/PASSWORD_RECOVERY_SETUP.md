@@ -22,7 +22,7 @@ Para testes locais, adicione temporariamente `http://localhost:3000/reset-passwo
   - um número;
   - um símbolo especial.
 
-Essas regras precisam coincidir com `src/utils/passwordPolicy.ts`.
+Essas regras precisam coincidir com `packages/validation/src/password-policy.ts`.
 
 ## 3. Authentication → Email Templates → Reset Password
 

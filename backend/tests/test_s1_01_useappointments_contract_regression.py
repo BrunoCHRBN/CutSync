@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 
-ROOT = Path("/app")
-HOOK_FILE = ROOT / "src/hooks/useAppointments.ts"
-ADMIN_DASHBOARD_FILE = ROOT / "src/components/screens/AdminDashboardExperience.tsx"
-PRO_DASHBOARD_FILE = ROOT / "src/components/screens/BarberDashboardExperience.tsx"
+ROOT = Path(__file__).resolve().parents[2]
+HOOK_FILE = ROOT / "apps/web/src/hooks/useAppointments.ts"
+ADMIN_DASHBOARD_FILE = ROOT / "apps/web/src/components/screens/AdminDashboardExperience.tsx"
+PRO_DASHBOARD_FILE = ROOT / "apps/web/src/components/screens/BarberDashboardExperience.tsx"
 
 
 def _read(path: Path) -> str:

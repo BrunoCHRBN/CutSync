@@ -3,11 +3,12 @@
 from pathlib import Path
 
 
-HOOK = Path("/app/src/hooks/useNextAppointment.ts")
-CARD = Path("/app/src/components/booking/NextAppointmentCard.tsx")
-ADMIN_CARD = Path("/app/src/components/admin/GlobalNextAppointmentCard.tsx")
-PRO_DASHBOARD = Path("/app/src/components/screens/BarberDashboardExperience.tsx")
-ADMIN_DASHBOARD = Path("/app/src/components/screens/AdminDashboardExperience.tsx")
+ROOT = Path(__file__).resolve().parents[2]
+HOOK = ROOT / "apps/web/src/hooks/useNextAppointment.ts"
+CARD = ROOT / "apps/web/src/components/booking/NextAppointmentCard.tsx"
+ADMIN_CARD = ROOT / "apps/web/src/components/admin/GlobalNextAppointmentCard.tsx"
+PRO_DASHBOARD = ROOT / "apps/web/src/components/screens/BarberDashboardExperience.tsx"
+ADMIN_DASHBOARD = ROOT / "apps/web/src/components/screens/AdminDashboardExperience.tsx"
 
 
 def _read(path: Path) -> str:

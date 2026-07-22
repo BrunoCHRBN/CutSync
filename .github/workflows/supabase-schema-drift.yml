@@ -4,14 +4,14 @@ on:
   pull_request:
     paths:
       - 'supabase/**'
-      - 'src/types/supabase.generated.ts'
+      - 'packages/database/src/supabase.generated.ts'
       - 'scripts/*supabase*.sh'
       - '.github/workflows/supabase-schema-drift.yml'
   push:
     branches: [main, master]
     paths:
       - 'supabase/**'
-      - 'src/types/supabase.generated.ts'
+      - 'packages/database/src/supabase.generated.ts'
       - 'scripts/*supabase*.sh'
       - '.github/workflows/supabase-schema-drift.yml'
   schedule:

@@ -6,7 +6,7 @@ import {
   minutesOfDay,
   parseClock,
   zonedDateAtMinute,
-} from '../../src/components/calendar/calendar-math';
+} from '../../apps/web/src/components/calendar/calendar-math';
 
 test('interpreta relógios e rejeita horários inválidos', () => {
   expect(parseClock('09:30')).toBe(570);

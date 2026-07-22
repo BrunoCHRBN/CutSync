@@ -79,7 +79,7 @@ O teste transacional completo está em `supabase/tests/multi_app_identity_and_pu
 4. Aplicar a migration no ambiente alvo. — concluído em 2026-07-22
 5. Confirmar publicação dos RPCs e proteção anônima. — concluído em 2026-07-22
 6. Executar `supabase/tests/multi_app_identity_and_push_devices.sql` em transação com rollback. — concluído no projeto remoto
-7. Gerar novamente `src/types/supabase.generated.ts` a partir do projeto remoto. — concluído
+7. Gerar novamente `packages/database/src/supabase.generated.ts` a partir do projeto remoto. — concluído
 8. Testar registro e desregistro de tokens com usuários autenticados distintos. — concluído em transação; nenhuma fixture persistida
 9. Consultar disponibilidade autenticada nos fluxos Client e Business no navegador. — concluído; 2 testes aprovados em 2026-07-22
 10. Repetir criação e reagendamento reais com fixtures descartáveis antes do release. — pendente; não bloqueia a fundação da Fase 1

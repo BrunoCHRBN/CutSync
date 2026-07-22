@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { canEditKnowledge, isKnowledgeOwner, isReviewExpired } from '../../src/types/governance-knowledge';
+import { canEditKnowledge, isKnowledgeOwner, isReviewExpired } from '../../apps/web/src/types/governance-knowledge';
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -24,7 +24,7 @@ test('mantém a matriz de permissões do fórum no cliente e no banco', () => {
 });
 
 test('protege imagens em bucket privado e sem sobrescrita', () => {
-  const service = read('src/services/governance-knowledge.ts');
+  const service = read('apps/web/src/services/governance-knowledge.ts');
   expect(migration).toContain("'governance-kb',\n  'governance-kb',\n  false");
   expect(migration).toContain("ARRAY['image/jpeg', 'image/png', 'image/webp']");
   expect(migration).toContain('requested_size_bytes > 5242880');
@@ -36,7 +36,7 @@ test('protege imagens em bucket privado e sem sobrescrita', () => {
 });
 
 test('renderização Markdown bloqueia HTML, imagens externas e esquemas perigosos', () => {
-  const renderer = read('src/components/governance/knowledge-markdown.tsx');
+  const renderer = read('apps/web/src/components/governance/knowledge-markdown.tsx');
   expect(renderer).toContain('html: false');
   expect(renderer).toContain("parser.disable(['image'])");
   expect(renderer).toContain('/^https?:\\/\\//i');
@@ -60,13 +60,13 @@ test('migra os sete artigos sem oficializá-los e corrige instruções conflitan
 
 test('expõe as quatro rotas do fórum sob o layout compartilhado', () => {
   for (const route of [
-    'src/app/governance/knowledge/index.tsx',
-    'src/app/governance/knowledge/new.tsx',
-    'src/app/governance/knowledge/[topicId]/index.tsx',
-    'src/app/governance/knowledge/[topicId]/edit.tsx',
+    'apps/web/src/app/governance/knowledge/index.tsx',
+    'apps/web/src/app/governance/knowledge/new.tsx',
+    'apps/web/src/app/governance/knowledge/[topicId]/index.tsx',
+    'apps/web/src/app/governance/knowledge/[topicId]/edit.tsx',
   ]) expect(fs.existsSync(path.join(root, route))).toBe(true);
 
-  const layout = read('src/app/governance/_layout.tsx');
+  const layout = read('apps/web/src/app/governance/_layout.tsx');
   expect(layout).toContain('GovernanceAuthProvider');
   expect(layout).toContain('GovernanceShell');
 });

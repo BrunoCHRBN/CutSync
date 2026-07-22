@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-ADMIN_DASHBOARD = ROOT / "src/components/screens/AdminDashboardExperience.tsx"
-APPOINTMENTS_HOOK = ROOT / "src/hooks/useAppointments.ts"
+ADMIN_DASHBOARD = ROOT / "apps/web/src/components/screens/AdminDashboardExperience.tsx"
+APPOINTMENTS_HOOK = ROOT / "apps/web/src/hooks/useAppointments.ts"
 
 
 def _source() -> str:

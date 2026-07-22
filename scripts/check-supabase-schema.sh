@@ -2,12 +2,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-committed_file="$repo_root/src/types/supabase.generated.ts"
+committed_file="$repo_root/packages/database/src/supabase.generated.ts"
 generated_file="$(mktemp)"
 trap 'rm -f "$generated_file"' EXIT
 
 if [[ ! -f "$committed_file" ]]; then
-  echo "Arquivo tipado não encontrado: src/types/supabase.generated.ts" >&2
+  echo "Arquivo tipado não encontrado: packages/database/src/supabase.generated.ts" >&2
   exit 1
 fi
 
