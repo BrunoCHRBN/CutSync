@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Calendar, Plus, UserCheck, Clock } from 'lucide-react-native';
-import { colors, radii, typography } from '../../../theme/tokens';
+import { landingColors as colors, landingRadii as radii, landingTypography } from '../../../theme/landing-tokens';
 import { INITIAL_MOCK_APPOINTMENTS, MOCK_BARBERS, MockAppointment } from './mockData';
+
+const typography = { display: landingTypography.displaySemiBold, body: landingTypography.body, bodyStrong: landingTypography.bodySemiBold };
 
 export const AgendaSandbox = () => {
   const [appointments, setAppointments] = useState<MockAppointment[]>(INITIAL_MOCK_APPOINTMENTS);

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ShieldCheck, CheckCircle, Search, Award } from 'lucide-react-native';
-import { colors, radii, typography } from '../../../theme/tokens';
+import { landingColors as colors, landingRadii as radii, landingTypography } from '../../../theme/landing-tokens';
+
+const typography = { display: landingTypography.displaySemiBold, body: landingTypography.body, bodyStrong: landingTypography.bodySemiBold };
 
 export const GspValidationSandbox = () => {
   const [documentInput, setDocumentInput] = useState('48.291.042/0001-98');

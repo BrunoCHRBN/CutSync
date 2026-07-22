@@ -2,8 +2,10 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useFonts, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
-import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
+import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { WebAutofillStyles } from '../components/ui/web-autofill-styles';
 import { CommandPaletteProvider } from '../components/command/command-palette-provider';
@@ -20,11 +22,12 @@ function RootLayoutNavigation() {
   const { user, profile, loading, isSuperadmin, governanceRole } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const firstSegment = segments[0] as string | undefined;
+  const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos';
 
   useEffect(() => {
     if (loading) return;
 
-    const firstSegment = segments[0] as string | undefined;
     const secondSegment = segments[1] as string | undefined;
     const inAuthGroup = firstSegment === '(auth)';
     const isDynamicSlug = firstSegment === '[slug]';
@@ -65,8 +68,6 @@ function RootLayoutNavigation() {
         isPublicSalon || isPublicProfessionalProfile || isProfessionalProfileEditor;
       const inProfessionalGroup = firstSegment === '(professional)' || firstSegment === 'professional';
       const inSuperadminGroup = firstSegment === 'superadmin';
-      const inGovernanceGroup = firstSegment === 'governance';
-
       if (isInvite) return;
 
       // 2. Redirecionamento da Central de Governança
@@ -98,9 +99,9 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [buildTarget, user, profile, loading, isSuperadmin, governanceRole, segments, router]);
+  }, [buildTarget, user, profile, loading, isSuperadmin, governanceRole, segments, router, firstSegment]);
 
-  if (loading) {
+  if (loading && !isPublicMarketing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#D4AF37" />
@@ -116,16 +117,22 @@ export default function RootLayout() {
     Montserrat_700Bold,
     Inter_400Regular,
     Inter_600SemiBold,
+    Fraunces_600SemiBold: require('../../assets/fonts/Fraunces144pt-SemiBold.ttf'),
+    Fraunces_700Bold: require('../../assets/fonts/Fraunces144pt-Bold.ttf'),
+    Geist_400Regular: require('../../assets/fonts/Geist-Regular.ttf'),
+    Geist_500Medium: require('../../assets/fonts/Geist-Medium.ttf'),
+    Geist_600SemiBold: require('../../assets/fonts/Geist-SemiBold.ttf'),
+    GeistMono_500Medium: require('../../assets/fonts/GeistMono-Medium.ttf'),
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (fontsLoaded || fontError || process.env.EXPO_OS === 'web') {
       // Fechar a Splash Screen quando fontes estiverem prontas
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) {
+  if (!fontsLoaded && !fontError && process.env.EXPO_OS !== 'web') {
     return null;
   }
 

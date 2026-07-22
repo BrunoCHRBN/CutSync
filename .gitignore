@@ -35,6 +35,11 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Python test caches
+__pycache__/
+*.py[cod]
+
 playwright-report/
 test-results/
 

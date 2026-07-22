@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DollarSign, Percent, Wallet, Building } from 'lucide-react-native';
-import { colors, radii, typography } from '../../../theme/tokens';
+import { landingColors as colors, landingRadii as radii, landingTypography } from '../../../theme/landing-tokens';
+
+const typography = { display: landingTypography.displaySemiBold, body: landingTypography.body, bodyStrong: landingTypography.bodySemiBold };
 
 export const CommissionsSandbox = () => {
   const [commissionRate, setCommissionRate] = useState(50); // percentage to professional
