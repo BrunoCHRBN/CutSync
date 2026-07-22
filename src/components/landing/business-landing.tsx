@@ -121,7 +121,6 @@ const BusinessLandingContent = () => {
       <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.heroOuter}>
           <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
-            <View style={styles.heroGlow} />
             <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
               <View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>VITRINE E OPERAÇÃO CONECTADAS</Text></View>
               <Text style={styles.heroTitle}>Do serviço publicado{`\n`}à agenda organizada.</Text>
@@ -319,7 +318,6 @@ const styles = StyleSheet.create({
   heroOuter: { backgroundColor: landingColors.brandStrong },
   hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 720, paddingHorizontal: 34, paddingVertical: 104, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 96 },
   heroStacked: { minHeight: 0, paddingVertical: 88, flexDirection: 'column', alignItems: 'stretch' },
-  heroGlow: { position: 'absolute', width: 560, height: 420, top: 80, right: -100, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.035)' },
   heroCopy: { flex: 1, minWidth: 280, gap: 22, zIndex: 2 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
   heroBadgeText: { color: landingColors.onBrand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },

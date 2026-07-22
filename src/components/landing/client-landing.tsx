@@ -210,7 +210,6 @@ const ClientLandingContent = () => {
 
       <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <SpotlightSection style={[styles.heroSection, !isDesktop && styles.heroSectionStacked]}>
-          <View style={styles.heroGlow} />
           <View style={styles.heroCopy}>
             <View style={styles.heroBadge}>
               <View style={styles.liveDot} />
@@ -448,7 +447,6 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 36 },
   heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 680, paddingHorizontal: 28, paddingTop: 104, paddingBottom: 160, flexDirection: 'row', alignItems: 'center', gap: 96 },
   heroSectionStacked: { minHeight: 0, paddingTop: 96, paddingBottom: 136, flexDirection: 'column', alignItems: 'stretch' },
-  heroGlow: { position: 'absolute', width: 560, height: 420, borderRadius: 80, right: -80, top: 70, backgroundColor: 'rgba(41,75,58,0.045)' },
   heroCopy: { flex: 1, minWidth: 280, gap: 22, zIndex: 2 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
