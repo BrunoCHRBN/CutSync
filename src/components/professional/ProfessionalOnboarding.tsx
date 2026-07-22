@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Scissors, Clock3, WalletCards, Instagram, UserRound, ArrowRight } from 'lucide-react-native';
+import { Scissors, Clock3, WalletCards, Globe, UserRound, ArrowRight } from 'lucide-react-native';
 import { supabase } from '../../services/supabase';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -198,7 +198,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
                 value={instagram} 
                 onChangeText={setInstagram} 
                 placeholder="@seu.perfil" 
-                icon={<Instagram color={colors.textMuted} size={17} />}
+                icon={<Globe color={colors.textMuted} size={17} />}
                 autoCapitalize="none"
               />
 

@@ -4,7 +4,7 @@ import { colors, radii, typography } from '../../theme/tokens';
 
 export interface AppInputProps extends TextInputProps {
   label: string;
-  testID: string;
+  testID?: string;
   icon?: ReactNode;
   hint?: string;
   error?: string;
@@ -14,7 +14,7 @@ export interface AppInputProps extends TextInputProps {
 
 export const AppInput = ({
   label,
-  testID,
+  testID = 'app-input',
   icon,
   hint,
   error,
