@@ -23,6 +23,25 @@ async function signIn(page: Page, email: string, password: string) {
   await expect(page.getByTestId('login-screen')).toBeHidden({ timeout: 20_000 });
 }
 
+async function waitForVisualReady(page: Page, screenTestId: string, loadingTestIds: string[] = []) {
+  await expect(page.getByTestId(screenTestId)).toBeVisible();
+
+  for (const testId of loadingTestIds) {
+    await expect(page.getByTestId(testId)).toBeHidden({ timeout: 20_000 });
+  }
+
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all(Array.from(document.images).map((image) => {
+      if (image.complete) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        image.addEventListener('load', () => resolve(), { once: true });
+        image.addEventListener('error', () => resolve(), { once: true });
+      });
+    }));
+  });
+}
+
 test('login — baseline visual e navegação por teclado', async ({ page }) => {
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('login-screen')).toBeVisible();
@@ -36,13 +55,13 @@ test.describe('admin', () => {
 
   test.beforeEach(async ({ page }) => signIn(page, accounts.admin.email!, accounts.admin.password!));
 
-  for (const [route, name, testId] of [
-    ['/admin', 'admin-calendar.png', 'admin-dashboard-screen'],
-    ['/settings', 'admin-settings.png', 'settings-screen'],
+  for (const [route, name, testId, loadingTestIds] of [
+    ['/admin', 'admin-calendar.png', 'admin-dashboard-screen', ['global-next-appointment-loading', 'admin-appointments-loading']],
+    ['/settings', 'admin-settings.png', 'settings-screen', []],
   ] as const) {
     test(`${route} — baseline visual`, async ({ page }) => {
       await page.goto(route);
-      await expect(page.getByTestId(testId)).toBeVisible();
+      await waitForVisualReady(page, testId, [...loadingTestIds]);
       await expect(page).toHaveScreenshot(name, { fullPage: true });
     });
   }
@@ -54,7 +73,7 @@ test.describe('profissional', () => {
   test('agenda — baseline visual', async ({ page }) => {
     await signIn(page, accounts.professional.email!, accounts.professional.password!);
     await page.goto('/professional');
-    await expect(page.getByTestId('barber-dashboard-screen')).toBeVisible();
+    await waitForVisualReady(page, 'barber-dashboard-screen', ['next-appointment-loading', 'barber-agenda-loading']);
     await expect(page).toHaveScreenshot('professional-calendar.png', { fullPage: true });
   });
 });
@@ -64,13 +83,13 @@ test.describe('cliente', () => {
 
   test.beforeEach(async ({ page }) => signIn(page, accounts.client.email!, accounts.client.password!));
 
-  for (const [route, name, testId] of [
-    ['/explore', 'client-explore.png', 'client-explore-screen'],
-    ['/appointments', 'client-appointments.png', 'client-appointments-screen'],
+  for (const [route, name, testId, loadingTestIds] of [
+    ['/explore', 'client-explore.png', 'client-explore-screen', ['client-shops-loading-skeleton']],
+    ['/appointments', 'client-appointments.png', 'client-appointments-screen', ['client-appointments-loading']],
   ] as const) {
     test(`${route} — baseline visual`, async ({ page }) => {
       await page.goto(route);
-      await expect(page.getByTestId(testId)).toBeVisible();
+      await waitForVisualReady(page, testId, [...loadingTestIds]);
       await expect(page).toHaveScreenshot(name, { fullPage: true });
     });
   }
@@ -88,14 +107,17 @@ test.describe('cliente', () => {
     await expect(page.getByTestId('client-settings-screen')).toBeVisible();
   });
 
+});
+
+test.describe('público', () => {
   test('perfil público e booking — baseline visual', async ({ page }) => {
     const slug = process.env.CUTSYNC_E2E_PUBLIC_SLUG;
     test.skip(!slug, 'Configure CUTSYNC_E2E_PUBLIC_SLUG');
     await page.goto(`/${slug}`);
-    await expect(page.getByTestId('barbershop-profile-screen')).toBeVisible();
+    await waitForVisualReady(page, 'barbershop-profile-screen', ['barbershop-profile-skeleton']);
     await expect(page).toHaveScreenshot('public-profile.png', { fullPage: true });
     await page.goto(`/${slug}/booking`);
-    await expect(page.getByTestId('booking-screen')).toBeVisible();
+    await waitForVisualReady(page, 'booking-screen');
     await expect(page).toHaveScreenshot('booking.png', { fullPage: true });
   });
 });

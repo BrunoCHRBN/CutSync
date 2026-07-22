@@ -391,7 +391,7 @@ export default function BookingSlugScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View testID="booking-screen" style={styles.root}>
       {/* ─── TOPBAR NAV ─────────────────────────────────────────────── */}
       <View style={styles.topbar}>
         <View style={styles.topbarInner}>
