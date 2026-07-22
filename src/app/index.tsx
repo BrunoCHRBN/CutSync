@@ -17,10 +17,13 @@ import {
   ChevronRight,
   Compass,
   Filter,
+  Flower2,
+  Hand,
   LogIn,
   MapPin,
   Scissors,
   Search,
+  ShieldCheck,
   Sparkles,
   Star,
   X,
@@ -173,8 +176,7 @@ const EstablishmentCard: React.FC<{
             label="Ver Horários"
             size="sm"
             style={styles.actionBtn}
-            icon={<ChevronRight size={14} color={colors.ink} />}
-            iconPosition="right"
+            trailingIcon={<ChevronRight size={14} color={colors.ink} />}
             onPress={onBookPress || onPress}
           />
         </View>
@@ -326,10 +328,10 @@ export default function MarketplacePage() {
 
   // Categories definition
   const categories = [
-    { id: 'barbearia', label: '💈 Barbearias' },
-    { id: 'salao', label: '💇‍♀️ Salões de Beleza' },
-    { id: 'manicure', label: '💅 Manicure & Pedicure' },
-    { id: 'estetica', label: '🪒 Estética & Spa' },
+    { id: 'barbearia', label: 'Barbearias', Icon: Scissors },
+    { id: 'salao', label: 'Salões de Beleza', Icon: Sparkles },
+    { id: 'manicure', label: 'Manicure & Pedicure', Icon: Hand },
+    { id: 'estetica', label: 'Estética & Spa', Icon: Flower2 },
   ];
 
   // Auth Navigation Helper
@@ -379,101 +381,138 @@ export default function MarketplacePage() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          {/* ─── HERO ──────────────────────────────────────────────── */}
-          <View style={styles.hero}>
-            <Text style={styles.heroTitle}>
+        {/* ─── HERO EDITORIAL FULL-BLEED ─────────────────────────────── */}
+        <View style={styles.hero}>
+          <Image
+            source={require('../../assets/images/hero-salon.png')}
+            style={styles.heroImage}
+            contentFit="cover"
+          />
+          <View style={styles.heroOverlay} />
+
+          <View style={[styles.heroInner, isDesktop && styles.heroInnerDesktop]}>
+            <View style={styles.heroBadge}>
+              <Zap size={13} color="#F5A524" fill="#F5A524" />
+              <Text style={styles.heroBadgeText}>Reserva instantânea, sem ligações</Text>
+            </View>
+
+            <Text style={[styles.heroTitle, isDesktop && styles.heroTitleDesktop]}>
               Seu horário agendado.{'\n'}
               <Text style={styles.heroHighlight}>Sem esperas. Sem atrito.</Text>
             </Text>
             <Text style={styles.heroSubtitle}>
-              Descubra os melhores salões e barbearias perto de você com reserva instantânea.
+              Descubra os melhores salões e barbearias perto de você e reserve em segundos.
             </Text>
-          </View>
 
-          {/* ─── 2. BARRA DE PESQUISA RESPONSIVA ────────────────────────── */}
-          {isDesktop ? (
-            /* DESKTOP SEARCH BAR (>= 768px) */
-            <View style={styles.desktopSearchBar}>
-              <View style={styles.searchField}>
-                <Search size={16} color={colors.textMuted} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Serviço ou Salão (ex: Barba, Corte...)"
-                  placeholderTextColor={colors.textMuted}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
+            {/* ─── BARRA DE PESQUISA RESPONSIVA ─────────────────────── */}
+            {isDesktop ? (
+              /* DESKTOP SEARCH BAR (>= 768px) */
+              <View style={styles.desktopSearchBar}>
+                <View style={styles.searchField}>
+                  <Search size={16} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Serviço ou Salão (ex: Barba, Corte...)"
+                    placeholderTextColor={colors.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                </View>
+
+                <View style={styles.searchDivider} />
+
+                <View style={styles.searchField}>
+                  <MapPin size={16} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder={location.loading ? 'Detectando GPS...' : 'Perto de mim / Raio de 2,5 km'}
+                    placeholderTextColor={colors.textMuted}
+                    value={locationFilter}
+                    onChangeText={setLocationFilter}
+                  />
+                </View>
+
+                <View style={styles.searchDivider} />
+
+                <View style={styles.searchField}>
+                  <CalendarIcon size={16} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Data (Qualquer Data)"
+                    placeholderTextColor={colors.textMuted}
+                    value={dateFilter}
+                    onChangeText={setDateFilter}
+                  />
+                </View>
+
+                <AppButton
+                  label="Pesquisar"
+                  size="sm"
+                  style={styles.searchBtn}
+                  onPress={() => {}}
                 />
               </View>
+            ) : (
+              /* MOBILE SEARCH TRIGGER (< 768px) */
+              <Pressable
+                style={styles.mobileSearchTrigger}
+                onPress={() => setIsSearchSheetOpen(true)}
+              >
+                <Search size={18} color={colors.brandPrimary} />
+                <Text style={styles.mobileSearchPlaceholder}>
+                  Buscar serviço, salão ou localização...
+                </Text>
+                <View style={styles.filterIconButton}>
+                  <Filter size={14} color={colors.brandPrimary} />
+                </View>
+              </Pressable>
+            )}
 
-              <View style={styles.searchDivider} />
-
-              <View style={styles.searchField}>
-                <MapPin size={16} color={colors.textMuted} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder={location.loading ? 'Detectando GPS...' : 'Perto de mim / Raio de 2,5 km'}
-                  placeholderTextColor={colors.textMuted}
-                  value={locationFilter}
-                  onChangeText={setLocationFilter}
-                />
+            {/* Trust row */}
+            <View style={styles.trustRow}>
+              <View style={styles.trustItem}>
+                <ShieldCheck size={15} color="#FFFFFF" />
+                <Text style={styles.trustText}>Reserva 100% grátis</Text>
               </View>
-
-              <View style={styles.searchDivider} />
-
-              <View style={styles.searchField}>
-                <CalendarIcon size={16} color={colors.textMuted} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Data (Qualquer Data)"
-                  placeholderTextColor={colors.textMuted}
-                  value={dateFilter}
-                  onChangeText={setDateFilter}
-                />
+              <View style={styles.trustDot} />
+              <View style={styles.trustItem}>
+                <Zap size={15} color="#FFFFFF" />
+                <Text style={styles.trustText}>Confirmação imediata</Text>
               </View>
-
-              <AppButton
-                label="Pesquisar"
-                size="sm"
-                style={styles.searchBtn}
-                onPress={() => {}}
-              />
+              <View style={styles.trustDot} />
+              <View style={styles.trustItem}>
+                <Star size={15} color="#F5A524" fill="#F5A524" />
+                <Text style={styles.trustText}>Profissionais avaliados</Text>
+              </View>
             </View>
-          ) : (
-            /* MOBILE SEARCH TRIGGER (< 768px) */
-            <Pressable
-              style={styles.mobileSearchTrigger}
-              onPress={() => setIsSearchSheetOpen(true)}
-            >
-              <Search size={18} color={colors.brandPrimary} />
-              <Text style={styles.mobileSearchPlaceholder}>
-                Buscar serviço, salão ou localização...
-              </Text>
-              <View style={styles.filterIconButton}>
-                <Filter size={14} color={colors.brandPrimary} />
-              </View>
-            </Pressable>
-          )}
+          </View>
+        </View>
 
-          {/* ─── 2C. CHIPS DE CATEGORIA (AMBER HIGHLIGHT) ──────────────── */}
+        <View style={styles.content}>
+          {/* ─── 2C. CHIPS DE CATEGORIA ──────────────────────────────── */}
           <View style={styles.chipsRow}>
             {categories.map((cat) => {
               const isActive = selectedCategory === cat.id;
+              const ChipIcon = cat.Icon;
               return (
                 <Pressable
                   key={cat.id}
                   style={[
                     styles.chip,
-                    isActive && styles.chipActiveAmber,
+                    isActive && styles.chipActive,
                   ]}
                   onPress={() =>
                     setSelectedCategory(isActive ? null : cat.id)
                   }
                 >
+                  <ChipIcon
+                    size={15}
+                    color={isActive ? '#FFFFFF' : colors.brandPrimary}
+                  />
                   <Text
                     style={[
                       styles.chipText,
-                      isActive && styles.chipTextActiveAmber,
+                      isActive && styles.chipTextActive,
                     ]}
                   >
                     {cat.label}
@@ -803,43 +842,121 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     paddingHorizontal: 20,
+    paddingTop: 28,
     gap: 24,
   },
 
-  /* Hero */
+  /* Hero — full-bleed editorial */
   hero: {
+    position: 'relative',
+    width: '100%',
+    minHeight: 460,
+    justifyContent: 'center',
+    paddingVertical: 56,
+    overflow: 'hidden',
+  },
+  heroImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  heroOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(24,32,27,0.68)',
+  },
+  heroInner: {
+    width: '100%',
+    maxWidth: layout.contentMax,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    gap: 18,
     alignItems: 'center',
-    gap: 12,
-    paddingTop: 32,
-    paddingBottom: 4,
+  },
+  heroInnerDesktop: {
+    alignItems: 'flex-start',
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  heroBadgeText: {
+    fontSize: 12,
+    fontFamily: typography.bodyStrong,
+    color: '#FFFFFF',
   },
   heroTitle: {
     ...typeScale.displayLarge,
-    color: colors.text,
+    color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: -1.2,
   },
+  heroTitleDesktop: {
+    fontSize: 48,
+    lineHeight: 54,
+    textAlign: 'left',
+    letterSpacing: -1.8,
+  },
   heroHighlight: {
-    color: colors.brandPrimary,
+    color: colors.brandSecondary,
   },
   heroSubtitle: {
     ...typeScale.body,
-    color: colors.textSecondary,
+    fontSize: 16,
+    lineHeight: 24,
+    color: 'rgba(255,255,255,0.86)',
     textAlign: 'center',
-    maxWidth: 540,
+    maxWidth: 560,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
+  },
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trustText: {
+    fontSize: 13,
+    fontFamily: typography.bodyStrong,
+    color: 'rgba(255,255,255,0.92)',
+  },
+  trustDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
 
   /* Search Bars */
   desktopSearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
+    maxWidth: 820,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.lg,
     padding: 6,
     gap: 6,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    boxShadow: '0 12px 32px rgba(24,32,27,0.22)',
   },
   searchField: {
     flex: 1,
@@ -870,6 +987,7 @@ const styles = StyleSheet.create({
   mobileSearchTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     gap: 10,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -877,7 +995,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+    boxShadow: '0 10px 28px rgba(24,32,27,0.2)',
   },
   mobileSearchPlaceholder: {
     flex: 1,
@@ -901,23 +1019,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: radii.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipActiveAmber: {
-    backgroundColor: '#F5A524',
-    borderColor: '#F5A524',
+  chipActive: {
+    backgroundColor: colors.brandPrimary,
+    borderColor: colors.brandPrimary,
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: typography.bodyStrong,
     color: colors.text,
   },
-  chipTextActiveAmber: {
+  chipTextActive: {
     color: '#FFFFFF',
   },
 
