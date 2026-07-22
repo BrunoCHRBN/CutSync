@@ -41,7 +41,8 @@ test('não replica rotas Web e de governança nos shells mobile', () => {
       .map(String)
       .filter((entry) => entry.endsWith('.tsx'));
 
-    expect(routes).toEqual(expect.arrayContaining(['_layout.tsx', 'index.tsx']));
+    expect(routes.some((route) => path.basename(route) === '_layout.tsx')).toBe(true);
+    expect(routes.some((route) => path.basename(route) === 'index.tsx')).toBe(true);
     expect(routes.some((route) => route.includes('governance'))).toBe(false);
     expect(routes.some((route) => route.includes('superadmin'))).toBe(false);
   }

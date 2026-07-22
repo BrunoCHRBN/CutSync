@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-phase*-check/
 web-build/
 expo-env.d.ts
 
@@ -51,5 +52,7 @@ example
 .env
 .env.*
 *.env
+!.env.example
+!**/.env.example
 credentials.json
 .credentials

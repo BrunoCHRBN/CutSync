@@ -5,22 +5,32 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "lint": "expo lint"
+    "android": "expo run:android",
+    "build:web": "expo export --platform web",
+    "build:web:e2e": "expo export --platform web --clear",
+    "ios": "expo run:ios",
+    "lint": "expo lint",
+    "serve:test": "node scripts/serve-web-build.js"
   },
   "dependencies": {
     "@cutsync/brand": "*",
+    "@cutsync/database": "*",
     "@cutsync/domain": "*",
     "@cutsync/validation": "*",
-    "expo": "~57.0.7",
-    "expo-constants": "~57.0.6",
-    "expo-linking": "~57.0.3",
-    "expo-router": "~57.0.7",
+    "@supabase/supabase-js": "2.110.3",
+    "expo": "~57.0.8",
+    "expo-constants": "~57.0.7",
+    "expo-dev-client": "~57.0.8",
+    "expo-image": "~57.0.1",
+    "expo-image-picker": "~57.0.6",
+    "expo-linking": "~57.0.4",
+    "expo-router": "~57.0.8",
+    "expo-secure-store": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.0",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2"
+    "react-native-screens": "~4.26.0",
+    "react-native-url-polyfill": "4.0.0"
   }
 }

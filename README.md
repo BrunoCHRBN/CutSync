@@ -45,6 +45,14 @@ npm run ios:client
 npm run ios:business
 ```
 
+Para conectar o Client ao Supabase compartilhado, copie o exemplo local e preencha somente a URL e a chave pública do projeto:
+
+```powershell
+Copy-Item apps/client/.env.example apps/client/.env
+```
+
+O arquivo local é ignorado pelo Git. Nunca adicione uma chave `service_role` ou credenciais de usuários ao aplicativo.
+
 ## Validação
 
 ```powershell
@@ -81,3 +89,4 @@ Tokens e credenciais permanecem apenas em variáveis de ambiente e nunca devem s
 - `docs/architecture/MULTI_APP_PRODUCT_CONTRACT.md`: responsabilidades de Web, Client e Business.
 - `docs/architecture/MULTI_APP_BACKEND_READINESS.md`: contratos e validações do backend compartilhado.
 - `docs/architecture/MONOREPO_FOUNDATION.md`: estrutura, validações e pendências da Fase 2.
+- `docs/architecture/CLIENT_MVP_PROGRESS.md`: andamento, limites e próximas fatias da Fase 3.

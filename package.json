@@ -19,6 +19,7 @@
     "build:web": "npm --workspace @cutsync/web run build:web",
     "serve:test": "npm run build:web && npm --workspace @cutsync/web run serve:test",
     "test:e2e": "playwright test",
+    "test:e2e:client": "playwright test --config=playwright.client.config.ts",
     "test:e2e:update": "playwright test --update-snapshots",
     "typecheck:shared": "tsc --noEmit -p packages/tsconfig.json",
     "typecheck:web": "tsc --noEmit -p apps/web/tsconfig.json",
@@ -41,7 +42,7 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
-    "react-native-screens": "4.25.2"
+    "react-native-screens": "4.26.0"
   },
   "engines": {
     "node": "22.x"

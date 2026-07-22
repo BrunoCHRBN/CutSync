@@ -1547,6 +1547,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_my_lgpd_terms: {
+        Args: { target_marketing_accepted: boolean }
+        Returns: boolean
+      }
       accept_governance_kb_solution: {
         Args: { target_reply_id?: string; target_topic_id: string }
         Returns: undefined
@@ -1804,6 +1808,18 @@ export type Database = {
         Args: { target_topic_id: string }
         Returns: Json
       }
+      get_my_client_profile: {
+        Args: never
+        Returns: {
+          avatar_url: string | null
+          email: string | null
+          id: string
+          lgpd_marketing_accepted: boolean
+          name: string
+          notification_channels: string[]
+          phone: string | null
+        }[]
+      }
       get_my_operational_contexts: {
         Args: never
         Returns: {
@@ -1953,6 +1969,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_safe_client_profile_text: {
+        Args: { target_value: string }
+        Returns: boolean
+      }
       is_safe_public_url: { Args: { value: string }; Returns: boolean }
       is_superadmin: { Args: never; Returns: boolean }
       is_valid_professional_gallery: { Args: { value: Json }; Returns: boolean }
@@ -2100,6 +2120,10 @@ export type Database = {
         Args: { target_establishment_id: string }
         Returns: string
       }
+      text_array_has_duplicates: {
+        Args: { target_values: string[] }
+        Returns: boolean
+      }
       unregister_push_device: {
         Args: { target_expo_push_token: string }
         Returns: boolean
@@ -2111,6 +2135,45 @@ export type Database = {
           target_appointment_id: string
         }
         Returns: string
+      }
+      update_my_client_avatar: {
+        Args: { target_avatar_url: string | null }
+        Returns: {
+          avatar_url: string | null
+          email: string | null
+          id: string
+          lgpd_marketing_accepted: boolean
+          name: string
+          notification_channels: string[]
+          phone: string | null
+        }[]
+      }
+      update_my_client_preferences: {
+        Args: {
+          target_lgpd_marketing_accepted: boolean
+          target_notification_channels: string[]
+        }
+        Returns: {
+          avatar_url: string | null
+          email: string | null
+          id: string
+          lgpd_marketing_accepted: boolean
+          name: string
+          notification_channels: string[]
+          phone: string | null
+        }[]
+      }
+      update_my_client_profile: {
+        Args: { target_name: string; target_phone: string }
+        Returns: {
+          avatar_url: string | null
+          email: string | null
+          id: string
+          lgpd_marketing_accepted: boolean
+          name: string
+          notification_channels: string[]
+          phone: string | null
+        }[]
       }
       upsert_my_professional_profile: {
         Args: {
