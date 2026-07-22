@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -31,7 +31,7 @@ import { AudienceSelector } from './audience-selector';
 import { LandingAudience, trackLandingEvent } from './landing-analytics';
 import { ProductPreview } from './product-preview';
 import { GlassSurface, MagneticButton, RevealOnScroll, SpotlightSection } from './motion/landing-effects';
-import { LandingMotionProvider } from './motion/landing-motion';
+import { LandingMotionProvider, useReducedMotion } from './motion/landing-motion';
 import {
   landingColors,
   landingLayout,
@@ -78,7 +78,12 @@ const ClientLandingContent = () => {
   const params = useLocalSearchParams<{ audience?: string }>();
   const { user, profile } = useAuth();
   const { width } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
   const isDesktop = width >= landingLayout.desktopBreakpoint;
+  const isMobile = width < landingLayout.mobileBreakpoint;
+  const scrollRef = useRef<ScrollView>(null);
+  const searchInputRef = useRef<TextInput>(null);
+  const searchSectionY = useRef(0);
   const [audience, setAudience] = useState<LandingAudience>(() => audienceFromParam(params.audience));
   const [establishments, setEstablishments] = useState<PublicEstablishment[]>([]);
   const [query, setQuery] = useState('');
@@ -137,6 +142,28 @@ const ClientLandingContent = () => {
     });
   }, [establishments, locationQuery, query, serviceGroup]);
 
+  const availableServiceGroups = useMemo(() => serviceGroups.filter((group) => (
+    group.id === 'all' || establishments.some((establishment) => (
+      establishment.services.some((service) => {
+        const name = service.name.toLocaleLowerCase('pt-BR');
+        return group.terms.some((term) => name.includes(term));
+      })
+    ))
+  )), [establishments]);
+
+  const contentWidth = Math.min(Math.max(width - 40, 280), landingLayout.maxWidth);
+  const resultColumns = width >= 1180 ? 3 : width >= landingLayout.mobileBreakpoint ? 2 : 1;
+  const resultCardWidth = (contentWidth - (resultColumns - 1) * 16) / resultColumns;
+
+  const scrollToSearch = () => {
+    if (audience !== 'client') selectAudience('client');
+    const delay = reducedMotion ? 0 : 40;
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, searchSectionY.current - 86), animated: !reducedMotion });
+      setTimeout(() => searchInputRef.current?.focus(), reducedMotion ? 0 : 260);
+    }, delay);
+  };
+
   const openEstablishment = (establishment: PublicEstablishment, booking = false) => {
     trackLandingEvent({
       name: booking ? 'booking_started' : 'establishment_opened',
@@ -194,7 +221,7 @@ const ClientLandingContent = () => {
         </View>
       </GlassSurface>
 
-      <ScrollView contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <SpotlightSection style={[styles.heroSection, !isDesktop && styles.heroSectionStacked]}>
           <View style={styles.heroGlow} />
           <View style={styles.heroCopy}>
@@ -202,26 +229,28 @@ const ClientLandingContent = () => {
               <View style={styles.liveDot} />
               <Text style={styles.heroBadgeText}>AGENDA CONECTADA AO ESTABELECIMENTO</Text>
             </View>
-            <Text style={styles.heroTitle}>Seu próximo cuidado,{`\n`}mais perto do que parece.</Text>
+            <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Seu próximo cuidado,{`\n`}mais perto do que parece.</Text>
             <Text style={styles.heroDescription}>Descubra serviços, compare estabelecimentos e escolha um horário sem ligações ou espera.</Text>
             <View style={styles.heroActions}>
-              <MagneticButton label="Explorar estabelecimentos" onPress={() => selectAudience('client')} testID="landing-hero-client-cta" />
+              <MagneticButton label="Explorar estabelecimentos" onPress={scrollToSearch} testID="landing-hero-client-cta" />
               <MagneticButton label="Tenho um negócio" secondary onPress={() => selectAudience('business')} />
             </View>
+            <AudienceSelector value={audience} onChange={selectAudience} />
           </View>
-          <ProductPreview
-            variant="client"
-            accessibilityLabel="Demonstração ilustrativa do fluxo de agendamento do CutSync"
-            style={[styles.heroPreview, !isDesktop && styles.fullWidth]}
-          />
+          {isDesktop && (
+            <ProductPreview
+              variant="client"
+              accessibilityLabel="Demonstração ilustrativa do fluxo de agendamento do CutSync"
+              style={styles.heroPreview}
+            />
+          )}
         </SpotlightSection>
 
         <View style={styles.content}>
-          <RevealOnScroll><AudienceSelector value={audience} onChange={selectAudience} /></RevealOnScroll>
-
           {audience === 'business' && businessPreview}
 
-          <RevealOnScroll style={styles.searchSection}>
+          <RevealOnScroll onLayout={(event) => { searchSectionY.current = event.nativeEvent.layout.y; }}>
+            <View testID="landing-search-section" style={styles.searchSection}>
             <SectionHeading
               eyebrow="ESTABELECIMENTOS REAIS"
               title="Encontre o lugar certo para você."
@@ -232,6 +261,7 @@ const ClientLandingContent = () => {
                 <View style={styles.inputShell}>
                   <Search size={18} color={landingColors.inkMuted} />
                   <TextInput
+                    ref={searchInputRef}
                     testID="landing-search-input"
                     accessibilityLabel="Buscar por estabelecimento ou serviço"
                     value={query}
@@ -258,7 +288,7 @@ const ClientLandingContent = () => {
                 </View>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {serviceGroups.map((group) => {
+                {availableServiceGroups.map((group) => {
                   const selected = group.id === serviceGroup;
                   return (
                     <Pressable
@@ -310,7 +340,7 @@ const ClientLandingContent = () => {
                       accessibilityRole="link"
                       accessibilityLabel={`Ver perfil de ${establishment.name}`}
                       onPress={() => openEstablishment(establishment)}
-                      style={({ pressed }) => [styles.establishmentCard, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.establishmentCard, { width: resultCardWidth }, pressed && styles.pressed]}
                     >
                       <View style={styles.cover}>
                         {establishment.bannerUrl || establishment.logoUrl ? (
@@ -328,8 +358,8 @@ const ClientLandingContent = () => {
                         )}
                         <View style={styles.cardFooter}>
                           <Text style={styles.priceText}>{startingPrice ? `A partir de R$ ${startingPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Consulte os serviços'}</Text>
-                          <Pressable accessibilityRole="button" onPress={() => openEstablishment(establishment, true)} style={styles.cardArrow}>
-                            <ArrowRight size={17} color={landingColors.white} />
+                          <Pressable accessibilityRole="button" accessibilityLabel={`Ver horários de ${establishment.name}`} onPress={(event) => { event.stopPropagation?.(); openEstablishment(establishment, true); }} style={styles.bookingButton}>
+                            <Text style={styles.bookingButtonText}>Ver horários</Text><ArrowRight size={15} color={landingColors.white} />
                           </Pressable>
                         </View>
                       </View>
@@ -338,20 +368,30 @@ const ClientLandingContent = () => {
                 })}
               </View>
             )}
+            </View>
           </RevealOnScroll>
 
-          <RevealOnScroll style={styles.featureGrid}>
-            {[
-              { Icon: CalendarCheck, title: 'Escolha com clareza', text: 'Serviço, profissional e horário no mesmo fluxo.' },
-              { Icon: ShieldCheck, title: 'Dados protegidos', text: 'Sua conta só é exigida quando ela realmente é necessária.' },
-              { Icon: Sparkles, title: 'Experiência direta', text: 'Menos etapas entre a descoberta e o agendamento.' },
-            ].map(({ Icon, title, text }) => (
-              <View key={title} style={styles.featureCard}>
-                <View style={styles.featureIcon}><Icon size={21} color={landingColors.brand} /></View>
-                <Text style={styles.featureCardTitle}>{title}</Text>
-                <Text style={styles.featureCardText}>{text}</Text>
-              </View>
-            ))}
+          {!isDesktop && (
+            <RevealOnScroll>
+              <ProductPreview variant="client" accessibilityLabel="Demonstração ilustrativa do fluxo de agendamento do CutSync" style={styles.fullWidth} />
+            </RevealOnScroll>
+          )}
+
+          <RevealOnScroll style={styles.journeySection}>
+            <SectionHeading eyebrow="DO ENCONTRO À CONFIRMAÇÃO" title="Três passos, sem atalhos confusos." description="Você explora primeiro e cria sua conta somente quando decide reservar." />
+            <View style={styles.featureGrid}>
+              {[
+                { step: '01', Icon: Search, title: 'Encontre', text: 'Busque por estabelecimento, serviço ou localização.' },
+                { step: '02', Icon: CalendarCheck, title: 'Escolha', text: 'Compare serviços e consulte os horários no fluxo da unidade.' },
+                { step: '03', Icon: ShieldCheck, title: 'Confirme', text: 'Entre na sua conta apenas para concluir a reserva.' },
+              ].map(({ step, Icon, title, text }) => (
+                <View key={title} style={styles.featureCard}>
+                  <View style={styles.stepHeader}><Text style={styles.stepNumber}>{step}</Text><View style={styles.featureIcon}><Icon size={20} color={landingColors.brand} /></View></View>
+                  <Text style={styles.featureCardTitle}>{title}</Text>
+                  <Text style={styles.featureCardText}>{text}</Text>
+                </View>
+              ))}
+            </View>
           </RevealOnScroll>
 
           {audience === 'observer' && businessPreview}
@@ -373,7 +413,7 @@ const ClientLandingContent = () => {
             <Text style={styles.finalCtaEyebrow}>SEU TEMPO, BEM CUIDADO</Text>
             <Text style={styles.finalCtaTitle}>Encontre seu próximo horário.</Text>
             <Text style={styles.finalCtaText}>Comece pela busca. O cadastro fica para quando você decidir confirmar.</Text>
-            <MagneticButton label="Explorar agora" onPress={() => selectAudience('client')} />
+            <MagneticButton label="Explorar agora" onPress={scrollToSearch} />
           </RevealOnScroll>
 
           <View style={styles.footer}>
@@ -406,19 +446,20 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 15, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.pill, backgroundColor: landingColors.surface },
   accountButtonText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   scroll: { paddingBottom: 36 },
-  heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 590, paddingHorizontal: 20, paddingVertical: 72, flexDirection: 'row', alignItems: 'center', gap: 46 },
-  heroSectionStacked: { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 52 },
+  heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 500, paddingHorizontal: 20, paddingVertical: 48, flexDirection: 'row', alignItems: 'center', gap: 38 },
+  heroSectionStacked: { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 38 },
   heroGlow: { position: 'absolute', width: 440, height: 440, borderRadius: 220, right: 10, top: 52, backgroundColor: 'rgba(199,169,107,0.13)' },
-  heroCopy: { flex: 1, minWidth: 280, gap: 18 },
+  heroCopy: { flex: 1, minWidth: 280, gap: 16 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, paddingVertical: 7, borderRadius: landingRadii.pill, backgroundColor: landingColors.brandSoft },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
   heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
-  heroTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 58, lineHeight: 62, letterSpacing: -2.4 },
+  heroTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 55, lineHeight: 59, letterSpacing: -2.2 },
+  heroTitleMobile: { fontSize: 47, lineHeight: 52, letterSpacing: -1.7 },
   heroDescription: { maxWidth: 560, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 27 },
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  heroPreview: { width: '48%', maxWidth: 570 },
+  heroPreview: { width: '46%', maxWidth: 550 },
   fullWidth: { width: '100%', maxWidth: '100%' },
-  content: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', paddingHorizontal: 20, gap: 90 },
+  content: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', paddingHorizontal: 20, gap: 68 },
   sectionHeading: { maxWidth: landingLayout.copyWidth, gap: 9 },
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 38, lineHeight: 43, letterSpacing: -1.2 },
@@ -438,7 +479,7 @@ const styles = StyleSheet.create({
   resultsCount: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   resultsNote: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12 },
   establishmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  establishmentCard: { width: 282, flexGrow: 1, maxWidth: 390, overflow: 'hidden', borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, boxShadow: '0 10px 36px rgba(19,32,25,0.08)' },
+  establishmentCard: { overflow: 'hidden', borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, boxShadow: '0 10px 36px rgba(19,32,25,0.08)' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.995 }] },
   cover: { height: 176, backgroundColor: landingColors.brandSoft },
   coverImage: { width: '100%', height: '100%' },
@@ -451,12 +492,16 @@ const styles = StyleSheet.create({
   openText: { color: landingColors.success, fontFamily: landingTypography.bodyMedium },
   cardFooter: { minHeight: 46, marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: landingColors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   priceText: { flex: 1, color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 12 },
-  cardArrow: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brand },
+  bookingButton: { minHeight: 42, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: landingRadii.pill, backgroundColor: landingColors.brand },
+  bookingButtonText: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
   stateCard: { minHeight: 190, padding: 30, alignItems: 'center', justifyContent: 'center', gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface },
   stateTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 16, textAlign: 'center' },
   stateText: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 13, textAlign: 'center' },
+  journeySection: { gap: 24 },
   featureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   featureCard: { flex: 1, minWidth: 240, padding: 24, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, gap: 10 },
+  stepHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepNumber: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 14, letterSpacing: 0.8 },
   featureIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
   featureCardTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 16 },
   featureCardText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },

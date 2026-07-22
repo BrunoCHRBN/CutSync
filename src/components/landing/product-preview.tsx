@@ -1,7 +1,7 @@
 import React from 'react';
 import { ImageSourcePropType, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 import { landingRadii, landingShadows } from '../../theme/landing-tokens';
 import { GlassSurface, TiltCard } from './motion/landing-effects';
 
@@ -13,73 +13,134 @@ export interface ProductPreviewProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const previewCopy = {
-  client: { title: 'Agende sem espera', accent: '#4C7B63', soft: '#E6EFE9' },
-  owner: { title: 'Gestão em foco', accent: '#315946', soft: '#E1EBE5' },
-  professional: { title: 'Agenda do dia', accent: '#9B7842', soft: '#F4EBDC' },
-} as const;
+const Header = ({ label }: { label: string }) => (
+  <G>
+    <Rect x="22" y="20" width="756" height="54" rx="16" fill="#FFFFFF" stroke="#DDE1DB" />
+    <Circle cx="50" cy="47" r="12" fill="#315946" />
+    <SvgText x="73" y="53" fontSize="17" fontWeight="700" fill="#183027">CutSync</SvgText>
+    <SvgText x="615" y="52" fontSize="11" fill="#6E7A72">{label}</SvgText>
+  </G>
+);
 
-export const ProductPreview = ({
-  variant,
-  screenshotSrc,
-  accessibilityLabel,
-  aspectRatio = 16 / 10,
-  style,
-}: ProductPreviewProps) => {
-  const copy = previewCopy[variant];
-  return (
-    <TiltCard style={style} testID={`landing-preview-${variant}`}>
-      <GlassSurface variant="preview" style={[styles.frame, landingShadows.raised]}>
-        <View
-          accessibilityRole="image"
-          accessibilityLabel={accessibilityLabel}
-          style={{ width: '100%', aspectRatio }}
-        >
-          {screenshotSrc ? (
-            <Image source={screenshotSrc} style={styles.image} contentFit="cover" transition={180} />
-          ) : (
-            <Svg width="100%" height="100%" viewBox="0 0 800 500" role="img">
-              <Rect width="800" height="500" fill="#F9F8F4" />
-              <Rect x="22" y="20" width="756" height="54" rx="16" fill="#FFFFFF" stroke="#DDE1DB" />
-              <Circle cx="50" cy="47" r="12" fill={copy.accent} />
-              <SvgText x="73" y="53" fontSize="17" fontWeight="700" fill="#183027">CutSync</SvgText>
-              <SvgText x="625" y="52" fontSize="12" fill="#6E7A72">DEMONSTRAÇÃO</SvgText>
-              <Rect x="22" y="94" width="206" height="384" rx="22" fill="#FFFFFF" stroke="#DDE1DB" />
-              <SvgText x="46" y="134" fontSize="12" letterSpacing="1.5" fill="#718078">VISÃO {variant === 'client' ? 'CLIENTE' : variant === 'owner' ? 'DO DONO' : 'PROFISSIONAL'}</SvgText>
-              <SvgText x="46" y="174" fontSize="23" fontWeight="700" fill="#193328">{copy.title}</SvgText>
-              {[0, 1, 2, 3].map((item) => (
-                <React.Fragment key={item}>
-                  <Rect x="46" y={208 + item * 54} width="156" height="38" rx="11" fill={item === 0 ? copy.soft : '#F4F5F1'} />
-                  <Circle cx="64" cy={227 + item * 54} r="6" fill={item === 0 ? copy.accent : '#B9C1BB'} />
-                  <Line x1="80" y1={222 + item * 54} x2="178" y2={222 + item * 54} stroke="#A7B0AA" strokeWidth="5" strokeLinecap="round" />
-                  <Line x1="80" y1={233 + item * 54} x2="146" y2={233 + item * 54} stroke="#D2D7D2" strokeWidth="4" strokeLinecap="round" />
-                </React.Fragment>
-              ))}
-              <Rect x="248" y="94" width="530" height="384" rx="22" fill="#FFFFFF" stroke="#DDE1DB" />
-              <SvgText x="278" y="137" fontSize="14" fontWeight="700" fill="#193328">{variant === 'client' ? 'Escolha seu melhor horário' : 'Resumo da operação'}</SvgText>
-              <Rect x="278" y="160" width="470" height="92" rx="17" fill={copy.soft} />
-              <Path d="M305 222 C355 183, 404 226, 450 189 C510 142, 568 217, 622 178 C662 149, 700 178, 724 165" fill="none" stroke={copy.accent} strokeWidth="5" strokeLinecap="round" />
-              <Circle cx="622" cy="178" r="7" fill={copy.accent} />
-              {[0, 1, 2].map((item) => (
-                <Rect key={item} x={278 + item * 158} y="274" width="142" height="86" rx="16" fill="#F6F6F2" stroke="#E2E4DF" />
-              ))}
-              <SvgText x="296" y="305" fontSize="11" fill="#718078">{variant === 'client' ? 'SERVIÇO' : 'INDICADOR'}</SvgText>
-              <SvgText x="296" y="337" fontSize="21" fontWeight="700" fill="#193328">{variant === 'client' ? 'Corte' : '74%'}</SvgText>
-              <SvgText x="454" y="305" fontSize="11" fill="#718078">{variant === 'client' ? 'DURAÇÃO' : 'AGENDA'}</SvgText>
-              <SvgText x="454" y="337" fontSize="21" fontWeight="700" fill="#193328">{variant === 'client' ? '40 min' : '12'}</SvgText>
-              <SvgText x="612" y="305" fontSize="11" fill="#718078">{variant === 'client' ? 'STATUS' : 'EQUIPE'}</SvgText>
-              <SvgText x="612" y="337" fontSize="19" fontWeight="700" fill="#193328">Ativo</SvgText>
-              <Rect x="278" y="382" width="470" height="64" rx="16" fill="#294B3A" />
-              <SvgText x="513" y="421" textAnchor="middle" fontSize="15" fontWeight="700" fill="#FFFFFF">Explorar demonstração</SvgText>
-            </Svg>
-          )}
-        </View>
-      </GlassSurface>
-    </TiltCard>
-  );
-};
+const ClientPreview = () => (
+  <G>
+    <Header label="AGENDAMENTO" />
+    <Rect x="22" y="94" width="756" height="384" rx="22" fill="#FFFFFF" stroke="#DDE1DB" />
+    <SvgText x="54" y="135" fontSize="12" letterSpacing="1.4" fill="#718078">ESCOLHA COM CLAREZA</SvgText>
+    <SvgText x="54" y="171" fontSize="25" fontWeight="700" fill="#193328">Reserve seu horário</SvgText>
+    <Rect x="54" y="198" width="310" height="54" rx="14" fill="#F4F5F1" stroke="#DDE1DB" />
+    <Circle cx="79" cy="225" r="8" fill="#4C7B63" />
+    <SvgText x="99" y="230" fontSize="14" fill="#193328">Corte essencial · 30 min</SvgText>
+    <SvgText x="54" y="291" fontSize="12" fontWeight="700" fill="#193328">Profissional</SvgText>
+    {['Qualquer profissional', 'Profissional A', 'Profissional B'].map((label, index) => (
+      <G key={label}>
+        <Rect x={54 + index * 148} y="309" width="136" height="48" rx="13" fill={index === 0 ? '#E6EFE9' : '#F7F7F3'} stroke={index === 0 ? '#4C7B63' : '#E2E4DF'} />
+        <SvgText x={122 + index * 148} y="338" textAnchor="middle" fontSize="11" fill="#193328">{label}</SvgText>
+      </G>
+    ))}
+    <SvgText x="54" y="395" fontSize="12" fontWeight="700" fill="#193328">Horários consultados na agenda</SvgText>
+    {['09:30', '10:30', '11:00', '14:30'].map((time, index) => (
+      <G key={time}>
+        <Rect x={54 + index * 92} y="412" width="80" height="42" rx="12" fill={index === 1 ? '#294B3A' : '#F4F5F1'} />
+        <SvgText x={94 + index * 92} y="438" textAnchor="middle" fontSize="12" fontWeight="700" fill={index === 1 ? '#FFFFFF' : '#193328'}>{time}</SvgText>
+      </G>
+    ))}
+    <Rect x="492" y="124" width="250" height="318" rx="20" fill="#F1E9D8" />
+    <Circle cx="617" cy="190" r="35" fill="#315946" />
+    <SvgText x="617" y="196" textAnchor="middle" fontSize="18" fontWeight="700" fill="#FFFFFF">CS</SvgText>
+    <SvgText x="617" y="249" textAnchor="middle" fontSize="18" fontWeight="700" fill="#193328">Estabelecimento</SvgText>
+    <SvgText x="617" y="274" textAnchor="middle" fontSize="12" fill="#6E7A72">Serviços e horários reais</SvgText>
+    <Line x1="528" y1="303" x2="706" y2="303" stroke="#D8CFB9" />
+    <SvgText x="536" y="337" fontSize="11" fill="#6E7A72">SERVIÇO</SvgText><SvgText x="698" y="337" textAnchor="end" fontSize="12" fontWeight="700" fill="#193328">R$ 45,00</SvgText>
+    <Rect x="528" y="366" width="178" height="48" rx="13" fill="#294B3A" />
+    <SvgText x="617" y="396" textAnchor="middle" fontSize="13" fontWeight="700" fill="#FFFFFF">Continuar</SvgText>
+  </G>
+);
+
+const OwnerPreview = () => (
+  <G>
+    <Header label="VISÃO DO DONO" />
+    <Rect x="22" y="94" width="176" height="384" rx="22" fill="#FFFFFF" stroke="#DDE1DB" />
+    <SvgText x="48" y="132" fontSize="11" letterSpacing="1.2" fill="#718078">OPERAÇÃO</SvgText>
+    {['Visão geral', 'Relatórios', 'Serviços', 'Equipe'].map((label, index) => (
+      <G key={label}>
+        <Rect x="40" y={151 + index * 58} width="140" height="42" rx="12" fill={index === 0 ? '#E1EBE5' : '#F7F7F3'} />
+        <Circle cx="59" cy={172 + index * 58} r="5" fill={index === 0 ? '#315946' : '#B9C1BB'} />
+        <SvgText x="75" y={177 + index * 58} fontSize="12" fontWeight={index === 0 ? '700' : '400'} fill="#193328">{label}</SvgText>
+      </G>
+    ))}
+    <Rect x="218" y="94" width="560" height="384" rx="22" fill="#FFFFFF" stroke="#DDE1DB" />
+    <SvgText x="248" y="132" fontSize="12" letterSpacing="1.2" fill="#718078">HOJE NA UNIDADE</SvgText>
+    <SvgText x="248" y="166" fontSize="24" fontWeight="700" fill="#193328">Operação em foco</SvgText>
+    {[
+      ['PRODUÇÃO', 'R$ 820'], ['AGENDADO', 'R$ 460'], ['OCUPAÇÃO', '68%'], ['PENDENTES', '2'],
+    ].map(([label, value], index) => (
+      <G key={label}>
+        <Rect x={248 + index * 124} y="190" width="112" height="76" rx="14" fill={index === 2 ? '#E1EBE5' : '#F6F6F2'} stroke="#E2E4DF" />
+        <SvgText x={262 + index * 124} y="216" fontSize="9" fill="#718078">{label}</SvgText>
+        <SvgText x={262 + index * 124} y="247" fontSize="18" fontWeight="700" fill="#193328">{value}</SvgText>
+      </G>
+    ))}
+    <SvgText x="248" y="304" fontSize="13" fontWeight="700" fill="#193328">Próximos atendimentos</SvgText>
+    {[
+      ['09:30', 'Cliente 01', 'Confirmado'], ['10:30', 'Cliente 02', 'Pendente'], ['11:30', 'Cliente 03', 'Confirmado'],
+    ].map(([time, client, status], index) => (
+      <G key={time}>
+        <Rect x="248" y={321 + index * 45} width="500" height="36" rx="10" fill="#F7F7F3" />
+        <SvgText x="263" y={344 + index * 45} fontSize="11" fontWeight="700" fill="#193328">{time}</SvgText>
+        <SvgText x="326" y={344 + index * 45} fontSize="11" fill="#193328">{client}</SvgText>
+        <SvgText x="728" y={344 + index * 45} textAnchor="end" fontSize="10" fill={status === 'Pendente' ? '#9A5B13' : '#2E7148'}>{status}</SvgText>
+      </G>
+    ))}
+  </G>
+);
+
+const ProfessionalPreview = () => (
+  <G>
+    <Header label="VISÃO PROFISSIONAL" />
+    <Rect x="22" y="94" width="756" height="384" rx="22" fill="#FFFFFF" stroke="#DDE1DB" />
+    <SvgText x="52" y="134" fontSize="12" letterSpacing="1.2" fill="#718078">MINHA AGENDA</SvgText>
+    <SvgText x="52" y="170" fontSize="25" fontWeight="700" fill="#193328">Seu dia, sem ruído</SvgText>
+    <Rect x="52" y="196" width="456" height="94" rx="18" fill="#F4EBDC" />
+    <SvgText x="74" y="225" fontSize="10" fill="#8A7048">PRÓXIMO ATENDIMENTO</SvgText>
+    <SvgText x="74" y="258" fontSize="20" fontWeight="700" fill="#193328">09:30 · Cliente 01</SvgText>
+    <SvgText x="74" y="279" fontSize="11" fill="#6E7A72">Corte essencial · 30 min</SvgText>
+    <Rect x="532" y="196" width="194" height="94" rx="18" fill="#E1EBE5" />
+    <SvgText x="552" y="225" fontSize="10" fill="#517060">PRODUÇÃO CONCLUÍDA</SvgText>
+    <SvgText x="552" y="259" fontSize="21" fontWeight="700" fill="#193328">R$ 410</SvgText>
+    <SvgText x="552" y="279" fontSize="10" fill="#6E7A72">Comissão projetada: R$ 205</SvgText>
+    <SvgText x="52" y="330" fontSize="13" fontWeight="700" fill="#193328">Agenda do dia</SvgText>
+    {[
+      ['09:30', 'Corte essencial', 'Confirmado'], ['10:30', 'Corte e barba', 'Confirmado'], ['13:00', 'Barba', 'Pendente'],
+    ].map(([time, service, status], index) => (
+      <G key={time}>
+        <Rect x="52" y={347 + index * 39} width="674" height="32" rx="9" fill="#F7F7F3" />
+        <SvgText x="68" y={368 + index * 39} fontSize="11" fontWeight="700" fill="#193328">{time}</SvgText>
+        <SvgText x="133" y={368 + index * 39} fontSize="11" fill="#193328">{service}</SvgText>
+        <SvgText x="706" y={368 + index * 39} textAnchor="end" fontSize="10" fill={status === 'Pendente' ? '#9A5B13' : '#2E7148'}>{status}</SvgText>
+      </G>
+    ))}
+  </G>
+);
+
+export const ProductPreview = ({ variant, screenshotSrc, accessibilityLabel, aspectRatio = 16 / 10, style }: ProductPreviewProps) => (
+  <TiltCard style={style} testID={`landing-preview-${variant}`}>
+    <GlassSurface variant="preview" style={[styles.frame, landingShadows.raised]}>
+      <View accessibilityRole="image" accessibilityLabel={accessibilityLabel} style={{ width: '100%', aspectRatio }}>
+        {screenshotSrc ? (
+          <Image source={screenshotSrc} style={styles.image} contentFit="cover" transition={180} />
+        ) : (
+          <Svg width="100%" height="100%" viewBox="0 0 800 500" role="img">
+            <Rect width="800" height="500" fill="#F9F8F4" />
+            {variant === 'client' ? <ClientPreview /> : variant === 'owner' ? <OwnerPreview /> : <ProfessionalPreview />}
+          </Svg>
+        )}
+      </View>
+    </GlassSurface>
+  </TiltCard>
+);
 
 const styles = StyleSheet.create({
-  frame: { borderRadius: landingRadii.xl, padding: 10 },
+  frame: { padding: 10, borderRadius: landingRadii.xl },
   image: { width: '100%', height: '100%', borderRadius: landingRadii.lg },
 });

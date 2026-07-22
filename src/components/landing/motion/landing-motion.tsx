@@ -131,10 +131,9 @@ export const useRevealOnScroll = () => {
         setRevealed(true);
         observer.current?.disconnect();
       }
-    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
+    }, { rootMargin: '0px 0px 18% 0px', threshold: 0.04 });
     observer.current.observe(node as Element);
   }, [reducedMotion]);
   useEffect(() => () => observer.current?.disconnect(), []);
   return { ref, revealed };
 };
-

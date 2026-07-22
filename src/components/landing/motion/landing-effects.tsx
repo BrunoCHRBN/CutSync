@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import {
@@ -104,19 +104,20 @@ export const AnimatedNumber = ({ value, prefix = '', suffix = '' }: { value: num
   return <Text style={styles.metric}>{prefix}{displayed.toLocaleString('pt-BR')}{suffix}</Text>;
 };
 
-export const RevealOnScroll = ({ children, style, delay = 0 }: {
+export const RevealOnScroll = ({ children, style, delay = 0, onLayout }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   delay?: number;
+  onLayout?: (event: LayoutChangeEvent) => void;
 }) => {
   const { quality } = useLandingMotion();
   const { ref, revealed } = useRevealOnScroll();
-  if (!revealed) return <View ref={ref as never} style={[style, styles.revealPlaceholder]}>{children}</View>;
   return (
     <Animated.View
       ref={ref as never}
-      entering={quality === 'off' ? undefined : FadeInUp.duration(landingMotion.editorial).delay(delay)}
-      style={style}
+      onLayout={onLayout}
+      entering={quality === 'off' ? undefined : FadeInUp.duration(landingMotion.standard).delay(delay)}
+      style={[style, !revealed && quality !== 'off' && styles.revealPending]}
     >
       {children}
     </Animated.View>
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
   magneticLabelSecondary: { color: landingColors.ink },
   spotlight: { position: 'relative', overflow: 'hidden' },
   metric: { color: landingColors.ink, fontFamily: landingTypography.mono, fontSize: 28, fontVariant: ['tabular-nums'] },
-  revealPlaceholder: { opacity: 0.01 },
+  revealPending: { opacity: 0.96, transform: [{ translateY: 6 }] },
   cursorRegion: { position: 'relative', overflow: 'hidden' },
   cursorHalo: {
     position: 'absolute',

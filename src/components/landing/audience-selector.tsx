@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BriefcaseBusiness, Compass, Eye, LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LandingAudience } from './landing-analytics';
 import { useLandingMotion, useReducedMotion } from './motion/landing-motion';
 import {
@@ -41,9 +41,8 @@ export const AudienceSelector = ({ value, onChange }: { value: LandingAudience; 
 
   return (
     <View testID="landing-audience-selector" style={styles.section}>
-      <Text style={styles.eyebrow}>COMECE DO SEU JEITO</Text>
-      <Text style={styles.title}>O que você quer fazer hoje?</Text>
-      <View style={[styles.options, stacked && styles.optionsStacked]}>
+      <Text style={styles.prompt}>O que você quer fazer hoje?</Text>
+      <ScrollView horizontal={stacked} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.options, stacked && styles.optionsScrollable]}>
         {options.map(({ id, title, description, Icon }) => {
           const selected = id === value;
           const leaving = id === leavingAudience && !selected;
@@ -57,6 +56,7 @@ export const AudienceSelector = ({ value, onChange }: { value: LandingAudience; 
               onPress={() => selectAudience(id)}
               style={({ pressed }) => [
                 styles.option,
+                stacked && styles.optionScrollable,
                 selected && styles.optionSelected,
                 !selected && !reducedMotion && ({ opacity: 0.82, filter: 'blur(0px)', transitionDuration: `${landingMotion.standard}ms` } as never),
                 leaving && ({ opacity: 0.62, filter: 'blur(3px)', transform: [{ scale: 0.985 }] } as never),
@@ -64,40 +64,39 @@ export const AudienceSelector = ({ value, onChange }: { value: LandingAudience; 
               ]}
             >
               <View style={[styles.icon, selected && styles.iconSelected]}>
-                <Icon size={19} color={selected ? landingColors.white : landingColors.brand} strokeWidth={1.8} />
+                <Icon size={16} color={selected ? landingColors.white : landingColors.brand} strokeWidth={1.8} />
               </View>
               <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>{title}</Text>
-              <Text style={[styles.optionDescription, selected && styles.optionDescriptionSelected]}>{description}</Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  section: { gap: 12 },
-  eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
-  title: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 29, lineHeight: 34 },
-  options: { flexDirection: 'row', gap: 12 },
-  optionsStacked: { flexDirection: 'column' },
+  section: { width: '100%', gap: 9 },
+  prompt: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
+  options: { width: '100%', flexGrow: 1, flexDirection: 'row', gap: 8 },
+  optionsScrollable: { width: 'auto', paddingRight: 20 },
   option: {
     flex: 1,
-    minHeight: 156,
-    padding: 18,
-    borderRadius: landingRadii.lg,
+    minHeight: 52,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: landingRadii.md,
     backgroundColor: landingColors.surface,
     borderWidth: 1,
     borderColor: landingColors.border,
-    gap: 8,
+    gap: 9,
   },
-  optionSelected: { backgroundColor: landingColors.brand, borderColor: landingColors.brand, transform: [{ scale: 1.015 }] },
+  optionScrollable: { flexGrow: 0, flexBasis: 220, width: 220 },
+  optionSelected: { backgroundColor: landingColors.brand, borderColor: landingColors.brand },
   optionPressed: { transform: [{ scale: 0.99 }] },
-  icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
+  icon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
   iconSelected: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  optionTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15, lineHeight: 20 },
+  optionTitle: { flex: 1, color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 12, lineHeight: 17 },
   optionTitleSelected: { color: landingColors.white },
-  optionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 19 },
-  optionDescriptionSelected: { color: '#DFE8E2' },
 });

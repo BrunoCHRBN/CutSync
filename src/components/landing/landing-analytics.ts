@@ -1,3 +1,5 @@
+import { LandingCapabilityId } from './landing-capabilities';
+
 export type LandingAudience = 'client' | 'business' | 'observer';
 
 export type LandingEvent =
@@ -7,9 +9,8 @@ export type LandingEvent =
   | { name: 'establishment_opened'; establishmentId: string }
   | { name: 'booking_started'; establishmentId: string }
   | { name: 'business_preview_interacted'; preview: 'owner' | 'professional' }
-  | { name: 'sandbox_tab_changed'; tab: string }
-  | { name: 'pricing_cta_clicked'; plan: string }
-  | { name: 'registration_started'; source: 'client' | 'business' | 'pricing' };
+  | { name: 'sandbox_tab_changed'; tab: LandingCapabilityId }
+  | { name: 'registration_started'; source: 'client' | 'business' };
 
 export type LandingAnalyticsAdapter = (event: LandingEvent) => void;
 
@@ -22,4 +23,3 @@ export const configureLandingAnalytics = (nextAdapter?: LandingAnalyticsAdapter)
 export const trackLandingEvent = (event: LandingEvent) => {
   adapter(event);
 };
-

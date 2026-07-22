@@ -9,6 +9,16 @@ const root = process.cwd();
 const tokens = fs.readFileSync(path.join(root, 'src/theme/landing-tokens.ts'), 'utf8');
 const clientLanding = fs.readFileSync(path.join(root, 'src/components/landing/client-landing.tsx'), 'utf8');
 const businessLanding = fs.readFileSync(path.join(root, 'src/components/landing/business-landing.tsx'), 'utf8');
+const capabilities = fs.readFileSync(path.join(root, 'src/components/landing/landing-capabilities.ts'), 'utf8');
+const landingDirectory = path.join(root, 'src/components/landing');
+
+const readSourceTree = (directory: string): string => fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
+  const target = path.join(directory, entry.name);
+  if (entry.isDirectory()) return readSourceTree(target);
+  return /\.(ts|tsx)$/.test(entry.name) ? fs.readFileSync(target, 'utf8') : '';
+}).join('\n');
+
+const landingSource = readSourceTree(landingDirectory);
 
 const luminance = (hex: string) => {
   const channels = [1, 3, 5]
@@ -47,7 +57,25 @@ test('não publica disponibilidade, popularidade ou preço comercial inventado',
   expect(clientLanding).not.toContain('reviews_count: shop.average_rating ? 1 : 0');
   expect(businessLanding).not.toContain('R$ 49');
   expect(businessLanding).not.toContain('R$ 119');
-  expect(businessLanding).toContain('PREÇO EM VALIDAÇÃO');
+  expect(businessLanding).not.toContain('PREÇO EM VALIDAÇÃO');
+  expect(businessLanding).not.toContain('MODELO COMERCIAL EM VALIDAÇÃO');
+});
+
+test('limita as demonstrações públicas às capacidades disponíveis', () => {
+  for (const capability of ['agenda', 'services', 'team']) expect(capabilities).toContain(`id: '${capability}'`);
+  for (const unsupported of ['coverage', 'validation', 'commissions']) expect(capabilities).not.toContain(`id: '${unsupported}'`);
+  expect(businessLanding).toContain('Demonstração baseada em funcionalidades disponíveis, com dados fictícios.');
+});
+
+test('bloqueia promessas públicas sem suporte no produto', () => {
+  for (const claim of [
+    /troca de emergência/i,
+    /ausência detectada/i,
+    /auto-?ativação imediata/i,
+    /repasse automatizado/i,
+    /pix liberado/i,
+    /simulador real/i,
+  ]) expect(landingSource).not.toMatch(claim);
 });
 
 test('analytics usa adaptador neutro e payload sem dados pessoais', () => {
@@ -62,4 +90,3 @@ test('analytics usa adaptador neutro e payload sem dados pessoais', () => {
   expect(JSON.stringify(events)).not.toMatch(/email|phone|address|query/i);
   configureLandingAnalytics();
 });
-
