@@ -817,3 +817,5 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 });
+
+export default BarberDashboardExperience;

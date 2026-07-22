@@ -344,3 +344,5 @@ const styles = StyleSheet.create({
   checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   checkboxLabel: { color: colors.text, fontFamily: typography.body, fontSize: 13 },
 });
+
+export default ProfessionalProfileEditorExperience;
