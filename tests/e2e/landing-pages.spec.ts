@@ -16,6 +16,47 @@ test('landing cliente — busca e navegação explícita de negócio', async ({ 
   await expect(page.getByTestId('business-public-landing')).toBeVisible();
 });
 
+test('landing cliente — seletor orienta os três caminhos de acesso', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('landing-account-button').click();
+  await expect(page.getByTestId('access-path-modal')).toBeVisible();
+  await expect(page.getByTestId('access-path-client')).toBeFocused();
+
+  if ((page.viewportSize()?.width ?? 0) < 760) {
+    await expect(page.getByTestId('access-path-modal-mobile')).toBeVisible();
+  } else {
+    await expect(page.getByTestId('access-path-modal-desktop')).toBeVisible();
+  }
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('access-path-modal')).toBeHidden();
+
+  await page.getByTestId('landing-account-button').click();
+  await page.getByTestId('access-path-client').click();
+  await expect(page).toHaveURL(/\/login\?audience=client$/);
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('landing-account-button').click();
+  await page.getByTestId('access-path-business').click();
+  await expect(page).toHaveURL(/\/login\?audience=business$/);
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('landing-account-button').click();
+  await page.getByTestId('access-path-establishment').click();
+  await expect(page).toHaveURL(/\/register\?/);
+  const registrationUrl = new URL(page.url());
+  expect(registrationUrl.searchParams.get('intent')).toBe('establishment');
+  expect(registrationUrl.searchParams.get('redirect')).toBe('/(client)/request-establishment');
+});
+
+test('landing cliente — seletor fecha pelo fundo', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('landing-account-button').click();
+  await page.getByTestId('access-path-backdrop').click({ position: { x: 8, y: 8 } });
+  await expect(page.getByTestId('access-path-modal')).toBeHidden();
+  await expect(page.getByTestId('landing-account-button')).toBeFocused();
+});
+
 test('landing cliente — normaliza links antigos de audiência', async ({ page }) => {
   await page.goto('/?audience=business', { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/para-estabelecimentos$/);
@@ -43,10 +84,26 @@ test('landing estabelecimento — demonstra somente funções disponíveis', asy
   await expect(page.locator('body')).not.toContainText(/troca de emergência|ausência detectada|auto-?ativação imediata|repasse automatizado|pix liberado|simulador real/i);
 });
 
+test('landing estabelecimento — ações explícitas não abrem o seletor', async ({ page }) => {
+  await page.goto('/para-estabelecimentos', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('business-login-button').click();
+  await expect(page).toHaveURL(/\/login\?audience=business$/);
+  await expect(page.getByTestId('access-path-modal')).toHaveCount(0);
+
+  await page.goto('/para-estabelecimentos', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('business-primary-cta').click();
+  await expect(page).toHaveURL(/\/register\?/);
+  const registrationUrl = new URL(page.url());
+  expect(registrationUrl.searchParams.get('intent')).toBe('establishment');
+  expect(registrationUrl.searchParams.get('redirect')).toBe('/(client)/request-establishment');
+});
+
 test('landing respeita movimento reduzido', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('client-public-landing')).toBeVisible();
   await page.getByTestId('landing-hero-client-cta').click();
   await expect(page.getByTestId('landing-search-input')).toBeFocused();
+  await page.getByTestId('landing-account-button').click();
+  await expect(page.getByTestId('access-path-modal')).toBeVisible();
 });

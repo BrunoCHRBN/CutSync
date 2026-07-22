@@ -4,6 +4,8 @@ export type LandingAudience = 'client' | 'business' | 'observer';
 
 export type LandingEvent =
   | { name: 'landing_viewed'; page: 'client' | 'business' }
+  | { name: 'access_selector_opened'; source: 'client' | 'business' }
+  | { name: 'access_path_selected'; source: 'client' | 'business'; path: 'client' | 'business' | 'establishment' }
   /** @deprecated Compatibilidade temporária com integrações anteriores à navegação em duas rotas. */
   | { name: 'audience_selected'; audience: LandingAudience }
   | { name: 'search_started'; filterCount: number }

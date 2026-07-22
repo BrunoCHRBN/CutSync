@@ -9,12 +9,17 @@ import { AppInput } from '../ui/AppInput';
 import { BrandMark } from '../ui/BrandMark';
 import { InlineNotice } from '../ui/InlineNotice';
 import { ScreenBackground } from '../ui/ScreenBackground';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+import { colors, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
 
 export const RegisterExperience = () => {
   const router = useRouter();
-  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
+  const params = useLocalSearchParams<{ intent?: string | string[]; redirect?: string | string[] }>();
+  const rawIntent = Array.isArray(params.intent) ? params.intent[0] : params.intent;
+  const rawRedirect = Array.isArray(params.redirect) ? params.redirect[0] : params.redirect;
+  const intent = rawIntent === 'establishment' ? 'establishment' : 'client';
+  const safeRedirect = rawRedirect?.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : undefined;
+  const isEstablishmentIntent = intent === 'establishment';
   const { width } = useWindowDimensions();
   const isWide = width >= 920;
   const [name, setName] = useState('');
@@ -72,8 +77,14 @@ export const RegisterExperience = () => {
         options: { data: { name: name.trim(), phone: phone.trim() } },
       });
       if (signUpError) throw new Error(signUpError.message.includes('registered') ? 'Este e-mail já possui uma conta.' : 'Não foi possível concluir o cadastro.');
-      if (data.session && redirect?.startsWith('/')) router.replace(redirect as never);
-      else router.replace({ pathname: '/(auth)/login', params: redirect ? { redirect } : undefined } as never);
+      if (data.session && safeRedirect) router.replace(safeRedirect as never);
+      else router.replace({
+        pathname: '/(auth)/login',
+        params: {
+          audience: isEstablishmentIntent ? 'business' : 'client',
+          ...(safeRedirect ? { redirect: safeRedirect } : {}),
+        },
+      } as never);
     } catch (registerError: unknown) {
       setError(getErrorMessage(registerError, 'Não foi possível concluir o cadastro.'));
     } finally {
@@ -89,9 +100,17 @@ export const RegisterExperience = () => {
             <View style={[styles.introPane, isWide && styles.introPaneWide]}>
               <BrandMark testID="register-brand" />
               <View style={styles.introCopy}>
-                <Text testID="register-eyebrow" style={styles.eyebrow}>COMECE DO SEU JEITO</Text>
-                <Text testID="register-title" style={styles.title}>Uma conta.{`\n`}Acesso protegido.</Text>
-                <Text testID="register-description" style={styles.description}>Toda conta começa como cliente. Acessos de equipe só chegam por convite verificado.</Text>
+                <Text testID="register-eyebrow" style={styles.eyebrow}>
+                  {isEstablishmentIntent ? 'COMECE PELO ACESSO PESSOAL' : 'COMECE DO SEU JEITO'}
+                </Text>
+                <Text testID="register-title" style={styles.title}>
+                  {isEstablishmentIntent ? <>Sua conta.{`\n`}Seu negócio.</> : <>Uma conta.{`\n`}Acesso protegido.</>}
+                </Text>
+                <Text testID="register-description" style={styles.description}>
+                  {isEstablishmentIntent
+                    ? 'Crie seu acesso pessoal e siga para o cadastro verificado do estabelecimento.'
+                    : 'Toda conta começa como cliente. Acessos de equipe só chegam por convite verificado.'}
+                </Text>
               </View>
               {isWide && (
                 <View testID="register-benefits" style={styles.benefits}>
@@ -102,14 +121,26 @@ export const RegisterExperience = () => {
             </View>
 
             <AppCard testID="register-form-card" style={[styles.formCard, isWide && styles.formCardWide]} elevated>
-              <Text style={styles.formTitle}>Criar sua conta</Text>
-              <Text style={styles.formSubtitle}>Cadastre seu acesso pessoal. Permissões administrativas nunca são escolhidas aqui.</Text>
+              <Text style={styles.formTitle}>
+                {isEstablishmentIntent ? 'Crie seu acesso para começar' : 'Criar sua conta'}
+              </Text>
+              <Text style={styles.formSubtitle}>
+                {isEstablishmentIntent
+                  ? 'Depois desta etapa, você seguirá para os dados do estabelecimento.'
+                  : 'Cadastre seu acesso pessoal. Permissões administrativas nunca são escolhidas aqui.'}
+              </Text>
 
               <View testID="register-security-notice" style={styles.securityNotice}>
                 <ShieldCheck color={colors.success} size={18} />
                 <View style={styles.securityCopy}>
-                  <Text style={styles.securityTitle}>Conta cliente por padrão</Text>
-                  <Text style={styles.securityDescription}>Convites de equipe validam e-mail, estabelecimento, função e prazo antes de liberar acesso.</Text>
+                  <Text style={styles.securityTitle}>
+                    {isEstablishmentIntent ? 'Acesso pessoal primeiro' : 'Conta cliente por padrão'}
+                  </Text>
+                  <Text style={styles.securityDescription}>
+                    {isEstablishmentIntent
+                      ? 'A permissão de gestor só será concedida pelo onboarding verificado do estabelecimento.'
+                      : 'Convites de equipe validam e-mail, estabelecimento, função e prazo antes de liberar acesso.'}
+                  </Text>
                 </View>
               </View>
 
@@ -124,8 +155,19 @@ export const RegisterExperience = () => {
 
               {!!error && <InlineNotice testID="register-error-message" tone="danger" message={error} />}
 
-              <AppButton label="Criar conta" testID="register-submit-button" onPress={handleRegister} loading={loading} fullWidth />
-              <Pressable testID="register-login-link" accessibilityRole="link" onPress={() => router.push({ pathname: '/(auth)/login', params: redirect ? { redirect } : undefined } as never)} style={({ pressed }) => [styles.loginLink, pressed && styles.pressed]}>
+              <AppButton label={isEstablishmentIntent ? 'Criar acesso e continuar' : 'Criar conta'} testID="register-submit-button" onPress={handleRegister} loading={loading} fullWidth />
+              <Pressable
+                testID="register-login-link"
+                accessibilityRole="link"
+                onPress={() => router.push({
+                  pathname: '/(auth)/login',
+                  params: {
+                    audience: isEstablishmentIntent ? 'business' : 'client',
+                    ...(safeRedirect ? { redirect: safeRedirect } : {}),
+                  },
+                } as never)}
+                style={({ pressed }) => [styles.loginLink, pressed && styles.pressed]}
+              >
                 <Text style={styles.loginText}>Já possui uma conta? <Text style={styles.loginAccent}>Entrar</Text></Text>
               </Pressable>
             </AppCard>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ImageBackground,
   KeyboardAvoidingView,
@@ -19,12 +19,19 @@ import { BrandMark } from '../ui/BrandMark';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { colors, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
+import { useAuth } from '../../contexts/AuthContext';
 
 const heroImage = require('../../../assets/images/login-hero.jpg');
 
 export const LoginExperience = () => {
   const router = useRouter();
-  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
+  const { user } = useAuth();
+  const params = useLocalSearchParams<{ audience?: string | string[]; redirect?: string | string[] }>();
+  const rawAudience = Array.isArray(params.audience) ? params.audience[0] : params.audience;
+  const rawRedirect = Array.isArray(params.redirect) ? params.redirect[0] : params.redirect;
+  const audience = rawAudience === 'client' ? 'client' : 'business';
+  const safeRedirect = rawRedirect?.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : undefined;
+  const isClient = audience === 'client';
   const { width } = useWindowDimensions();
   const isWide = width >= 940;
   const [email, setEmail] = useState('');
@@ -32,8 +39,18 @@ export const LoginExperience = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isMagicLink, setIsMagicLink] = useState(false);
+  const [isMagicLink, setIsMagicLink] = useState(isClient);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+
+  useEffect(() => {
+    setIsMagicLink(isClient);
+    setMagicLinkSent(false);
+    setError('');
+  }, [isClient]);
+
+  useEffect(() => {
+    if (user && safeRedirect) router.replace(safeRedirect as never);
+  }, [router, safeRedirect, user]);
 
   const handleLogin = async () => {
     setError('');
@@ -50,7 +67,13 @@ export const LoginExperience = () => {
     setLoading(true);
     try {
       if (isMagicLink) {
-        const redirectUrl = Platform.OS === 'web' ? window.location.origin : 'cutsync://(client)';
+        let redirectUrl = 'cutsync://(client)';
+        if (Platform.OS === 'web') {
+          const callbackUrl = new URL('/login', window.location.origin);
+          callbackUrl.searchParams.set('audience', audience);
+          if (safeRedirect) callbackUrl.searchParams.set('redirect', safeRedirect);
+          redirectUrl = callbackUrl.toString();
+        }
         const { error: magicError } = await supabase.auth.signInWithOtp({
           email: email.trim().toLowerCase(),
           options: {
@@ -65,7 +88,7 @@ export const LoginExperience = () => {
           password,
         });
         if (loginError) setError('Não foi possível entrar. Confira seus dados e tente novamente.');
-        else if (data.session && redirect?.startsWith('/')) router.replace(redirect as never);
+        else if (data.session && safeRedirect) router.replace(safeRedirect as never);
       }
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'A conexão falhou. Tente novamente em instantes.'));
@@ -83,10 +106,16 @@ export const LoginExperience = () => {
               <BrandMark testID="login-brand" />
 
               <View style={styles.intro}>
-                <Text testID="login-eyebrow" style={styles.eyebrow}>SUA OPERAÇÃO, NO RITMO CERTO</Text>
-                <Text testID="login-title" style={styles.title}>Bem-vindo de volta.</Text>
+                <Text testID="login-eyebrow" style={styles.eyebrow}>
+                  {isClient ? 'SEUS HORÁRIOS, SEM COMPLICAÇÃO' : 'SUA OPERAÇÃO, NO RITMO CERTO'}
+                </Text>
+                <Text testID="login-title" style={styles.title}>
+                  {isClient ? 'Bem-vindo de volta.' : 'Acesse sua operação.'}
+                </Text>
                 <Text testID="login-description" style={styles.description}>
-                  Entre para acompanhar sua agenda, equipe e resultados em um só lugar.
+                  {isClient
+                    ? 'Entre para agendar, acompanhar e gerenciar seus horários.'
+                    : 'Gerencie agenda, clientes, equipe e resultados em um só lugar.'}
                 </Text>
               </View>
 
@@ -95,7 +124,7 @@ export const LoginExperience = () => {
                   <View style={{ gap: 12, alignItems: 'center', paddingVertical: 12 }}>
                     <Text style={{ fontSize: 16, color: colors.success, fontWeight: 'bold' }}>📬 E-mail Enviado!</Text>
                     <Text style={{ color: colors.text, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
-                      Enviamos um link de login rápido para **{email}**. Abra o link em seu dispositivo para acessar sua conta!
+                      Enviamos um link de acesso para <Text style={styles.sentEmail}>{email}</Text>. Abra o e-mail para acessar sua conta.
                     </Text>
                     <AppButton
                       testID="login-back-from-magic-button"
@@ -160,7 +189,7 @@ export const LoginExperience = () => {
                     )}
 
                     <AppButton
-                      label={isMagicLink ? "Enviar Link de Acesso" : "Entrar no CutSync"}
+                      label={isMagicLink ? 'Enviar link de acesso' : isClient ? 'Entrar como cliente' : 'Entrar na área de gestão'}
                       testID="login-submit-button"
                       onPress={handleLogin}
                       loading={loading}
@@ -176,19 +205,41 @@ export const LoginExperience = () => {
                         style={{ paddingVertical: 8 }}
                       >
                         <Text style={{ color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center' }}>
-                          {isMagicLink ? "Entrar com E-mail e Senha" : "Entrar sem senha (Link rápido por E-mail)"}
+                          {isMagicLink ? 'Entrar com e-mail e senha' : 'Entrar sem senha por link de acesso'}
                         </Text>
                       </Pressable>
+
+                      {!isClient && (
+                        <Pressable
+                          testID="login-forgot-password-link"
+                          accessibilityRole="link"
+                          onPress={() => router.push('/(auth)/forgot-password')}
+                          style={({ pressed }) => [styles.textLink, pressed && styles.linkPressed]}
+                        >
+                          <Text style={styles.textLinkLabel}>Esqueci minha senha</Text>
+                        </Pressable>
+                      )}
 
                       <Pressable
                         testID="login-register-link"
                         accessibilityRole="link"
-                        onPress={() => router.push({ pathname: '/(auth)/register', params: redirect ? { redirect } : undefined } as never)}
+                        onPress={() => router.push({
+                          pathname: '/(auth)/register',
+                          params: isClient
+                            ? { intent: 'client', ...(safeRedirect ? { redirect: safeRedirect } : {}) }
+                            : { intent: 'establishment', redirect: safeRedirect ?? '/(client)/request-establishment' },
+                        } as never)}
                         style={({ pressed }) => [styles.registerLink, pressed && styles.linkPressed]}
                       >
-                        <Text style={styles.registerText}>Ainda não usa o CutSync? </Text>
-                        <Text style={styles.registerAccent}>Criar conta</Text>
+                        <Text style={styles.registerText}>{isClient ? 'Ainda não tem uma conta? ' : 'Quer usar o CutSync no seu negócio? '}</Text>
+                        <Text style={styles.registerAccent}>{isClient ? 'Criar conta' : 'Cadastrar estabelecimento'}</Text>
                       </Pressable>
+
+                      {!isClient && (
+                        <Text testID="login-invite-note" style={styles.inviteNote}>
+                          Colaboradores entram com a conta criada a partir do convite recebido.
+                        </Text>
+                      )}
                     </View>
                   </>
                 )}
@@ -211,12 +262,18 @@ export const LoginExperience = () => {
                 <View style={styles.heroOverlay} />
                 <View style={styles.heroTopline}>
                   <Sparkles color={colors.brand} size={16} />
-                  <Text style={styles.heroToplineText}>GESTÃO PARA BELEZA & ESTÉTICA</Text>
+                  <Text style={styles.heroToplineText}>
+                    {isClient ? 'AGENDAMENTO PARA BELEZA & ESTÉTICA' : 'GESTÃO PARA BELEZA & ESTÉTICA'}
+                  </Text>
                 </View>
                 <View style={styles.heroCopy}>
-                  <Text testID="login-hero-stat" style={styles.heroStat}>Menos ruído.{`\n`}Mais cadeira ocupada.</Text>
+                  <Text testID="login-hero-stat" style={styles.heroStat}>
+                    {isClient ? <>Seu próximo cuidado.{`\n`}No horário certo.</> : <>Menos ruído.{`\n`}Mais cadeira ocupada.</>}
+                  </Text>
                   <Text testID="login-hero-description" style={styles.heroDescription}>
-                    Agenda, equipe e caixa em tempo real para você focar na experiência do cliente.
+                    {isClient
+                      ? 'Encontre seus horários e acompanhe seus agendamentos em um só lugar.'
+                      : 'Agenda, equipe e caixa em tempo real para você focar na experiência do cliente.'}
                   </Text>
                 </View>
               </ImageBackground>
@@ -253,10 +310,14 @@ const styles = StyleSheet.create({
   eyeButtonPressed: { opacity: 0.5 },
   errorBox: { backgroundColor: colors.dangerSoft, borderLeftWidth: 2, borderLeftColor: colors.danger, padding: 12, borderRadius: radii.sm },
   errorText: { color: colors.danger, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
+  sentEmail: { color: colors.text, fontFamily: typography.bodyStrong },
+  textLink: { alignItems: 'center', paddingVertical: 4 },
+  textLinkLabel: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12 },
   registerLink: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 4 },
   registerText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   registerAccent: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12 },
   linkPressed: { opacity: 0.55 },
+  inviteNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16, textAlign: 'center', paddingHorizontal: 18 },
   securityNote: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, justifyContent: 'center' },
   securityText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   hero: { flex: 1, minHeight: 690, justifyContent: 'space-between', padding: 38 },

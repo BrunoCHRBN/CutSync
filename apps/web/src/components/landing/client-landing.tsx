@@ -32,6 +32,7 @@ import { EditorialBand, EstablishmentMedia } from './landing-primitives';
 import { GlassSurface, MagneticButton, RevealOnScroll, SpotlightSection } from './motion/landing-effects';
 import { LandingMotionProvider, useReducedMotion } from './motion/landing-motion';
 import { ProductPreview } from './product-preview';
+import { AccessPath, AccessPathModal } from './access-path-modal';
 
 interface PublicService {
   id: string;
@@ -78,6 +79,7 @@ const ClientLandingContent = () => {
   const [serviceGroup, setServiceGroup] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [accessModalVisible, setAccessModalVisible] = useState(false);
 
   const legacyAudience = Array.isArray(params.audience) ? params.audience[0] : params.audience;
   const redirectingToBusiness = legacyAudience === 'business';
@@ -171,10 +173,26 @@ const ClientLandingContent = () => {
 
   const openAccount = () => {
     if (!user) {
-      router.push('/login' as never);
+      setAccessModalVisible(true);
       return;
     }
     router.push((profile?.role === 'admin' ? '/admin' : profile?.role === 'professional' ? '/professional' : '/explore') as never);
+  };
+
+  const selectAccessPath = (path: AccessPath) => {
+    setAccessModalVisible(false);
+    if (path === 'client') {
+      router.push({ pathname: '/(auth)/login', params: { audience: 'client' } } as never);
+      return;
+    }
+    if (path === 'business') {
+      router.push({ pathname: '/(auth)/login', params: { audience: 'business' } } as never);
+      return;
+    }
+    router.push({
+      pathname: '/(auth)/register',
+      params: { intent: 'establishment', redirect: '/(client)/request-establishment' },
+    } as never);
   };
 
   if (redirectingToBusiness) {
@@ -187,6 +205,12 @@ const ClientLandingContent = () => {
 
   return (
     <View testID="client-public-landing" style={styles.root}>
+      <AccessPathModal
+        visible={accessModalVisible}
+        source="client"
+        onClose={() => setAccessModalVisible(false)}
+        onSelect={selectAccessPath}
+      />
       <GlassSurface variant="header" style={styles.header}>
         <View style={styles.headerInner}>
           <Pressable testID="client-brand-home-link" accessibilityRole="link" onPress={() => router.replace('/' as never)} style={styles.brandRow}>

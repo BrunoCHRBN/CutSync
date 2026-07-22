@@ -98,7 +98,10 @@ const BusinessLandingContent = () => {
 
   const startRegistration = () => {
     trackLandingEvent({ name: 'registration_started', source: 'business' });
-    router.push('/register' as never);
+    router.push({
+      pathname: '/(auth)/register',
+      params: { intent: 'establishment', redirect: '/(client)/request-establishment' },
+    } as never);
   };
 
   return (
@@ -111,7 +114,7 @@ const BusinessLandingContent = () => {
           </Pressable>
           <View style={styles.headerActions}>
             {isDesktop && <Pressable testID="business-header-client-link" accessibilityRole="link" onPress={() => router.push('/' as never)} style={styles.headerLink}><Text style={styles.headerLinkText}>Encontrar um serviço</Text></Pressable>}
-            <Pressable testID="business-login-button" accessibilityRole="button" onPress={() => router.push('/login' as never)} style={styles.accountButton}>
+            <Pressable testID="business-login-button" accessibilityRole="button" onPress={() => router.push({ pathname: '/(auth)/login', params: { audience: 'business' } } as never)} style={styles.accountButton}>
               <LogIn size={16} color={landingColors.brand} /><Text style={styles.accountButtonText}>Acessar painel</Text>
             </Pressable>
           </View>
