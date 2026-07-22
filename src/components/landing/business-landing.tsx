@@ -103,7 +103,6 @@ const BusinessLandingContent = () => {
 
   return (
     <View testID="business-public-landing" style={styles.root}>
-      <View pointerEvents="none" style={styles.ambientGlow} />
       <GlassSurface variant="header" style={styles.header}>
         <View style={styles.headerInner}>
           <Pressable testID="business-brand-client-link" accessibilityRole="link" onPress={() => router.push('/' as never)} style={styles.brandRow}>
@@ -123,8 +122,6 @@ const BusinessLandingContent = () => {
         <View style={styles.heroOuter}>
           <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
             <View style={styles.heroGlow} />
-            <View pointerEvents="none" style={styles.heroGrid} />
-            <View pointerEvents="none" style={styles.heroArc} />
             <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
               <View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>VITRINE E OPERAÇÃO CONECTADAS</Text></View>
               <Text style={styles.heroTitle}>Do serviço publicado{`\n`}à agenda organizada.</Text>
@@ -307,52 +304,49 @@ export const BusinessLanding = () => <LandingMotionProvider><BusinessLandingCont
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: landingColors.canvas, overflow: 'hidden' },
-  ambientGlow: { position: 'absolute', width: 680, height: 680, borderRadius: 340, top: 940, right: -500, backgroundColor: 'rgba(197,166,109,0.08)' },
-  header: { marginHorizontal: 12, marginTop: 10, borderColor: 'rgba(255,255,255,0.72)', borderRadius: landingRadii.pill, zIndex: 20 },
+  header: { borderWidth: 0, borderBottomWidth: 1, borderColor: 'rgba(41,75,58,0.08)', zIndex: 20 },
   headerInner: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 66, alignSelf: 'center', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brand },
+  brandMark: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brand },
   brand: { color: landingColors.ink, fontFamily: landingTypography.displayBold, fontSize: 20 },
   brandCaption: { color: landingColors.inkMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerLink: { minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   headerLinkText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 13 },
-  accountButton: { minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(41,75,58,0.14)', borderRadius: landingRadii.pill, backgroundColor: 'rgba(255,254,250,0.68)' },
+  accountButton: { minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(41,75,58,0.14)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.68)' },
   accountButtonText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   scroll: { paddingBottom: 36 },
-  heroOuter: { marginTop: 12, marginHorizontal: 12, overflow: 'hidden', borderRadius: landingRadii.xl, backgroundColor: landingColors.brandStrong, boxShadow: '0 30px 90px rgba(20,33,25,0.20)' },
-  hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 650, paddingHorizontal: 34, paddingVertical: 78, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 64 },
-  heroStacked: { minHeight: 0, paddingVertical: 66, flexDirection: 'column', alignItems: 'stretch' },
-  heroGlow: { position: 'absolute', width: 620, height: 620, top: -40, right: -110, borderRadius: 310, backgroundColor: 'rgba(197,166,109,0.14)' },
-  heroGrid: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, opacity: 0.14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)' },
-  heroArc: { position: 'absolute', width: 560, height: 560, borderRadius: 280, right: -80, bottom: -290, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
+  heroOuter: { backgroundColor: landingColors.brandStrong },
+  hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 720, paddingHorizontal: 34, paddingVertical: 104, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 96 },
+  heroStacked: { minHeight: 0, paddingVertical: 88, flexDirection: 'column', alignItems: 'stretch' },
+  heroGlow: { position: 'absolute', width: 560, height: 420, top: 80, right: -100, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.035)' },
   heroCopy: { flex: 1, minWidth: 280, gap: 22, zIndex: 2 },
-  heroBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: landingRadii.pill, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
   heroBadgeText: { color: landingColors.onBrand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
-  heroTitle: { maxWidth: 650, color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 64, lineHeight: 66, letterSpacing: -2.8 },
+  heroTitle: { maxWidth: 650, color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 68, lineHeight: 72, letterSpacing: -3.4 },
   heroDescription: { maxWidth: 540, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   heroSecondaryButton: { minHeight: 54, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: landingRadii.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(255,255,255,0.05)' },
   heroSecondaryLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
   heroNote: { maxWidth: 530, color: landingColors.onBrandSubtle, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },
-  heroPreviewFrame: { width: '47%', maxWidth: 570, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: landingRadii.xl, backgroundColor: 'rgba(247,246,242,0.08)', transform: [{ rotate: '-1deg' }] },
+  heroPreviewFrame: { width: '47%', maxWidth: 570, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: landingRadii.lg, backgroundColor: 'rgba(247,246,242,0.06)' },
   heroPreview: { width: '100%' },
   fullWidth: { width: '100%', maxWidth: '100%' },
-  content: { width: '100%', maxWidth: landingLayout.maxWidth, paddingHorizontal: 24, paddingTop: 108, alignSelf: 'center', gap: 118 },
+  content: { width: '100%', maxWidth: landingLayout.maxWidth, paddingHorizontal: 24, paddingTop: 140, alignSelf: 'center', gap: 148 },
   sectionHeading: { maxWidth: landingLayout.copyWidth, gap: 12 },
   centered: { alignSelf: 'center', alignItems: 'center' },
   centerText: { textAlign: 'center' },
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 44, lineHeight: 49, letterSpacing: -1.65 },
   sectionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
-  connectionSection: { padding: 40, gap: 40, borderRadius: landingRadii.xl, backgroundColor: 'rgba(239,236,226,0.76)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.84)' },
+  connectionSection: { gap: 48 },
   connectionFlow: { flexDirection: 'row', flexWrap: 'wrap', borderLeftWidth: 1, borderLeftColor: landingColors.borderStrong },
-  connectionItem: { flex: 1, minWidth: 220, minHeight: 170, paddingHorizontal: 22, paddingVertical: 24, gap: 12, borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: landingColors.borderStrong, backgroundColor: 'rgba(255,254,250,0.44)' },
+  connectionItem: { flex: 1, minWidth: 220, minHeight: 180, paddingHorizontal: 24, paddingVertical: 30, gap: 12, borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: landingColors.borderStrong },
   connectionTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   connectionIndex: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 12 },
   connectionTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   connectionText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  sandboxSection: { padding: 38, gap: 30, borderRadius: landingRadii.xl, backgroundColor: 'rgba(255,254,250,0.76)', borderWidth: 1, borderColor: 'rgba(41,75,58,0.08)' },
+  sandboxSection: { paddingVertical: 24, gap: 40 },
   tabsFrame: { borderRadius: landingRadii.md },
   tabs: { position: 'relative', flexDirection: 'row' },
   tab: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
@@ -368,7 +362,7 @@ const styles = StyleSheet.create({
   storyIcon: { width: 38, height: 38, marginRight: 7, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
   storyIconActive: { backgroundColor: landingColors.brand },
   sandboxFrame: { flex: 1, minWidth: 0, borderRadius: landingRadii.xl },
-  roleSection: { padding: 48, flexDirection: 'row', alignItems: 'center', gap: 52, borderRadius: landingRadii.xl, backgroundColor: 'rgba(230,238,232,0.76)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.90)', boxShadow: '0 24px 70px rgba(20,33,25,0.08)' },
+  roleSection: { paddingVertical: 72, paddingHorizontal: 48, flexDirection: 'row', alignItems: 'center', gap: 72, borderTopWidth: 1, borderBottomWidth: 1, borderColor: landingColors.border },
   roleSectionStacked: { flexDirection: 'column', alignItems: 'stretch' },
   roleCopy: { flex: 1, minWidth: 280, gap: 14 },
   roleToggle: { alignSelf: 'flex-start', padding: 4, flexDirection: 'row', gap: 4, borderRadius: landingRadii.pill, backgroundColor: landingColors.surface },
@@ -384,15 +378,15 @@ const styles = StyleSheet.create({
   onboardingTitle: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   onboardingText: { color: landingColors.onBrandMuted, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
   faqSection: { gap: 34 },
-  faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
-  faqItem: { flex: 1, minWidth: 250, minHeight: 150, padding: 24, gap: 10, borderWidth: 1, borderColor: 'rgba(41,75,58,0.10)', borderRadius: landingRadii.lg, backgroundColor: 'rgba(255,254,250,0.58)' },
+  faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 32 },
+  faqItem: { flex: 1, minWidth: 250, paddingTop: 24, gap: 12, borderTopWidth: 1, borderTopColor: landingColors.border },
   faqQuestion: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   faqAnswer: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  finalCta: { paddingVertical: 76, paddingHorizontal: 48, alignItems: 'center', gap: 17, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.84)', boxShadow: '0 28px 80px rgba(20,33,25,0.08)' },
+  finalCta: { paddingVertical: 88, paddingHorizontal: 56, alignItems: 'flex-start', gap: 18, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm },
   finalCtaIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: landingColors.surface },
   finalCtaEyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
-  finalCtaTitle: { maxWidth: 760, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 40, lineHeight: 45, textAlign: 'center' },
-  finalCtaText: { maxWidth: 570, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22, textAlign: 'center' },
+  finalCtaTitle: { maxWidth: 760, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 48, letterSpacing: -1.8 },
+  finalCtaText: { maxWidth: 570, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22 },
   footer: { minHeight: 130, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTopWidth: 1, borderTopColor: landingColors.border },
   footerBrand: { color: landingColors.ink, fontFamily: landingTypography.displayBold, fontSize: 20 },
   footerText: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12 },

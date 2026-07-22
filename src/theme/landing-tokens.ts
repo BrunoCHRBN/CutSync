@@ -31,12 +31,12 @@ export const landingColors = {
 } as const;
 
 export const landingTypography = {
-  displaySemiBold: 'Fraunces_600SemiBold',
-  displayBold: 'Fraunces_700Bold',
-  body: 'Geist_400Regular',
-  bodyMedium: 'Geist_500Medium',
-  bodySemiBold: 'Geist_600SemiBold',
-  mono: 'GeistMono_500Medium',
+  displaySemiBold: 'Inter_600SemiBold',
+  displayBold: 'Inter_700Bold',
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemiBold: 'Inter_600SemiBold',
+  mono: 'Inter_500Medium',
 } as const;
 
 export const landingMotion = {
@@ -56,9 +56,9 @@ export const landingLayout = {
 
 export const landingRadii = {
   sm: 10,
-  md: 18,
-  lg: 28,
-  xl: 42,
+  md: 14,
+  lg: 20,
+  xl: 28,
   pill: 999,
 } as const;
 
@@ -89,6 +89,6 @@ export const landingGlassStyle = (variant: LandingGlassVariant) => {
 };
 
 export const landingShadows = {
-  soft: { boxShadow: '0 14px 44px rgba(20,33,25,0.07)' } as never,
-  raised: { boxShadow: '0 32px 90px rgba(20,33,25,0.14)' } as never,
+  soft: { boxShadow: '0 12px 38px rgba(20,33,25,0.05)' } as never,
+  raised: { boxShadow: '0 24px 70px rgba(20,33,25,0.10)' } as never,
 } as const;

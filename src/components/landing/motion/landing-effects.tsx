@@ -71,9 +71,6 @@ export const MagneticButton = ({ label, onPress, testID, secondary = false, inve
       ]}
     >
       <Text style={[styles.magneticLabel, secondary && styles.magneticLabelSecondary, inverse && styles.magneticLabelInverse]}>{label}</Text>
-      <View style={[styles.buttonArrow, secondary && styles.buttonArrowSecondary, inverse && styles.buttonArrowInverse]}>
-        <Text style={[styles.buttonArrowText, secondary && styles.magneticLabelSecondary, inverse && styles.magneticLabelInverse]}>↗</Text>
-      </View>
     </Pressable>
     </Animated.View>
   );
@@ -176,10 +173,8 @@ const styles = StyleSheet.create({
   glass_control: { boxShadow: '0 12px 34px rgba(20,33,25,0.06)' } as never,
   magneticButton: {
     minHeight: 54,
-    paddingLeft: 22,
-    paddingRight: 7,
+    paddingHorizontal: 22,
     flexDirection: 'row',
-    gap: 14,
     borderRadius: landingRadii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,10 +183,6 @@ const styles = StyleSheet.create({
     borderColor: landingColors.brand,
   },
   buttonPressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
-  buttonArrow: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
-  buttonArrowSecondary: { backgroundColor: landingColors.brandSoft },
-  buttonArrowInverse: { backgroundColor: landingColors.brandSoft },
-  buttonArrowText: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
   magneticButtonSecondary: { backgroundColor: landingColors.surface, borderColor: landingColors.borderStrong },
   magneticButtonInverse: { backgroundColor: landingColors.white, borderColor: landingColors.white },
   magneticLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },

@@ -5,7 +5,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { WebAutofillStyles } from '../components/ui/web-autofill-styles';
 import { CommandPaletteProvider } from '../components/command/command-palette-provider';
@@ -116,7 +118,9 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Montserrat_700Bold,
     Inter_400Regular,
+    Inter_500Medium,
     Inter_600SemiBold,
+    Inter_700Bold,
     Fraunces_600SemiBold: require('../../assets/fonts/Fraunces144pt-SemiBold.ttf'),
     Fraunces_700Bold: require('../../assets/fonts/Fraunces144pt-Bold.ttf'),
     Geist_400Regular: require('../../assets/fonts/Geist-Regular.ttf'),

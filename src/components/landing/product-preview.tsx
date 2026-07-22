@@ -125,7 +125,6 @@ const ProfessionalPreview = () => (
 
 export const ProductPreview = ({ variant, screenshotSrc, accessibilityLabel, aspectRatio = 16 / 10, style }: ProductPreviewProps) => (
   <TiltCard style={style} testID={`landing-preview-${variant}`}>
-    <View pointerEvents="none" style={styles.previewGlow} />
     <GlassSurface variant="preview" style={[styles.frame, landingShadows.raised]}>
       <View style={styles.windowBar}>
         <View style={[styles.windowDot, styles.windowDotAccent]} />
@@ -149,7 +148,6 @@ export const ProductPreview = ({ variant, screenshotSrc, accessibilityLabel, asp
 
 const styles = StyleSheet.create({
   frame: { padding: 10, borderRadius: landingRadii.xl },
-  previewGlow: { position: 'absolute', left: '10%', right: '10%', bottom: -24, height: 70, borderRadius: 999, backgroundColor: 'rgba(41,75,58,0.18)', transform: [{ scaleX: 0.9 }] },
   windowBar: { height: 28, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
   windowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: landingColors.borderStrong },
   windowDotAccent: { backgroundColor: landingColors.accent },
