@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import Stack from 'expo-router/stack';
 
 import { ClientProfileProvider } from '@/contexts/client-profile-context';
 
@@ -14,10 +14,10 @@ export default function ClientAppLayout() {
           contentStyle: { backgroundColor: '#F0ECE0' },
         }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="explore" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="establishments/[slug]" options={{ title: 'Detalhes' }} />
         <Stack.Screen name="booking/[slug]" options={{ title: 'Agendar' }} />
+        <Stack.Screen name="appointments/[id]" options={{ title: 'Atendimento' }} />
         <Stack.Screen name="profile" options={{ title: 'Editar perfil' }} />
         <Stack.Screen name="preferences" options={{ title: 'Preferências' }} />
         <Stack.Screen name="security" options={{ title: 'Segurança' }} />

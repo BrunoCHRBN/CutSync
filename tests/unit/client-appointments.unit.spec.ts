@@ -57,3 +57,22 @@ test('centraliza leitura e mutações de agendamentos no backend', () => {
   expect(sqlTest).toContain('reschedule_limit_reached');
   expect(sqlTest).toContain('SET LOCAL ROLE anon');
 });
+
+test('expõe agenda nativa, detalhe protegido e sincronização em tempo real', () => {
+  const layout = readSource('apps/client/src/app/(app)/(tabs)/_layout.tsx');
+  const appLayout = readSource('apps/client/src/app/(app)/_layout.tsx');
+  const service = readSource('apps/client/src/features/appointments/client-appointments-service.ts');
+  const hook = readSource('apps/client/src/features/appointments/use-client-appointments.ts');
+
+  expect(layout).toContain("expo-router/unstable-native-tabs");
+  expect(layout).toContain('name="appointments"');
+  expect(appLayout).toContain('name="appointments/[id]"');
+  expect(fs.existsSync(path.join(root, 'apps/client/src/app/(app)/(tabs)/appointments.tsx'))).toBe(true);
+  expect(fs.existsSync(path.join(root, 'apps/client/src/app/(app)/appointments/[id].tsx'))).toBe(true);
+  expect(service).toContain("rpc('get_client_appointments'");
+  expect(service).toContain("rpc('get_client_appointment'");
+  expect(service).not.toContain("from('appointments')");
+  expect(hook).toContain('useFocusEffect');
+  expect(hook).toContain("table: 'appointments'");
+  expect(hook).toContain('client_id=eq.');
+});

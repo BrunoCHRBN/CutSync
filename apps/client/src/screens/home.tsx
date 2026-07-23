@@ -24,7 +24,7 @@ export function ClientHomeScreen() {
   const email = profile?.email || user?.email || '';
 
   return (
-    <SafeAreaView testID="client-app-shell" style={styles.safeArea}>
+    <SafeAreaView testID="client-app-shell" style={styles.safeArea} edges={['top']}>
       <StatusBar style="dark" />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -45,7 +45,7 @@ export function ClientHomeScreen() {
             testID="client-open-discovery"
             title="Encontrar um lugar"
             subtitle="Busque estabelecimentos, serviços e profissionais."
-            onPress={() => router.push('./explore')}
+            onPress={() => router.push('/explore')}
           />
         </SettingsCard>
 

@@ -6,7 +6,7 @@ const credentials = {
 };
 
 test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page }) => {
-  for (const privatePath of ['/profile', '/explore', '/establishments/estudio-teste', '/booking/estudio-teste']) {
+  for (const privatePath of ['/profile', '/explore', '/appointments', '/appointments/appointment-test', '/establishments/estudio-teste', '/booking/estudio-teste']) {
     await page.goto(privatePath);
     await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
     await expect(page.getByTestId('client-auth-config-message')).toHaveCount(0);
@@ -14,6 +14,7 @@ test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page
   }
   await expect(page.getByTestId('client-profile-screen')).toHaveCount(0);
   await expect(page.getByTestId('client-discovery-screen')).toHaveCount(0);
+  await expect(page.getByTestId('client-appointments-screen')).toHaveCount(0);
 });
 
 test('cliente consulta perfil e preferências sem alterar dados', async ({ page }) => {
@@ -123,4 +124,28 @@ test('cliente consulta disponibilidade real e revisa o agendamento sem confirmar
   await expect(page.getByTestId('client-booking-review')).toBeVisible();
   await expect(page.getByTestId('client-booking-confirm')).toBeEnabled();
   await expect(page.getByTestId('client-booking-success')).toHaveCount(0);
+});
+
+test('cliente consulta próximos, histórico e detalhe sem alterar o atendimento', async ({ page }) => {
+  test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
+
+  await page.goto('/sign-in');
+  await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
+  await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
+  await page.getByTestId('client-sign-in-submit').click();
+  await expect(page.getByTestId('client-app-shell')).toBeVisible({ timeout: 20_000 });
+
+  await page.goto('/appointments');
+  await expect(page.getByTestId('client-appointments-screen')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('client-appointments-error')).toHaveCount(0, { timeout: 20_000 });
+  const cards = page.locator('[data-testid^="client-appointment-card-"]');
+  await expect(cards.first()).toBeVisible({ timeout: 20_000 });
+
+  await cards.first().click();
+  await expect(page.getByTestId('client-appointment-detail-screen')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('client-appointment-detail-establishment')).toBeVisible();
+
+  await page.goBack();
+  await page.getByTestId('client-appointments-history-tab').click();
+  await expect(page.getByTestId('client-appointments-tabs')).toBeVisible();
 });

@@ -109,7 +109,7 @@ export function ClientDiscoveryScreen() {
           <Pressable
             testID="client-discovery-open-account"
             accessibilityRole="button"
-            onPress={() => router.replace('./')}
+            onPress={() => router.replace('/')}
             style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
           >
             <Text style={styles.accountButtonText}>Minha conta</Text>
