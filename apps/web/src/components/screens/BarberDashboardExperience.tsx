@@ -549,12 +549,16 @@ export const BarberDashboardExperience = () => {
           onDateChange={setSelectedDate}
           onRetry={() => { void refreshAppointments(); }}
           onSlotPress={(selection) => {
-            const { professionalId } = selection;
+            const { professionalId, startsAt } = selection;
             if (professionalId !== profile?.id) {
               setNotice({ tone: 'danger', message: 'Você pode criar encaixes somente na sua própria agenda.' });
               return;
             }
-            setSlotSelection(selection);
+            setQuickDate(startsAt);
+            const slotHour = String(startsAt.getHours()).padStart(2, '0');
+            const slotMin = String(startsAt.getMinutes()).padStart(2, '0');
+            setQuickTime(`${slotHour}:${slotMin}`);
+            setQuickOpen(true);
           }}
           onToggleFinished={() => setShowFinished((current) => !current)}
           onViewChange={(nextView) => setTab(nextView)}

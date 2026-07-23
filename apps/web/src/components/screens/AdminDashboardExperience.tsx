@@ -668,7 +668,15 @@ export const AdminDashboardExperience = () => {
             onDateChange={setSelectedDate}
             onManageTeam={() => router.push('/(admin)/team')}
             onRetry={() => { void refreshDaily(); }}
-            onSlotPress={setSlotSelection}
+            onSlotPress={(selection) => {
+              const { professionalId, startsAt } = selection;
+              setQuickBarber(professionalId);
+              setQuickDate(startsAt);
+              const slotHour = String(startsAt.getHours()).padStart(2, '0');
+              const slotMin = String(startsAt.getMinutes()).padStart(2, '0');
+              setQuickTime(`${slotHour}:${slotMin}`);
+              setQuickOpen(true);
+            }}
             onToggleFinished={() => setShowFinished((current) => !current)}
             resources={calendarResources}
             showFinished={showFinished}

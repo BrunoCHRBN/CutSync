@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { ExternalLink, ImagePlus, Save, ShieldCheck, Trash2, UserRound, Scissors, WalletCards, CheckSquare, Square } from 'lucide-react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ExternalLink, ImagePlus, Save, ShieldCheck, Trash2, UserRound, Scissors, WalletCards, CheckSquare, Square, UploadCloud } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
@@ -35,6 +36,45 @@ export const ProfessionalProfileEditorExperience = () => {
   const [pixKey, setPixKey] = useState('');
   const [notificationChannels, setNotificationChannels] = useState<string[]>(['push', 'whatsapp']);
   const [professionalPixAllowed, setProfessionalPixAllowed] = useState(true);
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handlePickDeviceImage = () => {
+    if (typeof window === 'undefined' || Platform.OS !== 'web') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+      setUploadingImage(true);
+      try {
+        const fileExt = file.name.split('.').pop() || 'png';
+        const filePath = `gallery/${profile?.id || 'prof'}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('client-avatars')
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              setGalleryUrl(event.target.result as string);
+            }
+          };
+          reader.readAsDataURL(file);
+        } else {
+          const { data: publicUrlData } = supabase.storage.from('client-avatars').getPublicUrl(filePath);
+          setGalleryUrl(publicUrlData.publicUrl);
+        }
+      } catch (err) {
+        console.error('File upload error:', err);
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    input.click();
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -297,11 +337,51 @@ export const ProfessionalProfileEditorExperience = () => {
 
             <AppCard testID="professional-profile-gallery-editor" style={[styles.card, { marginTop: 18 }]}>
               <View style={styles.cardHeading}><ImagePlus color={colors.text} size={20} /><Text style={styles.cardTitle}>Galeria de trabalhos</Text></View>
-              <Text style={styles.cardDescription}>Cada imagem exige uma descrição curta para acessibilidade.</Text>
-              <AppInput testID="professional-profile-gallery-url-input" label="URL da imagem (HTTPS)" value={galleryUrl} onChangeText={setGalleryUrl} autoCapitalize="none" placeholder="https://..." />
-              <AppInput testID="professional-profile-gallery-alt-input" label="Descrição da imagem" value={galleryAlt} onChangeText={setGalleryAlt} maxLength={160} placeholder="Degradê baixo com acabamento natural" />
-              <AppButton testID="professional-profile-add-gallery-button" label="Adicionar trabalho" onPress={addGalleryItem} variant="secondary" icon={<ImagePlus color={colors.text} size={16} />} fullWidth />
-              <View style={styles.galleryList}>{gallery.map((item, index) => <View key={`${item.url}-${index}`} testID={`professional-profile-gallery-item-${index}`} style={styles.galleryRow}><View style={styles.galleryCopy}><Text numberOfLines={1} style={styles.galleryUrl}>{item.url}</Text><Text style={styles.galleryAlt}>{item.alt}</Text></View><Pressable testID={`professional-profile-remove-gallery-${index}`} onPress={() => setGallery((current) => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removeButton}><Trash2 color={colors.danger} size={16} /></Pressable></View>)}</View>
+              <Text style={styles.cardDescription}>Selecione fotos dos seus trabalhos direto do seu dispositivo.</Text>
+              
+              <AppButton
+                testID="professional-profile-pick-image-button"
+                label={uploadingImage ? "Enviando arquivo..." : "📁 Escolher Imagem do Dispositivo"}
+                onPress={handlePickDeviceImage}
+                loading={uploadingImage}
+                variant="secondary"
+                fullWidth
+                icon={<UploadCloud color={colors.text} size={18} />}
+              />
+
+              {galleryUrl ? (
+                <View style={styles.previewBox}>
+                  <Image source={{ uri: galleryUrl }} style={styles.previewThumb} />
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={styles.previewTitle}>Imagem pronta para adicionar</Text>
+                    <Pressable onPress={() => setGalleryUrl('')} style={{ marginTop: 4 }}>
+                      <Text style={{ color: colors.danger, fontSize: 11, fontFamily: typography.bodyStrong }}>Trocar imagem</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <AppInput testID="professional-profile-gallery-url-input" label="Ou informe a URL da imagem (HTTPS)" value={galleryUrl} onChangeText={setGalleryUrl} autoCapitalize="none" placeholder="https://..." />
+              )}
+
+              <AppInput testID="professional-profile-gallery-alt-input" label="Descrição da imagem (acessibilidade)" value={galleryAlt} onChangeText={setGalleryAlt} maxLength={160} placeholder="Degradê baixo com acabamento natural" />
+              <AppButton testID="professional-profile-add-gallery-button" label="Adicionar ao portfólio" onPress={addGalleryItem} variant="secondary" icon={<ImagePlus color={colors.text} size={16} />} fullWidth disabled={!galleryUrl || !galleryAlt} />
+              
+              <View style={styles.galleryList}>
+                {gallery.map((item, index) => (
+                  <View key={`${item.url}-${index}`} testID={`professional-profile-gallery-item-${index}`} style={styles.galleryRow}>
+                    {item.url.startsWith('http') || item.url.startsWith('data:') ? (
+                      <Image source={{ uri: item.url }} style={styles.galleryThumb} />
+                    ) : null}
+                    <View style={styles.galleryCopy}>
+                      <Text numberOfLines={1} style={styles.galleryUrl}>{item.url}</Text>
+                      <Text style={styles.galleryAlt}>{item.alt}</Text>
+                    </View>
+                    <Pressable testID={`professional-profile-remove-gallery-${index}`} onPress={() => setGallery((current) => current.filter((_, itemIndex) => itemIndex !== index))} style={styles.removeButton}>
+                      <Trash2 color={colors.danger} size={16} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
               <View style={styles.privacyNote}><ShieldCheck color={colors.success} size={17} /><Text style={styles.privacyText}>Sua conta e seus vínculos nunca são publicados junto ao portfólio.</Text></View>
             </AppCard>
           </View>
@@ -343,6 +423,10 @@ const styles = StyleSheet.create({
   checkboxList: { gap: 14, marginVertical: 8 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   checkboxLabel: { color: colors.text, fontFamily: typography.body, fontSize: 13 },
+  previewBox: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: radii.md, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.border },
+  previewThumb: { width: 48, height: 48, borderRadius: radii.sm },
+  previewTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  galleryThumb: { width: 40, height: 40, borderRadius: radii.sm },
 });
 
 export default ProfessionalProfileEditorExperience;

@@ -457,7 +457,7 @@ const DesktopCalendar = ({
   onBlockPress,
 }: DesktopCalendarProps) => (
   <View style={styles.desktopFrame}>
-    <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ minWidth: TIME_GUTTER_WIDTH + resources.length * RESOURCE_MIN_WIDTH }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, minWidth: TIME_GUTTER_WIDTH + resources.length * RESOURCE_MIN_WIDTH }}>
       <View style={styles.desktopCanvas}>
         <View style={styles.resourceHeaderRow}>
           <View style={styles.timeHeader} />
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   desktopCanvas: { flex: 1 },
   resourceHeaderRow: { backgroundColor: colors.surfaceMuted, borderBottomColor: colors.borderSubtle, borderBottomWidth: 1, flexDirection: 'row', height: 54 },
   timeHeader: { borderRightColor: colors.borderSubtle, borderRightWidth: 1, width: TIME_GUTTER_WIDTH },
-  resourceHeader: { alignItems: 'center', borderRightColor: colors.borderSubtle, borderRightWidth: 1, flexDirection: 'row', gap: spacing.sm, minWidth: RESOURCE_MIN_WIDTH, paddingHorizontal: spacing.md },
+  resourceHeader: { flex: 1, alignItems: 'center', borderRightColor: colors.borderSubtle, borderRightWidth: 1, flexDirection: 'row', gap: spacing.sm, minWidth: RESOURCE_MIN_WIDTH, paddingHorizontal: spacing.md },
   avatarFallback: { alignItems: 'center', backgroundColor: colors.brandSecondarySoft, borderRadius: radii.pill, height: 30, justifyContent: 'center', width: 30 },
   avatarText: { ...typeScale.label, color: colors.brandPrimary },
   resourceName: { ...typeScale.bodyStrong, color: colors.textPrimary, flex: 1 },
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   timeColumn: { backgroundColor: colors.surfaceMuted, borderRightColor: colors.borderSubtle, borderRightWidth: 1, width: TIME_GUTTER_WIDTH },
   timeSlot: { alignItems: 'flex-end', borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth, height: SLOT_HEIGHT, paddingRight: spacing.sm, paddingTop: 5 },
   timeText: { ...typeScale.label, color: colors.textMuted, fontVariant: ['tabular-nums'] },
-  resourceColumn: { borderRightColor: colors.borderSubtle, borderRightWidth: 1, minWidth: RESOURCE_MIN_WIDTH, position: 'relative' },
+  resourceColumn: { flex: 1, borderRightColor: colors.borderSubtle, borderRightWidth: 1, minWidth: RESOURCE_MIN_WIDTH, position: 'relative' },
   gridSlot: { alignItems: 'flex-end', borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth, height: SLOT_HEIGHT, justifyContent: 'center', paddingRight: spacing.xs },
   gridSlotActive: { backgroundColor: colors.brandSecondarySoft },
   slotPlus: { opacity: 0 },
