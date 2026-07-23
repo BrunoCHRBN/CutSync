@@ -1775,6 +1775,30 @@ export type Database = {
           unavailable_reason: string
         }[]
       }
+      get_client_discovery_establishment: {
+        Args: { target_slug: string }
+        Returns: {
+          address: string | null
+          average_price: number
+          average_rating: number
+          banner_url: string | null
+          currency: string
+          description: string | null
+          id: string
+          instant_booking_enabled: boolean
+          logo_url: string | null
+          name: string
+          opening_hours: string | null
+          price_level: number
+          primary_color: string | null
+          professionals: Json
+          review_count: number
+          services: Json
+          slogan: string | null
+          slug: string
+          timezone: string
+        }[]
+      }
       get_establishment_client_contacts: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -1985,6 +2009,32 @@ export type Database = {
           invited_email: string
           role: string
           status: string
+        }[]
+      }
+      list_client_discovery_establishments: {
+        Args: { result_limit?: number; target_query?: string }
+        Returns: {
+          address: string | null
+          average_price: number
+          average_rating: number
+          banner_url: string | null
+          currency: string
+          description: string | null
+          id: string
+          instant_booking_enabled: boolean
+          logo_url: string | null
+          name: string
+          opening_hours: string | null
+          price_level: number
+          primary_color: string | null
+          professional_count: number
+          professional_names: string[]
+          review_count: number
+          service_count: number
+          service_names: string[]
+          slogan: string | null
+          slug: string
+          timezone: string
         }[]
       }
       list_establishment_invites_v2: {

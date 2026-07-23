@@ -5,12 +5,15 @@ const credentials = {
   password: process.env.CUTSYNC_E2E_CLIENT_PASSWORD,
 };
 
-test('mantém as rotas de conta protegidas sem sessão', async ({ page }) => {
-  await page.goto('/profile');
-  await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
-  await expect(page.getByTestId('client-auth-config-message')).toHaveCount(0);
-  await expect(page.getByTestId('client-sign-in-submit')).toBeEnabled();
+test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page }) => {
+  for (const privatePath of ['/profile', '/explore', '/establishments/estudio-teste']) {
+    await page.goto(privatePath);
+    await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
+    await expect(page.getByTestId('client-auth-config-message')).toHaveCount(0);
+    await expect(page.getByTestId('client-sign-in-submit')).toBeEnabled();
+  }
   await expect(page.getByTestId('client-profile-screen')).toHaveCount(0);
+  await expect(page.getByTestId('client-discovery-screen')).toHaveCount(0);
 });
 
 test('cliente consulta perfil e preferências sem alterar dados', async ({ page }) => {
@@ -46,4 +49,34 @@ test('cliente consulta perfil e preferências sem alterar dados', async ({ page 
   await expect(page.getByTestId('client-security-screen')).toBeVisible();
   await expect(page.getByTestId('client-request-password-reset')).toBeVisible();
   await expect(page.getByTestId('client-sign-out-button')).toBeVisible();
+});
+
+test('cliente descobre estabelecimentos, serviços e profissionais sem gravar dados', async ({ page }) => {
+  test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
+
+  await page.goto('/sign-in');
+  await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
+  await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
+  await page.getByTestId('client-sign-in-submit').click();
+  await expect(page.getByTestId('client-app-shell')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByTestId('client-open-discovery').click();
+  await expect(page.getByTestId('client-discovery-screen')).toBeVisible();
+  await expect(page.getByTestId('client-discovery-error')).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.getByTestId('client-discovery-results')).toBeVisible({ timeout: 20_000 });
+
+  const search = page.getByTestId('client-discovery-search');
+  await search.fill('barbearia 💈');
+  await expect(search).toHaveValue('');
+  await expect(page.getByTestId('client-discovery-search-error')).toContainText('Emojis não são permitidos');
+
+  await search.fill('<svg>teste</svg>');
+  await expect(search).toHaveValue('');
+  await expect(page.getByTestId('client-discovery-search-error')).toContainText('HTML ou SVG');
+
+  await page.locator('[data-testid^="client-discovery-card-"]').first().click();
+  await expect(page.getByTestId('client-establishment-detail-screen')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('client-establishment-name')).toBeVisible();
+  await expect(page.getByTestId('client-establishment-services')).toBeVisible();
+  await expect(page.getByTestId('client-establishment-professionals')).toBeVisible();
 });

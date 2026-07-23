@@ -39,6 +39,16 @@ export function ClientHomeScreen() {
           <Text style={styles.description}>{products.client.purpose}</Text>
         </View>
 
+        <SettingsSectionLabel>DESCOBRIR</SettingsSectionLabel>
+        <SettingsCard>
+          <SettingsMenuRow
+            testID="client-open-discovery"
+            title="Encontrar um lugar"
+            subtitle="Busque estabelecimentos, serviços e profissionais."
+            onPress={() => router.push('./explore')}
+          />
+        </SettingsCard>
+
         <SettingsCard>
           <View style={styles.profileSummary}>
             <ClientAvatar avatarUrl={profile?.avatarUrl ?? null} name={name} />

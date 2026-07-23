@@ -101,7 +101,7 @@ Não use `service_role`, senha de usuário, token de acesso pessoal ou outra cre
 
 ## Fatia 3 — perfil e preferências
 
-Status: implementada localmente; migration remota e validação autenticada no Android pendentes
+Status: implementada, migration aplicada e fluxo autenticado validado no Android
 
 Entregas:
 
@@ -148,11 +148,44 @@ npm run test:e2e:client
 
 O teste autenticado consulta as três telas, confirma o bloqueio de emoji e não salva alterações no usuário E2E.
 
+## Fatia 4 — descoberta de estabelecimentos e profissionais
+
+Status: implementada, migration aplicada e smoke autenticado aprovado; inspeção Android pendente
+
+Entregas:
+
+- entrada de descoberta integrada à área autenticada do Client;
+- interface mobile própria, sem reaproveitar os componentes visuais da experiência Web;
+- busca por estabelecimento, região, serviço, profissional e especialidade;
+- rejeição de emoji, HTML e SVG na digitação, na validação compartilhada e novamente na RPC;
+- catálogo limitado a estabelecimentos ativos, serviços ativos e membros ativos;
+- contratos `SECURITY DEFINER` com retorno explícito, sem documentos, dados de KYC ou contatos privados;
+- estados de carregamento, vazio, falha, nova tentativa e atualização por gesto;
+- tela de detalhes com identidade, endereço, serviços, preços, duração e equipe;
+- testes unitários, teste SQL de autorização e smoke autenticado sem mutações.
+
+### Rotas adicionadas
+
+```text
+apps/client/src/app/(app)/
+  explore.tsx
+  establishments/
+    [slug].tsx
+```
+
+### Migration necessária
+
+Aplicar, depois das migrations anteriores:
+
+```text
+supabase/migrations/20260722223000_client_discovery.sql
+```
+
+Depois da aplicação, recarregue o cache de schema do PostgREST e execute `npm run test:e2e:client`. O terceiro cenário valida catálogo, bloqueio de emoji/SVG e detalhes sem criar ou alterar registros.
+
 ## Limites da fatia atual
 
-- o login autenticado contra o projeto remoto ainda deve ser validado com uma conta E2E localmente configurada;
-- a persistência no SecureStore foi validada por testes e pela geração dos bundles, mas ainda deve ser exercitada em dispositivo ou simulador nativo;
-- envio, abertura e consumo dos e-mails de confirmação e recuperação ainda devem ser exercitados no projeto Supabase remoto com `cutsync://**` permitido;
+- o catálogo renderizado ainda precisa ser inspecionado no Android depois da atualização do schema;
 - autorização de dados continua dependendo das políticas RLS do backend compartilhado; proteção de rota no aplicativo não substitui RLS;
 - nenhuma funcionalidade da Web foi removida ou redirecionada para o Client.
 
@@ -205,15 +238,25 @@ Executadas em 2026-07-22:
 
 O `expo-doctor` aprovou 19 de 20 verificações. A única advertência é estrutural: como `apps/client/android` existe no repositório, alterações futuras em plugins do `app.json` não são sincronizadas automaticamente pelo EAS nessa pasta nativa. O APK local confirmou o autolink dos módulos usados nesta fatia.
 
-A migration foi aplicada ao ambiente remoto. O teste SQL local não foi executado porque o Docker Desktop não estava ativo. A persistência autenticada, o upload real do avatar e a inspeção interativa no emulador ainda não são considerados validados.
+A migration foi aplicada ao ambiente remoto. O teste SQL local não foi executado porque o Docker Desktop não estava ativo. Depois disso, o usuário validou no emulador Android a tela de conta e suas funções autenticadas.
+
+## Evidências da fatia 4
+
+Executadas em 2026-07-22:
+
+- `npm run typecheck:new-apps`: pacotes compartilhados, Client e Business aprovados;
+- lint do Client aprovado sem erros ou avisos;
+- 3 testes unitários específicos da descoberta aprovados;
+- exportação Web do Client aprovada, incluindo as rotas estática e dinâmica da descoberta.
+- `npm run test:e2e:client`: 3 cenários aprovados em 54,5 segundos, incluindo descoberta, serviços e profissionais sem gravação de dados.
+
+A migration foi aplicada ao ambiente remoto e exercitada pelo smoke autenticado. A execução do teste SQL local continua pendente porque o Docker Desktop não está ativo; a inspeção visual no Android permanece como validação manual complementar.
 
 ## Próximas fatias
 
-1. aplicar e validar a migration de perfil e preferências no Supabase;
-2. validar cadastro, confirmação, recuperação, perfil e preferências no development build;
-3. descoberta de estabelecimentos e profissionais;
-4. agendamento com disponibilidade real;
-5. lista, detalhes, cancelamento e reagendamento;
-6. notificações e preparação para distribuição.
+1. validar visualmente descoberta e detalhes no development build Android;
+2. agendamento com disponibilidade real;
+3. lista, detalhes, cancelamento e reagendamento;
+4. notificações e preparação para distribuição.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.
