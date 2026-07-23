@@ -16,6 +16,12 @@ const appointmentErrorMessages: Record<string, string> = {
   service_unavailable_for_professional: 'Este serviço não está habilitado para o seu perfil profissional.',
   service_unavailable: 'Este serviço não está mais disponível.',
   client_name_required: 'Informe o nome do cliente para criar o encaixe.',
+  appointment_status_immutable: 'Este atendimento não pode mais ser alterado.',
+  appointment_already_started: 'Este atendimento já começou ou está no passado.',
+  cancellation_window_closed: 'O prazo para alterar este atendimento pelo aplicativo foi encerrado.',
+  invalid_cancellation_reason: 'Escolha um motivo válido para cancelar.',
+  reschedule_limit_reached: 'Este atendimento já atingiu o limite de reagendamentos.',
+  establishment_unavailable: 'Este estabelecimento não está disponível para esta ação.',
   forbidden: 'Você não tem permissão para criar este encaixe.',
 };
 

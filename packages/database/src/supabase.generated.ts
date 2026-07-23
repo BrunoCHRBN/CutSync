@@ -1826,6 +1826,76 @@ export type Database = {
           services: Json
         }[]
       }
+      get_client_appointment: {
+        Args: { target_appointment_id: string }
+        Returns: {
+          appointment_id: string
+          appointment_status: string
+          can_cancel: boolean
+          can_reschedule: boolean
+          cancel_block_reason: string | null
+          cancellation_deadline: string
+          cancellation_reason: string | null
+          cancelled_by_role: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          establishment_address: string | null
+          establishment_currency: string
+          establishment_id: string
+          establishment_name: string
+          establishment_phone: string | null
+          establishment_slug: string
+          establishment_timezone: string
+          instant_booking_enabled: boolean
+          min_cancellation_hours: number
+          original_starts_at: string | null
+          professional_avatar_url: string | null
+          professional_id: string
+          professional_name: string
+          reschedule_block_reason: string | null
+          reschedule_count: number
+          service_id: string
+          service_name: string
+          starts_at: string
+          updated_at: string
+        }[]
+      }
+      get_client_appointments: {
+        Args: never
+        Returns: {
+          appointment_id: string
+          appointment_status: string
+          can_cancel: boolean
+          can_reschedule: boolean
+          cancel_block_reason: string | null
+          cancellation_deadline: string
+          cancellation_reason: string | null
+          cancelled_by_role: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          establishment_address: string | null
+          establishment_currency: string
+          establishment_id: string
+          establishment_name: string
+          establishment_phone: string | null
+          establishment_slug: string
+          establishment_timezone: string
+          instant_booking_enabled: boolean
+          min_cancellation_hours: number
+          original_starts_at: string | null
+          professional_avatar_url: string | null
+          professional_id: string
+          professional_name: string
+          reschedule_block_reason: string | null
+          reschedule_count: number
+          service_id: string
+          service_name: string
+          starts_at: string
+          updated_at: string
+        }[]
+      }
       get_establishment_client_contacts: {
         Args: { target_establishment_id: string }
         Returns: {
