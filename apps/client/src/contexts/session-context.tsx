@@ -16,6 +16,7 @@ import {
 } from '@/features/auth/auth-errors';
 import { getClientAuthRedirectUrl } from '@/lib/auth-deep-link';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { disableClientPushNotifications } from '@/features/notifications/client-push-service';
 
 type AuthActionResult = { ok: true } | { ok: false; message: string };
 type SignUpActionResult =
@@ -187,6 +188,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     signOut: async () => {
       if (!supabase) return { ok: false, message: 'O aplicativo ainda não está conectado ao ambiente CutSync.' };
       try {
+        await disableClientPushNotifications();
         const { error } = await supabase.auth.signOut();
         if (error) return { ok: false, message: 'Não foi possível sair agora. Tente novamente.' };
         setSession(null);

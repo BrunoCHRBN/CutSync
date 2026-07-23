@@ -11,6 +11,13 @@ import {
   SettingsSwitchRow,
 } from '@/components/settings/client-settings-ui';
 import { useClientProfile } from '@/contexts/client-profile-context';
+import {
+  disableClientPushNotifications,
+  enableClientPushNotifications,
+  getClientPushStatus,
+  syncClientPushNotifications,
+  type ClientPushStatus,
+} from '@/features/notifications/client-push-service';
 
 export function ClientPreferencesScreen() {
   const { profile, isLoading, isSaving, error, updatePreferences } = useClientProfile();
@@ -18,11 +25,17 @@ export function ClientPreferencesScreen() {
   const [marketingAccepted, setMarketingAccepted] = useState(false);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pushStatus, setPushStatus] = useState<ClientPushStatus>('unsupported');
+  const [isChangingPush, setIsChangingPush] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
-    setChannels(profile.notificationChannels.filter((channel) => channel !== 'push'));
+    setChannels(profile.notificationChannels);
     setMarketingAccepted(profile.marketingAccepted);
+    void getClientPushStatus().then(setPushStatus);
+    if (profile.notificationChannels.includes('push')) {
+      void syncClientPushNotifications();
+    }
   }, [profile]);
 
   const toggleChannel = (channel: ClientNotificationChannel, enabled: boolean) => {
@@ -32,6 +45,26 @@ export function ClientPreferencesScreen() {
         ? [...current.filter((item) => item !== channel), channel]
         : current.filter((item) => item !== channel)
     ));
+  };
+
+  const handlePushChange = async (enabled: boolean) => {
+    setSaved(false);
+    setLocalMessage(null);
+    setIsChangingPush(true);
+
+    const result = enabled
+      ? await enableClientPushNotifications()
+      : await disableClientPushNotifications();
+
+    setIsChangingPush(false);
+    if (!result.ok) {
+      setPushStatus(result.status);
+      setLocalMessage(result.message);
+      return;
+    }
+
+    setPushStatus(enabled ? 'enabled' : 'not_determined');
+    toggleChannel('push', enabled);
   };
 
   const handleSave = async () => {
@@ -75,10 +108,14 @@ export function ClientPreferencesScreen() {
         <SettingsSwitchRow
           testID="client-preference-push"
           title="Notificações no celular"
-          subtitle="Será liberado depois da permissão e do registro seguro deste dispositivo."
-          value={false}
-          disabled
-          onValueChange={() => undefined}
+          subtitle={
+            pushStatus === 'denied'
+              ? 'Permissão bloqueada no aparelho. Libere-a nas configurações do sistema.'
+              : 'Confirmações, alterações e lembretes deste dispositivo.'
+          }
+          value={channels.includes('push')}
+          disabled={disabled || isChangingPush}
+          onValueChange={(value) => { void handlePushChange(value); }}
         />
       </SettingsCard>
 
@@ -113,7 +150,7 @@ export function ClientPreferencesScreen() {
       <SettingsButton
         testID="client-preferences-save"
         label="Salvar preferências"
-        disabled={disabled}
+        disabled={disabled || isChangingPush}
         loading={isSaving}
         onPress={() => { void handleSave(); }}
       />
