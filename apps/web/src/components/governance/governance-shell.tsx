@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { Activity, BookOpen, LogOut, ShieldAlert } from 'lucide-react-native';
+import { Activity, BookOpen, ClipboardList, LogOut, ShieldAlert, Store } from 'lucide-react-native';
 import { useGovernanceAuth } from '../../contexts/governance-auth-context';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { colors, layout, radii, typography } from '../../theme/tokens';
@@ -15,6 +15,8 @@ export function GovernanceShell({ children }: { children: React.ReactNode }) {
   if (!profile) return null;
 
   const inKnowledge = pathname.startsWith('/governance/knowledge');
+  const inEstablishments = pathname.startsWith('/governance/establishments');
+  const inAudit = pathname.startsWith('/governance/audit');
 
   return (
     <ScreenBackground testID="governance-shell">
@@ -41,12 +43,20 @@ export function GovernanceShell({ children }: { children: React.ReactNode }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.navScroller} contentContainerStyle={styles.nav}>
         <Pressable
           accessibilityRole="tab"
-          accessibilityState={{ selected: !inKnowledge }}
+          accessibilityState={{ selected: !inKnowledge && !inEstablishments && !inAudit }}
           onPress={() => router.push('/governance')}
-          style={[styles.navItem, !inKnowledge && styles.navItemActive]}
+          style={[styles.navItem, !inKnowledge && !inEstablishments && !inAudit && styles.navItemActive]}
         >
-          <Activity size={16} color={!inKnowledge ? colors.brand : colors.textSecondary} />
-          <Text style={[styles.navText, !inKnowledge && styles.navTextActive]}>Painel de Controle</Text>
+          <Activity size={16} color={!inKnowledge && !inEstablishments && !inAudit ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, !inKnowledge && !inEstablishments && !inAudit && styles.navTextActive]}>Painel de Controle</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: inEstablishments }} onPress={() => router.push('/governance/establishments')} style={[styles.navItem, inEstablishments && styles.navItemActive]}>
+          <Store size={16} color={inEstablishments ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, inEstablishments && styles.navTextActive]}>Estabelecimentos</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: inAudit }} onPress={() => router.push('/governance/audit')} style={[styles.navItem, inAudit && styles.navItemActive]}>
+          <ClipboardList size={16} color={inAudit ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, inAudit && styles.navTextActive]}>Auditoria</Text>
         </Pressable>
         <Pressable
           accessibilityRole="tab"

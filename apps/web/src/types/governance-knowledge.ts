@@ -1,5 +1,43 @@
 export type GovernanceRole = 'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner';
 
+export type GovernanceAccountStatus = 'pending_verification' | 'active' | 'delinquent' | 'blocked';
+
+export interface GovernanceEstablishmentListItem {
+  id: string;
+  name: string;
+  slug: string;
+  document_number: string | null;
+  document_type: string | null;
+  verification_level: number | null;
+  account_status: GovernanceAccountStatus;
+  address: string | null;
+  kyc_status: string | null;
+  email_verified: boolean | null;
+  whatsapp_verified: boolean | null;
+  recent_status_changed_at: string | null;
+  total_count: number;
+}
+
+export interface GovernanceAuditEvent {
+  id: number;
+  action: string;
+  target_id: string;
+  target_type: string;
+  changes: Record<string, unknown>;
+  client_ip: string;
+  created_at: string;
+  actor_name: string;
+  target_name: string;
+  total_count: number;
+}
+
+export interface GovernanceEstablishmentDetail {
+  establishment: GovernanceEstablishmentListItem & Record<string, unknown>;
+  status_history: Pick<GovernanceAuditEvent, 'id' | 'action' | 'changes' | 'created_at' | 'actor_name'>[];
+  recent_events: Pick<GovernanceAuditEvent, 'id' | 'action' | 'changes' | 'created_at' | 'actor_name'>[];
+  upcoming_appointments: { id: string; date_time: string; ends_at: string; status: string; client_name: string | null }[];
+}
+
 export type KnowledgeTopicKind = 'question' | 'guide' | 'procedure' | 'decision' | 'incident';
 export type KnowledgePublicationStatus = 'draft' | 'published' | 'archived';
 export type KnowledgeResolutionStatus = 'open' | 'resolved' | null;

@@ -1,241 +1,197 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { Activity, AlertTriangle, Globe, MapPin, RefreshCw, Search, ShieldCheck } from 'lucide-react-native';
-import { useGovernanceAuth } from '../../contexts/governance-auth-context';
-import { supabaseGovernance } from '../../services/supabaseGovernance';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Activity, AlertTriangle, ArrowRight, Clock3, RefreshCw, ShieldCheck } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { InlineNotice } from '../ui/InlineNotice';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import {
+  changeGovernanceEstablishmentStatus,
+  listGovernanceAuditEvents,
+  listGovernanceEstablishments,
+} from '../../services/governance-operations';
+import type { GovernanceAccountStatus, GovernanceAuditEvent, GovernanceEstablishmentListItem } from '../../types/governance-knowledge';
 
-interface Establishment {
-  id: string;
-  name: string;
-  slug: string;
-  document_number: string | null;
-  document_type: 'CPF' | 'CNPJ' | null;
-  verification_level: number;
-  account_status: 'pending_verification' | 'active' | 'delinquent' | 'blocked';
-  address: string | null;
-}
-
-interface AuditLog {
-  id: number;
-  action: string;
-  target_id: string;
-  target_type: string;
-  changes: Record<string, unknown>;
-  client_ip: string;
-  created_at: string;
-}
-
-const statusLabel: Record<Establishment['account_status'], string> = {
+const statusLabel: Record<GovernanceAccountStatus, string> = {
   active: 'Ativo',
   pending_verification: 'Pendente',
   delinquent: 'Inadimplente',
   blocked: 'Bloqueado',
 };
 
-export function GovernanceDashboard() {
-  const { width } = useWindowDimensions();
-  const { profile } = useGovernanceAuth();
-  const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+const impactCopy: Record<Exclude<GovernanceAccountStatus, 'pending_verification'>, string> = {
+  active: 'Novos agendamentos e operações da unidade ficam disponíveis novamente.',
+  delinquent: 'Novos agendamentos e ações operacionais dependentes de conta ativa serão impedidos. Agendamentos existentes não serão cancelados.',
+  blocked: 'A unidade ficará impedida de operar e receber novos agendamentos. Agendamentos existentes não serão cancelados.',
+};
 
-  const load = useCallback(async (preserveNotice = false) => {
-    setLoading(true);
-    if (!preserveNotice) setNotice(null);
-    const [establishmentResult, logResult] = await Promise.all([
-      supabaseGovernance
-        .from('establishments')
-        .select('id, name, slug, document_number, document_type, verification_level, account_status, address')
-        .order('created_at', { ascending: false }),
-      supabaseGovernance
-        .from('security_audit_logs')
-        .select('id, action, target_id, target_type, changes, client_ip, created_at')
-        .order('created_at', { ascending: false })
-        .limit(40),
-    ]);
-    if (establishmentResult.error || logResult.error) {
-      setNotice({ tone: 'danger', message: 'Não foi possível carregar o painel de Governança.' });
-    } else {
-      setEstablishments((establishmentResult.data ?? []) as Establishment[]);
-      setLogs((logResult.data ?? []) as unknown as AuditLog[]);
+export function GovernanceDashboard() {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const [establishments, setEstablishments] = useState<GovernanceEstablishmentListItem[]>([]);
+  const [logs, setLogs] = useState<GovernanceAuditEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ item: GovernanceEstablishmentListItem; status: Exclude<GovernanceAccountStatus, 'pending_verification'> } | null>(null);
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [reasonError, setReasonError] = useState('');
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setRefreshing(true);
+    setNotice(null);
+    try {
+      const [establishmentData, auditData] = await Promise.all([
+        listGovernanceEstablishments({ pageSize: 100 }),
+        listGovernanceAuditEvents({ pageSize: 8 }),
+      ]);
+      setEstablishments(establishmentData);
+      setLogs(auditData);
+    } catch (error) {
+      setNotice({ tone: 'danger', message: error instanceof Error ? error.message : 'Não foi possível carregar o painel de Governança.' });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return establishments;
-    return establishments.filter((item) =>
-      item.name.toLowerCase().includes(query)
-      || item.slug.toLowerCase().includes(query)
-      || item.document_number?.includes(query),
-    );
-  }, [establishments, search]);
+  const counts = useMemo(() => ({
+    total: establishments.length,
+    active: establishments.filter((item) => item.account_status === 'active').length,
+    pending: establishments.filter((item) => item.account_status === 'pending_verification').length,
+    restricted: establishments.filter((item) => ['blocked', 'delinquent'].includes(item.account_status)).length,
+  }), [establishments]);
 
-  const updateStatus = async (id: string, accountStatus: Establishment['account_status']) => {
-    if (profile?.role === 'SaaS_Viewer') {
-      setNotice({ tone: 'danger', message: 'Seu perfil possui permissão somente de leitura.' });
-      return;
-    }
-    setUpdatingId(id);
-    const { data, error } = await supabaseGovernance
-      .from('establishments')
-      .update({ account_status: accountStatus })
-      .eq('id', id)
-      .select('id');
-    if (error || !data?.length) {
-      setNotice({ tone: 'danger', message: 'A alteração foi recusada ou o estabelecimento não existe.' });
-    } else {
-      setNotice({ tone: 'success', message: 'Status atualizado e registrado na auditoria.' });
+  const confirmStatusChange = async () => {
+    if (!pendingAction) return;
+    if (reason.trim().length < 10) { setReasonError('Explique o motivo com pelo menos 10 caracteres.'); return; }
+    setSaving(true);
+    setReasonError('');
+    try {
+      const result = await changeGovernanceEstablishmentStatus(pendingAction.item.id, pendingAction.status, reason);
+      setPendingAction(null);
+      setNotice({ tone: 'success', message: `${result.name}: status atualizado para ${statusLabel[result.new_status]} e registrado na auditoria.` });
       await load(true);
+    } catch (error) {
+      setReasonError(error instanceof Error ? error.message : 'Não foi possível atualizar o status.');
+    } finally {
+      setSaving(false);
     }
-    setUpdatingId(null);
   };
 
   return (
-    <ScrollView
-      testID="governance-dashboard-screen"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.scroll}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView testID="governance-dashboard-screen" contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.pageHeader}>
+        <View style={styles.pageCopy}>
+          <Text style={styles.eyebrow}>VISÃO DE TRABALHO</Text>
+          <Text style={styles.title}>Central de Governança</Text>
+          <Text style={styles.subtitle}>Priorize pendências, investigue mudanças e mantenha a operação do CutSync sob controle.</Text>
+        </View>
+        <AppButton testID="governance-refresh-button" label={refreshing ? 'Atualizando…' : 'Atualizar'} variant="secondary" icon={<RefreshCw size={16} color={colors.text} />} onPress={() => load(true)} disabled={refreshing} />
+      </View>
       {!!notice && <InlineNotice testID="governance-dashboard-notice" tone={notice.tone} message={notice.message} />}
+
       <View style={styles.metrics}>
-        <Metric testID="governance-establishments-metric" icon={<Activity color={colors.info} size={18} />} value={establishments.length} label="Estabelecimentos" />
-        <Metric testID="governance-active-metric" icon={<ShieldCheck color={colors.success} size={18} />} value={establishments.filter((item) => item.account_status === 'active').length} label="Ativos / verificados" />
-        <Metric testID="governance-blocked-metric" icon={<AlertTriangle color={colors.danger} size={18} />} value={establishments.filter((item) => ['blocked', 'delinquent'].includes(item.account_status)).length} label="Com restrição" />
+        <Metric testID="governance-pending-metric" icon={<Clock3 color={colors.warning} size={18} />} value={counts.pending} label="Aguardando verificação" onPress={() => router.push('/governance/establishments?status=pending_verification')} />
+        <Metric testID="governance-restricted-metric" icon={<AlertTriangle color={colors.danger} size={18} />} value={counts.restricted} label="Com restrição" onPress={() => router.push('/governance/establishments?status=blocked')} />
+        <Metric testID="governance-active-metric" icon={<ShieldCheck color={colors.success} size={18} />} value={counts.active} label="Ativos" onPress={() => router.push('/governance/establishments?status=active')} />
+        <Metric testID="governance-establishments-metric" icon={<Activity color={colors.info} size={18} />} value={counts.total} label="Estabelecimentos" onPress={() => router.push('/governance/establishments')} />
       </View>
 
       <View style={[styles.columns, width >= layout.desktopBreakpoint && styles.columnsWide]}>
-        <AppCard testID="governance-establishments-card" style={styles.establishmentsCard}>
-          <View style={styles.sectionHeader}>
-            <View style={{ gap: 4 }}>
-              <Text style={styles.sectionTitle}>Estabelecimentos e acesso</Text>
-              <Text style={styles.sectionDescription}>Controle operacional protegido por políticas do banco.</Text>
-            </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Atualizar painel" onPress={() => load(true)} style={styles.iconButton}>
-              <RefreshCw size={16} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-          <AppInput
-            testID="governance-search-input"
-            label="Buscar estabelecimentos"
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Nome, slug ou documento"
-            icon={<Search size={16} color={colors.textMuted} />}
-          />
-          {loading ? <ActivityIndicator color={colors.brand} style={styles.loader} /> : filtered.map((item) => (
-            <View key={item.id} style={styles.establishment}>
-              <View style={styles.establishmentInfo}>
-                <View style={styles.titleRow}>
-                  <Text selectable style={styles.establishmentName}>{item.name}</Text>
-                  <View style={[styles.badge, item.account_status === 'active' ? styles.badgeSuccess : item.account_status === 'pending_verification' ? styles.badgeWarning : styles.badgeDanger]}>
-                    <Text style={styles.badgeText}>{statusLabel[item.account_status]}</Text>
-                  </View>
-                </View>
-                <Text selectable style={styles.slug}>cutsync.com/{item.slug}</Text>
-                <Text selectable style={styles.meta}>{item.document_type || 'Documento'}: {item.document_number || 'não informado'} · nível {item.verification_level}</Text>
-                {!!item.address && <View style={styles.address}><MapPin size={12} color={colors.textMuted} /><Text style={styles.meta}>{item.address}</Text></View>}
+        <AppCard testID="governance-priority-card" style={styles.priorityCard}>
+          <SectionHeader title="Fila prioritária" description="Unidades que merecem atenção operacional agora." />
+          {loading ? <ActivityIndicator color={colors.brand} style={styles.loader} /> : establishments.filter((item) => item.account_status !== 'active').slice(0, 6).map((item) => (
+            <View key={item.id} style={styles.priorityRow}>
+              <View style={styles.rowCopy}>
+                <Text style={styles.itemTitle}>{item.name}</Text>
+                <Text style={styles.meta}>{item.slug} · {statusLabel[item.account_status]}</Text>
               </View>
-              <View style={styles.statusActions}>
-                {(['active', 'delinquent', 'blocked'] as const).map((status) => (
-                  <Pressable
-                    key={status}
-                    accessibilityRole="button"
-                    disabled={updatingId === item.id || profile?.role === 'SaaS_Viewer'}
-                    onPress={() => updateStatus(item.id, status)}
-                    style={[styles.statusButton, item.account_status === status && styles.statusButtonActive]}
-                  >
-                    <Text style={styles.statusButtonText}>{statusLabel[status]}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <AppButton testID={`governance-open-${item.id}`} label="Investigar" size="sm" variant="secondary" trailingIcon={<ArrowRight size={14} color={colors.textSecondary} />} onPress={() => router.push(`/governance/establishments/${item.id}`)} />
             </View>
           ))}
+          {!loading && establishments.every((item) => item.account_status === 'active') && <Text style={styles.empty}>Nenhuma pendência crítica encontrada.</Text>}
+          <AppButton testID="governance-open-establishments-button" label="Ver todos os estabelecimentos" variant="ghost" onPress={() => router.push('/governance/establishments')} />
         </AppCard>
 
         <AppCard testID="governance-audit-card" style={styles.auditCard}>
-          <View style={styles.sectionHeader}>
-            <View style={{ gap: 4 }}>
-              <Text style={styles.sectionTitle}>Trilha imutável</Text>
-              <Text style={styles.sectionDescription}>Eventos recentes, sem conteúdo sensível.</Text>
-            </View>
-            <Globe size={18} color={colors.info} />
-          </View>
-          {loading ? <ActivityIndicator color={colors.brand} style={styles.loader} /> : logs.length === 0 ? (
-            <Text style={styles.empty}>Nenhum evento registrado.</Text>
-          ) : logs.map((log) => (
-            <View key={log.id} style={styles.log}>
-              <View style={styles.logHeader}>
-                <Text selectable style={styles.logAction}>{log.action}</Text>
-                <Text style={styles.logDate}>{new Date(log.created_at).toLocaleDateString('pt-BR')}</Text>
-              </View>
-              <Text selectable style={styles.meta}>Alvo: {log.target_type} · {log.target_id.slice(0, 8)}</Text>
-              <Text selectable style={styles.meta}>IP: {log.client_ip}</Text>
-            </View>
-          ))}
+          <SectionHeader title="Atividade recente" description="Eventos recentes da trilha imutável." action={<AppButton testID="governance-open-audit-button" label="Abrir auditoria" size="sm" variant="ghost" onPress={() => router.push('/governance/audit')} />} />
+          {loading ? <ActivityIndicator color={colors.brand} style={styles.loader} /> : logs.map((log) => <AuditRow key={log.id} log={log} />)}
+          {!loading && !logs.length && <Text style={styles.empty}>Nenhum evento registrado.</Text>}
         </AppCard>
       </View>
+
+      <Modal visible={!!pendingAction} transparent animationType="fade" onRequestClose={() => !saving && setPendingAction(null)}>
+        <View style={styles.overlay}>
+          <AppCard testID="governance-status-confirmation" style={styles.modalCard} elevated>
+            <Text style={styles.modalTitle}>Confirmar alteração de status</Text>
+            <Text style={styles.modalLead}>{pendingAction?.item.name} · {statusLabel[pendingAction?.item.account_status || 'active']} → {statusLabel[pendingAction?.status || 'active']}</Text>
+            <InlineNotice tone={pendingAction?.status === 'active' ? 'success' : 'warning'} title="Impacto da decisão" message={pendingAction ? impactCopy[pendingAction.status] : ''} />
+            <AppInput testID="governance-status-reason-input" label="Justificativa obrigatória" value={reason} onChangeText={setReason} placeholder="Descreva a evidência ou motivo operacional" multiline numberOfLines={4} textAlignVertical="top" error={reasonError || undefined} />
+            <View style={styles.modalActions}>
+              <AppButton testID="governance-status-cancel-button" label="Cancelar" variant="ghost" onPress={() => setPendingAction(null)} disabled={saving} />
+              <AppButton testID="governance-status-confirm-button" label={saving ? 'Registrando…' : 'Confirmar alteração'} variant={pendingAction?.status === 'active' ? 'success' : 'danger'} onPress={confirmStatusChange} loading={saving} />
+            </View>
+          </AppCard>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
-function Metric({ testID, icon, value, label }: { testID: string; icon: React.ReactNode; value: number; label: string }) {
-  return (
-    <AppCard testID={testID} style={styles.metric}>
-      {icon}
-      <Text selectable style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
-    </AppCard>
-  );
+function SectionHeader({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
+  return <View style={styles.sectionHeader}><View style={styles.rowCopy}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionDescription}>{description}</Text></View>{action}</View>;
+}
+
+function Metric({ testID, icon, value, label, onPress }: { testID: string; icon: React.ReactNode; value: number; label: string; onPress: () => void }) {
+  return <Pressable testID={testID} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.metric, pressed && styles.pressed]}><AppCard style={styles.metricCard}>{icon}<Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text><ArrowRight size={14} color={colors.textMuted} /></AppCard></Pressable>;
+}
+
+function AuditRow({ log }: { log: GovernanceAuditEvent }) {
+  const changes = log.changes || {};
+  const oldStatus = typeof changes.old_status === 'string' ? changes.old_status : null;
+  const newStatus = typeof changes.new_status === 'string' ? changes.new_status : null;
+  const detail = oldStatus && newStatus ? `${statusLabel[oldStatus as GovernanceAccountStatus]} → ${statusLabel[newStatus as GovernanceAccountStatus]}` : log.action;
+  return <View style={styles.auditRow}><View style={styles.rowCopy}><Text style={styles.itemTitle}>{log.target_name}</Text><Text style={styles.meta}>{detail} · por {log.actor_name}</Text></View><Text style={styles.date}>{new Date(log.created_at).toLocaleDateString('pt-BR')}</Text></View>;
 }
 
 const styles = StyleSheet.create({
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingBottom: 80, gap: 20 },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  metric: { flex: 1, minWidth: 190, gap: 7 },
+  pageHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 18 },
+  pageCopy: { flex: 1, minWidth: 280, gap: 7 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6 },
+  title: { color: colors.text, fontFamily: typography.display, fontSize: 30, letterSpacing: -1 },
+  subtitle: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  metric: { flex: 1, minWidth: 190, borderRadius: radii.lg },
+  metricCard: { gap: 7, minHeight: 140 },
   metricValue: { color: colors.text, fontFamily: typography.display, fontSize: 28, fontVariant: ['tabular-nums'] },
-  metricLabel: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
+  metricLabel: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, flex: 1 },
   columns: { gap: 20 },
   columnsWide: { flexDirection: 'row', alignItems: 'flex-start' },
-  establishmentsCard: { flex: 2, gap: 16 },
-  auditCard: { flex: 1.1, gap: 16 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  priorityCard: { flex: 1.35, gap: 14 },
+  auditCard: { flex: 1, gap: 14 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18 },
-  sectionDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: colors.canvas },
-  loader: { marginVertical: 40 },
-  establishment: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16, gap: 14 },
-  establishmentInfo: { gap: 5 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  establishmentName: { color: colors.text, fontFamily: typography.display, fontSize: 16 },
-  badge: { borderRadius: radii.pill, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeSuccess: { backgroundColor: colors.successSoft },
-  badgeWarning: { backgroundColor: colors.warningSoft },
-  badgeDanger: { backgroundColor: colors.dangerSoft },
-  badgeText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
-  slug: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11 },
+  sectionDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
+  priorityRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 13 },
+  auditRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  rowCopy: { flex: 1, gap: 4 },
+  itemTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
   meta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
-  address: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statusActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statusButton: { minHeight: 38, justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: 12 },
-  statusButtonActive: { backgroundColor: colors.brandSoft, borderColor: colors.brandBorder },
-  statusButtonText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
-  empty: { color: colors.textMuted, fontFamily: typography.body, textAlign: 'center', paddingVertical: 32 },
-  log: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, gap: 5 },
-  logHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  logAction: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, flex: 1 },
-  logDate: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  date: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  loader: { marginVertical: 30 },
+  empty: { color: colors.textMuted, fontFamily: typography.body, textAlign: 'center', paddingVertical: 24 },
+  pressed: { opacity: 0.78 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { width: '100%', maxWidth: 520, padding: 24, gap: 16 },
+  modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 20 },
+  modalLead: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 13 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10 },
 });

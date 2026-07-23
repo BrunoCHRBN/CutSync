@@ -24,6 +24,9 @@ function GovernanceGate() {
     <GovernanceShell>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="establishments/index" />
+        <Stack.Screen name="establishments/[id]" />
+        <Stack.Screen name="audit" />
         <Stack.Screen name="knowledge/index" />
         <Stack.Screen name="knowledge/new" />
         <Stack.Screen name="knowledge/[topicId]/index" />
