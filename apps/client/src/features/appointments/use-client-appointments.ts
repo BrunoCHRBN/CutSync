@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
@@ -10,6 +10,9 @@ import {
 } from './client-appointments-service';
 
 export function useClientAppointments(clientId: string | null) {
+  // Detail screens can remain mounted below native modals. Supabase reuses
+  // channels by topic, so every hook instance must own a distinct topic.
+  const channelInstanceId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const requestSequence = useRef(0);
   const hasLoaded = useRef(false);
   const [appointments, setAppointments] = useState<ClientAppointment[]>([]);
@@ -47,7 +50,7 @@ export function useClientAppointments(clientId: string | null) {
   useEffect(() => {
     if (!clientId || !supabase) return undefined;
     const channel = supabase
-      .channel(`client-mobile-appointments-${clientId}`)
+      .channel(`client-mobile-appointments-${clientId}-${channelInstanceId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -56,7 +59,7 @@ export function useClientAppointments(clientId: string | null) {
       }, () => { void refresh(); })
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
-  }, [clientId, refresh]);
+  }, [channelInstanceId, clientId, refresh]);
 
   useEffect(() => {
     if (!clientId) return undefined;
@@ -70,6 +73,7 @@ export function useClientAppointments(clientId: string | null) {
 }
 
 export function useClientAppointment(appointmentId: string | null, clientId: string | null) {
+  const channelInstanceId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const requestSequence = useRef(0);
   const [appointment, setAppointment] = useState<ClientAppointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,7 +109,7 @@ export function useClientAppointment(appointmentId: string | null, clientId: str
   useEffect(() => {
     if (!appointmentId || !clientId || !supabase) return undefined;
     const channel = supabase
-      .channel(`client-mobile-appointment-${appointmentId}`)
+      .channel(`client-mobile-appointment-${appointmentId}-${channelInstanceId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -114,7 +118,7 @@ export function useClientAppointment(appointmentId: string | null, clientId: str
       }, () => { void refresh(); })
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
-  }, [appointmentId, clientId, refresh]);
+  }, [appointmentId, channelInstanceId, clientId, refresh]);
 
   return { appointment, isLoading, error, refresh };
 }

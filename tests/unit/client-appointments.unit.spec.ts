@@ -76,6 +76,9 @@ test('expõe agenda nativa, detalhe protegido e sincronização em tempo real', 
   expect(hook).toContain("table: 'appointments'");
   expect(hook).toContain('client_id=eq.');
   expect(hook).toContain("state === 'active'");
+  expect(hook).toContain('const channelInstanceId = useId()');
+  expect(hook).toContain('client-mobile-appointment-${appointmentId}-${channelInstanceId}');
+  expect(hook).toContain('removeChannel(channel)');
 });
 
 test('expõe cancelamento fechado e ações orientadas pelas permissões do backend', () => {
