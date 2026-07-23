@@ -1,8 +1,8 @@
 # MVP do Client — Fase 3
 
-Status: Fatia 6 implementada; validação remota controlada pendente
+Status: Fatia 7 implementada localmente; implantação e validação Push pendentes
 
-Data da última verificação: 2026-07-22
+Data da última verificação: 2026-07-23
 
 ## Objetivo
 
@@ -260,11 +260,46 @@ supabase/migrations/20260723040000_client_appointment_management.sql
 
 Depois da aplicação, recarregue o cache do PostgREST. Somente então execute a suíte autenticada e a validação real de reagendamento e cancelamento.
 
+## Fatia 7 — notificações do Client
+
+Status: implementada e validada localmente; infraestrutura remota e credenciais Push pendentes
+
+Entregas:
+
+- `expo-notifications` integrado ao Client com o plugin do Expo 57;
+- canal Android `appointments` criado antes da solicitação de permissão;
+- opt-in explícito na tela de preferências, sem solicitar permissão durante login ou abertura;
+- Expo Push Token associado ao usuário, ao aplicativo Client e à plataforma pelas RPCs seguras existentes;
+- token local preservado no SecureStore para sincronização, rotação e remoção no logout;
+- fila transacional criada a partir dos eventos de confirmação, reagendamento e cancelamento;
+- lembrete idempotente de 24 horas preparado para execução agendada;
+- fila com bloqueio concorrente, cinco tentativas, backoff, tickets e recibos do Expo;
+- dispositivos inválidos desativados após `DeviceNotRegistered`;
+- Edge Function protegida por segredo interno, sem expor service role ou token Expo ao aplicativo;
+- toque em notificação direcionado apenas ao detalhe protegido de um agendamento válido;
+- suporte a toque com o aplicativo aberto, em segundo plano ou iniciado pela notificação;
+- payloads com evento desconhecido, ID inválido ou rota arbitrária são ignorados.
+
+### Configuração necessária
+
+1. Aplicar `supabase/migrations/20260724010000_client_push_notifications.sql`.
+2. Configurar `EXPO_PUBLIC_EAS_PROJECT_ID` na build do Client.
+3. Configurar as credenciais FCM v1 e APNs no projeto Expo/EAS.
+4. Criar os secrets da Edge Function:
+   - `NOTIFICATION_DISPATCH_SECRET`;
+   - `EXPO_ACCESS_TOKEN`, quando a segurança reforçada do Expo Push Service estiver habilitada.
+5. Publicar `dispatch-client-notifications`.
+6. Agendar uma chamada autenticada à função a cada 15 minutos, enviando o header `x-cutsync-dispatch-secret`.
+
+O `SUPABASE_URL` e o `SUPABASE_SERVICE_ROLE_KEY` são fornecidos ao ambiente da Edge Function e nunca pertencem ao bundle mobile. A função agendada enfileira lembretes, envia até 100 notificações por lote e consulta recibos depois da janela recomendada.
+
 ## Limites da fatia atual
 
 - o teste SQL local continua pendente enquanto o Docker Desktop não estiver disponível;
 - autorização de dados continua dependendo das políticas RLS do backend compartilhado; proteção de rota no aplicativo não substitui RLS;
 - nenhuma funcionalidade da Web foi removida ou redirecionada para o Client.
+- uma exportação ou build local comprova o vínculo do módulo nativo, mas não comprova entrega Push sem credenciais FCM/APNs e um token real;
+- o agendamento periódico da Edge Function depende da configuração remota e não é criado com segredos dentro da migration.
 
 ## Evidências da fatia 1
 
@@ -357,21 +392,36 @@ Executadas em 2026-07-23:
 - `app:assembleDebug` aprovado em 4 minutos e 56 segundos, com 491 tarefas e APK de desenvolvimento gerado;
 - os arquivos Web modificados nesta fatia não apresentam erros no typecheck focado.
 
-O typecheck completo da Web continua falhando por erros preexistentes em áreas fora da Fatia 6. A migration remota ainda não foi confirmada, o teste SQL transacional não foi executado porque o Docker Desktop permanece indisponível e os cenários autenticados de lista, detalhe, cancelamento e reagendamento aguardam o backend atualizado.
+O typecheck completo da Web continua falhando por erros preexistentes em áreas fora da Fatia 6. Depois dessas evidências locais, a migration foi aplicada e o usuário validou com sucesso o cancelamento real no Client, incluindo a correção da assinatura Realtime duplicada entre detalhe e modal. O teste SQL transacional permanece pendente porque o Postgres local não está ativo.
 
 Para encerrar a validação real desta fatia:
 
-1. aplicar a migration `20260723040000_client_appointment_management.sql` e recarregar o schema;
-2. executar `npm run test:e2e:client` com a credencial de cliente;
-3. criar um horário futuro no Android;
-4. reagendar no Client e conferir o novo horário no Client desktop e no Business;
-5. confirmar que o horário anterior foi liberado;
-6. cancelar e conferir o histórico, o motivo e a remoção da agenda profissional.
+1. reagendar no Client e conferir o novo horário no Client desktop e no Business;
+2. confirmar que o horário anterior foi liberado.
+
+## Evidências da fatia 7
+
+Executadas em 2026-07-23:
+
+- `npm run typecheck:shared`: aprovado;
+- `npm run typecheck:client`: aprovado;
+- lint do Client aprovado sem erros;
+- 7 testes unitários focados em opt-in, ciclo do dispositivo, fila, recibos e deep links aprovados;
+- suíte agregada de notificações e agendamentos: 14 testes aprovados;
+- exportação Web do Client aprovada;
+- bundle Android do Client aprovado com `expo-notifications`;
+- `app:assembleDebug`: aprovado com 491 tarefas e `expo-notifications` autolinkado;
+- manifesto Android final contém `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` e os serviços nativos do Expo;
+- `npm run test:e2e:client`: proteção sem sessão aprovada; cinco cenários autenticados ignorados por ausência das credenciais no processo de teste;
+- `expo-doctor`: 19 de 20 verificações aprovadas; permanece o aviso conhecido de configuração nativa por `android/` estar versionado;
+- `npx supabase db lint --local` não executou a análise porque o Postgres local não estava ativo.
+
+Ainda não são evidências de entrega remota: a migration, a Edge Function, o agendamento, o EAS Project ID e as credenciais FCM/APNs precisam ser configurados antes do teste em dispositivo.
 
 ## Próximas fatias
 
-1. concluir a validação remota controlada da Fatia 6;
-2. adicionar notificações;
-3. preparar distribuição e observabilidade dos aplicativos.
+1. concluir a implantação e a validação remota da Fatia 7;
+2. preparar distribuição e observabilidade dos aplicativos;
+3. iniciar avaliações após atendimento somente depois da estabilização da entrega mobile.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.
