@@ -230,6 +230,8 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          document_number: string | null
+          document_type: string | null
           establishment_id: string | null
           id: string
           name: string
@@ -248,6 +250,8 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          document_number?: string | null
+          document_type?: string | null
           establishment_id?: string | null
           id?: string
           name: string
@@ -266,6 +270,8 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          document_number?: string | null
+          document_type?: string | null
           establishment_id?: string | null
           id?: string
           name?: string
@@ -378,6 +384,7 @@ export type Database = {
           instagram: string | null
           instant_booking_enabled: boolean
           kyc_document_url: string | null
+          kyc_document_path: string | null
           kyc_status: string | null
           latitude: number | null
           logo_url: string | null
@@ -416,6 +423,7 @@ export type Database = {
           instagram?: string | null
           instant_booking_enabled?: boolean
           kyc_document_url?: string | null
+          kyc_document_path?: string | null
           kyc_status?: string | null
           latitude?: number | null
           logo_url?: string | null
@@ -454,6 +462,7 @@ export type Database = {
           instagram?: string | null
           instant_booking_enabled?: boolean
           kyc_document_url?: string | null
+          kyc_document_path?: string | null
           kyc_status?: string | null
           latitude?: number | null
           logo_url?: string | null
@@ -835,6 +844,81 @@ export type Database = {
           },
         ]
       }
+      governance_privacy_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          executed_at: string | null
+          id: string
+          request_reason: string
+          requested_by: string
+          status: string
+          target_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          executed_at?: string | null
+          id?: string
+          request_reason: string
+          requested_by: string
+          status?: string
+          target_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          executed_at?: string | null
+          id?: string
+          request_reason?: string
+          requested_by?: string
+          status?: string
+          target_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      governance_verification_reviews: {
+        Row: {
+          created_at: string
+          decision: string
+          document_path: string | null
+          establishment_id: string
+          id: string
+          previous_status: string
+          reason: string
+          reviewer_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          document_path?: string | null
+          establishment_id: string
+          id?: string
+          previous_status: string
+          reason: string
+          reviewer_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          document_path?: string | null
+          establishment_id?: string
+          id?: string
+          previous_status?: string
+          reason?: string
+          reviewer_id?: string | null
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -1119,6 +1203,97 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_push_deliveries: {
+        Row: {
+          appointment_id: string
+          attempts: number
+          available_at: string
+          body: string
+          created_at: string
+          event_key: string
+          event_type: string
+          expo_ticket_id: string | null
+          id: string
+          last_error_code: string | null
+          locked_at: string | null
+          payload: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at: string | null
+          sent_at: string | null
+          status: string
+          ticketed_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          attempts?: number
+          available_at?: string
+          body: string
+          created_at?: string
+          event_key: string
+          event_type: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          payload?: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticketed_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          attempts?: number
+          available_at?: string
+          body?: string
+          created_at?: string
+          event_key?: string
+          event_type?: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          payload?: Json
+          profile_id?: string
+          push_device_id?: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticketed_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_push_deliveries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_push_deliveries_push_device_id_fkey"
+            columns: ["push_device_id"]
+            isOneToOne: false
+            referencedRelation: "push_devices"
             referencedColumns: ["id"]
           },
         ]
@@ -1613,6 +1788,41 @@ export type Database = {
       cancel_appointment: {
         Args: { reason: string; target_appointment_id: string }
         Returns: undefined
+      }
+      claim_client_push_deliveries: {
+        Args: { target_limit?: number }
+        Returns: {
+          delivery_id: string
+          expo_push_token: string
+          notification_body: string
+          notification_payload: Json
+          notification_title: string
+        }[]
+      }
+      claim_client_push_receipts: {
+        Args: { target_limit?: number }
+        Returns: {
+          delivery_id: string
+          expo_ticket_id: string
+        }[]
+      }
+      complete_client_push_delivery: {
+        Args: {
+          target_delivery_id: string
+          target_error_code?: string
+          target_retryable?: boolean
+          target_success: boolean
+          target_ticket_id?: string
+        }
+        Returns: boolean
+      }
+      complete_client_push_receipt: {
+        Args: {
+          target_delivery_id: string
+          target_error_code?: string
+          target_success: boolean
+        }
+        Returns: boolean
       }
       complete_appointment: {
         Args: { target_appointment_id: string }
@@ -2151,6 +2361,10 @@ export type Database = {
       }
       pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
       push_changes: { Args: { changes: Json }; Returns: undefined }
+      queue_due_client_appointment_reminders: {
+        Args: { target_now?: string }
+        Returns: number
+      }
       register_push_device: {
         Args: {
           target_app_kind: string
@@ -2322,6 +2536,27 @@ export type Database = {
           phone: string | null
         }[]
       }
+      approve_governance_establishment_request: {
+        Args: { reason: string; target_request_id: string }
+        Returns: { establishment_id: string; expires_at: string; invitation_id: string; invited_email: string; raw_token: string }[]
+      }
+      execute_governance_privacy_request: { Args: { reason: string; request_id: string }; Returns: Json }
+      finalize_establishment_onboarding: { Args: { opening_hours: string; target_establishment_id: string }; Returns: undefined }
+      grant_governance_role: { Args: { reason: string; target_profile_id: string; target_role: Database["public"]["Enums"]["governance_role_enum"] }; Returns: Database["public"]["Tables"]["governance_users"]["Row"] }
+      list_governance_establishment_requests: { Args: { page_offset?: number; page_size?: number; search_term?: string; status_filter?: string }; Returns: Json[] }
+      list_governance_invitations: { Args: { status_filter?: string }; Returns: Json[] }
+      list_governance_memberships: { Args: { status_filter?: string }; Returns: Json[] }
+      list_governance_privacy_requests: { Args: { status_filter?: string }; Returns: Json[] }
+      list_governance_users: { Args: never; Returns: Json[] }
+      list_governance_verification_reviews: { Args: { status_filter?: string; target_establishment_id?: string }; Returns: Json[] }
+      reject_governance_establishment_request: { Args: { reason: string; target_request_id: string }; Returns: undefined }
+      reject_governance_privacy_request: { Args: { reason: string; request_id: string }; Returns: Json }
+      revoke_governance_invitation: { Args: { reason: string; target_invitation_id: string }; Returns: undefined }
+      revoke_governance_membership: { Args: { reason: string; target_membership_id: string }; Returns: undefined }
+      revoke_governance_role: { Args: { reason: string; target_profile_id: string }; Returns: undefined }
+      review_governance_verification: { Args: { reason: string; target_decision: string; target_review_id: string }; Returns: Json }
+      submit_governance_privacy_request: { Args: { reason: string; target_profile_id: string }; Returns: Database["public"]["Tables"]["governance_privacy_requests"]["Row"] }
+      submit_governance_verification: { Args: { document_path: string; reason: string; target_establishment_id: string }; Returns: Json }
       upsert_my_professional_profile: {
         Args: {
           requested_bio?: string

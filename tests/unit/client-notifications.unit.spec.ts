@@ -55,3 +55,22 @@ test('sincroniza token rotacionado e retorno do aplicativo sem solicitar nova pe
   expect(service).toContain('registerRotatedClientPushToken');
   expect(service).toContain('if (!storedToken');
 });
+
+test('enfileira eventos de agendamento com deduplicação, tentativas e recibos', () => {
+  const migration = readSource('supabase/migrations/20260724010000_client_push_notifications.sql');
+  const dispatcher = readSource('supabase/functions/dispatch-client-notifications/index.ts');
+  const sqlTest = readSource('supabase/tests/client_push_notifications.sql');
+
+  expect(migration).toContain('CREATE TABLE public.client_push_deliveries');
+  expect(migration).toContain('UNIQUE (event_key, push_device_id)');
+  expect(migration).toContain('enqueue_client_appointment_push_trigger');
+  expect(migration).toContain('queue_due_client_appointment_reminders');
+  expect(migration).toContain('FOR UPDATE SKIP LOCKED');
+  expect(migration).toContain('complete_client_push_receipt');
+  expect(migration).toContain("target_error_code = 'DeviceNotRegistered'");
+  expect(dispatcher).toContain('NOTIFICATION_DISPATCH_SECRET');
+  expect(dispatcher).toContain('AbortSignal.timeout');
+  expect(dispatcher).not.toContain('console.log');
+  expect(sqlTest).toContain('reminder queue is not idempotent');
+  expect(sqlTest).toContain('permission denied');
+});
