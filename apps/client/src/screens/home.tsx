@@ -82,21 +82,21 @@ export function ClientHomeScreen() {
             testID="client-open-profile"
             title="Perfil"
             subtitle="Nome, telefone e foto."
-            onPress={() => router.push('./profile')}
+            onPress={() => router.push('/(app)/profile')}
           />
           <View style={styles.divider} />
           <SettingsMenuRow
             testID="client-open-preferences"
             title="Preferências"
             subtitle="Canais de comunicação e privacidade."
-            onPress={() => router.push('./preferences')}
+            onPress={() => router.push('/(app)/preferences')}
           />
           <View style={styles.divider} />
           <SettingsMenuRow
             testID="client-open-security"
             title="Segurança"
             subtitle="Senha e sessão deste dispositivo."
-            onPress={() => router.push('./security')}
+            onPress={() => router.push('/(app)/security')}
           />
         </SettingsCard>
 

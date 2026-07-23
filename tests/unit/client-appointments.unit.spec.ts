@@ -97,3 +97,15 @@ test('expõe cancelamento fechado e ações orientadas pelas permissões do back
   expect(webAppointments).toContain('item.minCancellationHours');
   expect(webAppointments).toContain('clientCancellationReasons.map');
 });
+
+test('preserva a sessão em recargas Web e desambigua as rotas fora das abas', () => {
+  const supabaseClient = readSource('apps/client/src/lib/supabase.ts');
+  const home = readSource('apps/client/src/screens/home.tsx');
+
+  expect(supabaseClient).toContain('globalThis.localStorage');
+  expect(supabaseClient).toContain("Platform.OS === 'web' ? webSessionStorage : secureSessionStorage");
+  expect(home).toContain("router.push('/(app)/profile')");
+  expect(home).toContain("router.push('/(app)/preferences')");
+  expect(home).toContain("router.push('/(app)/security')");
+  expect(home).not.toContain("router.push('./profile')");
+});
