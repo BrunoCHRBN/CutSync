@@ -81,7 +81,7 @@ test('mantém a sessão mobile em SecureStore e nunca inclui chave privilegiada'
 test('protege o espaço autenticado e mantém o login fora da área privada', () => {
   const rootLayout = readSource('apps/client/src/app/_layout.tsx');
   const authRoute = readSource('apps/client/src/app/(auth)/sign-in.tsx');
-  const appRoute = readSource('apps/client/src/app/(app)/index.tsx');
+  const appRoute = readSource('apps/client/src/app/(app)/(tabs)/index.tsx');
 
   expect(rootLayout).toContain('<Stack.Protected guard={!session}>');
   expect(rootLayout).toContain('<Stack.Protected guard={Boolean(session)}>');
@@ -112,6 +112,10 @@ test('expõe o ciclo completo de cadastro, confirmação e recuperação em rota
   expect(deepLink).toContain('verifyOtp');
   expect(deepLink).not.toMatch(/console\.(log|info|warn|error)/);
   expect(authField).toContain('getForbiddenInputMessage(nextValue)');
+  expect(authField).toContain('multiline={false}');
+  expect(authField).toContain('submitBehavior="blurAndSubmit"');
+  expect(authField).toContain('maxHeight: 52');
+  expect(authField).toContain("textAlignVertical=\"center\"");
 });
 
 test('traduz falhas de autenticação sem expor a mensagem remota', () => {

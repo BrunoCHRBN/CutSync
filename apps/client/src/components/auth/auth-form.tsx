@@ -77,8 +77,11 @@ export function AuthField({ label, testID, onUnsafeInput, onChangeText, trailing
         {...props}
         testID={testID}
         accessibilityLabel={label}
+        multiline={false}
         onChangeText={handleChangeText}
         placeholderTextColor="#968E7E"
+        submitBehavior="blurAndSubmit"
+        textAlignVertical="center"
         style={[styles.input, style]}
       />
     </View>
@@ -176,7 +179,23 @@ const styles = StyleSheet.create({
   fieldHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { color: sharedBrand.colors.forestDark, fontSize: 13, fontWeight: '700' },
   fieldAction: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '700' },
-  input: { minHeight: 52, borderWidth: 1, borderColor: '#D8D1BE', borderRadius: 15, paddingHorizontal: 15, color: sharedBrand.colors.forestDark, backgroundColor: '#FCFBF7', fontSize: 16 },
+  input: {
+    height: 52,
+    minHeight: 52,
+    maxHeight: 52,
+    flexGrow: 0,
+    flexShrink: 0,
+    alignSelf: 'stretch',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#D8D1BE',
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 0,
+    color: sharedBrand.colors.forestDark,
+    backgroundColor: '#FCFBF7',
+    fontSize: 16,
+  },
   button: { minHeight: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: sharedBrand.colors.forest },
   buttonDisabled: { opacity: 0.45 },
   buttonPressed: { transform: [{ scale: 0.99 }] },
