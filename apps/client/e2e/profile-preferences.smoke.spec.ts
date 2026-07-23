@@ -43,7 +43,7 @@ test('cliente consulta perfil e preferências sem alterar dados', async ({ page 
   await page.goBack();
   await page.getByTestId('client-open-preferences').click();
   await expect(page.getByTestId('client-preferences-screen')).toBeVisible();
-  await expect(page.getByRole('switch', { name: 'Notificações no celular' })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: 'Notificações no celular' })).toBeEnabled();
 
   await page.goBack();
   await page.getByTestId('client-open-security').click();

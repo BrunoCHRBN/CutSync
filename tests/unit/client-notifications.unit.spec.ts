@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
+import { getClientAppointmentNotificationRoute } from '../../packages/domain/src/client-notifications';
+
 const root = process.cwd();
 const readSource = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
@@ -73,4 +75,35 @@ test('enfileira eventos de agendamento com deduplicação, tentativas e recibos'
   expect(dispatcher).not.toContain('console.log');
   expect(sqlTest).toContain('reminder queue is not idempotent');
   expect(sqlTest).toContain('permission denied');
+});
+
+test('aceita somente deep links de eventos conhecidos e IDs válidos', () => {
+  const appointmentId = '9cabb0db-fe1a-4467-847c-9afa5be33239';
+
+  expect(getClientAppointmentNotificationRoute({
+    appointmentId,
+    eventType: 'appointment_confirmed',
+    url: '/profile',
+  })).toEqual({
+    pathname: '/appointments/[id]',
+    params: { id: appointmentId },
+  });
+  expect(getClientAppointmentNotificationRoute({
+    appointmentId: '../profile',
+    eventType: 'appointment_confirmed',
+  })).toBeNull();
+  expect(getClientAppointmentNotificationRoute({
+    appointmentId,
+    eventType: 'arbitrary_route',
+  })).toBeNull();
+});
+
+test('processa toque em foreground, background e abertura a frio uma única vez', () => {
+  const provider = readSource('apps/client/src/contexts/client-notifications-context.tsx');
+
+  expect(provider).toContain('addNotificationResponseReceivedListener');
+  expect(provider).toContain('getLastNotificationResponseAsync');
+  expect(provider).toContain('clearLastNotificationResponse');
+  expect(provider).toContain('handledResponseId.current === notificationId');
+  expect(provider).toContain('router.push(route)');
 });
