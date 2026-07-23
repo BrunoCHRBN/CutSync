@@ -1,0 +1,62 @@
+# Dependencies and repository metadata
+node_modules/
+.git/
+
+# Expo and generated web output
+.expo/
+**/.expo/
+dist/
+**/dist/
+dist-phase*-check/
+**/dist-phase*-check/
+web-build/
+expo-env.d.ts
+
+# The Client is generated from app.json on EAS. Keep the local native project
+# for Android Studio, but do not upload Windows-generated native artifacts.
+/apps/client/android
+/apps/client/ios
+
+# Native build artifacts from other workspace apps
+.kotlin/
+**/android/.gradle/
+**/android/**/build/
+**/android/**/.cxx/
+**/android/local.properties
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Local environments and credentials
+.env
+.env.*
+*.env
+!.env.example
+!**/.env.example
+credentials.json
+.credentials
+**/*firebase-adminsdk*.json
+
+# Test and tooling output
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+playwright-report/
+test-results/
+test_reports/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+
+# OS and editor files
+.DS_Store
+*.pem
+.idea/
+.vscode/
+
+# Firebase's Android client configuration is intentionally included.
+!apps/client/google-services.json

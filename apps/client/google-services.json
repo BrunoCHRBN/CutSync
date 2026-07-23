@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "354696653139",
+    "project_id": "cutsync-72a59",
+    "storage_bucket": "cutsync-72a59.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354696653139:android:23b6927553e5b38d0299a6",
+        "android_client_info": {
+          "package_name": "com.cutsync.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgdl7xMYRpx7XDjSR1wSpNut8Lm6QIeKc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

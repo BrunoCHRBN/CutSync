@@ -1,6 +1,6 @@
 # MVP do Client — Fase 3
 
-Status: Fatia 7 implementada localmente; implantação e validação Push pendentes
+Status: Fatia 7 concluída no Android com FCM v1; iOS/APNs adiado
 
 Data da última verificação: 2026-07-23
 
@@ -262,7 +262,7 @@ Depois da aplicação, recarregue o cache do PostgREST. Somente então execute a
 
 ## Fatia 7 — notificações do Client
 
-Status: implementada e validada localmente; infraestrutura remota e credenciais Push pendentes
+Status: concluída no Android com entrega remota via FCM v1 validada; iOS/APNs adiado
 
 Entregas:
 
@@ -280,11 +280,11 @@ Entregas:
 - suporte a toque com o aplicativo aberto, em segundo plano ou iniciado pela notificação;
 - payloads com evento desconhecido, ID inválido ou rota arbitrária são ignorados.
 
-### Configuração necessária
+### Configuração e operação
 
 1. Aplicar `supabase/migrations/20260724010000_client_push_notifications.sql`.
-2. Configurar `EXPO_PUBLIC_EAS_PROJECT_ID` na build do Client.
-3. Configurar as credenciais FCM v1 e APNs no projeto Expo/EAS.
+2. Vincular a build do Client ao EAS Project ID.
+3. Configurar as credenciais FCM v1 no projeto Expo/EAS.
 4. Criar os secrets da Edge Function:
    - `NOTIFICATION_DISPATCH_SECRET`;
    - `EXPO_ACCESS_TOKEN`, quando a segurança reforçada do Expo Push Service estiver habilitada.
@@ -293,12 +293,14 @@ Entregas:
 
 O `SUPABASE_URL` e o `SUPABASE_SERVICE_ROLE_KEY` são fornecidos ao ambiente da Edge Function e nunca pertencem ao bundle mobile. A função agendada enfileira lembretes, envia até 100 notificações por lote e consulta recibos depois da janela recomendada.
 
+O EAS Project ID e o FCM v1 foram configurados para `com.cutsync.client`. APNs permanece explicitamente fora do encerramento desta fatia porque ainda não há conta Apple Developer nem dispositivo iOS para uma validação real.
+
 ## Limites da fatia atual
 
 - o teste SQL local continua pendente enquanto o Docker Desktop não estiver disponível;
 - autorização de dados continua dependendo das políticas RLS do backend compartilhado; proteção de rota no aplicativo não substitui RLS;
 - nenhuma funcionalidade da Web foi removida ou redirecionada para o Client.
-- uma exportação ou build local comprova o vínculo do módulo nativo, mas não comprova entrega Push sem credenciais FCM/APNs e um token real;
+- a entrega Push foi validada no Android com FCM v1 e um token real, mas não há evidência equivalente para APNs;
 - o agendamento periódico da Edge Function depende da configuração remota e não é criado com segredos dentro da migration.
 
 ## Evidências da fatia 1
@@ -413,15 +415,20 @@ Executadas em 2026-07-23:
 - `app:assembleDebug`: aprovado com 491 tarefas e `expo-notifications` autolinkado;
 - manifesto Android final contém `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` e os serviços nativos do Expo;
 - `npm run test:e2e:client`: proteção sem sessão aprovada; cinco cenários autenticados ignorados por ausência das credenciais no processo de teste;
-- `expo-doctor`: 19 de 20 verificações aprovadas; permanece o aviso conhecido de configuração nativa por `android/` estar versionado;
+- `expo-doctor`: 20 de 20 verificações aprovadas após separar o projeto Android local do pacote enviado ao EAS;
 - `npx supabase db lint --local` não executou a análise porque o Postgres local não estava ativo.
+- EAS Build Android de desenvolvimento `e8831d14-a037-44af-b910-a9b47cfba72e`: concluída com sucesso;
+- arquivo enviado ao EAS reduzido de aproximadamente 1002 MB para 11,3 MB, sem artefatos nativos gerados no Windows nem credenciais administrativas;
+- Prebuild validado com `google-services.json` e plugin `com.google.gms.google-services`;
+- instalação da development build no emulador Android e recebimento de notificações FCM v1 validados pelo usuário;
+- APNs não configurado nem validado por ausência de conta Apple Developer e dispositivo iOS.
 
-Ainda não são evidências de entrega remota: a migration, a Edge Function, o agendamento, o EAS Project ID e as credenciais FCM/APNs precisam ser configurados antes do teste em dispositivo.
+A entrega remota no Android está comprovada. Essa evidência não cobre APNs nem, isoladamente, a execução periódica de lembretes pela Edge Function; esses pontos permanecem explícitos para a futura operação e observabilidade.
 
 ## Próximas fatias
 
-1. concluir a implantação e a validação remota da Fatia 7;
-2. preparar distribuição e observabilidade dos aplicativos;
+1. preparar distribuição Android e observabilidade dos aplicativos;
+2. monitorar a fila, os tickets e os recibos Push na operação remota;
 3. iniciar avaliações após atendimento somente depois da estabilização da entrega mobile.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.

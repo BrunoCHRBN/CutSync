@@ -18,6 +18,10 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+**/android/.gradle/
+**/android/**/build/
+**/android/**/.cxx/
+**/android/local.properties
 
 # Metro
 .metro-health-check*
@@ -56,3 +60,4 @@ example
 !**/.env.example
 credentials.json
 .credentials
+**/*firebase-adminsdk*.json

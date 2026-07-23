@@ -14,7 +14,8 @@
       }
     },
     "android": {
-      "package": "com.cutsync.client"
+      "package": "com.cutsync.client",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-router",
@@ -46,7 +47,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "ebed753a-2b13-4fa1-bb73-fc28270c2cec"
+      }
+    },
+    "owner": "chernobruno"
   }
 }
