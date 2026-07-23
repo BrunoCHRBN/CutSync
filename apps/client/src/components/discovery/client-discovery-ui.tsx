@@ -1,7 +1,15 @@
 import { sharedBrand } from '@cutsync/brand';
 import { Image } from 'expo-image';
+import { useEffect } from 'react';
 import type { PropsWithChildren } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type {
   ClientDiscoveryEstablishment,
@@ -292,6 +300,80 @@ export function ProfessionalCard({ professional }: { professional: ClientDiscove
 export const COMPACT_CARD_WIDTH = 262;
 export const FEATURED_CARD_WIDTH = 296;
 
+// ---------- Skeleton loaders ----------
+function ShimmerBlock({ style }: { style: any }) {
+  const opacity = useSharedValue(0.55);
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [opacity]);
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View style={[styles.shimmer, style, animatedStyle]} />;
+}
+
+export function FeaturedSkeletonCard() {
+  return (
+    <View style={styles.skeletonFeatured}>
+      <ShimmerBlock style={styles.skeletonFeaturedImage} />
+      <View style={styles.skeletonFeaturedCopy}>
+        <ShimmerBlock style={{ width: 90, height: 12, borderRadius: 999 }} />
+        <ShimmerBlock style={{ width: '82%', height: 22, borderRadius: 8 }} />
+        <ShimmerBlock style={{ width: '60%', height: 14, borderRadius: 8 }} />
+      </View>
+    </View>
+  );
+}
+
+export function CompactSkeletonCard() {
+  return (
+    <View style={styles.skeletonCompact}>
+      <ShimmerBlock style={styles.skeletonCompactImage} />
+      <View style={styles.skeletonCompactBody}>
+        <ShimmerBlock style={{ width: '78%', height: 15, borderRadius: 8 }} />
+        <ShimmerBlock style={{ width: '52%', height: 12, borderRadius: 8 }} />
+        <ShimmerBlock style={{ width: '38%', height: 12, borderRadius: 8 }} />
+      </View>
+    </View>
+  );
+}
+
+export function CategoriesSkeletonRow() {
+  return (
+    <View style={styles.skeletonCategoriesRow}>
+      {[72, 96, 88, 76, 104].map((width, index) => (
+        <ShimmerBlock key={index} style={{ width, height: 40, borderRadius: 999 }} />
+      ))}
+    </View>
+  );
+}
+
+export function DiscoveryCarouselSkeleton() {
+  return (
+    <View style={styles.skeletonSection}>
+      <View style={styles.skeletonHeader}>
+        <ShimmerBlock style={{ width: 92, height: 10, borderRadius: 999 }} />
+        <ShimmerBlock style={{ width: 220, height: 22, borderRadius: 8 }} />
+      </View>
+      <View style={styles.skeletonRow}>
+        <FeaturedSkeletonCard />
+        <FeaturedSkeletonCard />
+      </View>
+      <View style={[styles.skeletonHeader, { paddingTop: 8 }]}>
+        <ShimmerBlock style={{ width: 92, height: 10, borderRadius: 999 }} />
+        <ShimmerBlock style={{ width: 200, height: 22, borderRadius: 8 }} />
+      </View>
+      <View style={styles.skeletonRow}>
+        <CompactSkeletonCard />
+        <CompactSkeletonCard />
+        <CompactSkeletonCard />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   stateCard: {
     alignItems: 'center',
@@ -407,4 +489,30 @@ const styles = StyleSheet.create({
   professionalSpecialties: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
 
   pressed: { opacity: 0.65 },
+
+  // Skeleton loaders
+  shimmer: { backgroundColor: '#EDE6D3', overflow: 'hidden' },
+  skeletonSection: { gap: 14 },
+  skeletonHeader: { gap: 8, paddingHorizontal: 20 },
+  skeletonRow: { flexDirection: 'row', gap: 14, paddingHorizontal: 20 },
+  skeletonFeatured: {
+    width: FEATURED_CARD_WIDTH,
+    height: 380,
+    overflow: 'hidden',
+    borderRadius: 28,
+    borderCurve: 'continuous',
+    backgroundColor: discoveryColors.card,
+  },
+  skeletonFeaturedImage: { flex: 1, borderRadius: 0 },
+  skeletonFeaturedCopy: { position: 'absolute', left: 20, right: 20, bottom: 20, gap: 10 },
+  skeletonCompact: {
+    width: COMPACT_CARD_WIDTH,
+    overflow: 'hidden',
+    borderRadius: 22,
+    borderCurve: 'continuous',
+    backgroundColor: discoveryColors.card,
+  },
+  skeletonCompactImage: { width: '100%', height: 148, borderRadius: 0 },
+  skeletonCompactBody: { padding: 14, gap: 8 },
+  skeletonCategoriesRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20 },
 });

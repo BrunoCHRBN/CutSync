@@ -11,13 +11,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  CategoriesSkeletonRow,
   CategoryChip,
   COMPACT_CARD_WIDTH,
   CompactEstablishmentCard,
-  DiscoveryLoading,
+  DiscoveryCarouselSkeleton,
   DiscoveryMessage,
   EstablishmentCard,
   FEATURED_CARD_WIDTH,
@@ -243,22 +245,27 @@ export function ClientDiscoveryScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesRow}
           >
-            {CATEGORIES.map((category) => (
-              <CategoryChip
+            {CATEGORIES.map((category, index) => (
+              <Animated.View
                 key={category.id}
-                testID={'client-discovery-category-' + category.id}
-                label={category.label}
-                active={selectedCategory === category.id}
-                onPress={() => setSelectedCategory(category.id)}
-              />
+                entering={FadeInRight.delay(index * 40).duration(320)}
+              >
+                <CategoryChip
+                  testID={'client-discovery-category-' + category.id}
+                  label={category.label}
+                  active={selectedCategory === category.id}
+                  onPress={() => setSelectedCategory(category.id)}
+                />
+              </Animated.View>
             ))}
           </ScrollView>
         )}
 
         {isLoading ? (
-          <View style={styles.paddedContent}>
-            <DiscoveryLoading />
-          </View>
+          <>
+            <CategoriesSkeletonRow />
+            <DiscoveryCarouselSkeleton />
+          </>
         ) : error ? (
           <View style={styles.paddedContent}>
             <DiscoveryMessage
@@ -332,12 +339,16 @@ export function ClientDiscoveryScreen() {
                   contentContainerStyle={styles.carouselContent}
                   testID="client-discovery-carousel-featured"
                 >
-                  {featured.map((item) => (
-                    <FeaturedEstablishmentCard
+                  {featured.map((item, index) => (
+                    <Animated.View
                       key={item.id}
-                      establishment={item}
-                      onPress={() => openEstablishment(item.slug)}
-                    />
+                      entering={FadeInRight.delay(index * 90).duration(420)}
+                    >
+                      <FeaturedEstablishmentCard
+                        establishment={item}
+                        onPress={() => openEstablishment(item.slug)}
+                      />
+                    </Animated.View>
                   ))}
                 </ScrollView>
               </View>
@@ -361,12 +372,16 @@ export function ClientDiscoveryScreen() {
                   contentContainerStyle={styles.carouselContent}
                   testID="client-discovery-carousel-nearby"
                 >
-                  {nearby.map((item) => (
-                    <CompactEstablishmentCard
+                  {nearby.map((item, index) => (
+                    <Animated.View
                       key={item.id}
-                      establishment={item}
-                      onPress={() => openEstablishment(item.slug)}
-                    />
+                      entering={FadeInRight.delay(index * 70).duration(380)}
+                    >
+                      <CompactEstablishmentCard
+                        establishment={item}
+                        onPress={() => openEstablishment(item.slug)}
+                      />
+                    </Animated.View>
                   ))}
                 </ScrollView>
               </View>
@@ -390,12 +405,16 @@ export function ClientDiscoveryScreen() {
                   contentContainerStyle={styles.carouselContent}
                   testID="client-discovery-carousel-popular"
                 >
-                  {popular.map((item) => (
-                    <CompactEstablishmentCard
+                  {popular.map((item, index) => (
+                    <Animated.View
                       key={item.id}
-                      establishment={item}
-                      onPress={() => openEstablishment(item.slug)}
-                    />
+                      entering={FadeInRight.delay(index * 70).duration(380)}
+                    >
+                      <CompactEstablishmentCard
+                        establishment={item}
+                        onPress={() => openEstablishment(item.slug)}
+                      />
+                    </Animated.View>
                   ))}
                 </ScrollView>
               </View>
