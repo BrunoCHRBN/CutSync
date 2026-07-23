@@ -1,6 +1,6 @@
 # MVP do Client — Fase 3
 
-Status: em andamento
+Status: Fatia 6 implementada; validação remota controlada pendente
 
 Data da última verificação: 2026-07-22
 
@@ -217,6 +217,49 @@ supabase/migrations/20260723023000_client_booking.sql
 
 A migration expõe apenas o catálogo necessário para o wizard e adiciona `create_client_appointment`, um wrapper autenticado sobre o contrato central de criação. O wrapper impede reservas em estabelecimentos inativos e devolve o status efetivamente gravado.
 
+## Fatia 6 — gestão completa de agendamentos
+
+Status: implementada e validada localmente; migration remota e fluxo real controlado pendentes
+
+Entregas:
+
+- navegação protegida em três abas nativas: Descobrir, Agenda e Conta;
+- lista de próximos atendimentos e histórico, com ordenação, atualização manual, retorno ao aplicativo e Realtime;
+- detalhe seguro por RPC, sem permitir leitura de agendamentos de outro cliente;
+- data e horário formatados no fuso do estabelecimento;
+- cancelamento por motivos fechados, sem campo de texto, com confirmação destrutiva em duas etapas;
+- reagendamento pelo wizard existente, com serviço e profissional atuais pré-selecionados;
+- disponibilidade consultada ignorando apenas o próprio horário original e repetida antes da confirmação;
+- prazo de alteração configurável por estabelecimento, com padrão de 24 horas e permissão exatamente no limite;
+- estados terminais imutáveis, limite de dois reagendamentos e bloqueio de estabelecimento inativo;
+- resultado pendente ou confirmado conforme `instant_booking_enabled`;
+- contato por telefone ou WhatsApp quando a janela de alteração pelo aplicativo estiver encerrada;
+- compatibilidade da Web ajustada para usar a política configurada e a RPC transacional de reagendamento;
+- nenhuma inserção livre ou atualização direta de agendamento nos fluxos novos do Client.
+
+### Rotas e navegação
+
+```text
+apps/client/src/app/(app)/
+  (tabs)/
+    index.tsx
+    explore.tsx
+    appointments.tsx
+  appointments/
+    [id].tsx
+    [id]/cancel.tsx
+```
+
+### Migration necessária
+
+Aplicar depois da migration de criação de agendamentos:
+
+```text
+supabase/migrations/20260723040000_client_appointment_management.sql
+```
+
+Depois da aplicação, recarregue o cache do PostgREST. Somente então execute a suíte autenticada e a validação real de reagendamento e cancelamento.
+
 ## Limites da fatia atual
 
 - o teste SQL local continua pendente enquanto o Docker Desktop não estiver disponível;
@@ -300,10 +343,35 @@ Executadas em 2026-07-23:
 
 A migration foi aplicada ao ambiente remoto, o smoke autenticado foi aprovado e o fluxo real foi validado de ponta a ponta em Android e desktop. A execução SQL local continua pendente porque o Docker Desktop não está ativo.
 
+## Evidências da fatia 6
+
+Executadas em 2026-07-23:
+
+- `npm run typecheck:shared`: aprovado;
+- `npm run typecheck:client`: aprovado;
+- lint do Client aprovado sem erros;
+- lint da Web aprovado sem erros, mantendo 14 avisos anteriores;
+- 11 testes unitários focados em agenda, fuso, políticas, cancelamento e reagendamento aprovados;
+- exportação Web do Client aprovada com as abas nativas e a rota modal;
+- smoke sem sessão aprovado para todas as rotas novas, incluindo detalhe e cancelamento;
+- `app:assembleDebug` aprovado em 4 minutos e 56 segundos, com 491 tarefas e APK de desenvolvimento gerado;
+- os arquivos Web modificados nesta fatia não apresentam erros no typecheck focado.
+
+O typecheck completo da Web continua falhando por erros preexistentes em áreas fora da Fatia 6. A migration remota ainda não foi confirmada, o teste SQL transacional não foi executado porque o Docker Desktop permanece indisponível e os cenários autenticados de lista, detalhe, cancelamento e reagendamento aguardam o backend atualizado.
+
+Para encerrar a validação real desta fatia:
+
+1. aplicar a migration `20260723040000_client_appointment_management.sql` e recarregar o schema;
+2. executar `npm run test:e2e:client` com a credencial de cliente;
+3. criar um horário futuro no Android;
+4. reagendar no Client e conferir o novo horário no Client desktop e no Business;
+5. confirmar que o horário anterior foi liberado;
+6. cancelar e conferir o histórico, o motivo e a remoção da agenda profissional.
+
 ## Próximas fatias
 
-1. iniciar lista e detalhes dos agendamentos no Client;
-2. implementar cancelamento e reagendamento;
-3. adicionar notificações e preparar a distribuição.
+1. concluir a validação remota controlada da Fatia 6;
+2. adicionar notificações;
+3. preparar distribuição e observabilidade dos aplicativos.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.
