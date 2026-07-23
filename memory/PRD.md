@@ -963,3 +963,73 @@ Complementos:
 3. Validar o modelo comercial sugerido.
 4. Produzir wireframes das telas e estados principais.
 5. Implementar somente após aprovação do planejamento.
+
+
+---
+
+# Atualização — Repatriamento do app/client (Jan 2026)
+
+## Problema original
+> Quero o repatriamento das telas do app/client do cutsync. Faça as modificações
+> de cores que achar necessário, porém mantenha o verde utilizado. Tenho como
+> referência os apps Shop e Cosmos, como mostram os videos anexados. Para a tela
+> de descoberta de estabelecimentos, sugiro a modificação de lista de colunas
+> por carrossel horizontal para melhor usabilidade do usuário Android.
+
+## Decisões de design
+- `@cutsync/brand` estendido com `forestBright`, `forestSoft`, `canvas #FBF8F2`,
+  hierarquia de tinta (`ink`, `inkSoft`, `inkMuted`), borda `#EAE4D3` e âmbar
+  `#C88B2A` para ratings. Verde `#2C4334` preservado como cor primária.
+- Cartões em raio contínuo de 22–28px, sombras suaves (10–18px blur).
+- Tipografia editorial: eyebrows 10px/900/tracking 1.4, títulos display 34–40px
+  com tracking negativo.
+- CTAs primários em pill (999) com altura mínima de 54px.
+
+## Implementado
+- **Discovery**: substituída a lista vertical por um layout de carrosséis
+  horizontais estilo Shop/Cosmos: hero + busca em pill, chips de categorias
+  com filtro client-side, `Destaques` (cards imersivos com gradiente), `Para
+  conhecer` e `Queridinhos` (cards compactos), e fallback de resultados em
+  lista para buscas. Snap-scroll com `snapToInterval` para conforto no Android.
+- **Home / conta**: novo hero card em verde escuro com avatar, headline
+  editorial e CTA de descoberta.
+- **Detalhe do estabelecimento**: hero mais generoso, métricas em `forestSoft`,
+  card de agendamento em verde com CTA branco.
+- **Booking (3 etapas + confirmação)**: stepper polido, cards de escolha com
+  sombra, chips de horário em `forestSoft`, botão primário pill.
+- **Agendamentos**: badges de status, bloco de data no card e hero em verde no
+  detalhe do compromisso.
+- **Perfil / Preferências / Segurança**: unificados via `settingsColors`, inputs
+  em `#FCFAF3` com raio 16, avisos com paleta refinada.
+- **Auth**: brand mark com “C” e formulário em card com sombra suave.
+- **Header + Tabs nativas**: fundo `#FBF8F2`, indicador em `forestSoft`.
+
+## Arquivos principais alterados
+- `packages/brand/src/index.ts`
+- `apps/client/src/components/discovery/client-discovery-ui.tsx`
+- `apps/client/src/components/settings/client-settings-ui.tsx`
+- `apps/client/src/components/appointments/client-appointment-ui.tsx`
+- `apps/client/src/components/auth/auth-form.tsx`
+- `apps/client/src/screens/client-discovery.tsx`
+- `apps/client/src/screens/home.tsx`
+- `apps/client/src/screens/client-establishment-detail.tsx`
+- `apps/client/src/screens/client-booking.tsx`
+- `apps/client/src/screens/client-appointments.tsx`
+- `apps/client/src/screens/client-appointment-detail.tsx`
+- `apps/client/src/app/(app)/_layout.tsx`
+- `apps/client/src/app/(app)/(tabs)/_layout.tsx`
+
+## Validação
+- `npm run typecheck:shared` ✅
+- `npm run typecheck:client` ✅
+- `npm run typecheck:business` ✅ (tokens novos são retrocompatíveis)
+- `npm run lint:client` ✅ (0 erros / 0 warnings)
+- `npx expo export --platform web` ✅
+
+## Backlog / Próximos passos
+- **P1** Animações de entrada em cada carrossel (Reanimated `FadeInRight` com
+  stagger) — assim que o usuário validar a nova diagramação.
+- **P1** Categorias reais no banco (hoje é filtro por palavra-chave no cliente).
+- **P2** Skeletons dos carrosséis durante o carregamento.
+- **P2** `Perto de você` com geolocalização + RPC.
+- **P2** Aplicar o mesmo repatriamento no `apps/business`.

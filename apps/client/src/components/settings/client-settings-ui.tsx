@@ -15,6 +15,17 @@ import {
   View,
 } from 'react-native';
 
+export const settingsColors = {
+  background: sharedBrand.colors.canvas,
+  card: sharedBrand.colors.surface,
+  text: sharedBrand.colors.ink,
+  secondary: sharedBrand.colors.inkSoft,
+  muted: sharedBrand.colors.inkMuted,
+  border: sharedBrand.colors.border,
+  accent: sharedBrand.colors.forest,
+  accentSoft: sharedBrand.colors.forestSoft,
+};
+
 export function ClientSettingsPage({ testID, description, children }: PropsWithChildren<{
   testID: string;
   description: string;
@@ -109,7 +120,7 @@ export function SettingsField({
         testID={testID}
         accessibilityLabel={label}
         onChangeText={handleChange}
-        placeholderTextColor="#938B7C"
+        placeholderTextColor={settingsColors.muted}
         style={[styles.input, props.editable === false && styles.inputReadOnly]}
       />
       {helper && <Text style={styles.helper}>{helper}</Text>}
@@ -142,7 +153,7 @@ export function SettingsButton({ label, onPress, loading, disabled, tone = 'prim
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={tone === 'primary' ? '#FFFFFF' : sharedBrand.colors.forest} />
+        <ActivityIndicator color={tone === 'primary' ? '#FFFFFF' : settingsColors.accent} />
       ) : (
         <Text style={[
           styles.buttonText,
@@ -198,7 +209,7 @@ export function SettingsSwitchRow({ title, subtitle, value, onValueChange, disab
         disabled={disabled}
         onValueChange={onValueChange}
         thumbColor="#FFFFFF"
-        trackColor={{ false: '#CEC8BA', true: sharedBrand.colors.forest }}
+        trackColor={{ false: '#D3CDBB', true: settingsColors.accent }}
         value={value}
       />
     </View>
@@ -216,14 +227,14 @@ export function ClientAvatar({ name, avatarUrl, size = 76 }: {
   avatarUrl: string | null;
   size?: number;
 }) {
-  const radius = size / 2;
+  const radius = Math.round(size * 0.36);
   if (avatarUrl) {
     return (
       <Image
         accessibilityLabel={'Foto de perfil de ' + name}
         contentFit="cover"
         source={{ uri: avatarUrl }}
-        style={{ width: size, height: size, borderRadius: radius, backgroundColor: '#DFD8C6' }}
+        style={{ width: size, height: size, borderRadius: radius, backgroundColor: '#E7E1CE' }}
         transition={180}
       />
     );
@@ -234,7 +245,7 @@ export function ClientAvatar({ name, avatarUrl, size = 76 }: {
       accessibilityLabel={'Iniciais de ' + name}
       style={[styles.avatarFallback, { width: size, height: size, borderRadius: radius }]}
     >
-      <Text style={[styles.avatarInitials, { fontSize: size * 0.32 }]}>{getInitials(name)}</Text>
+      <Text style={[styles.avatarInitials, { fontSize: Math.round(size * 0.34) }]}>{getInitials(name)}</Text>
     </View>
   );
 }
@@ -242,85 +253,80 @@ export function ClientAvatar({ name, avatarUrl, size = 76 }: {
 export function ClientBrand() {
   return (
     <View style={styles.brandRow}>
-      <View style={styles.brandMark} />
+      <View style={styles.brandMark}>
+        <Text style={styles.brandMarkText}>C</Text>
+      </View>
       <Text style={styles.brandName}>{products.client.name}</Text>
     </View>
   );
 }
 
-export const settingsColors = {
-  background: sharedBrand.colors.sandSoft,
-  text: sharedBrand.colors.forestDark,
-  secondaryText: '#64695F',
-  border: '#D8D1BE',
-};
-
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: sharedBrand.colors.sandSoft },
+  page: { flex: 1, backgroundColor: settingsColors.background },
   pageContent: {
     width: '100%',
     maxWidth: 620,
     alignSelf: 'center',
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 22,
     paddingBottom: 48,
     gap: 16,
   },
-  pageDescription: { color: '#60675F', fontSize: 15, lineHeight: 23, paddingHorizontal: 2 },
+  pageDescription: { color: settingsColors.secondary, fontSize: 15, lineHeight: 23, paddingHorizontal: 2 },
   card: {
-    backgroundColor: sharedBrand.colors.surface,
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: settingsColors.card,
+    borderRadius: 26,
+    padding: 20,
     gap: 16,
     borderCurve: 'continuous',
-    boxShadow: '0 8px 24px rgba(44, 67, 52, 0.07)',
+    boxShadow: '0 10px 26px rgba(20, 27, 23, 0.06)',
   },
   sectionLabel: {
-    color: '#7A735F',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    paddingTop: 4,
+    color: settingsColors.muted,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    paddingTop: 6,
     paddingHorizontal: 2,
   },
-  notice: { borderWidth: 1, borderRadius: 15, padding: 13, borderCurve: 'continuous' },
+  notice: { borderWidth: 1, borderRadius: 16, padding: 14, borderCurve: 'continuous' },
   noticeDanger: { backgroundColor: '#FCE9E7', borderColor: '#F2C8C2' },
-  noticeSuccess: { backgroundColor: '#E8F3E9', borderColor: '#C7DFC9' },
-  noticeNeutral: { backgroundColor: '#F6EED3', borderColor: '#E7D89F' },
+  noticeSuccess: { backgroundColor: '#E9F3EA', borderColor: '#C7DFC9' },
+  noticeNeutral: { backgroundColor: '#F7EFD5', borderColor: '#E7D89F' },
   noticeText: { fontSize: 12, lineHeight: 18, fontWeight: '600' },
   noticeDangerText: { color: '#8E2F26' },
   noticeSuccessText: { color: '#2D633A' },
   noticeNeutralText: { color: '#6A5620' },
   field: { gap: 8 },
-  fieldLabel: { color: sharedBrand.colors.forestDark, fontSize: 13, fontWeight: '700' },
+  fieldLabel: { color: settingsColors.text, fontSize: 13, fontWeight: '700' },
   input: {
-    minHeight: 52,
+    minHeight: 54,
     borderWidth: 1,
-    borderColor: '#D8D1BE',
-    borderRadius: 15,
+    borderColor: settingsColors.border,
+    borderRadius: 16,
     borderCurve: 'continuous',
-    paddingHorizontal: 15,
-    color: sharedBrand.colors.forestDark,
-    backgroundColor: '#FCFBF7',
+    paddingHorizontal: 16,
+    color: settingsColors.text,
+    backgroundColor: '#FCFAF3',
     fontSize: 16,
   },
-  inputReadOnly: { color: '#74786F', backgroundColor: '#F1F0EA' },
-  helper: { color: '#817A6C', fontSize: 11, lineHeight: 16 },
+  inputReadOnly: { color: settingsColors.muted, backgroundColor: '#F3EFE4' },
+  helper: { color: settingsColors.muted, fontSize: 11, lineHeight: 16 },
   button: {
     minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 999,
     borderCurve: 'continuous',
-    backgroundColor: sharedBrand.colors.forest,
-    paddingHorizontal: 18,
+    backgroundColor: settingsColors.accent,
+    paddingHorizontal: 20,
   },
-  buttonSecondary: { backgroundColor: '#F7F5EE', borderWidth: 1, borderColor: '#D8D1BE' },
+  buttonSecondary: { backgroundColor: settingsColors.card, borderWidth: 1, borderColor: settingsColors.border },
   buttonDanger: { backgroundColor: '#FFF7F5', borderWidth: 1, borderColor: '#E6C3BD' },
   buttonDisabled: { opacity: 0.45 },
   buttonPressed: { transform: [{ scale: 0.99 }] },
-  buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  buttonSecondaryText: { color: sharedBrand.colors.forest },
+  buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.3 },
+  buttonSecondaryText: { color: settingsColors.accent },
   buttonDangerText: { color: '#8E2F26' },
   menuRow: {
     minHeight: 68,
@@ -331,15 +337,16 @@ const styles = StyleSheet.create({
   },
   menuRowPressed: { opacity: 0.55 },
   menuCopy: { flex: 1, gap: 4 },
-  menuTitle: { color: sharedBrand.colors.forestDark, fontSize: 15, fontWeight: '700' },
-  menuSubtitle: { color: '#6F746C', fontSize: 12, lineHeight: 18 },
-  chevron: { color: '#898171', fontSize: 28, fontWeight: '300' },
+  menuTitle: { color: settingsColors.text, fontSize: 15, fontWeight: '700' },
+  menuSubtitle: { color: settingsColors.secondary, fontSize: 12, lineHeight: 18 },
+  chevron: { color: settingsColors.muted, fontSize: 28, fontWeight: '300' },
   switchRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 14 },
   switchRowDisabled: { opacity: 0.52 },
   switchCopy: { flex: 1, gap: 4 },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: sharedBrand.colors.forest },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: settingsColors.accent },
   avatarInitials: { color: '#FFFFFF', fontWeight: '800', letterSpacing: 0.4 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 18, height: 18, borderRadius: 6, backgroundColor: sharedBrand.colors.forest },
-  brandName: { color: sharedBrand.colors.forestDark, fontSize: 17, fontWeight: '700' },
+  brandMark: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: settingsColors.accent },
+  brandMarkText: { color: '#FFFFFF', fontSize: 17, fontWeight: '900', letterSpacing: -0.5 },
+  brandName: { color: settingsColors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
 });

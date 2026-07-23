@@ -10,10 +10,10 @@ export default function ClientAppLayout() {
         <Stack
           screenOptions={{
             headerShadowVisible: false,
-            headerStyle: { backgroundColor: '#F0ECE0' },
-            headerTintColor: '#18201B',
-            headerTitleStyle: { fontWeight: '700' },
-            contentStyle: { backgroundColor: '#F0ECE0' },
+            headerStyle: { backgroundColor: '#FBF8F2' },
+            headerTintColor: '#141B17',
+            headerTitleStyle: { fontWeight: '800' },
+            contentStyle: { backgroundColor: '#FBF8F2' },
           }}
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

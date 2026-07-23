@@ -4,12 +4,12 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 export default function ClientTabsLayout() {
   return (
     <NativeTabs
-      backgroundColor="#FBFAF6"
-      iconColor={{ default: '#737970', selected: sharedBrand.colors.forest }}
-      indicatorColor="#DDE7DD"
+      backgroundColor="#FBF8F2"
+      iconColor={{ default: '#8A9089', selected: sharedBrand.colors.forest }}
+      indicatorColor={sharedBrand.colors.forestSoft}
       labelStyle={{
-        default: { color: '#737970', fontSize: 11 },
-        selected: { color: sharedBrand.colors.forest, fontSize: 11, fontWeight: '700' },
+        default: { color: '#8A9089', fontSize: 11 },
+        selected: { color: sharedBrand.colors.forest, fontSize: 11, fontWeight: '800' },
       }}
       minimizeBehavior="onScrollDown"
     >
