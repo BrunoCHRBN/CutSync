@@ -185,7 +185,7 @@ Depois da aplicação, recarregue o cache de schema do PostgREST e execute `npm 
 
 ## Fatia 5 — agendamento com disponibilidade real
 
-Status: implementada, migration aplicada e smoke autenticado aprovado; confirmação Android pendente
+Status: concluída e validada em Android e desktop com os papéis Client e Business
 
 Entregas:
 
@@ -219,7 +219,6 @@ A migration expõe apenas o catálogo necessário para o wizard e adiciona `crea
 
 ## Limites da fatia atual
 
-- a criação real de um agendamento ainda precisa ser exercitada no Android com uma conta controlada;
 - o teste SQL local continua pendente enquanto o Docker Desktop não estiver disponível;
 - autorização de dados continua dependendo das políticas RLS do backend compartilhado; proteção de rota no aplicativo não substitui RLS;
 - nenhuma funcionalidade da Web foi removida ou redirecionada para o Client.
@@ -296,13 +295,15 @@ Executadas em 2026-07-23:
 - 4 testes unitários específicos de agendamento aprovados;
 - regras de data/fuso e compatibilidade serviço-profissional cobertas por testes;
 - `npm run test:e2e:client`: 4 cenários aprovados, incluindo disponibilidade e revisão do agendamento sem confirmar nem gravar uma reserva.
+- agendamento real criado e confirmado no build Android do Client;
+- o mesmo atendimento foi conferido no desktop pela conta do cliente e pela agenda do profissional, confirmando a consistência entre os dois papéis.
 
-A migration foi aplicada ao ambiente remoto e o smoke autenticado foi aprovado. A execução SQL local continua pendente porque o Docker Desktop não está ativo; a confirmação real de um agendamento no Android permanece como validação manual complementar.
+A migration foi aplicada ao ambiente remoto, o smoke autenticado foi aprovado e o fluxo real foi validado de ponta a ponta em Android e desktop. A execução SQL local continua pendente porque o Docker Desktop não está ativo.
 
 ## Próximas fatias
 
-1. validar disponibilidade, revisão e confirmação no development build Android;
-2. iniciar lista, detalhes, cancelamento e reagendamento;
-3. notificações e preparação para distribuição.
+1. iniciar lista e detalhes dos agendamentos no Client;
+2. implementar cancelamento e reagendamento;
+3. adicionar notificações e preparar a distribuição.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.
