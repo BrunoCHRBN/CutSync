@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, typography } from '../../theme/tokens';
 
 type StatusTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral';
@@ -12,15 +12,24 @@ interface StatusBadgeProps {
 }
 
 const toneMap = {
-  success: { backgroundColor: '#16A34A0D', color: colors.success },
-  info: { backgroundColor: '#2563EB0D', color: colors.info },
-  warning: { backgroundColor: '#D977060D', color: colors.warning },
-  danger: { backgroundColor: '#DC26260D', color: colors.danger },
-  neutral: { backgroundColor: colors.surfacePressed, color: colors.textSecondary },
+  success: { backgroundColor: 'rgba(22, 163, 74, 0.12)', color: colors.success, borderColor: 'rgba(22, 163, 74, 0.25)' },
+  info: { backgroundColor: 'rgba(37, 99, 235, 0.12)', color: colors.info, borderColor: 'rgba(37, 99, 235, 0.25)' },
+  warning: { backgroundColor: 'rgba(217, 119, 6, 0.12)', color: colors.warning, borderColor: 'rgba(217, 119, 6, 0.25)' },
+  danger: { backgroundColor: 'rgba(220, 38, 38, 0.12)', color: colors.danger, borderColor: 'rgba(220, 38, 38, 0.25)' },
+  neutral: { backgroundColor: colors.surfacePressed, color: colors.textSecondary, borderColor: colors.borderSubtle },
 };
 
 export const StatusBadge = ({ label, tone = 'neutral', testID = 'status-badge', showDot = false }: StatusBadgeProps) => (
-  <View testID={testID} style={[styles.badge, { backgroundColor: toneMap[tone].backgroundColor }]}>
+  <View
+    testID={testID}
+    style={[
+      styles.badge,
+      {
+        backgroundColor: toneMap[tone].backgroundColor,
+        borderColor: toneMap[tone].borderColor,
+      },
+    ]}
+  >
     {showDot && <View style={[styles.dot, { backgroundColor: toneMap[tone].color }]} />}
     <Text testID={`${testID}-label`} style={[styles.label, { color: toneMap[tone].color }]}>{label}</Text>
   </View>
@@ -31,9 +40,18 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.pill,
+    borderWidth: 1,
+    gap: 5,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      } as any,
+      default: {},
+    }),
   },
   label: {
     fontFamily: typography.bodyStrong,

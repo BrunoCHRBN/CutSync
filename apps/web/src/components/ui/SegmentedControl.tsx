@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radii, typography } from '../../theme/tokens';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, glassBadge, glassSurface, radii, typography } from '../../theme/tokens';
 
 interface Segment<T extends string> {
   value: T;
@@ -38,18 +38,23 @@ export const SegmentedControl = <T extends string>({ value, options, onChange, t
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: colors.canvasSubtle,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     borderRadius: radii.md,
     padding: 4,
     gap: 4,
+    ...glassSurface,
   },
   option: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, paddingHorizontal: 10 },
   optionActive: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderStrong,
+    ...glassBadge,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.06)' } as any,
+      default: {},
+    }),
   },
   label: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12 },
   labelActive: { color: colors.text },

@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from
 import { CalendarDays, Compass, LogOut, Settings2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
-import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
+import { colors, glassHeader, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -130,8 +130,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth,
     borderBottomColor: colors.hairline,
-    zIndex: 5,
-    ...glassSurface,
+    zIndex: 100,
+    ...glassHeader,
   },
   desktopNav: { flexDirection: 'row', gap: 5, marginLeft: 22 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 14, borderRadius: radii.pill },

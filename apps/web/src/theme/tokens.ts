@@ -83,8 +83,30 @@ export const elevations = {
 export const atmosphericShadow = elevations.panel;
 
 export const glassSurface = Platform.select({
-  web: { backgroundColor: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any,
-  default: { backgroundColor: 'rgba(255,255,255,0.94)' },
+  web: { backgroundColor: 'rgba(255, 255, 255, 0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any,
+  default: { backgroundColor: 'rgba(255, 255, 255, 0.94)' },
+});
+
+export const glassHeader = Platform.select({
+  web: {
+    position: 'sticky' as any,
+    top: 0,
+    backgroundColor: 'rgba(245, 245, 242, 0.78)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    boxShadow: '0 4px 20px rgba(24, 32, 27, 0.04)',
+  } as any,
+  default: { backgroundColor: 'rgba(245, 245, 242, 0.95)' },
+});
+
+export const glassBadge = Platform.select({
+  web: {
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    borderColor: 'rgba(228, 229, 223, 0.6)',
+  } as any,
+  default: { backgroundColor: 'rgba(255, 255, 255, 0.9)' },
 });
 
 export const shadows = elevations.panel;

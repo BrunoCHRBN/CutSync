@@ -11,7 +11,7 @@ import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
-import { atmosphericShadow, colors, layout, radii, typography } from '../../theme/tokens';
+import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 import { getOpeningStatus } from '@cutsync/domain';
@@ -583,11 +583,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     borderRadius: radii.pill,
     paddingHorizontal: 18,
+    ...glassSurface,
     ...atmosphericShadow,
   },
   searchFieldFocused: {
@@ -600,7 +600,17 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, minHeight: 50, color: colors.text, fontFamily: typography.body, fontSize: 14, outlineStyle: 'none' } as any,
   searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 10 },
   resultCount: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginLeft: 4 },
-  filterChip: { alignItems: 'center', borderColor: colors.borderSubtle, borderRadius: radii.pill, borderWidth: 1, flexDirection: 'row', gap: 7, minHeight: 44, paddingHorizontal: 14 },
+  filterChip: {
+    alignItems: 'center',
+    borderColor: colors.borderSubtle,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    ...glassBadge,
+  },
   filterChipSelected: { backgroundColor: colors.brandSecondarySoft, borderColor: colors.brandSecondary },
   filterText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   filterTextSelected: { color: colors.brandPrimary },
