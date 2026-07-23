@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import { Database } from '@cutsync/database';
 
 /**
@@ -34,7 +35,9 @@ export const supabase = isSupabaseConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        // Magic links return the web user with the session tokens in the URL.
+        // Native deep links are consumed explicitly by the dedicated app flows.
+        detectSessionInUrl: Platform.OS === 'web',
       },
     })
   : (null as unknown as SupabaseClient<Database>);

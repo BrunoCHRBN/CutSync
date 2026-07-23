@@ -29,6 +29,7 @@ import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { supabase } from '../../services/supabase';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
@@ -198,21 +199,7 @@ export const BookingExperience = () => {
   };
 
   // Month Grid computation
-  const monthGrid = useMemo(() => {
-    const year = viewDate.getFullYear();
-    const month = viewDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const grid: (Date | null)[] = [];
-    for (let i = 0; i < firstDay; i++) {
-      grid.push(null);
-    }
-    for (let d = 1; d <= daysInMonth; d++) {
-      grid.push(new Date(year, month, d));
-    }
-    return grid;
-  }, [viewDate]);
+  const monthWeeks = useMemo(() => buildMonthWeeks(viewDate), [viewDate]);
 
   const isDateSelectable = (date: Date) => {
     const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
@@ -617,7 +604,7 @@ export const BookingExperience = () => {
                 </View>
 
                 <View style={styles.weekHeaderRow}>
-                  {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                  {CALENDAR_WEEKDAYS.map((day, idx) => (
                     <Text key={idx} style={styles.weekHeaderDay}>
                       {day}
                     </Text>
@@ -625,39 +612,43 @@ export const BookingExperience = () => {
                 </View>
 
                 <View style={styles.daysGrid}>
-                  {monthGrid.map((date, idx) => {
-                    if (!date) return <View key={`empty-${idx}`} style={styles.emptyDayCell} />;
+                  {monthWeeks.map((week, weekIndex) => (
+                    <View key={`week-${weekIndex}`} style={styles.weekRow}>
+                      {week.map((date, dayIndex) => {
+                        if (!date) return <View key={`empty-${dayIndex}`} style={styles.emptyDayCell} />;
 
-                    const selectable = isDateSelectable(date);
-                    const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+                        const selectable = isDateSelectable(date);
+                        const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
 
-                    return (
-                      <Pressable
-                        key={date.toISOString()}
-                        disabled={!selectable}
-                        style={[
-                          styles.dayCell,
-                          !selectable && styles.dayCellDisabled,
-                          isSelected && styles.dayCellSelected,
-                        ]}
-                        onPress={() => {
-                          tapLight();
-                          setSelectedDate(date);
-                          setSelectedTime(null);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dayCellText,
-                            !selectable && styles.dayCellTextDisabled,
-                            isSelected && styles.dayCellTextSelected,
-                          ]}
-                        >
-                          {date.getDate()}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                        return (
+                          <Pressable
+                            key={date.toISOString()}
+                            disabled={!selectable}
+                            style={[
+                              styles.dayCell,
+                              !selectable && styles.dayCellDisabled,
+                              isSelected && styles.dayCellSelected,
+                            ]}
+                            onPress={() => {
+                              tapLight();
+                              setSelectedDate(date);
+                              setSelectedTime(null);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.dayCellText,
+                                !selectable && styles.dayCellTextDisabled,
+                                isSelected && styles.dayCellTextSelected,
+                              ]}
+                            >
+                              {date.getDate()}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ))}
                 </View>
               </View>
 
@@ -1206,23 +1197,24 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   weekHeaderDay: {
-    width: '14.2857%' as any,
+    flex: 1,
     fontSize: 11,
     fontFamily: typography.bodyStrong,
     color: colors.textMuted,
     textAlign: 'center',
   },
   daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     rowGap: 4,
   },
+  weekRow: {
+    flexDirection: 'row',
+  },
   emptyDayCell: {
-    width: '14.2857%' as any,
+    flex: 1,
     height: 38,
   },
   dayCell: {
-    width: '14.2857%' as any,
+    flex: 1,
     height: 38,
     borderRadius: 19,
     alignItems: 'center',
