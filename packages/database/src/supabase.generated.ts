@@ -1676,6 +1676,18 @@ export type Database = {
         }
         Returns: string
       }
+      create_client_appointment: {
+        Args: {
+          target_date_time: string
+          target_establishment_id: string
+          target_professional_id: string
+          target_service_id: string
+        }
+        Returns: {
+          appointment_id: string
+          appointment_status: string
+        }[]
+      }
       create_establishment_and_promote_owner: {
         Args: {
           requested_address: string
@@ -1797,6 +1809,21 @@ export type Database = {
           slogan: string | null
           slug: string
           timezone: string
+        }[]
+      }
+      get_client_booking_options: {
+        Args: { target_slug: string }
+        Returns: {
+          establishment_address: string | null
+          establishment_currency: string
+          establishment_id: string
+          establishment_name: string
+          establishment_slug: string
+          establishment_timezone: string
+          instant_booking_enabled: boolean
+          professional_services: Json
+          professionals: Json
+          services: Json
         }[]
       }
       get_establishment_client_contacts: {

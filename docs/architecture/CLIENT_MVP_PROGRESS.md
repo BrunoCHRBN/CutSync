@@ -150,7 +150,7 @@ O teste autenticado consulta as três telas, confirma o bloqueio de emoji e não
 
 ## Fatia 4 — descoberta de estabelecimentos e profissionais
 
-Status: implementada, migration aplicada e smoke autenticado aprovado; inspeção Android pendente
+Status: implementada, migration aplicada e validada em smoke autenticado e Android
 
 Entregas:
 
@@ -183,9 +183,44 @@ supabase/migrations/20260722223000_client_discovery.sql
 
 Depois da aplicação, recarregue o cache de schema do PostgREST e execute `npm run test:e2e:client`. O terceiro cenário valida catálogo, bloqueio de emoji/SVG e detalhes sem criar ou alterar registros.
 
+## Fatia 5 — agendamento com disponibilidade real
+
+Status: implementada, migration aplicada e smoke autenticado aprovado; confirmação Android pendente
+
+Entregas:
+
+- wizard próprio do Client com serviço, profissional, data, horário e revisão;
+- seleção de profissionais compatíveis com o serviço, respeitando bloqueios e preço/duração personalizados;
+- datas geradas no fuso do estabelecimento dentro da janela aceita pelo backend;
+- horários consultados pela RPC central `get_available_slots`, considerando jornada, agenda ocupada e bloqueios;
+- atualização automática da disponibilidade a cada 15 segundos;
+- segunda consulta imediatamente antes da confirmação;
+- criação exclusivamente pela RPC transacional, sem inserção direta em `appointments`;
+- resposta final diferenciando confirmação imediata de solicitação pendente;
+- estados de carregamento, data fechada, agenda lotada, erro, conflito e sucesso;
+- testes unitários, teste SQL transacional e smoke autenticado sem confirmação de reserva.
+
+### Rota adicionada
+
+```text
+apps/client/src/app/(app)/booking/
+  [slug].tsx
+```
+
+### Migration necessária
+
+Aplicar depois das migrations anteriores:
+
+```text
+supabase/migrations/20260723023000_client_booking.sql
+```
+
+A migration expõe apenas o catálogo necessário para o wizard e adiciona `create_client_appointment`, um wrapper autenticado sobre o contrato central de criação. O wrapper impede reservas em estabelecimentos inativos e devolve o status efetivamente gravado.
+
 ## Limites da fatia atual
 
-- o catálogo renderizado ainda precisa ser inspecionado no Android depois da atualização do schema;
+- a criação real de um agendamento ainda precisa ser exercitada no Android com uma conta controlada;
+- o teste SQL local continua pendente enquanto o Docker Desktop não estiver disponível;
 - autorização de dados continua dependendo das políticas RLS do backend compartilhado; proteção de rota no aplicativo não substitui RLS;
 - nenhuma funcionalidade da Web foi removida ou redirecionada para o Client.
 
@@ -250,13 +285,24 @@ Executadas em 2026-07-22:
 - exportação Web do Client aprovada, incluindo as rotas estática e dinâmica da descoberta.
 - `npm run test:e2e:client`: 3 cenários aprovados em 54,5 segundos, incluindo descoberta, serviços e profissionais sem gravação de dados.
 
-A migration foi aplicada ao ambiente remoto e exercitada pelo smoke autenticado. A execução do teste SQL local continua pendente porque o Docker Desktop não está ativo; a inspeção visual no Android permanece como validação manual complementar.
+A migration foi aplicada ao ambiente remoto e exercitada pelo smoke autenticado. O usuário também validou no emulador Android a conta, a descoberta, a lista, os detalhes, os serviços e a equipe sem erros recentes no processo nativo. A execução do teste SQL local continua pendente porque o Docker Desktop não está ativo.
+
+## Evidências da fatia 5
+
+Executadas em 2026-07-23:
+
+- `npm run typecheck:new-apps`: pacotes compartilhados, Client e Business aprovados;
+- lint do Client aprovado sem erros ou avisos;
+- 4 testes unitários específicos de agendamento aprovados;
+- regras de data/fuso e compatibilidade serviço-profissional cobertas por testes;
+- `npm run test:e2e:client`: 4 cenários aprovados, incluindo disponibilidade e revisão do agendamento sem confirmar nem gravar uma reserva.
+
+A migration foi aplicada ao ambiente remoto e o smoke autenticado foi aprovado. A execução SQL local continua pendente porque o Docker Desktop não está ativo; a confirmação real de um agendamento no Android permanece como validação manual complementar.
 
 ## Próximas fatias
 
-1. validar visualmente descoberta e detalhes no development build Android;
-2. agendamento com disponibilidade real;
-3. lista, detalhes, cancelamento e reagendamento;
-4. notificações e preparação para distribuição.
+1. validar disponibilidade, revisão e confirmação no development build Android;
+2. iniciar lista, detalhes, cancelamento e reagendamento;
+3. notificações e preparação para distribuição.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.

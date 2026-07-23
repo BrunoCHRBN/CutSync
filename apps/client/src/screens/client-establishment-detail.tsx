@@ -1,9 +1,9 @@
 import { sharedBrand } from '@cutsync/brand';
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   DiscoveryLoading,
@@ -18,6 +18,7 @@ import {
 } from '@/features/discovery/client-discovery-service';
 
 export function ClientEstablishmentDetailScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ slug?: string | string[] }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
   const [establishment, setEstablishment] = useState<ClientDiscoveryDetail | null>(null);
@@ -188,11 +189,24 @@ export function ClientEstablishmentDetailScreen() {
         )}
       </View>
 
-      <View style={styles.nextStepCard}>
-        <Text style={styles.nextStepTitle}>Pronto para escolher um horário?</Text>
-        <Text style={styles.nextStepDescription}>
-          A escolha de serviço, profissional e horário será conectada na próxima fatia do Client.
-        </Text>
+      <View style={styles.bookingCard}>
+        <View style={styles.bookingCopy}>
+          <Text style={styles.bookingTitle}>Pronto para escolher um horário?</Text>
+          <Text style={styles.bookingDescription}>Consulte a disponibilidade real da equipe antes de confirmar.</Text>
+        </View>
+        <Pressable
+          testID="client-establishment-start-booking"
+          accessibilityRole="button"
+          disabled={establishment.services.length === 0 || establishment.professionals.length === 0}
+          onPress={() => router.push({ pathname: '/booking/[slug]', params: { slug: establishment.slug } })}
+          style={({ pressed }) => [
+            styles.bookingButton,
+            (establishment.services.length === 0 || establishment.professionals.length === 0) && styles.bookingButtonDisabled,
+            pressed && styles.bookingButtonPressed,
+          ]}
+        >
+          <Text style={styles.bookingButtonText}>Escolher serviço e horário</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -231,7 +245,12 @@ const styles = StyleSheet.create({
   serviceDuration: { color: discoveryColors.secondary, fontSize: 11 },
   servicePrice: { color: sharedBrand.colors.forest, fontSize: 14, fontWeight: '800' },
   divider: { height: 1, backgroundColor: discoveryColors.border },
-  nextStepCard: { gap: 7, borderWidth: 1, borderColor: '#CBD7C8', borderRadius: 22, borderCurve: 'continuous', backgroundColor: '#E9EFE5', padding: 18 },
-  nextStepTitle: { color: sharedBrand.colors.forest, fontSize: 15, fontWeight: '800' },
-  nextStepDescription: { color: '#586558', fontSize: 12, lineHeight: 19 },
+  bookingCard: { gap: 14, borderWidth: 1, borderColor: '#CBD7C8', borderRadius: 22, borderCurve: 'continuous', backgroundColor: '#E9EFE5', padding: 18 },
+  bookingCopy: { gap: 6 },
+  bookingTitle: { color: sharedBrand.colors.forest, fontSize: 15, fontWeight: '800' },
+  bookingDescription: { color: '#586558', fontSize: 12, lineHeight: 19 },
+  bookingButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 15, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forest, paddingHorizontal: 16 },
+  bookingButtonDisabled: { opacity: 0.45 },
+  bookingButtonPressed: { opacity: 0.7 },
+  bookingButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
 });

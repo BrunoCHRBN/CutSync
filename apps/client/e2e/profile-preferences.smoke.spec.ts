@@ -6,7 +6,7 @@ const credentials = {
 };
 
 test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page }) => {
-  for (const privatePath of ['/profile', '/explore', '/establishments/estudio-teste']) {
+  for (const privatePath of ['/profile', '/explore', '/establishments/estudio-teste', '/booking/estudio-teste']) {
     await page.goto(privatePath);
     await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
     await expect(page.getByTestId('client-auth-config-message')).toHaveCount(0);
@@ -79,4 +79,48 @@ test('cliente descobre estabelecimentos, serviços e profissionais sem gravar da
   await expect(page.getByTestId('client-establishment-name')).toBeVisible();
   await expect(page.getByTestId('client-establishment-services')).toBeVisible();
   await expect(page.getByTestId('client-establishment-professionals')).toBeVisible();
+});
+
+test('cliente consulta disponibilidade real e revisa o agendamento sem confirmar', async ({ page }) => {
+  test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
+
+  await page.goto('/sign-in');
+  await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
+  await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
+  await page.getByTestId('client-sign-in-submit').click();
+  await expect(page.getByTestId('client-app-shell')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByTestId('client-open-discovery').click();
+  await expect(page.getByTestId('client-discovery-results')).toBeVisible({ timeout: 20_000 });
+  await page.locator('[data-testid^="client-discovery-card-"]').first().click();
+  await expect(page.getByTestId('client-establishment-detail-screen')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('client-establishment-start-booking').click();
+
+  await expect(page.getByTestId('client-booking-screen')).toBeVisible({ timeout: 20_000 });
+  await page.locator('[data-testid^="client-booking-service-"]').first().click();
+  await expect(page.getByTestId('client-booking-professionals')).toBeVisible();
+  await page.locator('[data-testid^="client-booking-professional-"]').first().click();
+
+  const dateButtons = page.locator('[data-testid^="client-booking-date-"]');
+  await expect(dateButtons.first()).toBeVisible();
+  const dateCount = await dateButtons.count();
+  let foundSlot = false;
+  for (let index = 0; index < dateCount; index += 1) {
+    await dateButtons.nth(index).click();
+    await expect(
+      page.locator('[data-testid^="client-booking-slot-"]').first()
+        .or(page.getByTestId('client-booking-availability-empty'))
+        .or(page.getByTestId('client-booking-availability-error')),
+    ).toBeVisible({ timeout: 20_000 });
+    if (await page.locator('[data-testid^="client-booking-slot-"]').count()) {
+      foundSlot = true;
+      break;
+    }
+  }
+
+  expect(foundSlot).toBe(true);
+  await page.locator('[data-testid^="client-booking-slot-"]').first().click();
+  await expect(page.getByTestId('client-booking-review')).toBeVisible();
+  await expect(page.getByTestId('client-booking-confirm')).toBeEnabled();
+  await expect(page.getByTestId('client-booking-success')).toHaveCount(0);
 });
