@@ -56,8 +56,16 @@ export const MagneticButton = ({ label, onPress, testID, secondary = false, inve
     <Animated.View style={animatedStyle}>
     <Pressable
       {...handlers as any}
-      onHoverIn={() => { hover.value = withSpring(1, { damping: 18, stiffness: 220 }); }}
-      onHoverOut={() => { hover.value = withSpring(0, { damping: 18, stiffness: 220 }); }}
+      onHoverIn={() => {
+        // SharedValue é intencionalmente mutável; a regra do React não reconhece o proxy do Reanimated.
+        // eslint-disable-next-line react-hooks/immutability
+        hover.value = withSpring(1, { damping: 18, stiffness: 220 });
+      }}
+      onHoverOut={() => {
+        // SharedValue é intencionalmente mutável; a regra do React não reconhece o proxy do Reanimated.
+        // eslint-disable-next-line react-hooks/immutability
+        hover.value = withSpring(0, { damping: 18, stiffness: 220 });
+      }}
       onLayout={onLayout}
       onPress={onPress}
       testID={testID}

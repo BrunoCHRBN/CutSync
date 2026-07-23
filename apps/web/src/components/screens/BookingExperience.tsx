@@ -33,7 +33,7 @@ import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
-import { formatCalendarDate, getTodayInTimeZone } from '@cutsync/domain';
+import { getTodayInTimeZone } from '@cutsync/domain';
 import { InlineNotice } from '../ui/InlineNotice';
 import { AppButton } from '../ui/AppButton';
 
@@ -241,34 +241,25 @@ export const BookingExperience = () => {
         throw new Error('Preencha todas as etapas antes de confirmar.');
       }
 
-      const dateStr = formatCalendarDate(selectedDate);
       const chosenSlot = availableSlots.find((s) => s.localTime === selectedTime);
       if (!chosenSlot) {
         throw new Error('O horário selecionado não está mais disponível.');
       }
 
-      const { error: insertError } = await supabase
-        .from('appointments')
-        .insert({
-          client_id: userId,
-          establishment_id: barbershop.id,
-          service_id: selectedService,
-          professional_id: selectedBarber,
-          appointment_date: dateStr,
-          start_time: selectedTime,
-          end_time: chosenSlot.endTime,
-          price: summaryPrice,
-          status: 'confirmed',
-        });
+      const { data: created, error: insertError } = await supabase.rpc('create_client_appointment', {
+        target_establishment_id: barbershop.id,
+        target_service_id: selectedService,
+        target_professional_id: selectedBarber,
+        target_date_time: chosenSlot.startsAt,
+      }).single();
 
       if (insertError) throw insertError;
 
       tapSuccess();
       void scheduleAppointmentNotification(
-        dateStr,
-        selectedTime,
-        activeServiceObj?.name || 'Serviço',
-        barbershop.name
+        created.appointment_id,
+        barbershop.name,
+        new Date(chosenSlot.startsAt),
       );
 
       displayAlert('Agendamento Confirmado!', 'Seu horário foi reservado com sucesso.');
