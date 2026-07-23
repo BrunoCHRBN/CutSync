@@ -51,23 +51,33 @@ export const BookingExperience = () => {
   // ── WIZARD STEP STATE (1: Serviço, 2: Profissional, 3: Data & Horário, 4: Confirmação) ──
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step transition animation
-  const stepAnim = useRef(new Animated.Value(0)).current;
+  // Step transition animation — only opacity, useNativeDriver:false for web compat
   const stepOpacity = useRef(new Animated.Value(1)).current;
+  const pendingStep = useRef<1 | 2 | 3 | 4 | null>(null);
+
+  // After wizardStep changes, fade in the new content
+  useEffect(() => {
+    if (pendingStep.current !== null) {
+      pendingStep.current = null;
+      stepOpacity.setValue(0);
+      Animated.timing(stepOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [wizardStep]);
 
   const animateStep = (newStep: 1 | 2 | 3 | 4) => {
-    // Fade out and slide out
-    Animated.parallel([
-      Animated.timing(stepOpacity, { toValue: 0, duration: 140, useNativeDriver: true }),
-      Animated.timing(stepAnim, { toValue: newStep > wizardStep ? -24 : 24, duration: 140, useNativeDriver: true }),
-    ]).start(() => {
+    if (newStep === wizardStep) return;
+    // Fade out current content, then switch step
+    Animated.timing(stepOpacity, {
+      toValue: 0,
+      duration: 130,
+      useNativeDriver: false,
+    }).start(() => {
+      pendingStep.current = newStep;
       setWizardStep(newStep);
-      stepAnim.setValue(newStep > wizardStep ? 24 : -24);
-      // Fade in and slide in
-      Animated.parallel([
-        Animated.timing(stepOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(stepAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
     });
   };
 
@@ -460,7 +470,7 @@ export const BookingExperience = () => {
 
           {/* ─── PASSO 1: ESCOLHA O SERVIÇO ───────────────────────────── */}
           {wizardStep === 1 && (
-            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
+            <Animated.View style={{ opacity: stepOpacity }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 1 DE 4</Text>
@@ -509,7 +519,7 @@ export const BookingExperience = () => {
 
           {/* ─── PASSO 2: ESCOLHA O PROFISSIONAL ────────────────────── */}
           {wizardStep === 2 && (
-            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
+            <Animated.View style={{ opacity: stepOpacity }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 2 DE 4</Text>
@@ -579,7 +589,7 @@ export const BookingExperience = () => {
 
           {/* ─── PASSO 3: ESCOLHA A DATA E HORÁRIO ──────────────────── */}
           {wizardStep === 3 && (
-            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
+            <Animated.View style={{ opacity: stepOpacity }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 3 DE 4</Text>
@@ -761,7 +771,7 @@ export const BookingExperience = () => {
 
           {/* ─── PASSO 4: REVISÃO E CONFIRMAÇÃO ─────────────────────── */}
           {wizardStep === 4 && (
-            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
+            <Animated.View style={{ opacity: stepOpacity }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 4 DE 4</Text>
