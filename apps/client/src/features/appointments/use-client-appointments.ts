@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 import {
@@ -55,6 +56,14 @@ export function useClientAppointments(clientId: string | null) {
       }, () => { void refresh(); })
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
+  }, [clientId, refresh]);
+
+  useEffect(() => {
+    if (!clientId) return undefined;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    return () => subscription.remove();
   }, [clientId, refresh]);
 
   return { appointments, isLoading, isRefreshing, error, refresh };

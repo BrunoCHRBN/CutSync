@@ -10,10 +10,11 @@ interface ClientAvailabilitySelection {
   professionalId: string | null;
   serviceId: string | null;
   localDate: string | null;
+  appointmentId?: string | null;
 }
 
 export function useClientAvailability(selection: ClientAvailabilitySelection) {
-  const { establishmentId, professionalId, serviceId, localDate } = selection;
+  const { establishmentId, professionalId, serviceId, localDate, appointmentId } = selection;
   const requestSequence = useRef(0);
   const [slots, setSlots] = useState<ClientAvailableSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +34,13 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await loadClientAvailableSlots({ establishmentId, professionalId, serviceId, localDate });
+      const result = await loadClientAvailableSlots({
+        establishmentId,
+        professionalId,
+        serviceId,
+        localDate,
+        appointmentId,
+      });
       if (sequence !== requestSequence.current) return null;
       setSlots(result.slots);
       setEmptyMessage(result.emptyMessage);
@@ -47,7 +54,7 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
     } finally {
       if (sequence === requestSequence.current) setIsLoading(false);
     }
-  }, [establishmentId, localDate, professionalId, serviceId]);
+  }, [appointmentId, establishmentId, localDate, professionalId, serviceId]);
 
   useEffect(() => {
     void refresh();

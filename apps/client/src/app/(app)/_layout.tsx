@@ -18,6 +18,15 @@ export default function ClientAppLayout() {
         <Stack.Screen name="establishments/[slug]" options={{ title: 'Detalhes' }} />
         <Stack.Screen name="booking/[slug]" options={{ title: 'Agendar' }} />
         <Stack.Screen name="appointments/[id]" options={{ title: 'Atendimento' }} />
+        <Stack.Screen
+          name="appointments/[id]/cancel"
+          options={{
+            title: 'Cancelar atendimento',
+            presentation: 'formSheet',
+            sheetGrabberVisible: true,
+            sheetAllowedDetents: [0.75, 1],
+          }}
+        />
         <Stack.Screen name="profile" options={{ title: 'Editar perfil' }} />
         <Stack.Screen name="preferences" options={{ title: 'Preferências' }} />
         <Stack.Screen name="security" options={{ title: 'Segurança' }} />

@@ -1,5 +1,10 @@
 import type { Database } from '@cutsync/database';
-import type { ClientAppointmentBlockReason, ClientAppointmentStatus } from '@cutsync/domain';
+import {
+  translateAppointmentError,
+  type ClientAppointmentBlockReason,
+  type ClientAppointmentStatus,
+  type ClientCancellationReason,
+} from '@cutsync/domain';
 
 import { supabase } from '@/lib/supabase';
 
@@ -121,5 +126,47 @@ export const loadClientAppointment = async (appointmentId: string) => {
     return data ? mapClientAppointment(data) : null;
   } catch (error) {
     throw new Error(appointmentLoadMessage(error));
+  }
+};
+
+export const cancelClientAppointment = async (
+  appointmentId: string,
+  reason: ClientCancellationReason,
+) => {
+  try {
+    const { data, error } = await requireClient().rpc('update_appointment_status', {
+      target_appointment_id: appointmentId,
+      new_status: 'cancelled',
+      new_cancellation_reason: reason,
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw new Error(translateAppointmentError(error, 'Não foi possível cancelar este atendimento.'));
+  }
+};
+
+export const rescheduleClientAppointment = async ({
+  appointmentId,
+  professionalId,
+  serviceId,
+  startsAt,
+}: {
+  appointmentId: string;
+  professionalId: string;
+  serviceId: string;
+  startsAt: string;
+}) => {
+  try {
+    const { data, error } = await requireClient().rpc('reschedule_appointment', {
+      target_appointment_id: appointmentId,
+      requested_professional_id: professionalId,
+      requested_service_id: serviceId,
+      requested_date_time: startsAt,
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw new Error(translateAppointmentError(error, 'Não foi possível reagendar este atendimento.'));
   }
 };

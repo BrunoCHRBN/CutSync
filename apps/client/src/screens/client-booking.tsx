@@ -27,6 +27,10 @@ import {
   resolveClientBookingOffer,
 } from '@/features/booking/client-booking-service';
 import { useClientAvailability } from '@/features/booking/use-client-availability';
+import {
+  loadClientAppointment,
+  rescheduleClientAppointment,
+} from '@/features/appointments/client-appointments-service';
 
 type BookingStep = 1 | 2 | 3 | 4;
 
@@ -44,9 +48,15 @@ const initialsOf = (name: string) => {
 };
 
 export function ClientBookingScreen() {
-  const params = useLocalSearchParams<{ slug?: string | string[]; serviceId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    slug?: string | string[];
+    serviceId?: string | string[];
+    appointmentId?: string | string[];
+  }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
   const initialServiceId = Array.isArray(params.serviceId) ? params.serviceId[0] : params.serviceId;
+  const appointmentId = Array.isArray(params.appointmentId) ? params.appointmentId[0] : params.appointmentId;
+  const isRescheduling = Boolean(appointmentId);
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const [options, setOptions] = useState<ClientBookingOptions | null>(null);
@@ -72,10 +82,37 @@ export function ClientBookingScreen() {
       setIsLoading(true);
       setLoadError(null);
       try {
-        const result = await loadClientBookingOptions(slug);
+        const [result, appointment] = await Promise.all([
+          loadClientBookingOptions(slug),
+          appointmentId ? loadClientAppointment(appointmentId) : Promise.resolve(null),
+        ]);
         if (!active) return;
+        if (appointmentId && (
+          !appointment
+          || appointment.establishment.slug !== slug
+          || !appointment.canReschedule
+        )) {
+          setLoadError('Este atendimento não está disponível para reagendamento pelo aplicativo.');
+          setOptions(null);
+          return;
+        }
         setOptions(result);
-        if (result && initialServiceId && result.services.some((service) => service.id === initialServiceId)) {
+        if (result && appointment) {
+          const hasCurrentOffer = Boolean(resolveClientBookingOffer(
+            result,
+            appointment.service.id,
+            appointment.professional.id,
+          ));
+          if (!hasCurrentOffer) {
+            setLoadError('O serviço ou profissional atual não está mais disponível para reagendamento.');
+            setOptions(null);
+            return;
+          }
+          setSelectedServiceId(appointment.service.id);
+          setSelectedProfessionalId(appointment.professional.id);
+          setSelectedLocalDate(getBookingDateOptions(result.timezone, 14)[0]?.localDate ?? null);
+          setStep(3);
+        } else if (result && initialServiceId && result.services.some((service) => service.id === initialServiceId)) {
           setSelectedServiceId(initialServiceId);
           setStep(2);
         }
@@ -87,7 +124,7 @@ export function ClientBookingScreen() {
     };
     void load();
     return () => { active = false; };
-  }, [initialServiceId, slug]);
+  }, [appointmentId, initialServiceId, slug]);
 
   const dateOptions = useMemo(
     () => options ? getBookingDateOptions(options.timezone, 14) : [],
@@ -112,6 +149,7 @@ export function ClientBookingScreen() {
     professionalId: selectedProfessionalId,
     serviceId: selectedServiceId,
     localDate: bookingResult ? null : selectedLocalDate,
+    appointmentId: appointmentId ?? null,
   });
 
   const moveTo = (nextStep: BookingStep) => {
@@ -159,12 +197,26 @@ export function ClientBookingScreen() {
         moveTo(3);
         throw new Error('Este horário acabou de ser reservado. Escolha outro horário.');
       }
-      const result = await createClientAppointment({
-        establishmentId: options.establishmentId,
-        professionalId: selectedOffer.professional.id,
-        serviceId: selectedOffer.service.id,
-        startsAt: freshSlot.startsAt,
-      });
+      const result = appointmentId
+        ? await (async () => {
+            await rescheduleClientAppointment({
+              appointmentId,
+              professionalId: selectedOffer.professional.id,
+              serviceId: selectedOffer.service.id,
+              startsAt: freshSlot.startsAt,
+            });
+            const updated = await loadClientAppointment(appointmentId);
+            return {
+              appointmentId,
+              status: updated?.status === 'confirmed' ? 'confirmed' as const : 'pending' as const,
+            };
+          })()
+        : await createClientAppointment({
+            establishmentId: options.establishmentId,
+            professionalId: selectedOffer.professional.id,
+            serviceId: selectedOffer.service.id,
+            startsAt: freshSlot.startsAt,
+          });
       setBookingResult(result);
     } catch (error) {
       setBookingError(error instanceof Error ? error.message : 'Não foi possível concluir o agendamento.');
@@ -208,7 +260,11 @@ export function ClientBookingScreen() {
         <View style={styles.successMark}><Text style={styles.successMarkText}>OK</Text></View>
         <View style={styles.successCopy}>
           <Text style={styles.eyebrow}>{confirmed ? 'HORÁRIO CONFIRMADO' : 'SOLICITAÇÃO ENVIADA'}</Text>
-          <Text style={styles.successTitle}>{confirmed ? 'Seu horário está reservado.' : 'Seu pedido está em análise.'}</Text>
+          <Text style={styles.successTitle}>
+            {isRescheduling
+              ? (confirmed ? 'Seu novo horário está reservado.' : 'Seu reagendamento está em análise.')
+              : (confirmed ? 'Seu horário está reservado.' : 'Seu pedido está em análise.')}
+          </Text>
           <Text style={styles.description}>
             {confirmed
               ? 'O estabelecimento já confirmou este atendimento.'
@@ -230,11 +286,15 @@ export function ClientBookingScreen() {
           Protocolo {bookingResult.appointmentId}
         </Text>
         <Pressable
+          testID="client-booking-open-appointment"
           accessibilityRole="button"
-          onPress={() => router.replace('/')}
+          onPress={() => router.replace({
+            pathname: '/appointments/[id]',
+            params: { id: bookingResult.appointmentId },
+          })}
           style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryButtonText}>Voltar para o início</Text>
+          <Text style={styles.primaryButtonText}>Ver detalhes do atendimento</Text>
         </Pressable>
       </ScrollView>
     );
@@ -251,7 +311,9 @@ export function ClientBookingScreen() {
     >
       <StatusBar style="dark" />
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>NOVO AGENDAMENTO</Text>
+        <Text testID={isRescheduling ? 'client-booking-reschedule' : undefined} style={styles.eyebrow}>
+          {isRescheduling ? 'REAGENDAMENTO' : 'NOVO AGENDAMENTO'}
+        </Text>
         <Text style={styles.title}>{options.establishmentName}</Text>
         {!!options.establishmentAddress && <Text style={styles.description}>{options.establishmentAddress}</Text>}
       </View>
@@ -397,7 +459,11 @@ export function ClientBookingScreen() {
 
       {step === 4 && selectedOffer && selectedLocalDate && selectedSlot && (
         <View testID="client-booking-review" style={styles.section}>
-          <SectionHeading eyebrow="ETAPA 4 DE 4" title="Revise seu agendamento" description="A disponibilidade será conferida novamente ao confirmar." />
+          <SectionHeading
+            eyebrow="ETAPA 4 DE 4"
+            title={isRescheduling ? 'Revise o novo horário' : 'Revise seu agendamento'}
+            description="A disponibilidade será conferida novamente ao confirmar."
+          />
           <View style={styles.summaryCard}>
             <SummaryRow label="Local" value={options.establishmentName} />
             <View style={styles.divider} />
@@ -431,7 +497,13 @@ export function ClientBookingScreen() {
             onPress={() => { void confirmBooking(); }}
             style={({ pressed }) => [styles.primaryButton, isBooking && styles.disabled, pressed && !isBooking && styles.pressed]}
           >
-            {isBooking ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Confirmar agendamento</Text>}
+            {isBooking ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {isRescheduling ? 'Confirmar reagendamento' : 'Confirmar agendamento'}
+              </Text>
+            )}
           </Pressable>
           <Text style={styles.safetyText}>Nenhuma cobrança é realizada pelo aplicativo nesta etapa.</Text>
         </View>

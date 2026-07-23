@@ -31,7 +31,7 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../../components/booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
-import { formatCalendarDate, getTodayInTimeZone } from '@cutsync/domain';
+import { getTodayInTimeZone, translateAppointmentError } from '@cutsync/domain';
 import { InlineNotice } from '../../components/ui/InlineNotice';
 import { AppButton } from '../../components/ui/AppButton';
 
@@ -86,6 +86,7 @@ export default function BookingSlugScreen() {
     loading: availabilityLoading,
     error: availabilityError,
     emptyMessage,
+    refresh: refreshAvailability,
   } = useAvailableSlots({
     establishmentId: barbershop?.id,
     professionalId: selectedBarber,
@@ -175,7 +176,7 @@ export default function BookingSlugScreen() {
   // Month navigation
   const handlePrevMonth = () => {
     const prev = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
-    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    const today = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
     if (prev.getFullYear() < today.getFullYear() || (prev.getFullYear() === today.getFullYear() && prev.getMonth() < today.getMonth())) {
       return;
     }
@@ -204,7 +205,7 @@ export default function BookingSlugScreen() {
   }, [viewDate]);
 
   const isDateSelectable = (date: Date) => {
-    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    const today = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
     today.setHours(0, 0, 0, 0);
     const target = new Date(date);
     target.setHours(0, 0, 0, 0);
@@ -231,10 +232,10 @@ export default function BookingSlugScreen() {
     return { morning, afternoon, evening };
   }, [availableSlots]);
 
-  const primaryColor = barbershop?.primary_color || '#113939';
+  const primaryColor = barbershop?.primaryColor || '#113939';
 
   // Booking Execution
-  const executeBooking = async (userId: string) => {
+  const executeBooking = async () => {
     setBookingLoading(true);
     setBookingError('');
 
@@ -243,62 +244,54 @@ export default function BookingSlugScreen() {
         throw new Error('Preencha todas as etapas antes de confirmar.');
       }
 
-      const dateStr = formatCalendarDate(selectedDate);
       const chosenSlot = availableSlots.find((s) => s.localTime === selectedTime);
       if (!chosenSlot) {
         throw new Error('O horário selecionado não está mais disponível.');
       }
 
       if (reschedule_id) {
-        const { error: updateError } = await supabase
-          .from('appointments')
-          .update({
-            service_id: selectedService,
-            professional_id: selectedBarber,
-            appointment_date: dateStr,
-            start_time: selectedTime,
-            end_time: chosenSlot.endTime,
-            price: summaryPrice,
-            status: 'confirmed',
-          })
-          .eq('id', reschedule_id);
-
-        if (updateError) throw updateError;
+        const latestSlots = await refreshAvailability(reschedule_id);
+        const confirmedSlot = latestSlots?.find((slot) => (
+          slot.available && slot.startsAt === chosenSlot.startsAt
+        ));
+        if (!confirmedSlot) throw new Error('appointment_conflict');
+        const { error: rescheduleError } = await supabase.rpc('reschedule_appointment', {
+          target_appointment_id: reschedule_id,
+          requested_professional_id: selectedBarber,
+          requested_service_id: selectedService,
+          requested_date_time: confirmedSlot.startsAt,
+        });
+        if (rescheduleError) throw rescheduleError;
         tapSuccess();
         displayAlert('Sucesso', 'Reagendamento realizado com sucesso!');
-        router.replace('/appointments' as any);
+        router.replace('/appointments?feedback=appointment_rescheduled' as any);
         return;
       }
 
-      const { error: insertError } = await supabase
-        .from('appointments')
-        .insert({
-          client_id: userId,
-          establishment_id: barbershop.id,
-          service_id: selectedService,
-          professional_id: selectedBarber,
-          appointment_date: dateStr,
-          start_time: selectedTime,
-          end_time: chosenSlot.endTime,
-          price: summaryPrice,
-          status: 'confirmed',
-        });
-
+      const { data: created, error: insertError } = await supabase.rpc('create_client_appointment', {
+        target_establishment_id: barbershop.id,
+        target_service_id: selectedService,
+        target_professional_id: selectedBarber,
+        target_date_time: chosenSlot.startsAt,
+      }).single();
       if (insertError) throw insertError;
 
       tapSuccess();
       void scheduleAppointmentNotification(
-        dateStr,
-        selectedTime,
-        activeServiceObj?.name || 'Serviço',
-        barbershop.name
+        created.appointment_id,
+        barbershop.name,
+        new Date(chosenSlot.startsAt),
       );
 
       displayAlert('Agendamento Confirmado!', 'Seu horário foi reservado com sucesso.');
       router.replace('/appointments' as any);
     } catch (err: any) {
       console.error('Booking execution error:', err);
-      setBookingError(err.message || 'Erro ao processar agendamento.');
+      setBookingError(
+        reschedule_id
+          ? translateAppointmentError(err, 'Não foi possível concluir o reagendamento.')
+          : err.message || 'Erro ao processar agendamento.',
+      );
     } finally {
       setBookingLoading(false);
     }
@@ -306,7 +299,7 @@ export default function BookingSlugScreen() {
 
   const handleConfirmBooking = () => {
     if (user) {
-      void executeBooking(user.id);
+      void executeBooking();
     } else {
       setIsAuthModalVisible(true);
     }
@@ -361,7 +354,7 @@ export default function BookingSlugScreen() {
         if (error) throw error;
         if (data.user) {
           setIsAuthModalVisible(false);
-          void executeBooking(data.user.id);
+          void executeBooking();
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -371,7 +364,7 @@ export default function BookingSlugScreen() {
         if (error) throw error;
         if (data.user) {
           setIsAuthModalVisible(false);
-          void executeBooking(data.user.id);
+          void executeBooking();
         }
       }
     } catch (err: any) {
@@ -412,8 +405,8 @@ export default function BookingSlugScreen() {
         <View style={styles.mainWrapper}>
           {/* ─── SALON HERO CARD ────────────────────────────────────── */}
           <View style={styles.heroCard}>
-            {barbershop?.banner_url ? (
-              <Image source={{ uri: barbershop.banner_url }} style={styles.heroImg} contentFit="cover" />
+            {barbershop?.bannerUrl ? (
+              <Image source={{ uri: barbershop.bannerUrl }} style={styles.heroImg} contentFit="cover" />
             ) : (
               <View style={styles.heroFallback}>
                 <Scissors size={28} color="#113939" />
@@ -422,8 +415,8 @@ export default function BookingSlugScreen() {
 
             <View style={styles.heroInfoRow}>
               <View style={styles.heroLogoCircle}>
-                {barbershop?.logo_url ? (
-                  <Image source={{ uri: barbershop.logo_url }} style={styles.logoImg} contentFit="cover" />
+                {barbershop?.logoUrl ? (
+                  <Image source={{ uri: barbershop.logoUrl }} style={styles.logoImg} contentFit="cover" />
                 ) : (
                   <Scissors size={20} color="#113939" />
                 )}
@@ -439,7 +432,7 @@ export default function BookingSlugScreen() {
               <View style={styles.ratingBadge}>
                 <Star size={11} color="#F5A524" fill="#F5A524" />
                 <Text style={styles.ratingText}>
-                  {barbershop?.average_rating ? Number(barbershop.average_rating).toFixed(1) : '4.9'}
+                  {barbershop?.averageRating ? Number(barbershop.averageRating).toFixed(1) : '4.9'}
                 </Text>
               </View>
             </View>
@@ -563,8 +556,8 @@ export default function BookingSlugScreen() {
                         }}
                       >
                         <View style={styles.barberAvatar}>
-                          {barber.fotoUrl ? (
-                            <Image source={{ uri: barber.fotoUrl }} style={styles.avatarImg} contentFit="cover" />
+                          {barber.avatarUrl ? (
+                            <Image source={{ uri: barber.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
                           ) : (
                             <UserRound size={18} color="#113939" />
                           )}

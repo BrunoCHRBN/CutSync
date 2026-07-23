@@ -71,3 +71,18 @@ test('mantém catálogo e criação protegidos no backend', () => {
   expect(sqlTest).toContain('appointment_conflict');
   expect(sqlTest).toContain('SET LOCAL ROLE anon');
 });
+
+test('reutiliza o wizard para reagendar sem atualizar appointments diretamente', () => {
+  const screen = readSource('apps/client/src/screens/client-booking.tsx');
+  const bookingService = readSource('apps/client/src/features/booking/client-booking-service.ts');
+  const appointmentService = readSource('apps/client/src/features/appointments/client-appointments-service.ts');
+  const webBooking = readSource('apps/web/src/app/[slug]/booking.tsx');
+
+  expect(screen).toContain('client-booking-reschedule');
+  expect(screen).toContain('appointmentId: appointmentId ?? null');
+  expect(screen).toContain('await availability.refresh()');
+  expect(bookingService).toContain('target_appointment_id: appointmentId ?? undefined');
+  expect(appointmentService).toContain("rpc('reschedule_appointment'");
+  expect(webBooking).toContain("rpc('reschedule_appointment'");
+  expect(webBooking).not.toMatch(/from\('appointments'\)[\s\S]{0,300}\.update\(/);
+});

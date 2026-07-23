@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import {
+  type AvailabilityRpcRow,
   fetchLegacyAvailableSlots,
   isAvailabilityRpcMissing,
 } from '../services/legacyAvailability';
@@ -74,9 +75,9 @@ export function useAvailableSlots({
       target_professional_id: professionalId,
       target_service_id: serviceId,
       target_local_date: localDate,
-      target_appointment_id: appointmentIdOverride ?? appointmentId ?? null,
+      target_appointment_id: appointmentIdOverride ?? appointmentId ?? undefined,
     });
-    let data = availabilityResult.data;
+    let data: AvailabilityRpcRow[] | null = availabilityResult.data;
     let queryError: unknown = availabilityResult.error;
 
     if (isAvailabilityRpcMissing(availabilityResult.error)) {

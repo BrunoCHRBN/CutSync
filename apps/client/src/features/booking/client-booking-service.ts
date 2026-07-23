@@ -192,11 +192,13 @@ export const loadClientAvailableSlots = async ({
   professionalId,
   serviceId,
   localDate,
+  appointmentId,
 }: {
   establishmentId: string;
   professionalId: string;
   serviceId: string;
   localDate: string;
+  appointmentId?: string | null;
 }): Promise<ClientAvailabilityResult> => {
   try {
     const { data, error } = await requireClient().rpc('get_available_slots', {
@@ -204,6 +206,7 @@ export const loadClientAvailableSlots = async ({
       target_professional_id: professionalId,
       target_service_id: serviceId,
       target_local_date: localDate,
+      target_appointment_id: appointmentId ?? undefined,
     });
     if (error) throw error;
 

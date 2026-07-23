@@ -75,4 +75,25 @@ test('expõe agenda nativa, detalhe protegido e sincronização em tempo real', 
   expect(hook).toContain('useFocusEffect');
   expect(hook).toContain("table: 'appointments'");
   expect(hook).toContain('client_id=eq.');
+  expect(hook).toContain("state === 'active'");
+});
+
+test('expõe cancelamento fechado e ações orientadas pelas permissões do backend', () => {
+  const appLayout = readSource('apps/client/src/app/(app)/_layout.tsx');
+  const detail = readSource('apps/client/src/screens/client-appointment-detail.tsx');
+  const cancel = readSource('apps/client/src/screens/client-appointment-cancel.tsx');
+  const service = readSource('apps/client/src/features/appointments/client-appointments-service.ts');
+  const webAppointments = readSource('apps/web/src/components/screens/AppointmentsExperience.tsx');
+
+  expect(appLayout).toContain('name="appointments/[id]/cancel"');
+  expect(cancel).toContain('clientCancellationReasons.map');
+  expect(cancel).not.toContain('TextInput');
+  expect(cancel).toContain('client-appointment-cancel-confirmation');
+  expect(detail).toContain('appointment.canCancel');
+  expect(detail).toContain('appointment.canReschedule');
+  expect(detail).toContain('cancellation_window_closed');
+  expect(service).toContain("rpc('update_appointment_status'");
+  expect(service).not.toContain("from('appointments')");
+  expect(webAppointments).toContain('item.minCancellationHours');
+  expect(webAppointments).toContain('clientCancellationReasons.map');
 });

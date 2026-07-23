@@ -13,7 +13,7 @@ export type AppointmentQueryRow = Tables<'appointments'> & {
   client: Pick<ProfileRow, 'id' | 'name' | 'phone'> | null;
   professional: Pick<ProfileRow, 'id' | 'name' | 'phone'> | null;
   service: Pick<ServiceRow, 'id' | 'establishment_id' | 'name' | 'price' | 'duration_minutes' | 'is_active'> | null;
-  establishment: Pick<EstablishmentRow, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency'> | null;
+  establishment: Pick<EstablishmentRow, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency' | 'min_cancellation_hours'> | null;
 };
 
 export interface Establishment {
@@ -113,7 +113,7 @@ export interface AppointmentRecord {
   client?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   professional?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   service?: Pick<ServiceRecord, 'id' | 'name' | 'price' | 'durationMinutes'> | null;
-  establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency'> | null;
+  establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'timezone' | 'currency' | 'minCancellationHours'> | null;
 }
 
 const toProfileRole = (role: string): ProfileRole => {
@@ -218,5 +218,6 @@ export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => (
     phone: row.establishment.phone,
     timezone: row.establishment.timezone,
     currency: row.establishment.currency,
+    minCancellationHours: row.establishment.min_cancellation_hours ?? 24,
   } : null,
 });

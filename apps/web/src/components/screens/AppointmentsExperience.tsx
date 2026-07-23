@@ -16,7 +16,12 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, radii, typography, atmosphericShadow } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
-import { appointmentFeedbackMessages } from '@cutsync/domain';
+import {
+  appointmentFeedbackMessages,
+  clientCancellationReasons,
+  translateAppointmentError,
+  type ClientCancellationReason,
+} from '@cutsync/domain';
 
 type AppointmentTab = 'upcoming' | 'history';
 
@@ -33,6 +38,7 @@ interface AppointmentDetail {
   shopSlug: string;
   rescheduleCount: number;
   cancellationReason?: string;
+  minCancellationHours: number;
 }
 
 const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
@@ -55,12 +61,9 @@ export const AppointmentsExperience = () => {
   const syncError = activeQuery.error;
   const refresh = activeQuery.refresh;
   const [cancelId, setCancelId] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState<string>('');
+  const [selectedReason, setSelectedReason] = useState<ClientCancellationReason | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
-  const [reschedulePromptId, setReschedulePromptId] = useState<string | null>(null);
-  const [targetDate, setTargetDate] = useState<string>('');
-  const [targetTime, setTargetTime] = useState<string>('');
   const [reviewsMap, setReviewsMap] = useState<Map<string, { rating: number; comment?: string }>>(new Map());
   const [reviewingAppointment, setReviewingAppointment] = useState<AppointmentDetail | null>(null);
   const [selectedRating, setSelectedRating] = useState<number>(5);
@@ -129,6 +132,7 @@ export const AppointmentsExperience = () => {
       shopSlug: item.establishment?.slug || '',
       rescheduleCount: item.rescheduleCount,
       cancellationReason: item.cancellationReason || '',
+      minCancellationHours: item.establishment?.minCancellationHours ?? 24,
     })), [records]);
 
   const [referenceTime] = useState(() => new Date().getTime());
@@ -140,7 +144,7 @@ export const AppointmentsExperience = () => {
     return tab === 'upcoming' ? isUpcoming : !isUpcoming;
   }), [appointments, tab]);
 
-  const cancelAppointment = async (reason: string, item: AppointmentDetail) => {
+  const cancelAppointment = async (reason: ClientCancellationReason, item: AppointmentDetail) => {
     const formattedDate = item.dateTime.toLocaleDateString('pt-BR');
     const formattedTime = item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const message = `Você tem certeza que deseja cancelar o seu agendamento para o dia ${formattedDate} às ${formattedTime}?`;
@@ -155,11 +159,11 @@ export const AppointmentsExperience = () => {
         });
         if (error) throw error;
         setCancelId(null);
-        setSelectedReason('');
+        setSelectedReason(null);
         setNotice({ tone: 'success', message: 'Agendamento cancelado.' });
         await refresh();
-      } catch {
-        setNotice({ tone: 'danger', message: 'Não foi possível cancelar este horário.' });
+      } catch (error) {
+        setNotice({ tone: 'danger', message: translateAppointmentError(error, 'Não foi possível cancelar este horário.') });
       } finally {
         setActionLoading(false);
       }
@@ -200,15 +204,9 @@ export const AppointmentsExperience = () => {
   };
 
   const sendWhatsAppReschedule = (item: AppointmentDetail) => {
-    if (!targetDate || !targetTime) {
-      const msg = 'Por favor, preencha a nova data e horário desejados.';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Atenção', msg);
-      return;
-    }
     const formattedDate = item.dateTime.toLocaleDateString('pt-BR');
     const formattedTime = item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const text = `Olá! Gostaria de REAGENDAR meu horário do dia ${formattedDate} às ${formattedTime} (Serviço: ${item.serviceName}) com o profissional ${item.barberName} para o novo dia ${targetDate} às ${targetTime}. Meu nome é ${profile?.name || 'Cliente'}.`;
+    const text = `Olá! Preciso de ajuda para reagendar meu horário do dia ${formattedDate} às ${formattedTime} (Serviço: ${item.serviceName}) com o profissional ${item.barberName}. Meu nome é ${profile?.name || 'Cliente'}.`;
     const cleanPhone = item.contactPhone.replace(/\D/g, '');
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     Linking.openURL(url).catch(() => {
@@ -216,7 +214,6 @@ export const AppointmentsExperience = () => {
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Erro', msg);
     });
-    setReschedulePromptId(null);
   };
 
   const handleReschedule = (item: AppointmentDetail) => {
@@ -260,7 +257,7 @@ export const AppointmentsExperience = () => {
               
               const timeDiff = item.dateTime.getTime() - referenceTime;
               const hoursDiff = timeDiff / (1000 * 60 * 60);
-              const isLateCancellation = hoursDiff > 0 && hoursDiff < 2;
+              const isLateCancellation = hoursDiff >= 0 && hoursDiff < item.minCancellationHours;
 
               return (
                 <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={[styles.card, tab === 'upcoming' && index === 0 && styles.nextCard]}>
@@ -291,7 +288,7 @@ export const AppointmentsExperience = () => {
                       <View style={styles.cancelReasonContainer}>
                         <Text style={styles.reasonTitle}>Qual o motivo do cancelamento?</Text>
                         <View style={styles.reasonsGrid}>
-                          {['Imprevisto de trabalho', 'Questões de saúde', 'Problema de transporte', 'Vou reagendar', 'Outro'].map((reason) => (
+                          {clientCancellationReasons.map((reason) => (
                             <Pressable 
                               key={reason}
                               onPress={() => { tapLight(); setSelectedReason(reason); }}
@@ -312,7 +309,8 @@ export const AppointmentsExperience = () => {
                           <AppButton 
                             label="Confirmar Cancelamento" 
                             testID={`client-appointment-${item.id}-cancel-confirm-button`} 
-                            onPress={() => cancelAppointment(selectedReason || 'Não informado', item)} 
+                            onPress={() => selectedReason && cancelAppointment(selectedReason, item)}
+                            disabled={!selectedReason}
                             loading={actionLoading} 
                             variant="danger" 
                             style={styles.actionBtn}
@@ -320,7 +318,7 @@ export const AppointmentsExperience = () => {
                           <AppButton 
                             label="Voltar" 
                             testID={`client-appointment-${item.id}-cancel-back-button`} 
-                            onPress={() => { setCancelId(null); setSelectedReason(''); }} 
+                            onPress={() => { setCancelId(null); setSelectedReason(null); }}
                             variant="secondary" 
                             style={styles.actionBtn} 
                           />
@@ -330,77 +328,26 @@ export const AppointmentsExperience = () => {
                       isLateCancellation ? (
                         <View style={styles.lateNoticeContainer}>
                           <Text style={styles.lateNoticeText}>
-                            Cancelamentos e reagendamentos com menos de 2h de antecedência devem ser combinados via WhatsApp.
+                            Cancelamentos e reagendamentos com menos de {item.minCancellationHours}h de antecedência devem ser combinados diretamente com o estabelecimento.
                           </Text>
-                          {reschedulePromptId === item.id ? (
-                            <View style={styles.promptContainer}>
-                              <Text style={styles.promptTitle}>Escolha a nova data e horário desejados:</Text>
-                              <View style={styles.promptInputsRow}>
-                                <View style={{ flex: 1 }}>
-                                  <Text style={styles.inputMinLabel}>Nova data</Text>
-                                  <TextInput 
-                                    style={styles.minInput}
-                                    placeholder="Ex: 15/07"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={targetDate}
-                                    onChangeText={setTargetDate}
-                                  />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                  <Text style={styles.inputMinLabel}>Novo horário</Text>
-                                  <TextInput 
-                                    style={styles.minInput}
-                                    placeholder="Ex: 16:30"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={targetTime}
-                                    onChangeText={setTargetTime}
-                                  />
-                                </View>
-                              </View>
-                              <View style={styles.promptActionsRow}>
-                                <AppButton 
-                                  label="Enviar" 
-                                  testID={`client-appointment-${item.id}-resched-send`} 
-                                  onPress={() => sendWhatsAppReschedule(item)} 
-                                  variant="primary" 
-                                  style={styles.actionBtn}
-                                />
-                                <AppButton 
-                                  label="Voltar" 
-                                  testID={`client-appointment-${item.id}-resched-back`} 
-                                  onPress={() => setReschedulePromptId(null)} 
-                                  variant="secondary" 
-                                  style={styles.actionBtn} 
-                                />
-                              </View>
-                            </View>
-                          ) : (
-                            <View style={styles.lateButtonsRow}>
-                              <AppButton 
-                                label="Cancelar" 
-                                testID={`client-appointment-${item.id}-whatsapp-cancel`} 
-                                onPress={() => sendWhatsAppCancel(item)} 
-                                variant="danger" 
-                                icon={<X color={colors.danger} size={14} strokeWidth={1.8} />}
-                                style={styles.actionBtn}
-                              />
-                              <AppButton 
-                                label="Reagendar" 
-                                testID={`client-appointment-${item.id}-whatsapp-reschedule`} 
-                                onPress={() => {
-                                  tapLight();
-                                  setReschedulePromptId(item.id);
-                                  const tomorrow = new Date();
-                                  tomorrow.setDate(tomorrow.getDate() + 1);
-                                  setTargetDate(tomorrow.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
-                                  setTargetTime(item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-                                }} 
-                                variant="primary" 
-                                icon={<RefreshCw color={colors.ink} size={13} strokeWidth={1.8} />}
-                                style={styles.actionBtn}
-                              />
-                            </View>
-                          )}
+                          <View style={styles.lateButtonsRow}>
+                            <AppButton
+                              label="Cancelar"
+                              testID={`client-appointment-${item.id}-whatsapp-cancel`}
+                              onPress={() => sendWhatsAppCancel(item)}
+                              variant="danger"
+                              icon={<X color={colors.danger} size={14} strokeWidth={1.8} />}
+                              style={styles.actionBtn}
+                            />
+                            <AppButton
+                              label="Reagendar"
+                              testID={`client-appointment-${item.id}-whatsapp-reschedule`}
+                              onPress={() => sendWhatsAppReschedule(item)}
+                              variant="primary"
+                              icon={<RefreshCw color={colors.ink} size={13} strokeWidth={1.8} />}
+                              style={styles.actionBtn}
+                            />
+                          </View>
                         </View>
                       ) : (
                         <View style={styles.upcomingActionsRow}>

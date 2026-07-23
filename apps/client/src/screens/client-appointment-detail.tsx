@@ -1,8 +1,11 @@
 import { sharedBrand } from '@cutsync/brand';
-import { formatClientAppointmentDateTime } from '@cutsync/domain';
+import {
+  formatClientAppointmentDateTime,
+  getClientAppointmentBlockMessage,
+} from '@cutsync/domain';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   AppointmentDetailRow,
@@ -52,6 +55,24 @@ export function ClientAppointmentDetailScreen() {
   const original = appointment.originalStartsAt
     ? formatClientAppointmentDateTime(appointment.originalStartsAt, appointment.establishment.timezone)
     : null;
+  const cancelBlockMessage = getClientAppointmentBlockMessage(
+    appointment.cancelBlockReason,
+    appointment.establishment.minCancellationHours,
+  );
+  const rescheduleBlockMessage = getClientAppointmentBlockMessage(
+    appointment.rescheduleBlockReason,
+    appointment.establishment.minCancellationHours,
+  );
+  const contactRequired = appointment.cancelBlockReason === 'cancellation_window_closed'
+    || appointment.rescheduleBlockReason === 'cancellation_window_closed';
+  const cleanPhone = appointment.establishment.phone?.replace(/\D/g, '') ?? '';
+  const openContact = (channel: 'phone' | 'whatsapp') => {
+    if (!cleanPhone) return;
+    const target = channel === 'phone'
+      ? `tel:${cleanPhone}`
+      : `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Olá! Preciso de ajuda com o atendimento ${appointment.id}.`)}`;
+    void Linking.openURL(target);
+  };
 
   return (
     <ScrollView
@@ -96,6 +117,65 @@ export function ClientAppointmentDetailScreen() {
           <Text selectable style={styles.cancelledText}>{appointment.cancellationReason}</Text>
         </View>
       )}
+
+      {(appointment.canReschedule || appointment.canCancel) && (
+        <View testID="client-appointment-actions" style={styles.actionsCard}>
+          {appointment.canReschedule && (
+            <Pressable
+              testID="client-appointment-reschedule"
+              accessibilityRole="button"
+              onPress={() => router.push({
+                pathname: '/booking/[slug]',
+                params: { slug: appointment.establishment.slug, appointmentId: appointment.id },
+              })}
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.primaryButtonText}>Reagendar atendimento</Text>
+            </Pressable>
+          )}
+          {appointment.canCancel && (
+            <Pressable
+              testID="client-appointment-cancel"
+              accessibilityRole="button"
+              onPress={() => router.push({
+                pathname: '/appointments/[id]/cancel',
+                params: { id: appointment.id },
+              })}
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar atendimento</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {!appointment.canReschedule && rescheduleBlockMessage && (
+        <View style={styles.policyCard}>
+          <Text style={styles.policyTitle}>Reagendamento indisponível</Text>
+          <Text style={styles.policyText}>{rescheduleBlockMessage}</Text>
+        </View>
+      )}
+      {!appointment.canCancel && cancelBlockMessage && cancelBlockMessage !== rescheduleBlockMessage && (
+        <View style={styles.policyCard}>
+          <Text style={styles.policyTitle}>Cancelamento indisponível</Text>
+          <Text style={styles.policyText}>{cancelBlockMessage}</Text>
+        </View>
+      )}
+
+      {contactRequired && cleanPhone && (
+        <View testID="client-appointment-contact" style={styles.contactCard}>
+          <Text style={styles.contactTitle}>Precisa alterar mesmo assim?</Text>
+          <Text style={styles.contactText}>Fale diretamente com o estabelecimento para verificar as opções.</Text>
+          <View style={styles.contactActions}>
+            <Pressable accessibilityRole="button" onPress={() => openContact('whatsapp')} style={styles.contactButton}>
+              <Text style={styles.contactButtonText}>Abrir WhatsApp</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => openContact('phone')} style={styles.contactButton}>
+              <Text style={styles.contactButtonText}>Ligar</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -120,6 +200,19 @@ const styles = StyleSheet.create({
   cancelledCard: { gap: 6, borderWidth: 1, borderColor: '#EDC8C3', borderRadius: 18, borderCurve: 'continuous', backgroundColor: appointmentColors.cancelledSoft, padding: 16 },
   cancelledTitle: { color: appointmentColors.cancelled, fontSize: 12, fontWeight: '800' },
   cancelledText: { color: '#744740', fontSize: 13, lineHeight: 19 },
+  actionsCard: { gap: 10, borderRadius: 22, borderCurve: 'continuous', backgroundColor: '#FFFFFF', padding: 16 },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 15, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forest, paddingHorizontal: 20 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  cancelButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#EDC8C3', borderRadius: 15, borderCurve: 'continuous', backgroundColor: appointmentColors.cancelledSoft, paddingHorizontal: 20 },
+  cancelButtonText: { color: appointmentColors.cancelled, fontSize: 14, fontWeight: '700' },
+  policyCard: { gap: 5, borderWidth: 1, borderColor: appointmentColors.border, borderRadius: 18, borderCurve: 'continuous', backgroundColor: '#FFFFFF', padding: 16 },
+  policyTitle: { color: appointmentColors.text, fontSize: 13, fontWeight: '800' },
+  policyText: { color: appointmentColors.secondary, fontSize: 12, lineHeight: 18 },
+  contactCard: { gap: 8, borderWidth: 1, borderColor: '#DCCFAD', borderRadius: 18, borderCurve: 'continuous', backgroundColor: '#FAF5E8', padding: 16 },
+  contactTitle: { color: appointmentColors.text, fontSize: 14, fontWeight: '800' },
+  contactText: { color: appointmentColors.secondary, fontSize: 12, lineHeight: 18 },
+  contactActions: { flexDirection: 'row', gap: 9, paddingTop: 4 },
+  contactButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6C89F', borderRadius: 13, backgroundColor: '#FFFFFF', paddingHorizontal: 10 },
+  contactButtonText: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '800' },
+  pressed: { opacity: 0.72 },
 });

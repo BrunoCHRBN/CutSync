@@ -64,7 +64,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
       let query = supabase.from('appointments').select(`
         *,
         service:services(id,name,price,duration_minutes),
-        establishment:establishments(id,name,slug,address,phone,timezone,currency)
+        establishment:establishments(id,name,slug,address,phone,timezone,currency,min_cancellation_hours)
       `);
       if (establishmentId) query = query.eq('establishment_id', establishmentId);
       if (professionalId) query = query.eq('professional_id', professionalId);
