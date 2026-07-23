@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { Activity, BookOpen, ClipboardList, LogOut, ShieldAlert, Store } from 'lucide-react-native';
+import { Activity, BookOpen, ClipboardCheck, ClipboardList, FileCheck2, KeyRound, LogOut, ShieldAlert, Store, UserRoundCheck } from 'lucide-react-native';
 import { useGovernanceAuth } from '../../contexts/governance-auth-context';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { colors, layout, radii, typography } from '../../theme/tokens';
@@ -17,6 +17,10 @@ export function GovernanceShell({ children }: { children: React.ReactNode }) {
   const inKnowledge = pathname.startsWith('/governance/knowledge');
   const inEstablishments = pathname.startsWith('/governance/establishments');
   const inAudit = pathname.startsWith('/governance/audit');
+  const inRequests = pathname.startsWith('/governance/requests');
+  const inVerification = pathname.startsWith('/governance/verification');
+  const inPrivacy = pathname.startsWith('/governance/privacy');
+  const inAccess = pathname.startsWith('/governance/access');
 
   return (
     <ScreenBackground testID="governance-shell">
@@ -43,12 +47,28 @@ export function GovernanceShell({ children }: { children: React.ReactNode }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.navScroller} contentContainerStyle={styles.nav}>
         <Pressable
           accessibilityRole="tab"
-          accessibilityState={{ selected: !inKnowledge && !inEstablishments && !inAudit }}
+          accessibilityState={{ selected: !inKnowledge && !inEstablishments && !inAudit && !inRequests && !inVerification && !inPrivacy && !inAccess }}
           onPress={() => router.push('/governance')}
-          style={[styles.navItem, !inKnowledge && !inEstablishments && !inAudit && styles.navItemActive]}
+          style={[styles.navItem, !inKnowledge && !inEstablishments && !inAudit && !inRequests && !inVerification && !inPrivacy && !inAccess && styles.navItemActive]}
         >
           <Activity size={16} color={!inKnowledge && !inEstablishments && !inAudit ? colors.brand : colors.textSecondary} />
           <Text style={[styles.navText, !inKnowledge && !inEstablishments && !inAudit && styles.navTextActive]}>Painel de Controle</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: inRequests }} onPress={() => router.push('/governance/requests')} style={[styles.navItem, inRequests && styles.navItemActive]}>
+          <ClipboardCheck size={16} color={inRequests ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, inRequests && styles.navTextActive]}>Solicitações</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: inVerification }} onPress={() => router.push('/governance/verification')} style={[styles.navItem, inVerification && styles.navItemActive]}>
+          <FileCheck2 size={16} color={inVerification ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, inVerification && styles.navTextActive]}>Verificação</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: inPrivacy }} onPress={() => router.push('/governance/privacy')} style={[styles.navItem, inPrivacy && styles.navItemActive]}>
+          <UserRoundCheck size={16} color={inPrivacy ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, inPrivacy && styles.navTextActive]}>Privacidade</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: inAccess }} onPress={() => router.push('/governance/access')} style={[styles.navItem, inAccess && styles.navItemActive]}>
+          <KeyRound size={16} color={inAccess ? colors.brand : colors.textSecondary} />
+          <Text style={[styles.navText, inAccess && styles.navTextActive]}>Acesso</Text>
         </Pressable>
         <Pressable accessibilityRole="tab" accessibilityState={{ selected: inEstablishments }} onPress={() => router.push('/governance/establishments')} style={[styles.navItem, inEstablishments && styles.navItemActive]}>
           <Store size={16} color={inEstablishments ? colors.brand : colors.textSecondary} />

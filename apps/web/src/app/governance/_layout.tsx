@@ -26,6 +26,11 @@ function GovernanceGate() {
         <Stack.Screen name="index" />
         <Stack.Screen name="establishments/index" />
         <Stack.Screen name="establishments/[id]" />
+        <Stack.Screen name="requests/index" />
+        <Stack.Screen name="requests/[id]" />
+        <Stack.Screen name="verification/index" />
+        <Stack.Screen name="privacy/index" />
+        <Stack.Screen name="access/index" />
         <Stack.Screen name="audit" />
         <Stack.Screen name="knowledge/index" />
         <Stack.Screen name="knowledge/new" />

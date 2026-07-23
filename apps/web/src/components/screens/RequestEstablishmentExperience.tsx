@@ -245,11 +245,10 @@ export const RequestEstablishmentExperience = () => {
         if (error || !data || data.error) {
           setNotice({ tone: 'danger', message: data?.error || error?.message || 'Falha na triagem do CNPJ.' });
         } else {
-          await supabase.from('profiles').update({
-            lgpd_terms_accepted: lgpdTermsAccepted,
-            lgpd_marketing_accepted: lgpdMarketingAccepted,
-            lgpd_accepted_at: new Date().toISOString()
-          }).eq('id', profile?.id || '');
+          const { error: consentError } = await supabase.rpc('accept_my_lgpd_terms', {
+            target_marketing_accepted: lgpdMarketingAccepted,
+          });
+          if (consentError) throw consentError;
 
           setCreatedEstablishmentId(data.establishment_id);
           setWizardStep(2);
@@ -293,11 +292,10 @@ export const RequestEstablishmentExperience = () => {
             : error.message;
           setNotice({ tone: 'danger', message: userFriendlyMsg });
         } else {
-          await supabase.from('profiles').update({
-            lgpd_terms_accepted: lgpdTermsAccepted,
-            lgpd_marketing_accepted: lgpdMarketingAccepted,
-            lgpd_accepted_at: new Date().toISOString()
-          }).eq('id', profile?.id || '');
+          const { error: consentError } = await supabase.rpc('accept_my_lgpd_terms', {
+            target_marketing_accepted: lgpdMarketingAccepted,
+          });
+          if (consentError) throw consentError;
 
           setCreatedEstablishmentId(data);
           setWizardStep(2);
@@ -351,6 +349,7 @@ export const RequestEstablishmentExperience = () => {
 
     setServiceLoading(true);
     try {
+      if (!createdEstablishmentId) throw new Error('Estabelecimento ainda não foi criado.');
       const { error } = await supabase.from('services').insert({
         establishment_id: createdEstablishmentId,
         name: serviceName.trim(),
@@ -371,6 +370,11 @@ export const RequestEstablishmentExperience = () => {
   // Step 4 Submit: Save Operating Hours and Work shifts
   const submitSchedule = async () => {
     setScheduleLoading(true);
+    if (!createdEstablishmentId || !profile?.id) {
+      setScheduleLoading(false);
+      setNotice({ tone: 'danger', message: 'Não foi possível identificar o estabelecimento ou o perfil.' });
+      return;
+    }
     const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     const scheduleArray = dayNames.map((dayName, index) => {
       const isOpen = index === 0 ? openDays[6] : openDays[index - 1];
@@ -384,19 +388,17 @@ export const RequestEstablishmentExperience = () => {
     });
 
     try {
-      const { error: estError } = await supabase.from('establishments')
-        .update({
-          opening_hours: JSON.stringify(scheduleArray),
-          account_status: 'active'
-        })
-        .eq('id', createdEstablishmentId || '');
+      const { error: estError } = await supabase.rpc('finalize_establishment_onboarding' as never, {
+        target_establishment_id: createdEstablishmentId,
+        opening_hours: JSON.stringify(scheduleArray),
+      } as never);
 
       if (estError) throw estError;
 
       const shiftsToInsert = scheduleArray
         .filter(day => day.isOpen)
         .map(day => ({
-          profile_id: profile?.id,
+          profile_id: profile.id,
           day_of_week: day.day,
           start_time: `${openingHour}:00`,
           end_time: `${closingHour}:00`,
