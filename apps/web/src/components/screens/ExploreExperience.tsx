@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
@@ -18,7 +18,7 @@ import { getOpeningStatus } from '@cutsync/domain';
 
 const ShopCardSkeleton = () => {
   return (
-    <View style={styles.shopCard}>
+    <View style={[styles.shopCard, styles.carouselSlide]}>
       <View style={[styles.visual, { backgroundColor: '#EBEBEB' }]} />
       <View style={styles.shopBody}>
         <View style={{ height: 16, backgroundColor: '#E5E5E5', borderRadius: 4, width: '60%' }} />
@@ -52,9 +52,150 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
+/* ─── Carousel Component ────────────────────────────────────────────────── */
+function ShopCarousel({
+  shops,
+  onOpen,
+}: {
+  shops: Establishment[];
+  onOpen: (id: string) => void;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const { width: winWidth } = useWindowDimensions();
+
+  // Cards visible per page depending on window width
+  const cardsPerPage = winWidth >= 1280 ? 3 : winWidth >= layout.mobileBreakpoint ? 2 : 1;
+  const cardWidth = 320;
+  const cardGap = 16;
+  const pageWidth = cardsPerPage * (cardWidth + cardGap);
+  const totalPages = Math.ceil(shops.length / cardsPerPage);
+
+  const goTo = (page: number) => {
+    const clamped = Math.max(0, Math.min(page, totalPages - 1));
+    setCurrentPage(clamped);
+    scrollRef.current?.scrollTo({ x: clamped * pageWidth, animated: true });
+  };
+
+  const handleScrollEnd = (e: any) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const page = Math.round(x / pageWidth);
+    setCurrentPage(Math.max(0, Math.min(page, totalPages - 1)));
+  };
+
+  const startIdx = currentPage * cardsPerPage;
+  const endIdx = Math.min(startIdx + cardsPerPage, shops.length);
+
+  return (
+    <View testID="client-shops-grid" style={styles.carouselContainer}>
+      {/* Navigation Row */}
+      <View style={styles.carouselNavRow}>
+        <Text style={styles.carouselPageInfo}>
+          {startIdx + 1}–{endIdx} de {shops.length} estabelecimentos
+        </Text>
+        <View style={styles.carouselNavBtns}>
+          <Pressable
+            onPress={() => goTo(currentPage - 1)}
+            disabled={currentPage === 0}
+            style={[styles.carouselNavBtn, currentPage === 0 && styles.carouselNavBtnDisabled]}
+            accessibilityLabel="Anterior"
+          >
+            <Text style={[styles.carouselNavBtnText, currentPage === 0 && styles.carouselNavBtnTextDisabled]}>‹</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => goTo(currentPage + 1)}
+            disabled={currentPage >= totalPages - 1}
+            style={[styles.carouselNavBtn, currentPage >= totalPages - 1 && styles.carouselNavBtnDisabled]}
+            accessibilityLabel="Próximo"
+          >
+            <Text style={[styles.carouselNavBtnText, currentPage >= totalPages - 1 && styles.carouselNavBtnTextDisabled]}>›</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Scrollable Track */}
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        decelerationRate="fast"
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScrollEnd}
+        contentContainerStyle={styles.carouselTrack}
+        style={styles.carouselScroll}
+      >
+        {shops.map((shop) => {
+          const accent = shop.primaryColor || colors.accent;
+          const opening = getOpeningStatus(shop.openingHours, shop.timezone);
+          return (
+            <Pressable
+              key={shop.id}
+              testID={`client-shop-card-${shop.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver ${shop.name}`}
+              onPress={() => { tapLight(); onOpen(shop.id); }}
+              style={({ pressed }) => [styles.shopCard, styles.carouselSlide, pressed && styles.pressed]}
+            >
+              <View style={styles.visual}>
+                <Image
+                  source={{ uri: shop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=600' }}
+                  style={styles.bannerVisualImage}
+                  contentFit="cover"
+                  transition={160}
+                />
+                <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
+              </View>
+              <View style={styles.shopBody}>
+                <View style={styles.shopHeaderRow}>
+                  <View style={styles.shopLogoCircle}>
+                    {shop.logoUrl ? (
+                      <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" />
+                    ) : (
+                      <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
+                    <View style={styles.ratingPriceRow}>
+                      <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
+                      {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
+                      <Text style={styles.metaDivider}>·</Text>
+                      <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.shopMeta}>
+                  <MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />
+                  <Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text>
+                </View>
+                <View style={styles.shopMeta}>
+                  <Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} />
+                  <View style={[styles.openDot, !opening.isOpen && styles.closedDot]} />
+                  <Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text>
+                </View>
+                <View style={styles.cardFooter}>
+                  <Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
+                  <View style={styles.openButton}><ArrowUpRight color={colors.textSecondary} size={15} strokeWidth={1.8} /></View>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Dot Indicators */}
+      {totalPages > 1 && (
+        <View style={styles.dotsRow}>
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <Pressable key={i} onPress={() => goTo(i)} style={[styles.dot, i === currentPage && styles.dotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export const ExploreExperience = () => {
   const { width } = useWindowDimensions();
-  const columns = width >= 1280 ? 3 : width >= layout.mobileBreakpoint ? 2 : 1;
   const router = useRouter();
   const { search: searchParam } = useLocalSearchParams<{ search?: string }>();
   const { profile, signOut } = useAuth();
@@ -261,68 +402,17 @@ export const ExploreExperience = () => {
         />}
 
         {loading ? (
-          <View testID="client-shops-loading-skeleton" style={styles.grid}>
-            <View style={{ width: columns === 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%' }}><ShopCardSkeleton /></View>
-            <View style={{ width: columns === 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%' }}><ShopCardSkeleton /></View>
-            <View style={{ width: columns === 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%' }}><ShopCardSkeleton /></View>
+          <View testID="client-shops-loading-skeleton" style={styles.carouselContainer}>
+            <View style={styles.carouselTrack}>
+              <ShopCardSkeleton />
+              <ShopCardSkeleton />
+              <ShopCardSkeleton />
+            </View>
           </View>
         ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
           <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Fique de olho, novos parceiros estarão disponíveis em breve!'} icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
         ) : (
-          <View testID="client-shops-grid" style={styles.grid}>
-            {filtered.map((shop) => {
-              const accent = shop.primaryColor || colors.accent;
-              const opening = getOpeningStatus(shop.openingHours, shop.timezone);
-              const cardWidth = columns === 3 && filtered.length >= 3 ? '31.8%' : columns >= 2 ? '48.5%' : '100%';
-              return (
-                <Pressable key={shop.id} testID={`client-shop-card-${shop.id}`} accessibilityRole="button" accessibilityLabel={`Ver ${shop.name}`} onPress={() => openShop(shop.id)} style={({ pressed }) => [styles.shopCard, { width: cardWidth }, pressed && styles.pressed]}>
-                  <View style={styles.visual}>
-                    <Image 
-                      source={{ uri: shop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=600' }} 
-                      style={styles.bannerVisualImage} 
-                      contentFit="cover" 
-                      transition={160} 
-                    />
-                    <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
-                  </View>
-                  <View style={styles.shopBody}>
-                    <View style={styles.shopHeaderRow}>
-                      <View style={styles.shopLogoCircle}>
-                        {shop.logoUrl ? (
-                          <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" />
-                        ) : (
-                          <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>
-                        )}
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
-                        <View style={styles.ratingPriceRow}>
-                          <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
-                          {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
-                          <Text style={styles.metaDivider}>·</Text>
-                          <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.shopMeta}>
-                      <MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />
-                      <Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text>
-                    </View>
-                    <View style={styles.shopMeta}>
-                      <Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} />
-                      <View style={[styles.openDot, !opening.isOpen && styles.closedDot]} />
-                      <Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text>
-                    </View>
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
-                      <View style={styles.openButton}><ArrowUpRight color={colors.textSecondary} size={15} strokeWidth={1.8} /></View>
-                    </View>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+          <ShopCarousel shops={filtered} onOpen={openShop} />
         )}
       </ScrollView>
 
@@ -518,7 +608,24 @@ const styles = StyleSheet.create({
   openDotMuted: { backgroundColor: colors.borderStrong },
   closedDot: { backgroundColor: colors.danger },
   loader: { margin: 50 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 24 },
+
+  /* Carousel */
+  carouselContainer: { marginTop: 24, gap: 12 },
+  carouselNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
+  carouselPageInfo: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
+  carouselNavBtns: { flexDirection: 'row', gap: 6 },
+  carouselNavBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  carouselNavBtnDisabled: { opacity: 0.35 },
+  carouselNavBtnText: { fontSize: 22, lineHeight: 26, color: colors.text, fontFamily: typography.bodyStrong },
+  carouselNavBtnTextDisabled: { color: colors.textMuted },
+  carouselScroll: { overflow: 'hidden' } as any,
+  carouselTrack: { flexDirection: 'row', gap: 16, paddingBottom: 4 },
+  carouselSlide: { width: 320, flexShrink: 0 },
+  dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
+  dotActive: { backgroundColor: colors.brandPrimary, width: 20 },
+
+  /* Shop Card */
   shopCard: {
     width: '100%',
     backgroundColor: colors.surface,
@@ -559,4 +666,5 @@ const styles = StyleSheet.create({
   modalItemTextActive: { color: colors.brandPrimary, fontFamily: typography.bodyStrong },
   backStepBtn: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: colors.canvasSoft, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSubtle },
   backStepText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
 });

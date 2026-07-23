@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -49,6 +50,26 @@ export const BookingExperience = () => {
 
   // ── WIZARD STEP STATE (1: Serviço, 2: Profissional, 3: Data & Horário, 4: Confirmação) ──
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Step transition animation
+  const stepAnim = useRef(new Animated.Value(0)).current;
+  const stepOpacity = useRef(new Animated.Value(1)).current;
+
+  const animateStep = (newStep: 1 | 2 | 3 | 4) => {
+    // Fade out and slide out
+    Animated.parallel([
+      Animated.timing(stepOpacity, { toValue: 0, duration: 140, useNativeDriver: true }),
+      Animated.timing(stepAnim, { toValue: newStep > wizardStep ? -24 : 24, duration: 140, useNativeDriver: true }),
+    ]).start(() => {
+      setWizardStep(newStep);
+      stepAnim.setValue(newStep > wizardStep ? 24 : -24);
+      // Fade in and slide in
+      Animated.parallel([
+        Animated.timing(stepOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(stepAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    });
+  };
 
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -422,7 +443,7 @@ export const BookingExperience = () => {
                 ]}
                 onPress={() => {
                   tapLight();
-                  setWizardStep(st.step);
+                  animateStep(st.step);
                 }}
               >
                 <Text
@@ -439,6 +460,7 @@ export const BookingExperience = () => {
 
           {/* ─── PASSO 1: ESCOLHA O SERVIÇO ───────────────────────────── */}
           {wizardStep === 1 && (
+            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 1 DE 4</Text>
@@ -458,7 +480,7 @@ export const BookingExperience = () => {
                         setSelectedService(srv.id);
                         setSelectedTime(null);
                         // Auto advance to Step 2
-                        setWizardStep(2);
+                        animateStep(2);
                       }}
                     >
                       <View style={styles.serviceIconBox}>
@@ -482,10 +504,12 @@ export const BookingExperience = () => {
                 })}
               </View>
             </View>
+            </Animated.View>
           )}
 
           {/* ─── PASSO 2: ESCOLHA O PROFISSIONAL ────────────────────── */}
           {wizardStep === 2 && (
+            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 2 DE 4</Text>
@@ -516,7 +540,7 @@ export const BookingExperience = () => {
                           setSelectedBarber(barber.id);
                           setSelectedTime(null);
                           // Auto advance to Step 3
-                          setWizardStep(3);
+                          animateStep(3);
                         }}
                       >
                         <View style={styles.barberAvatar}>
@@ -546,14 +570,16 @@ export const BookingExperience = () => {
                 <AppButton
                   label="← Voltar aos Serviços"
                   variant="ghost"
-                  onPress={() => setWizardStep(1)}
+                  onPress={() => animateStep(1)}
                 />
               </View>
             </View>
+            </Animated.View>
           )}
 
           {/* ─── PASSO 3: ESCOLHA A DATA E HORÁRIO ──────────────────── */}
           {wizardStep === 3 && (
+            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 3 DE 4</Text>
@@ -721,19 +747,21 @@ export const BookingExperience = () => {
               )}
 
               <View style={styles.navRowBetween}>
-                <AppButton label="← Voltar ao Profissional" variant="ghost" onPress={() => setWizardStep(2)} />
+                <AppButton label="← Voltar ao Profissional" variant="ghost" onPress={() => animateStep(2)} />
 
                 <AppButton
                   label="Avançar para Revisão →"
                   disabled={!selectedDate || !selectedTime}
-                  onPress={() => setWizardStep(4)}
+                  onPress={() => animateStep(4)}
                 />
               </View>
             </View>
+            </Animated.View>
           )}
 
           {/* ─── PASSO 4: REVISÃO E CONFIRMAÇÃO ─────────────────────── */}
           {wizardStep === 4 && (
+            <Animated.View style={{ opacity: stepOpacity, transform: [{ translateX: stepAnim }] }}>
             <View style={styles.stepSection}>
               <View style={styles.stepHeader}>
                 <Text style={styles.stepEyebrow}>PASSO 4 DE 4</Text>
@@ -782,7 +810,7 @@ export const BookingExperience = () => {
               </View>
 
               <View style={styles.navRowBetween}>
-                <AppButton label="← Alterar Data/Horário" variant="ghost" onPress={() => setWizardStep(3)} />
+                <AppButton label="← Alterar Data/Horário" variant="ghost" onPress={() => animateStep(3)} />
 
                 <AppButton
                   label={bookingLoading ? 'Confirmando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
@@ -792,6 +820,7 @@ export const BookingExperience = () => {
                 />
               </View>
             </View>
+            </Animated.View>
           )}
 
           {!!bookingError && <InlineNotice tone="danger" message={bookingError} />}
@@ -1162,32 +1191,30 @@ const styles = StyleSheet.create({
   },
   weekHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     borderBottomWidth: 1,
     borderBottomColor: '#E4E5DF',
     paddingBottom: 6,
   },
   weekHeaderDay: {
+    width: '14.2857%' as any,
     fontSize: 11,
     fontFamily: typography.bodyStrong,
     color: colors.textMuted,
     textAlign: 'center',
-    width: 34,
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    rowGap: 6,
+    rowGap: 4,
   },
   emptyDayCell: {
-    width: 34,
-    height: 34,
+    width: '14.2857%' as any,
+    height: 38,
   },
   dayCell: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: '14.2857%' as any,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
