@@ -92,9 +92,9 @@ export const AdminReportsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { activeEstablishmentId } = useOperationalContext();
-  const { establishment } = useEstablishment(activeEstablishmentId);
-  const { professionals: professionalOptions, services: serviceOptions } = useAdminReportFilterOptions(activeEstablishmentId);
+  const { activeEstablishmentId: establishmentId } = useOperationalContext();
+  const { establishment } = useEstablishment(establishmentId);
+  const { professionals: professionalOptions, services: serviceOptions } = useAdminReportFilterOptions(establishmentId);
   const [draftStart, setDraftStart] = useState(urlState.start);
   const [draftEnd, setDraftEnd] = useState(urlState.end);
   const [rangeError, setRangeError] = useState<string | null>(null);
@@ -110,15 +110,15 @@ export const AdminReportsExperience = () => {
     router.setParams(adminReportUrlParams(merged) as never);
   };
   const { report, loading, error, refresh } = useAdminReport({
-    establishmentId: activeEstablishmentId,
+    establishmentId,
     rangeStart: urlState.start,
     rangeEnd: urlState.end,
-    enabled: Boolean(activeEstablishmentId),
+    enabled: Boolean(establishmentId),
     interactive: true,
     filters: urlState.filters,
   });
   const details = useAdminReportDetails({
-    establishmentId: activeEstablishmentId,
+    establishmentId,
     rangeStart: urlState.start,
     rangeEnd: urlState.end,
     filters: urlState.filters,
