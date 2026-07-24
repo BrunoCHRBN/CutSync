@@ -4,6 +4,7 @@ import { Clock3, Copy, ExternalLink, ImageIcon, KeyRound, Link2, MapPin, Palette
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
@@ -31,6 +32,7 @@ interface SettingsSnapshot {
   slogan: string;
   bannerUrl: string;
   instagram: string;
+  instantBookingEnabled: boolean;
   minCancellationHours: number | null;
   noShowFeePercent: number | null;
   latitude: number | null;
@@ -69,7 +71,8 @@ export const SettingsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { establishment: barbershop, loading } = useEstablishment(profile?.establishment_id);
+  const { activeEstablishmentId } = useOperationalContext();
+  const { establishment: barbershop, loading } = useEstablishment(activeEstablishmentId);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
@@ -183,7 +186,7 @@ export const SettingsExperience = () => {
       const blob = await response.blob();
 
       const fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
-      const fileName = `${profile?.establishment_id || 'public'}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileName = `${activeEstablishmentId || 'public'}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const bucketName = 'banners';
 
       const { error: uploadError } = await supabase.storage

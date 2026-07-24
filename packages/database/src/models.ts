@@ -2,6 +2,107 @@ import { Database, Json, Tables } from './supabase.generated';
 
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 export type ProfileRole = 'client' | 'professional' | 'admin';
+export type OrganizationRole = 'owner' | 'manager' | 'finance';
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'suspended' | 'canceled';
+
+export interface OperationalContext {
+  membershipId: string;
+  establishmentId: string;
+  establishmentName: string;
+  establishmentSlug: string;
+  membershipRole: 'admin' | 'professional';
+  membershipStatus: 'active' | 'revoked';
+  commissionRate: number;
+  establishmentStatus: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  status: 'active' | 'archived';
+}
+
+export interface OrganizationMembership {
+  profileId: string;
+  name: string;
+  role: OrganizationRole;
+  status: 'active' | 'revoked';
+}
+
+export interface OrganizationContext {
+  organization: Organization;
+  role: OrganizationRole;
+  establishments: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    timezone: string;
+    currency: string;
+    account_status: string;
+  }>;
+  members: OrganizationMembership[];
+}
+
+export interface OrganizationReportUnit {
+  id: string;
+  name: string;
+  timezone: string;
+  currency: string;
+  appointment_count: number;
+  completed_count: number;
+  cancelled_count: number;
+  scheduled_count: number;
+  production_realized: number;
+  scheduled_value: number;
+  occupied_minutes: number;
+  available_minutes: number;
+  identified_clients: number;
+  new_clients: number;
+  returning_clients: number;
+}
+
+export interface OrganizationReport {
+  organization_id: string;
+  range_start: string;
+  range_end: string;
+  appointment_count: number;
+  completed_count: number;
+  cancelled_count: number;
+  scheduled_count: number;
+  production_realized: number;
+  scheduled_value: number;
+  average_ticket: number;
+  occupied_minutes: number;
+  available_minutes: number;
+  occupancy_rate: number;
+  identified_clients: number;
+  new_clients: number;
+  returning_clients: number;
+  units: OrganizationReportUnit[];
+}
+
+export interface BillingAccount {
+  id: string;
+  organizationId: string;
+  displayName: string;
+  billingEmail?: string | null;
+  status: 'active' | 'closed';
+}
+
+export interface PlanUnitTier {
+  unitFrom: number;
+  unitTo?: number | null;
+  percentageBasisPoints: number;
+}
+
+export interface SubscriptionEntitlement {
+  status: SubscriptionStatus;
+  graceEndsAt?: string | null;
+  canCreateBookings: boolean;
+  canMutateAdministration: boolean;
+  canReadAndExport: boolean;
+  canManageExistingAppointments: boolean;
+}
 
 type EstablishmentRow = Tables<'establishments'>;
 type ProfileRow = Tables<'profiles'>;

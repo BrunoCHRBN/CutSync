@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ArrowDown, ArrowUp, Clock3, Copy, Pencil, Plus, Power, Scissors, WalletCards, X } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { supabase } from '../../services/supabase';
@@ -21,8 +22,9 @@ export const ServicesExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
-  const { services, loading, refresh } = useServices(profile?.establishment_id);
+  const { activeEstablishmentId } = useOperationalContext();
+  const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
+  const { services, loading, refresh } = useServices(activeEstablishmentId);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
@@ -46,14 +48,14 @@ export const ServicesExperience = () => {
       setNotice({ tone: 'danger', message: 'Informe nome, preço positivo e duração mínima de 5 minutos.' });
       return;
     }
-    if (!profile?.establishment_id) return;
+    if (!activeEstablishmentId) return;
     setSubmitting(true);
     try {
       const maxSortOrder = services.reduce((maximum, service) => Math.max(maximum, service.sortOrder), 0);
       const query = editingId
-        ? supabase.from('services').update({ name: name.trim(), price: numericPrice, duration_minutes: numericDuration }).eq('id', editingId).eq('establishment_id', profile.establishment_id)
+        ? supabase.from('services').update({ name: name.trim(), price: numericPrice, duration_minutes: numericDuration }).eq('id', editingId).eq('establishment_id', activeEstablishmentId)
         : supabase.from('services').insert({
-          establishment_id: profile.establishment_id, name: name.trim(), price: numericPrice,
+          establishment_id: activeEstablishmentId, name: name.trim(), price: numericPrice,
           duration_minutes: numericDuration, is_active: true, sort_order: maxSortOrder + 10,
         });
       const { error } = await query;
@@ -78,12 +80,12 @@ export const ServicesExperience = () => {
   };
 
   const duplicateService = async (service: ServiceRecord) => {
-    if (!profile?.establishment_id) return;
+    if (!activeEstablishmentId) return;
     setActionLoadingId(service.id);
     try {
       const maxSortOrder = services.reduce((maximum, item) => Math.max(maximum, item.sortOrder), 0);
       const { error } = await supabase.from('services').insert({
-        establishment_id: profile.establishment_id,
+        establishment_id: activeEstablishmentId,
         name: `${service.name} (cópia)`,
         price: service.price,
         duration_minutes: service.durationMinutes,
@@ -101,11 +103,11 @@ export const ServicesExperience = () => {
   };
 
   const reorderService = async (service: ServiceRecord, direction: 'up' | 'down') => {
-    if (!profile?.establishment_id) return;
+    if (!activeEstablishmentId) return;
     setActionLoadingId(service.id);
     try {
       const { error } = await supabase.rpc('reorder_service', {
-        target_establishment_id: profile.establishment_id,
+        target_establishment_id: activeEstablishmentId,
         target_service_id: service.id,
         direction,
       });

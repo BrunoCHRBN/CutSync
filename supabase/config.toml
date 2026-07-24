@@ -435,3 +435,43 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/execute-client-account-deletion/deno.json"
 entrypoint = "./functions/execute-client-account-deletion/index.ts"
+
+[functions.create-stripe-checkout]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-stripe-checkout/index.ts"
+
+[functions.create-stripe-portal]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-stripe-portal/index.ts"
+
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/stripe-webhook/index.ts"
+
+[functions.process-billing-jobs]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-billing-jobs/index.ts"
+
+[functions.reconcile-stripe-billing]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/reconcile-stripe-billing/index.ts"
+
+[functions.focus-nfe-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/focus-nfe-webhook/index.ts"
+
+[functions.process-fiscal-jobs]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-fiscal-jobs/index.ts"
+
+[functions.reconcile-fiscal-documents]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/reconcile-fiscal-documents/index.ts"

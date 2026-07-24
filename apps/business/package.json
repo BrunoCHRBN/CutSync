@@ -14,14 +14,17 @@
     "@cutsync/database": "*",
     "@cutsync/domain": "*",
     "@cutsync/validation": "*",
+    "@supabase/supabase-js": "2.110.3",
     "expo": "~57.0.8",
     "expo-constants": "~57.0.7",
     "expo-linking": "~57.0.4",
     "expo-router": "~57.0.8",
+    "expo-secure-store": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.0",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "react-native-url-polyfill": "4.0.0"
   }
 }

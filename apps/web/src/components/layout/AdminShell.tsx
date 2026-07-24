@@ -1,15 +1,13 @@
 import React, { ReactNode } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
-import { BarChart3, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react-native';
+import { BarChart3, Building2, CreditCard, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../services/supabase';
-import { Establishment, mapEstablishment } from '@cutsync/database';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { colors, radii, typeScale } from '../../theme/tokens';
 import { ActionMenu } from '../ui/action-menu';
 import { OperationalShell } from './operational-shell';
 
-type AdminRoute = 'overview' | 'reports' | 'services' | 'team' | 'settings';
+type AdminRoute = 'overview' | 'reports' | 'services' | 'team' | 'organization' | 'billing' | 'settings';
 
 interface AdminShellProps {
   children: ReactNode;
@@ -27,53 +25,34 @@ const navItems = [
   { key: 'reports', label: 'Relatórios', path: '/(admin)/reports', icon: BarChart3 },
   { key: 'services', label: 'Serviços', path: '/(admin)/services', icon: Scissors },
   { key: 'team', label: 'Equipe', path: '/(admin)/team', icon: Users },
+  { key: 'organization', label: 'Meu grupo', path: '/(admin)/organization', icon: Building2 },
+  { key: 'billing', label: 'Assinatura', path: '/(admin)/billing', icon: CreditCard },
   { key: 'settings', label: 'Configurações', path: '/(admin)/settings', icon: Settings },
 ] as const;
 
 export const AdminShell = ({ children, activeRoute, shopName, userName, onSignOut, testID = 'admin-shell', contentMode = 'standard', scroll = false }: AdminShellProps) => {
-  const [availableShops, setAvailableShops] = React.useState<Establishment[]>([]);
-  const [switching, setSwitching] = React.useState(false);
-  const { profile, refreshProfile } = useAuth();
+  const { contexts, activeEstablishmentId, selectEstablishment, loading: switching } = useOperationalContext();
   const router = useRouter();
 
-  React.useEffect(() => {
-    if (!profile?.id) return;
-    const load = async () => {
-      const { data: links } = await supabase.from('memberships').select('establishment_id').eq('profile_id', profile.id).eq('status', 'active');
-      const ids = (links || []).map((item) => item.establishment_id);
-      if (profile.establishment_id && !ids.includes(profile.establishment_id)) ids.push(profile.establishment_id);
-      if (!ids.length) { setAvailableShops([]); return; }
-      const { data } = await supabase.from('establishments').select('*').in('id', ids).order('name');
-      setAvailableShops((data || []).map(mapEstablishment));
-    };
-    void load();
-  }, [profile?.establishment_id, profile?.id]);
-
   const handleSwitchShop = async (targetShopId: string) => {
-    if (switching || targetShopId === profile?.establishment_id) return;
-    setSwitching(true);
-    try {
-      const { error } = await supabase.rpc('switch_active_establishment', { target_establishment_id: targetShopId });
-      if (error) throw error;
-      await refreshProfile();
-      router.replace('/(admin)');
-    } catch (error) {
-      console.warn('[AdminShell] Falha ao alternar estabelecimento:', error);
-      Alert.alert('Erro', 'Não foi possível alternar de barbearia. Tente novamente.');
-    } finally {
-      setSwitching(false);
+    if (switching || targetShopId === activeEstablishmentId) return;
+    if (!contexts.some((context) => context.establishmentId === targetShopId)) {
+      Alert.alert('Acesso removido', 'Este estabelecimento não está mais disponível para sua conta.');
+      return;
     }
+    selectEstablishment(targetShopId);
+    router.replace('/(admin)');
   };
 
-  const shopControl = availableShops.length > 1 ? (
+  const shopControl = contexts.length > 1 ? (
     <ActionMenu
       testID="admin-shop-switcher"
       label="Alternar estabelecimento"
-      items={availableShops.map((shop) => ({
-        key: shop.id,
-        label: shop.name,
-        disabled: shop.id === profile?.establishment_id,
-        onPress: () => { void handleSwitchShop(shop.id); },
+      items={contexts.map((context) => ({
+        key: context.establishmentId,
+        label: context.establishmentName,
+        disabled: context.establishmentId === activeEstablishmentId,
+        onPress: () => { void handleSwitchShop(context.establishmentId); },
       }))}
     />
   ) : (

@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "CutSync Control",
+    "slug": "cutsync-control",
+    "version": "1.0.0",
+    "orientation": "default",
+    "scheme": "cutsync-control",
+    "web": {
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}

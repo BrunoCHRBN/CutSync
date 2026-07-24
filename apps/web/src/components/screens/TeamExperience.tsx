@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Tex
 import { AlertTriangle, BadgePercent, BarChart3, CalendarDays, ChevronDown, ChevronUp, Clock, Copy, Mail, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useTeam } from '../../hooks/useTeam';
 import { supabase } from '../../services/supabase';
@@ -48,8 +49,9 @@ export const TeamExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
-  const { team: barbers, loading } = useTeam(profile?.establishment_id, false);
+  const { activeEstablishmentId } = useOperationalContext();
+  const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
+  const { team: barbers, loading } = useTeam(activeEstablishmentId, false);
   
   // Edição do profissional
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -83,10 +85,10 @@ export const TeamExperience = () => {
 
 
   const loadInvitations = React.useCallback(async () => {
-    if (!profile?.establishment_id) return;
-    const { data } = await supabase.rpc('list_establishment_invitations', { target_establishment_id: profile.establishment_id });
+    if (!activeEstablishmentId) return;
+    const { data } = await supabase.rpc('list_establishment_invitations', { target_establishment_id: activeEstablishmentId });
     setInvitations((data || []) as InvitationRecord[]);
-  }, [profile?.establishment_id]);
+  }, [activeEstablishmentId]);
 
   React.useEffect(() => { void loadInvitations(); }, [loadInvitations]);
 
@@ -112,7 +114,7 @@ export const TeamExperience = () => {
   };
 
   const saveBarberInfo = async (barberId: string) => {
-    if (!profile?.establishment_id) return;
+    if (!activeEstablishmentId) return;
     const value = Number(commission.replace(',', '.'));
     if (!Number.isFinite(value) || value < 0 || value > 100) {
       setNotice({ tone: 'danger', message: 'Informe uma comissão entre 0% e 100%.' });
@@ -122,7 +124,7 @@ export const TeamExperience = () => {
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile.establishment_id,
+        target_establishment_id: activeEstablishmentId,
         updates: {
           commission_rate: value / 100,
           specialties: specialties.trim() || null,
@@ -141,12 +143,12 @@ export const TeamExperience = () => {
   };
 
   const saveWorkHours = async (barberId: string) => {
-    if (!profile?.establishment_id) return;
+    if (!activeEstablishmentId) return;
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile.establishment_id,
+        target_establishment_id: activeEstablishmentId,
         updates: { work_hours: JSON.stringify(workHoursSchedule) },
       });
       if (error) throw error;
@@ -160,12 +162,13 @@ export const TeamExperience = () => {
   };
 
   const removeBarber = async (barberId: string) => {
-    if (!profile?.establishment_id) return;
+    if (!activeEstablishmentId) return;
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('remove_professional', {
         target_profile_id: barberId,
-        target_establishment_id: profile.establishment_id,
+        target_establishment_id: activeEstablishmentId,
+        reason: 'Removido pelo administrador na gestão de equipe.',
       });
       if (error) throw error;
       setRemovingId(null);
@@ -178,14 +181,14 @@ export const TeamExperience = () => {
   };
 
   const createInvite = async () => {
-    if (!profile?.establishment_id || !inviteEmail.trim()) {
+    if (!activeEstablishmentId || !inviteEmail.trim()) {
       setNotice({ tone: 'danger', message: 'Informe o e-mail do profissional.' });
       return;
     }
     setInviteLoading(true);
     setNotice(null);
     const { data, error } = await supabase.rpc('create_invitation', {
-      target_establishment_id: profile.establishment_id,
+      target_establishment_id: activeEstablishmentId,
       target_email: inviteEmail.trim().toLowerCase(),
       target_role: 'professional',
     });

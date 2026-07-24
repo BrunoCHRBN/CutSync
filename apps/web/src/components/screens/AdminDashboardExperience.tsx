@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
@@ -72,10 +73,11 @@ export const AdminDashboardExperience = () => {
   const { open: openCommandPalette } = useCommandPalette();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
+  const { activeEstablishmentId } = useOperationalContext();
+  const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
-  const { team: barbers } = useTeam(profile?.establishment_id, true);
-  const { services } = useServices(profile?.establishment_id, true);
+  const { team: barbers } = useTeam(activeEstablishmentId, true);
+  const { services } = useServices(activeEstablishmentId, true);
   const [selectedDate, setSelectedDate] = useState(() => /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? new Date(`${date}T12:00:00`) : new Date());
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -109,10 +111,10 @@ export const AdminDashboardExperience = () => {
   }, [selectedDate]);
 
   const { appointments: appointmentRecords, loading: dailyLoading, error: dailyError, refresh: refreshDaily } = useAppointments({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     dateFrom: dailyRange.start.toISOString(),
     dateTo: dailyRange.end.toISOString(),
-    enabled: Boolean(profile?.establishment_id),
+    enabled: Boolean(activeEstablishmentId),
   });
   const {
     blocks: scheduleBlocks,
@@ -121,17 +123,17 @@ export const AdminDashboardExperience = () => {
     supported: scheduleBlocksSupported,
     refresh: refreshScheduleBlocks,
   } = useScheduleBlocks({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     rangeStart: dailyRange.start,
     rangeEnd: dailyRange.end,
-    enabled: Boolean(profile?.establishment_id),
+    enabled: Boolean(activeEstablishmentId),
   });
   const todayKey = toDateKey(new Date());
   const { report: dayReport, loading: reportLoading, error: reportError, refresh: refreshReport } = useAdminReport({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     rangeStart: todayKey,
     rangeEnd: todayKey,
-    enabled: Boolean(profile?.establishment_id),
+    enabled: Boolean(activeEstablishmentId),
   });
   const {
     appointment: nextAppointment,
@@ -139,8 +141,8 @@ export const AdminDashboardExperience = () => {
     error: nextAppointmentError,
     refresh: refreshNextAppointment,
   } = useNextAppointment({
-    establishmentId: profile?.establishment_id,
-    enabled: Boolean(profile?.establishment_id),
+    establishmentId: activeEstablishmentId,
+    enabled: Boolean(activeEstablishmentId),
   });
   const isSyncing = dailyLoading || reportLoading || nextAppointmentLoading;
   const appointmentError = dailyError || reportError || nextAppointmentError;

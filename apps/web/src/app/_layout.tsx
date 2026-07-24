@@ -12,6 +12,8 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { WebAutofillStyles } from '../components/ui/web-autofill-styles';
 import { CommandPaletteProvider } from '../components/command/command-palette-provider';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { OperationalContextProvider, useOperationalContext } from '../contexts/operational-context';
+import { BillingAccessProvider, useBillingAccess } from '../contexts/BillingAccessContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { colors, radii, typography } from '../theme/tokens';
 import '../i18n';
@@ -22,25 +24,28 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutNavigation() {
   const buildTarget = process.env.EXPO_PUBLIC_BUILD_TARGET;
   const { user, profile, loading, isSuperadmin, governanceRole } = useAuth();
+  const { contexts, activeContext, loading: operationalLoading } = useOperationalContext();
   const segments = useSegments();
   const router = useRouter();
+  const { access } = useBillingAccess();
   const firstSegment = segments[0] as string | undefined;
   const isPublicCompliance = firstSegment === 'privacy' || firstSegment === 'account-deletion';
   const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos' || isPublicCompliance;
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || (user && operationalLoading)) return;
 
-    const secondSegment = segments[1] as string | undefined;
+    const secondSegment = (segments as readonly string[])[1];
     const inAuthGroup = firstSegment === '(auth)';
     const isDynamicSlug = firstSegment === '[slug]';
     const isPublicSalon = firstSegment === 'salon';
-    const isInvite = firstSegment === 'invite';
+    const isInvite = firstSegment === 'invite' || firstSegment === 'organization-invite';
     const isPublicProfessionalProfile = firstSegment === 'profile';
     const isProfessionalProfileEditor = firstSegment === 'professional-profile';
     const isSecurity = firstSegment === 'security';
     const isPasswordReset = inAuthGroup && secondSegment === 'reset-password';
     const isGovernance = firstSegment === 'governance';
+    const isRestricted = firstSegment === 'restricted';
 
     // 1. Isolamento Absoluto em Produção (Redirecionamento/Bloqueio físico de rotas restritas)
     if (buildTarget === 'production' && (isGovernance || firstSegment === 'superadmin')) {
@@ -54,7 +59,7 @@ function RootLayoutNavigation() {
 
     if (!user) {
       // Rotas protegidas exigem autenticação — redirecionar para o Marketplace público (/)
-      const protectedSegments = ['(admin)', '(client)', '(professional)', 'superadmin', 'governance', 'appointments', 'admin', 'professional', 'security', 'professional-profile'];
+      const protectedSegments = ['(admin)', '(client)', '(professional)', 'superadmin', 'governance', 'appointments', 'admin', 'professional', 'security', 'professional-profile', 'restricted'];
       const isProtectedRoute = protectedSegments.includes(firstSegment || '');
       if (isProtectedRoute) {
         router.replace('/');
@@ -62,6 +67,21 @@ function RootLayoutNavigation() {
       // Rotas públicas: /, /para-estabelecimentos, /(auth), /[slug], /salon, /invite, /profile, /welcome, /embed — sem redirect
     } else if (profile) {
       if (isPasswordReset || isSecurity) return;
+      if (
+        access?.access_mode !== 'full' &&
+        access != null &&
+        !isRestricted &&
+        !(firstSegment === '(admin)' && secondSegment === 'billing')
+      ) {
+        router.replace('/restricted');
+        return;
+      }
+      if (isRestricted) {
+        if (access?.access_mode === 'full') {
+          router.replace(access.membership_role === 'admin' ? '/(admin)' : '/(professional)');
+        }
+        return;
+      }
       
       const inAdminGroup = firstSegment === '(admin)' || firstSegment === 'admin';
       const inClientGroup = 
@@ -89,11 +109,17 @@ function RootLayoutNavigation() {
         return;
       }
 
-      if (profile.role === 'admin') {
+      const effectiveRole = activeContext?.membershipRole
+        ?? (contexts.some((context) => context.membershipRole === 'admin')
+          ? 'admin'
+          : contexts.some((context) => context.membershipRole === 'professional')
+            ? 'professional'
+            : profile.role);
+      if (effectiveRole === 'admin') {
         if (!inAdminGroup && !isDynamicSlug && !isPublicSalon && !isPublicProfessionalProfile && !isProfessionalProfileEditor) {
           router.replace('/(admin)');
         }
-      } else if (profile.role === 'professional') {
+      } else if (effectiveRole === 'professional') {
         if (!inProfessionalGroup && !isPublicProfessionalProfile && !isProfessionalProfileEditor && !isDynamicSlug && !isPublicSalon) {
           router.replace('/(professional)');
         }
@@ -103,9 +129,9 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [buildTarget, user, profile, loading, isSuperadmin, governanceRole, segments, router, firstSegment, isPublicCompliance]);
+  }, [activeContext, buildTarget, contexts, user, profile, loading, operationalLoading, isSuperadmin, governanceRole, segments, router, firstSegment, access, isPublicCompliance]);
 
-  if (loading && !isPublicMarketing) {
+  if ((loading || (user && operationalLoading)) && !isPublicMarketing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#D4AF37" />
@@ -161,9 +187,13 @@ export default function RootLayout() {
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <WebAutofillStyles />
         <AuthProvider>
-          <CommandPaletteProvider>
-            <RootLayoutNavigation />
-          </CommandPaletteProvider>
+          <OperationalContextProvider>
+            <BillingAccessProvider>
+              <CommandPaletteProvider>
+                <RootLayoutNavigation />
+              </CommandPaletteProvider>
+            </BillingAccessProvider>
+          </OperationalContextProvider>
         </AuthProvider>
     </SafeAreaProvider>
   );
