@@ -11,6 +11,12 @@ import {
   View,
   type ViewToken,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInRight,
+  FadeInUp,
+  LinearTransition,
+} from 'react-native-reanimated';
 
 import { ClientButton, ClientGlassStage } from '@/components/ui/client-ui';
 import { useClientOnboarding } from '@/contexts/client-onboarding-context';
@@ -143,7 +149,10 @@ export function ClientOnboardingScreen({ mode }: { mode: ClientOnboardingMode })
         keyExtractor={(item) => item.id}
         onViewableItemsChanged={onViewableItemsChanged}
         renderItem={({ item, index }) => (
-          <View style={[styles.page, { width: pageWidth }]}>
+          <Animated.View
+            entering={FadeInRight.duration(clientTheme.motion.emphasized)}
+            style={[styles.page, { width: pageWidth }]}
+          >
             <ClientGlassStage
               testID={`client-onboarding-art-${item.id}`}
               backdrop={<OnboardingArtwork pageIndex={index} />}
@@ -153,12 +162,17 @@ export function ClientOnboardingScreen({ mode }: { mode: ClientOnboardingMode })
                 <Text style={styles.glassNumber}>0{index + 1}</Text>
               </View>
             </ClientGlassStage>
-            <View style={styles.copy}>
+            <Animated.View
+              entering={FadeInUp
+                .delay(index * clientTheme.motion.stagger)
+                .duration(clientTheme.motion.standard)}
+              style={styles.copy}
+            >
               <Text style={styles.eyebrow}>{item.eyebrow}</Text>
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.description}>{item.description}</Text>
-            </View>
-          </View>
+            </Animated.View>
+          </Animated.View>
         )}
         showsHorizontalScrollIndicator={false}
         style={styles.list}
@@ -168,8 +182,10 @@ export function ClientOnboardingScreen({ mode }: { mode: ClientOnboardingMode })
       <View style={styles.footer}>
         <View accessibilityLabel={`Página ${activeIndex + 1} de ${pages.length}`} style={styles.pagination}>
           {pages.map((page, index) => (
-            <View
+            <Animated.View
               key={page.id}
+              entering={FadeIn.duration(clientTheme.motion.fast)}
+              layout={LinearTransition.duration(clientTheme.motion.standard)}
               style={[styles.paginationDot, index === activeIndex && styles.paginationDotActive]}
             />
           ))}
@@ -177,6 +193,7 @@ export function ClientOnboardingScreen({ mode }: { mode: ClientOnboardingMode })
         <ClientButton
           testID="client-onboarding-next"
           label={isLastPage ? (mode === 'replay' ? 'Voltar para a conta' : 'Começar agora') : 'Continuar'}
+          haptic={isLastPage ? 'success' : 'selection'}
           onPress={advance}
         />
       </View>

@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/react-native';
 import { Stack, useNavigationContainerRef, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated';
 
 import { SessionProvider, useSession } from '@/contexts/session-context';
 import {
@@ -17,11 +18,14 @@ import { resolveClientEntryState } from '@/features/onboarding/client-onboarding
 
 function ClientRootLayout() {
   return (
-    <ClientOnboardingProvider>
-      <SessionProvider>
-        <ClientNavigator />
-      </SessionProvider>
-    </ClientOnboardingProvider>
+    <>
+      <ReducedMotionConfig mode={ReduceMotion.System} />
+      <ClientOnboardingProvider>
+        <SessionProvider>
+          <ClientNavigator />
+        </SessionProvider>
+      </ClientOnboardingProvider>
+    </>
   );
 }
 

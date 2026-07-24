@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 
 import { clientTheme } from '@/theme/client-theme';
+import type { ClientHapticEvent } from '@/features/experience/client-haptic-state';
+import { performClientHaptic } from '@/features/experience/client-haptics';
 
 type ClientButtonTone = 'primary' | 'secondary' | 'danger' | 'quiet';
 type ClientFeedbackTone = 'danger' | 'success' | 'neutral' | 'info';
@@ -76,6 +78,7 @@ export function ClientButton({
   loading,
   disabled,
   testID,
+  haptic,
 }: {
   label: string;
   onPress: () => void;
@@ -83,6 +86,7 @@ export function ClientButton({
   loading?: boolean;
   disabled?: boolean;
   testID?: string;
+  haptic?: ClientHapticEvent;
 }) {
   const isDisabled = Boolean(disabled || loading);
   const indicatorColor = tone === 'primary' ? clientTheme.colors.white : clientTheme.colors.forest;
@@ -94,7 +98,10 @@ export function ClientButton({
       accessibilityLabel={label}
       accessibilityState={{ disabled: isDisabled, busy: Boolean(loading) }}
       disabled={isDisabled}
-      onPress={onPress}
+      onPress={() => {
+        if (haptic) void performClientHaptic(haptic);
+        onPress();
+      }}
       style={({ pressed }) => [
         styles.button,
         tone === 'secondary' && styles.buttonSecondary,
