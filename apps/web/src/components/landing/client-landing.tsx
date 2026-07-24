@@ -31,8 +31,8 @@ import { Establishment, mapEstablishment } from '@cutsync/database';
 import { getOpeningStatus } from '@cutsync/domain';
 import { trackLandingEvent } from './landing-analytics';
 import { EditorialBand, EstablishmentMedia } from './landing-primitives';
-import { GlassSurface, MagneticButton, RevealOnScroll, SpotlightSection } from './motion/landing-effects';
-import { LandingMotionProvider, useReducedMotion } from './motion/landing-motion';
+import { GlassSurface, MagneticButton, MaskedReveal, RevealOnScroll, SectionReveal, SpotlightSection, StaggerGroup, StaggerItem } from './motion/landing-effects';
+import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
 import { ProductPreview } from './product-preview';
 import { AccessPath, AccessPathModal } from './access-path-modal';
 
@@ -69,6 +69,7 @@ const ClientLandingContent = () => {
   const { user, profile } = useAuth();
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
+  const { quality } = useLandingMotion();
   const isDesktop = width >= landingLayout.desktopBreakpoint;
   const isMobile = width < landingLayout.mobileBreakpoint;
   const scrollRef = useRef<ScrollView>(null);
@@ -78,6 +79,7 @@ const ClientLandingContent = () => {
   const journeySectionY = useRef(0);
   const reportedDepths = useRef(new Set<50 | 100>());
   const [establishments, setEstablishments] = useState<PublicEstablishment[]>([]);
+  const [hoveredEstablishment, setHoveredEstablishment] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [serviceGroup, setServiceGroup] = useState('all');
@@ -257,24 +259,24 @@ const ClientLandingContent = () => {
       <ScrollView ref={scrollRef} onScroll={trackScrollDepth} scrollEventThrottle={32} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <SpotlightSection style={[styles.heroSection, !isDesktop && styles.heroSectionStacked]}>
           <View style={styles.heroCopy}>
-            <View style={styles.heroBadge}>
+            <SectionReveal delay={0} style={styles.heroBadge}>
               <View style={styles.liveDot} />
               <Text style={styles.heroBadgeText}>VITRINES E AGENDAS CONECTADAS</Text>
-            </View>
-            <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Encontre seu próximo horário{`\n`}sem depender de mensagens.</Text>
-            <Text style={styles.heroDescription}>Explore serviços, consulte a agenda de cada estabelecimento e escolha quando agendar.</Text>
-            <View style={styles.heroActions}>
+            </SectionReveal>
+            <MaskedReveal delay={70}><Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Encontre seu próximo horário{`\n`}sem depender de mensagens.</Text></MaskedReveal>
+            <SectionReveal delay={210}><Text style={styles.heroDescription}>Explore serviços, consulte a agenda de cada estabelecimento e escolha quando agendar.</Text></SectionReveal>
+            <SectionReveal delay={320} style={styles.heroActions}>
               <MagneticButton label="Ver estabelecimentos" onPress={scrollToSearch} testID="landing-hero-client-cta" />
               <MagneticButton label="Como funciona" secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
               {!isDesktop && <MagneticButton label="Tenho um negócio" secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
-            </View>
+            </SectionReveal>
           </View>
           {isDesktop && (
-            <ProductPreview
+            <MaskedReveal delay={420} style={styles.heroPreview}><ProductPreview
               variant="client"
               accessibilityLabel="Demonstração ilustrativa do fluxo de agendamento do CutSync"
-              style={styles.heroPreview}
-            />
+              style={{ width: '100%' }}
+            /></MaskedReveal>
           )}
         </SpotlightSection>
 
@@ -377,22 +379,25 @@ const ClientLandingContent = () => {
                 <Text style={styles.stateText}>Tente outro serviço, bairro ou cidade.</Text>
               </View>
             ) : (
-              <View testID="landing-results-grid" style={styles.establishmentGrid}>
-                {filtered.map((establishment) => {
+              <StaggerGroup testID="landing-results-grid" style={styles.establishmentGrid}>
+                {filtered.map((establishment, index) => {
                   const opening = getOpeningStatus(establishment.openingHours, establishment.timezone);
                   const prices = establishment.services.map((service) => service.price).filter((price) => price > 0);
                   const startingPrice = prices.length ? Math.min(...prices) : null;
                   const hasVerifiedRating = Boolean(establishment.averageRating && establishment.averageRating > 0 && establishment.reviewCount && establishment.reviewCount > 0);
+                  const hovered = quality === 'high' && hoveredEstablishment === establishment.id;
                   return (
+                    <StaggerItem key={establishment.id} index={index % 6} style={{ width: resultCardWidth }}>
                     <Pressable
-                      key={establishment.id}
                       testID={`landing-establishment-${establishment.id}`}
                       accessibilityRole="link"
                       accessibilityLabel={`Ver perfil de ${establishment.name}`}
                       onPress={() => openEstablishment(establishment)}
-                      style={({ pressed }) => [styles.establishmentCard, { width: resultCardWidth }, pressed && styles.pressed]}
+                      onHoverIn={() => setHoveredEstablishment(establishment.id)}
+                      onHoverOut={() => setHoveredEstablishment(null)}
+                      style={({ pressed }) => [styles.establishmentCard, hovered && styles.establishmentCardHovered, pressed && styles.pressed]}
                     >
-                      <EstablishmentMedia name={establishment.name} uri={establishment.bannerUrl || establishment.logoUrl} style={styles.cover} />
+                      <EstablishmentMedia name={establishment.name} uri={establishment.bannerUrl || establishment.logoUrl} style={[styles.cover, hovered && styles.coverHovered]} />
                       <View style={styles.cardBody}>
                         <Text numberOfLines={1} style={styles.cardTitle}>{establishment.name}</Text>
                         {!!establishment.address && <View style={styles.metaRow}><MapPin size={14} color={landingColors.inkMuted} /><Text numberOfLines={2} style={styles.metaText}>{establishment.address}</Text></View>}
@@ -408,9 +413,10 @@ const ClientLandingContent = () => {
                         </View>
                       </View>
                     </Pressable>
+                    </StaggerItem>
                   );
                 })}
-              </View>
+              </StaggerGroup>
             )}
             <Text style={styles.resultsNote}>A disponibilidade é consultada antes da confirmação do agendamento.</Text>
           </RevealOnScroll>
@@ -422,19 +428,19 @@ const ClientLandingContent = () => {
             style={styles.journeySection}
           >
             <SectionHeading eyebrow="DO ENCONTRO À CONFIRMAÇÃO" title="Uma decisão de cada vez." description="Você pode explorar antes de entrar. A conta é necessária somente para concluir a reserva." />
-            <View style={styles.journeyGrid}>
+            <StaggerGroup style={styles.journeyGrid}>
               {[
                 { step: '01', Icon: Search, title: 'Descubra', text: 'Busque por serviço, estabelecimento ou localização.' },
                 { step: '02', Icon: CalendarCheck, title: 'Escolha', text: 'Consulte o catálogo e os horários da unidade.' },
                 { step: '03', Icon: ShieldCheck, title: 'Confirme', text: 'Acesse sua conta apenas para finalizar o agendamento.' },
-              ].map(({ step, Icon, title, text }) => (
-                <View key={title} style={styles.journeyItem}>
+              ].map(({ step, Icon, title, text }, index) => (
+                <StaggerItem key={title} index={index} style={styles.journeyItem}>
                   <View style={styles.journeyTop}><Text style={styles.stepNumber}>{step}</Text><Icon size={20} color={landingColors.brand} /></View>
                   <Text style={styles.journeyTitle}>{title}</Text>
                   <Text style={styles.journeyText}>{text}</Text>
-                </View>
+                </StaggerItem>
               ))}
-            </View>
+            </StaggerGroup>
           </RevealOnScroll>
 
           <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'connected_platform' })}>
@@ -544,9 +550,11 @@ const styles = StyleSheet.create({
   resultsHeadingRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 18 },
   resultsCount: { color: landingColors.brand, fontFamily: landingTypography.mono, fontSize: 13, fontVariant: ['tabular-nums'] },
   establishmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  establishmentCard: { overflow: 'hidden', borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, borderWidth: 1, borderColor: 'rgba(41,75,58,0.08)', boxShadow: '0 16px 50px rgba(20,33,25,0.08)' },
+  establishmentCard: { width: '100%', overflow: 'hidden', borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, borderWidth: 1, borderColor: 'rgba(41,75,58,0.08)', boxShadow: '0 16px 50px rgba(20,33,25,0.08)', transitionProperty: 'transform, box-shadow, border-color' as never, transitionDuration: '260ms' as never },
+  establishmentCardHovered: { transform: [{ translateY: -4 }], borderColor: 'rgba(41,75,58,0.22)', boxShadow: '0 24px 62px rgba(20,33,25,0.15)' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.995 }] },
-  cover: { height: 210 },
+  cover: { height: 210, transitionProperty: 'transform' as never, transitionDuration: '420ms' as never },
+  coverHovered: { transform: [{ scale: 1.035 }] },
   cardBody: { padding: 20, gap: 11 },
   cardTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 17 },
   metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },

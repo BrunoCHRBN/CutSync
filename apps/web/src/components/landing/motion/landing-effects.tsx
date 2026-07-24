@@ -1,7 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import Animated, { FadeInUp, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  FadeInLeft,
+  FadeInRight,
+  FadeOutLeft,
+  FadeOutRight,
+  LinearTransition,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import {
   LandingGlassVariant,
   landingColors,
@@ -11,6 +21,41 @@ import {
   landingTypography,
 } from '../../../theme/landing-tokens';
 import { useLandingMotion, useMagneticHover, useMousePosition, useRevealOnScroll, useSpotlight, useTilt } from './landing-motion';
+
+export type SectionRevealVariant = 'fade-up' | 'fade-side' | 'scale' | 'none';
+
+const transitionCurve = `cubic-bezier(${landingMotion.easingEditorial.join(',')})`;
+
+const revealStyle = (
+  revealed: boolean,
+  quality: 'high' | 'limited' | 'off',
+  variant: SectionRevealVariant,
+  delay: number,
+): StyleProp<ViewStyle> => {
+  if (quality === 'off' || variant === 'none') return undefined;
+  const hiddenTransform = variant === 'fade-side'
+    ? [{ translateX: quality === 'high' ? 28 : 14 }]
+    : variant === 'scale'
+      ? [{ scale: quality === 'high' ? 0.965 : 0.985 }]
+      : [{ translateY: quality === 'high' ? 28 : 14 }];
+  return {
+    opacity: revealed ? 1 : 0,
+    transform: revealed ? (variant === 'scale' ? [{ scale: 1 }] : variant === 'fade-side' ? [{ translateX: 0 }] : [{ translateY: 0 }]) : hiddenTransform,
+    filter: quality === 'high' && !revealed ? 'blur(8px)' : 'blur(0px)',
+    transitionProperty: 'opacity, transform, filter',
+    transitionDuration: `${landingMotion.reveal}ms`,
+    transitionDelay: `${delay}ms`,
+    transitionTimingFunction: transitionCurve,
+  } as never;
+};
+
+interface StaggerContextValue {
+  revealed: boolean;
+  quality: 'high' | 'limited' | 'off';
+  interval: number;
+}
+
+const StaggerContext = createContext<StaggerContextValue | null>(null);
 
 export const GlassSurface = ({
   children,
@@ -132,16 +177,29 @@ export const AnimatedNumber = ({ value, prefix = '', suffix = '' }: { value: num
   return <Text style={styles.metric}>{prefix}{displayed.toLocaleString('pt-BR')}{suffix}</Text>;
 };
 
-export const RevealOnScroll = ({ children, style, delay = 0, onLayout, onReveal, testID }: {
+export const SectionReveal = ({
+  children,
+  style,
+  delay = 0,
+  threshold = 0.12,
+  once = true,
+  variant = 'fade-up',
+  onLayout,
+  onReveal,
+  testID,
+}: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   delay?: number;
+  threshold?: number;
+  once?: boolean;
+  variant?: SectionRevealVariant;
   onLayout?: (event: LayoutChangeEvent) => void;
   onReveal?: () => void;
   testID?: string;
 }) => {
   const { quality } = useLandingMotion();
-  const { ref, revealed } = useRevealOnScroll();
+  const { ref, revealed } = useRevealOnScroll({ threshold, once });
   const revealReported = React.useRef(false);
   useEffect(() => {
     if (revealed && !revealReported.current) {
@@ -150,12 +208,131 @@ export const RevealOnScroll = ({ children, style, delay = 0, onLayout, onReveal,
     }
   }, [onReveal, revealed]);
   return (
-    <Animated.View
+    <View
       ref={ref as never}
       testID={testID}
       onLayout={onLayout}
-      entering={quality === 'off' ? undefined : FadeInUp.duration(landingMotion.editorial).delay(delay)}
-      style={[style, !revealed && quality !== 'off' && styles.revealPending]}
+      style={[style, revealStyle(revealed, quality, variant, delay)]}
+    >
+      {children}
+    </View>
+  );
+};
+
+/** Compatibilidade temporária enquanto as landings migram para o nome explícito. */
+export const RevealOnScroll = SectionReveal;
+
+export const MaskedReveal = ({
+  children,
+  style,
+  delay = 0,
+  threshold = 0.12,
+  testID,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  delay?: number;
+  threshold?: number;
+  testID?: string;
+}) => {
+  const { quality } = useLandingMotion();
+  const { ref, revealed } = useRevealOnScroll({ threshold, once: true });
+  const distance = quality === 'high' ? 42 : 20;
+  const animatedStyle = quality === 'off' ? undefined : ({
+    opacity: revealed ? 1 : 0,
+    transform: [{ translateY: revealed ? 0 : distance }],
+    filter: quality === 'high' && !revealed ? 'blur(5px)' : 'blur(0px)',
+    transitionProperty: 'opacity, transform, filter',
+    transitionDuration: `${landingMotion.reveal}ms`,
+    transitionDelay: `${delay}ms`,
+    transitionTimingFunction: transitionCurve,
+  } as never);
+  return (
+    <View ref={ref as never} testID={testID} style={[styles.mask, style]}>
+      <View style={animatedStyle}>{children}</View>
+    </View>
+  );
+};
+
+export const StaggerGroup = ({
+  children,
+  style,
+  interval = landingMotion.stagger,
+  threshold = 0.12,
+  testID,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  interval?: number;
+  threshold?: number;
+  testID?: string;
+}) => {
+  const { quality } = useLandingMotion();
+  const { ref, revealed } = useRevealOnScroll({ threshold, once: true });
+  const value = useMemo(() => ({ revealed, quality, interval }), [interval, quality, revealed]);
+  return (
+    <StaggerContext value={value}>
+      <View ref={ref as never} testID={testID} style={style}>{children}</View>
+    </StaggerContext>
+  );
+};
+
+export const StaggerItem = ({
+  children,
+  index,
+  style,
+  variant = 'fade-up',
+  testID,
+}: {
+  children: React.ReactNode;
+  index: number;
+  style?: StyleProp<ViewStyle>;
+  variant?: SectionRevealVariant;
+  testID?: string;
+}) => {
+  const context = React.use(StaggerContext);
+  const delay = Math.min(Math.max(index, 0), 5) * (context?.interval ?? landingMotion.stagger);
+  return (
+    <View
+      testID={testID}
+      style={[
+        style,
+        context ? revealStyle(context.revealed, context.quality, variant, delay) : undefined,
+      ]}
+    >
+      {children}
+    </View>
+  );
+};
+
+export const AnimatedTabContent = ({
+  children,
+  contentKey,
+  direction = 1,
+  style,
+  testID,
+}: {
+  children: React.ReactNode;
+  contentKey: string;
+  direction?: -1 | 1;
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+}) => {
+  const { quality } = useLandingMotion();
+  const entering = quality === 'off'
+    ? undefined
+    : (direction > 0 ? FadeInRight : FadeInLeft).duration(landingMotion.standard);
+  const exiting = quality === 'off'
+    ? undefined
+    : (direction > 0 ? FadeOutLeft : FadeOutRight).duration(landingMotion.fast);
+  return (
+    <Animated.View
+      key={contentKey}
+      testID={testID}
+      entering={entering}
+      exiting={exiting}
+      layout={quality === 'off' ? undefined : LinearTransition.duration(landingMotion.standard)}
+      style={[styles.tabContent, style]}
     >
       {children}
     </Animated.View>
@@ -208,7 +385,8 @@ const styles = StyleSheet.create({
   magneticLabelInverse: { color: landingColors.brandStrong },
   spotlight: { position: 'relative', overflow: 'hidden' },
   metric: { color: landingColors.ink, fontFamily: landingTypography.mono, fontSize: 28, fontVariant: ['tabular-nums'] },
-  revealPending: { opacity: 0.96, transform: [{ translateY: 6 }] },
+  mask: { overflow: 'hidden' },
+  tabContent: { width: '100%' },
   cursorRegion: { position: 'relative', overflow: 'hidden' },
   cursorHalo: {
     position: 'absolute',

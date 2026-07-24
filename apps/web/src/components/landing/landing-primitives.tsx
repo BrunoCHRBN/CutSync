@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Store } from 'lucide-react-native';
 import { landingColors, landingRadii, landingTypography } from '../../theme/landing-tokens';
+import { MaskedReveal } from './motion/landing-effects';
 
 interface EditorialBandProps {
   eyebrow: string;
@@ -17,7 +18,7 @@ export const EditorialBand = ({ eyebrow, title, description, children, style, te
   <View testID={testID} style={[styles.editorialBand, style]}>
     <View style={styles.editorialCopy}>
       <Text style={styles.editorialEyebrow}>{eyebrow}</Text>
-      <Text style={styles.editorialTitle}>{title}</Text>
+      <MaskedReveal><Text style={styles.editorialTitle}>{title}</Text></MaskedReveal>
       <Text style={styles.editorialDescription}>{description}</Text>
     </View>
     {children}

@@ -117,3 +117,37 @@ test('landing respeita movimento reduzido', async ({ page }) => {
   await page.getByTestId('landing-account-button').click();
   await expect(page.getByTestId('access-path-modal')).toBeVisible();
 });
+
+test('motion mantém narrativa responsiva, foco e conteúdo acessível', async ({ page }) => {
+  await page.goto('/para-estabelecimentos', { waitUntil: 'domcontentloaded' });
+  const desktop = (page.viewportSize()?.width ?? 0) >= 1040;
+  await page.getByTestId('business-demo-cta').click();
+  await expect(page.getByTestId('business-story-agenda')).toBeVisible();
+
+  await page.getByTestId('business-sandbox-tab-services').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('business-sandbox-tab-team')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('business-team-demo')).toBeVisible();
+
+  if (desktop) {
+    await expect(page.getByTestId('business-sticky-story')).toBeVisible();
+    await expect(page.getByTestId('business-sticky-preview')).toHaveCSS('position', 'sticky');
+  } else {
+    await expect(page.getByTestId('business-sticky-story')).toHaveCount(0);
+  }
+});
+
+test('capturas visuais das landings e da narrativa', async ({ page }, testInfo) => {
+  test.skip(!['phone-390', 'desktop-1440'].includes(testInfo.project.name));
+  await page.goto('/', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('client-public-landing')).toHaveScreenshot(`client-${testInfo.project.name}.png`, { animations: 'disabled' });
+
+  await page.goto('/para-estabelecimentos', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('business-public-landing')).toHaveScreenshot(`business-${testInfo.project.name}.png`, { animations: 'disabled' });
+  if (testInfo.project.name === 'desktop-1440') {
+    await page.getByTestId('business-demo-cta').click();
+    await expect(page.getByTestId('business-story-services')).toBeVisible();
+    await page.getByTestId('business-sandbox-tab-services').click();
+    await expect(page.getByTestId('business-services-demo')).toHaveScreenshot('business-sticky-services-desktop-1440.png', { animations: 'disabled' });
+  }
+});

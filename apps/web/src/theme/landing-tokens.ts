@@ -40,11 +40,14 @@ export const landingTypography = {
 } as const;
 
 export const landingMotion = {
-  fast: 120,
-  standard: 360,
-  editorial: 640,
-  easingIn: [0.16, 1, 0.3, 1] as const,
-  easingOut: [0.4, 0, 1, 1] as const,
+  micro: 180,
+  fast: 260,
+  standard: 420,
+  reveal: 620,
+  narrative: 800,
+  stagger: 70,
+  easingEditorial: [0.16, 1, 0.3, 1] as const,
+  easingTransition: [0.76, 0, 0.24, 1] as const,
 } as const;
 
 export const landingLayout = {

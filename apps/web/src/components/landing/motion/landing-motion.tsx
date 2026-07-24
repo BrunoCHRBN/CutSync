@@ -116,7 +116,12 @@ export const useTilt = (maxDegrees = 4) => {
 
 export const useSpotlight = useMousePosition;
 
-export const useRevealOnScroll = () => {
+export interface RevealOnScrollOptions {
+  threshold?: number;
+  once?: boolean;
+}
+
+export const useRevealOnScroll = ({ threshold = 0.12, once = true }: RevealOnScrollOptions = {}) => {
   const reducedMotion = useReducedMotion();
   const [revealed, setRevealed] = useState(reducedMotion || process.env.EXPO_OS !== 'web');
   const observer = useRef<IntersectionObserver | null>(null);
@@ -127,13 +132,13 @@ export const useRevealOnScroll = () => {
       return;
     }
     observer.current = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setRevealed(true);
+      setRevealed(entry.isIntersecting);
+      if (entry.isIntersecting && once) {
         observer.current?.disconnect();
       }
-    }, { rootMargin: '0px 0px 18% 0px', threshold: 0.04 });
+    }, { rootMargin: '0px 0px 10% 0px', threshold });
     observer.current.observe(node as Element);
-  }, [reducedMotion]);
+  }, [once, reducedMotion, threshold]);
   useEffect(() => () => observer.current?.disconnect(), []);
   return { ref, revealed };
 };

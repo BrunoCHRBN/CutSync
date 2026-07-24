@@ -14,6 +14,9 @@ const primitives = fs.readFileSync(path.join(root, 'apps/web/src/components/land
 const claims = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/landing-claims.ts'), 'utf8');
 const mockData = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/sandbox/mockData.ts'), 'utf8');
 const landingDirectory = path.join(root, 'apps/web/src/components/landing');
+const motion = fs.readFileSync(path.join(landingDirectory, 'motion/landing-effects.tsx'), 'utf8');
+const motionProvider = fs.readFileSync(path.join(landingDirectory, 'motion/landing-motion.tsx'), 'utf8');
+const stickyStory = fs.readFileSync(path.join(landingDirectory, 'motion/sticky-product-story.tsx'), 'utf8');
 
 const readSourceTree = (directory: string): string => fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
   const target = path.join(directory, entry.name);
@@ -143,4 +146,27 @@ test('analytics usa adaptador neutro e payload sem dados pessoais', () => {
   expect(JSON.stringify(events)).not.toMatch(/email|phone|address|query/i);
   expect(clientLanding + businessLanding).not.toContain("name: 'audience_selected'");
   configureLandingAnalytics();
+});
+
+test('centraliza a coreografia e revela blocos pela entrada real na viewport', () => {
+  expect(tokens).toContain('reveal: 620');
+  expect(tokens).toContain('stagger: 70');
+  expect(motionProvider).toContain('threshold = 0.12');
+  expect(motionProvider).toContain('new IntersectionObserver');
+  expect(motionProvider).toContain('if (entry.isIntersecting && once)');
+  expect(motionProvider).toContain('observer.current?.disconnect()');
+  expect(motion).toContain("export type SectionRevealVariant = 'fade-up' | 'fade-side' | 'scale' | 'none'");
+  expect(motion).toContain('Math.min(Math.max(index, 0), 5)');
+  expect(motion).toContain('quality === \'off\'');
+});
+
+test('sincroniza narrativa sticky no desktop e preserva fallback acessível', () => {
+  expect(stickyStory).toContain("position: 'sticky'");
+  expect(stickyStory).toContain('scrollIntoView');
+  expect(stickyStory).toContain("rootMargin: '-30% 0px -45% 0px'");
+  expect(businessLanding).toContain('<StickyProductStory');
+  expect(businessLanding).toContain('<AnimatedTabContent contentKey={activeTab}');
+  expect(businessLanding).toContain('if (current === id)');
+  expect(clientLanding).toContain('onHoverIn');
+  expect(clientLanding).toContain("quality === 'high'");
 });
