@@ -6,20 +6,28 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { SessionProvider, useSession } from '@/contexts/session-context';
 import {
+  ClientOnboardingProvider,
+  useClientOnboarding,
+} from '@/contexts/client-onboarding-context';
+import {
   clientNavigationIntegration,
   clientObservability,
 } from '@/features/observability/client-observability';
+import { resolveClientEntryState } from '@/features/onboarding/client-onboarding-state';
 
 function ClientRootLayout() {
   return (
-    <SessionProvider>
-      <ClientNavigator />
-    </SessionProvider>
+    <ClientOnboardingProvider>
+      <SessionProvider>
+        <ClientNavigator />
+      </SessionProvider>
+    </ClientOnboardingProvider>
   );
 }
 
 function ClientNavigator() {
   const { isLoading, session, user } = useSession();
+  const onboarding = useClientOnboarding();
   const navigationContainerRef = useNavigationContainerRef();
   const pathname = usePathname();
 
@@ -35,7 +43,14 @@ function ClientNavigator() {
     clientObservability.setRoute(pathname);
   }, [pathname]);
 
-  if (isLoading) {
+  const entryState = resolveClientEntryState({
+    isSessionLoading: isLoading,
+    isOnboardingLoading: onboarding.isLoading,
+    isOnboardingComplete: onboarding.isComplete,
+    hasSession: Boolean(session),
+  });
+
+  if (entryState === 'loading') {
     return (
       <View testID="client-session-loading" style={styles.loadingScreen}>
         <View style={styles.brandMark} />
@@ -47,10 +62,13 @@ function ClientNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-      <Stack.Protected guard={!session}>
+      <Stack.Protected guard={entryState === 'onboarding'}>
+        <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+      <Stack.Protected guard={entryState === 'auth'}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      <Stack.Protected guard={Boolean(session)}>
+      <Stack.Protected guard={entryState === 'app'}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Screen name="(callback)" />

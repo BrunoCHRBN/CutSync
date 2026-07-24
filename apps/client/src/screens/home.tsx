@@ -1,5 +1,5 @@
 import { products, sharedBrand } from '@cutsync/brand';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -105,6 +105,13 @@ export function ClientHomeScreen() {
             title="Segurança"
             subtitle="Senha e sessão deste dispositivo."
             onPress={() => router.push('/(app)/security')}
+          />
+          <View style={styles.divider} />
+          <SettingsMenuRow
+            testID="client-open-introduction"
+            title="Conheça o CutSync"
+            subtitle="Veja novamente os recursos do aplicativo."
+            onPress={() => router.push('/introduction' as Href)}
           />
         </SettingsCard>
 

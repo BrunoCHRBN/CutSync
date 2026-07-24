@@ -32,6 +32,7 @@ export default function ClientAppLayout() {
           <Stack.Screen name="profile" options={{ title: 'Editar perfil' }} />
           <Stack.Screen name="preferences" options={{ title: 'Preferências' }} />
           <Stack.Screen name="security" options={{ title: 'Segurança' }} />
+          <Stack.Screen name="introduction" options={{ headerShown: false }} />
         </Stack>
       </ClientNotificationsProvider>
     </ClientProfileProvider>
