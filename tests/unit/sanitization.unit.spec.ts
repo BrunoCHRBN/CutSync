@@ -10,7 +10,7 @@ const formatCpf = (val: string) => {
 };
 
 const formatCnpj = (val: string) => {
-  const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, ''); // Strips XML/HTML tags first
+  const clean = val.replace(/<[^>]*>/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   if (clean.length <= 2) return clean;
   if (clean.length <= 5) return `${clean.slice(0, 2)}.${clean.slice(2)}`;
   if (clean.length <= 8) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5)}`;
@@ -51,12 +51,12 @@ test('Sanitização CPF: Rejeita letras, emojis e SVG', () => {
   expect(formatCpf(svgInput)).toBe('123.456.789-00');
 });
 
-test('Sanitização CNPJ: Rejeita letras, emojis e SVG', () => {
+test('Sanitização CNPJ: aceita letras, rejeita símbolos e remove tags', () => {
   // Test removing emojis
   expect(formatCnpj('123456780001💈99')).toBe('12.345.678/0001-99');
   
-  // Test removing letters
-  expect(formatCnpj('12ab345cd678ef0001gh99')).toBe('12.345.678/0001-99');
+  // Preserve lowercase letters as uppercase in the new official format
+  expect(formatCnpj('12abc34501de35')).toBe('12.ABC.345/01DE-35');
 
   // Test removing SVG XML code
   const svgInput = '123456780001<svg></svg>99';

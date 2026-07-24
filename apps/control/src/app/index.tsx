@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 
@@ -14,6 +14,15 @@ type BillingRow = {
   active_units: number;
   current_period_end: string | null;
 };
+type IdentityConflict = {
+  conflict_id: string;
+  legacy_source: string;
+  document_type: 'CPF' | 'CNPJ' | null;
+  masked_document: string | null;
+  reason_code: string;
+  status: string;
+  created_at: string;
+};
 
 const rpc = async (name: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> => {
   const result = await (supabase.rpc as any)(name, args);
@@ -25,25 +34,21 @@ export default function ControlHome() {
   const [authorized, setAuthorized] = useState(false);
   const [needsMfa, setNeedsMfa] = useState(false);
   const [rows, setRows] = useState<BillingRow[]>([]);
+  const [conflicts, setConflicts] = useState<IdentityConflict[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [reason, setReason] = useState('');
   const [planCode, setPlanCode] = useState('multi_unit_standard');
   const [basePrice, setBasePrice] = useState('');
   const [mfaCode, setMfaCode] = useState('');
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
+  const [mfaSecret, setMfaSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (assurance.error || assurance.data.currentLevel !== 'aal2') {
-      setNeedsMfa(true);
-      setAuthorized(false);
-      setLoading(false);
-      return;
-    }
-    setNeedsMfa(false);
     const { data: authUser } = await supabase.auth.getUser();
     const { data: governance } = await supabase
       .from('governance_users')
@@ -56,10 +61,20 @@ export default function ControlHome() {
       setLoading(false);
       return;
     }
+    const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assurance.error || assurance.data.currentLevel !== 'aal2') {
+      setNeedsMfa(true);
+      setAuthorized(false);
+      setLoading(false);
+      return;
+    }
+    setNeedsMfa(false);
     setAuthorized(true);
     const result = await rpc('list_control_billing_accounts');
     if (result.error) setMessage(result.error.message);
     else setRows((result.data ?? []) as BillingRow[]);
+    const conflictResult = await rpc('list_identity_migration_conflicts');
+    if (!conflictResult.error) setConflicts((conflictResult.data ?? []) as IdentityConflict[]);
     setLoading(false);
   }, []);
 
@@ -175,19 +190,20 @@ export default function ControlHome() {
     setLoading(true);
     const factors = await supabase.auth.mfa.listFactors();
     const factor = factors.data?.totp.find((item) => item.status === 'verified');
-    if (!factor) {
-      setMessage('Esta conta precisa cadastrar um fator TOTP antes de acessar o Control.');
+    const factorId = factor?.id ?? mfaFactorId;
+    if (!factorId) {
+      setMessage('Cadastre um autenticador antes de informar o código.');
       setLoading(false);
       return;
     }
-    const challenge = await supabase.auth.mfa.challenge({ factorId: factor.id });
+    const challenge = await supabase.auth.mfa.challenge({ factorId });
     if (challenge.error) {
       setMessage(challenge.error.message);
       setLoading(false);
       return;
     }
     const verification = await supabase.auth.mfa.verify({
-      factorId: factor.id,
+      factorId,
       challengeId: challenge.data.id,
       code: mfaCode.trim(),
     });
@@ -200,12 +216,45 @@ export default function ControlHome() {
     await load();
   };
 
+  const enrollMfa = async () => {
+    setLoading(true);
+    setMessage('');
+    const enrollment = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: 'CutSync Control',
+    });
+    if (enrollment.error) setMessage('Não foi possível cadastrar o autenticador.');
+    else {
+      setMfaFactorId(enrollment.data.id);
+      setMfaQrCode(enrollment.data.totp.qr_code);
+      setMfaSecret(enrollment.data.totp.secret);
+    }
+    setLoading(false);
+  };
+
+  const resolveConflict = async (conflictId: string, action: 'link' | 'reject' | 'request_evidence') => {
+    if (reason.trim().length < 10) {
+      setMessage('Informe uma justificativa com pelo menos 10 caracteres.');
+      return;
+    }
+    setLoading(true);
+    const result = await supabase.functions.invoke('resolve-identity-conflict', {
+      body: { conflictId, action, reason: reason.trim() },
+    });
+    if (result.error || result.data?.error) setMessage('Não foi possível registrar a decisão cadastral.');
+    else {
+      setMessage('Decisão cadastral registrada sem expor o documento.');
+      await load();
+    }
+    setLoading(false);
+  };
+
   if (!session) {
     return <View style={styles.center}><View style={styles.card}><Text style={styles.title}>CutSync Control</Text><Text style={styles.muted}>Acesso interno separado dos aplicativos públicos.</Text><TextInput style={styles.input} placeholder="E-mail" autoCapitalize="none" value={email} onChangeText={setEmail} /><TextInput style={styles.input} placeholder="Senha" secureTextEntry value={password} onChangeText={setPassword} /><Pressable style={styles.primary} onPress={() => { void signIn(); }}><Text style={styles.primaryText}>Entrar</Text></Pressable>{message ? <Text style={styles.error}>{message}</Text> : null}</View></View>;
   }
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" /></View>;
-  if (needsMfa) return <View style={styles.center}><View style={styles.card}><Text style={styles.title}>MFA obrigatório</Text><Text style={styles.muted}>Informe o código do autenticador para elevar a sessão a AAL2.</Text><TextInput style={styles.input} value={mfaCode} onChangeText={setMfaCode} placeholder="Código de 6 dígitos" keyboardType="number-pad" maxLength={6} /><Pressable style={styles.primary} onPress={() => { void verifyMfa(); }}><Text style={styles.primaryText}>Verificar</Text></Pressable>{message ? <Text style={styles.error}>{message}</Text> : null}<Pressable style={styles.secondary} onPress={() => supabase.auth.signOut()}><Text>Sair</Text></Pressable></View></View>;
+  if (needsMfa) return <View style={styles.center}><View style={styles.card}><Text style={styles.title}>MFA obrigatório</Text><Text style={styles.muted}>Use um autenticador TOTP para elevar a sessão a AAL2.</Text>{mfaQrCode ? <><Image source={{ uri: mfaQrCode }} style={styles.qrCode} accessibilityLabel="QR Code do autenticador" /><Text style={styles.muted}>Chave manual (guarde em local seguro):</Text><Text selectable style={styles.secret}>{mfaSecret}</Text></> : <Pressable style={styles.secondary} onPress={() => { void enrollMfa(); }}><Text>Cadastrar autenticador</Text></Pressable>}<TextInput style={styles.input} value={mfaCode} onChangeText={(value) => setMfaCode(value.replace(/\D/g, '').slice(0, 6))} placeholder="Código de 6 dígitos" keyboardType="number-pad" maxLength={6} /><Pressable style={styles.primary} onPress={() => { void verifyMfa(); }}><Text style={styles.primaryText}>Verificar</Text></Pressable>{message ? <Text style={styles.error}>{message}</Text> : null}<Pressable style={styles.secondary} onPress={() => supabase.auth.signOut()}><Text>Sair</Text></Pressable></View></View>;
   if (!authorized) return <View style={styles.center}><View style={styles.card}><Text style={styles.title}>Acesso negado</Text><Text style={styles.error}>{message}</Text><Pressable style={styles.secondary} onPress={() => supabase.auth.signOut()}><Text>Sair</Text></Pressable></View></View>;
 
   return (
@@ -219,6 +268,22 @@ export default function ControlHome() {
         <Pressable style={styles.primary} onPress={() => { void configurePlan(); }}><Text style={styles.primaryText}>Salvar preço-base</Text></Pressable>
       </View>
       <TextInput style={styles.input} placeholder="Justificativa para alteração (mín. 10 caracteres)" value={reason} onChangeText={setReason} />
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Conflitos de identidade</Text>
+        <Text style={styles.muted}>Documentos aparecem somente mascarados. Vinculações nunca são automáticas.</Text>
+        {conflicts.filter((item) => item.status === 'pending').map((item) => (
+          <View key={item.conflict_id} style={styles.conflict}>
+            <Text style={styles.cardTitle}>{item.document_type ?? 'Documento'} · {item.masked_document ?? 'não migrado'}</Text>
+            <Text style={styles.muted}>{item.reason_code} · origem {item.legacy_source}</Text>
+            <View style={styles.actions}>
+              <Pressable style={styles.secondary} onPress={() => { void resolveConflict(item.conflict_id, 'link'); }}><Text>Vincular</Text></Pressable>
+              <Pressable style={styles.secondary} onPress={() => { void resolveConflict(item.conflict_id, 'request_evidence'); }}><Text>Solicitar evidência</Text></Pressable>
+              <Pressable style={styles.secondary} onPress={() => { void resolveConflict(item.conflict_id, 'reject'); }}><Text>Rejeitar</Text></Pressable>
+            </View>
+          </View>
+        ))}
+        {conflicts.filter((item) => item.status === 'pending').length === 0 && <Text style={styles.muted}>Nenhum conflito pendente.</Text>}
+      </View>
       {rows.map((row) => (
         <View key={row.billing_account_id} style={styles.card}>
           <Text style={styles.cardTitle}>{row.organization_name}</Text>
@@ -245,4 +310,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   error: { color: '#a33a31' },
   message: { color: '#285f43' },
+  qrCode: { width: 190, height: 190, alignSelf: 'center', backgroundColor: '#fff' },
+  secret: { color: '#18201b', fontWeight: '700', textAlign: 'center', letterSpacing: 1 },
+  conflict: { gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#dfe3df' },
 });

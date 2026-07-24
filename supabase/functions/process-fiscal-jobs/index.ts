@@ -5,6 +5,7 @@ import {
   requireJobSecret,
   sanitizeErrorCode,
 } from "../_shared/billing.ts";
+import { decryptDocument } from "../_shared/legal-identity.ts";
 
 const focusBaseUrl = () =>
   Deno.env.get("FOCUS_NFE_ENVIRONMENT") === "production"
@@ -65,10 +66,24 @@ const issueDocument = async (
   if (error) throw error;
   const account = Array.isArray(invoice.billing_accounts)
     ? invoice.billing_accounts[0] : invoice.billing_accounts;
+  let taxpayerDocument = account?.taxpayer_document ?? null;
+  if (account?.legal_entity_id) {
+    const { data: legalEntity, error: legalEntityError } = await client
+      .from("legal_entities")
+      .select("encrypted_document, encryption_iv, encryption_key_version")
+      .eq("id", account.legal_entity_id)
+      .single();
+    if (legalEntityError || !legalEntity) throw new Error("fiscal_legal_identity_unavailable");
+    taxpayerDocument = await decryptDocument(
+      legalEntity.encrypted_document,
+      legalEntity.encryption_iv,
+      legalEntity.encryption_key_version,
+    );
+  }
   const { data: settings } = await client.from("platform_fiscal_settings")
     .select("*").eq("id", true).single();
   if (
-    !settings || !account?.taxpayer_document || !settings.document_number || !settings.service_code ||
+    !settings || !taxpayerDocument || !settings.document_number || !settings.service_code ||
     !settings.retention_rules?.natureza_operacao ||
     typeof settings.retention_rules?.optante_simples_nacional !== "boolean"
   ) {
@@ -97,8 +112,8 @@ const issueDocument = async (
     tomador: {
       razao_social: account.taxpayer_name,
       email: account.billing_email,
-      cnpj: account.taxpayer_document.length === 14 ? account.taxpayer_document : undefined,
-      cpf: account.taxpayer_document.length === 11 ? account.taxpayer_document : undefined,
+      cnpj: taxpayerDocument.length === 14 ? taxpayerDocument : undefined,
+      cpf: taxpayerDocument.length === 11 ? taxpayerDocument : undefined,
       endereco: account.fiscal_address,
     },
     servico: {

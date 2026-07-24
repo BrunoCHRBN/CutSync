@@ -37,7 +37,11 @@ export async function listGovernanceEstablishments(params: {
     page_offset: params.pageOffset ?? 0,
   });
   if (error) throwRpc(error, 'Não foi possível carregar os estabelecimentos.');
-  return (data ?? []) as GovernanceEstablishmentListItem[];
+  return ((data ?? []) as Record<string, unknown>[]).map((item) => ({
+    ...item,
+    masked_document: (item.document_number as string | null) ?? null,
+    document_number: undefined,
+  })) as unknown as GovernanceEstablishmentListItem[];
 }
 
 export async function changeGovernanceEstablishmentStatus(
@@ -77,5 +81,10 @@ export async function listGovernanceAuditEvents(params: {
 export async function getGovernanceEstablishmentDetail(id: string): Promise<GovernanceEstablishmentDetail> {
   const { data, error } = await rpc('get_governance_establishment_detail', { target_establishment_id: id });
   if (error) throwRpc(error, 'Não foi possível carregar o detalhe do estabelecimento.');
-  return data as GovernanceEstablishmentDetail;
+  const payload = data as GovernanceEstablishmentDetail & {
+    establishment: { document_number?: string | null };
+  };
+  payload.establishment.masked_document = payload.establishment.document_number ?? null;
+  delete payload.establishment.document_number;
+  return payload;
 }

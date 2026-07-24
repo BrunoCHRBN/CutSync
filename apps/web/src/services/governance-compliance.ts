@@ -25,7 +25,11 @@ function ensure(error: RpcResult<unknown>['error'], fallback: string): never {
 export async function listGovernanceRequests(params: { searchTerm?: string; status?: string | null }): Promise<GovernanceRequest[]> {
   const result = await rpc('list_governance_establishment_requests', { search_term: params.searchTerm || null, status_filter: params.status || null, page_size: 100, page_offset: 0 });
   if (result.error) ensure(result.error, 'Não foi possível carregar as solicitações.');
-  return (result.data || []) as GovernanceRequest[];
+  return ((result.data || []) as Record<string, unknown>[]).map((item) => ({
+    ...item,
+    masked_document: (item.document_number as string | null) ?? null,
+    document_number: undefined,
+  })) as unknown as GovernanceRequest[];
 }
 
 export async function approveGovernanceRequest(id: string, reason: string) {

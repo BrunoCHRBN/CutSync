@@ -6,7 +6,7 @@ export interface GovernanceEstablishmentListItem {
   id: string;
   name: string;
   slug: string;
-  document_number: string | null;
+  masked_document: string | null;
   document_type: string | null;
   verification_level: number | null;
   account_status: GovernanceAccountStatus;

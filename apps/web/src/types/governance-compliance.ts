@@ -13,7 +13,7 @@ export interface GovernanceRequest {
   slug: string;
   address: string | null;
   phone: string | null;
-  document_number: string | null;
+  masked_document: string | null;
   status: GovernanceRequestStatus;
   rejection_reason: string | null;
   establishment_id: string | null;

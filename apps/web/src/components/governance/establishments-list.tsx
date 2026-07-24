@@ -58,7 +58,7 @@ export function GovernanceEstablishmentsList() {
 }
 
 function EstablishmentRow({ item, onPress }: { item: GovernanceEstablishmentListItem; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${item.name}`} onPress={onPress} style={({ pressed }) => [styles.rowPressable, pressed && styles.pressed]}><AppCard style={styles.row}><View style={styles.rowCopy}><View style={styles.titleRow}><Text style={styles.itemTitle}>{item.name}</Text><StatusBadge status={item.account_status} /></View><Text style={styles.slug}>cutsync.com/{item.slug}</Text><Text style={styles.meta}>{item.document_type || 'Documento'}: {item.document_number || 'não informado'} · verificação nível {item.verification_level || 1}</Text>{!!item.address && <Text numberOfLines={1} style={styles.meta}>{item.address}</Text>}</View><ArrowRight color={colors.textMuted} size={18} /></AppCard></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Abrir ${item.name}`} onPress={onPress} style={({ pressed }) => [styles.rowPressable, pressed && styles.pressed]}><AppCard style={styles.row}><View style={styles.rowCopy}><View style={styles.titleRow}><Text style={styles.itemTitle}>{item.name}</Text><StatusBadge status={item.account_status} /></View><Text style={styles.slug}>cutsync.com/{item.slug}</Text><Text style={styles.meta}>{item.document_type || 'Documento'}: {item.masked_document || 'não informado'} · verificação nível {item.verification_level || 1}</Text>{!!item.address && <Text numberOfLines={1} style={styles.meta}>{item.address}</Text>}</View><ArrowRight color={colors.textMuted} size={18} /></AppCard></Pressable>;
 }
 
 export function StatusBadge({ status }: { status: GovernanceAccountStatus }) {

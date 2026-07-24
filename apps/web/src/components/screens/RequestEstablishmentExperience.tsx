@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Building2, Clock3, Link2, MapPin, Phone, ShieldCheck, CheckSquare, Square, X, Scissors } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { isValidCnpj, isValidCpf } from '@cutsync/validation';
+import { Building2, Clock3, Link2, MapPin, Phone, ShieldCheck, CheckSquare, Square, Scissors } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { ClientShell } from '../layout/ClientShell';
@@ -9,6 +10,7 @@ import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
+import { TotpSecuritySetup } from '../security/TotpSecuritySetup';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 
 interface ExistingRequest {
@@ -42,13 +44,7 @@ export const RequestEstablishmentExperience = () => {
   const [lgpdTermsAccepted, setLgpdTermsAccepted] = useState(false);
   const [lgpdMarketingAccepted, setLgpdMarketingAccepted] = useState(false);
   
-  // OTP WhatsApp states
-  const [whatsapp, setWhatsapp] = useState('');
-  const [whatsappVerified, setWhatsappVerified] = useState(false);
-  const [otpModalVisible, setOtpModalVisible] = useState(false);
-  const [otpInput, setOtpInput] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [sendingOtp, setSendingOtp] = useState(false);
+  const [hasAal2, setHasAal2] = useState(false);
 
   // Step 2: Location
   const [address, setAddress] = useState('');
@@ -73,51 +69,6 @@ export const RequestEstablishmentExperience = () => {
   
   const cleanSlug = useMemo(() => slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, ''), [slug]);
 
-  // CPF Check Digit mathematical validation
-  const isValidCpf = (val: string) => {
-    const clean = val.replace(/[^0-9]/g, '');
-    if (clean.length !== 11 || /^(\d)\1{10}$/.test(clean)) return false;
-    let sum = 0;
-    for (let i = 0; i < 9; i++) sum += parseInt(clean.charAt(i)) * (10 - i);
-    let rev = 11 - (sum % 11);
-    if (rev === 10 || rev === 11) rev = 0;
-    if (rev !== parseInt(clean.charAt(9))) return false;
-    sum = 0;
-    for (let i = 0; i < 10; i++) sum += parseInt(clean.charAt(i)) * (11 - i);
-    rev = 11 - (sum % 11);
-    if (rev === 10 || rev === 11) rev = 0;
-    if (rev !== parseInt(clean.charAt(10))) return false;
-    return true;
-  };
-
-  // CNPJ Check Digit mathematical validation
-  const isValidCnpj = (val: string) => {
-    const clean = val.replace(/[^0-9]/g, '');
-    if (clean.length !== 14 || /^(\d)\1{13}$/.test(clean)) return false;
-    let length = clean.length - 2;
-    let numbers = clean.substring(0, length);
-    const digits = clean.substring(length);
-    let sum = 0;
-    let pos = length - 7;
-    for (let i = length; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(length - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(0))) return false;
-    length = length + 1;
-    numbers = clean.substring(0, length);
-    sum = 0;
-    pos = length - 7;
-    for (let i = length; i >= 1; i--) {
-      sum += parseInt(numbers.charAt(length - i)) * pos--;
-      if (pos < 2) pos = 9;
-    }
-    result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-    if (result !== parseInt(digits.charAt(1))) return false;
-    return true;
-  };
-
   const formatCpf = (val: string) => {
     const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, ''); // Rejects HTML/XML tags and non-digits
     if (clean.length <= 3) return clean;
@@ -127,7 +78,7 @@ export const RequestEstablishmentExperience = () => {
   };
 
   const formatCnpj = (val: string) => {
-    const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, ''); // Rejects HTML/XML tags and non-digits
+    const clean = val.replace(/<[^>]*>/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (clean.length <= 2) return clean;
     if (clean.length <= 5) return `${clean.slice(0, 2)}.${clean.slice(2)}`;
     if (clean.length <= 8) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5)}`;
@@ -158,55 +109,16 @@ export const RequestEstablishmentExperience = () => {
 
   const loadRequest = useCallback(async () => {
     setLoading(true);
-    const { data: activeEst } = await supabase.from('establishments')
-      .select('id, name, slug, account_status')
-      .eq('document_number', onboardingType === 'CNPJ' ? cnpj.replace(/[^0-9]/g, '') : cpf.replace(/[^0-9]/g, ''))
-      .maybeSingle();
-
-    if (activeEst) {
-      setRequest({
-        id: activeEst.id,
-        name: activeEst.name,
-        slug: activeEst.slug,
-        status: activeEst.account_status === 'pending_verification' ? 'pending' : 'approved',
-        created_at: new Date().toISOString(),
-      });
-    } else {
-      const { data } = await supabase.from('establishment_requests')
-        .select('id,name,slug,status,rejection_reason,created_at')
-        .order('created_at', { ascending: false }).limit(1).maybeSingle();
-      setRequest(data as ExistingRequest | null);
-    }
+    const { data } = await supabase.from('establishment_requests')
+      .select('id,name,slug,status,rejection_reason,created_at')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    setRequest(data as ExistingRequest | null);
+    const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    setHasAal2(assurance.data?.currentLevel === 'aal2');
     setLoading(false);
-  }, [cnpj, cpf, onboardingType]);
+  }, []);
 
   useEffect(() => { void loadRequest(); }, [loadRequest]);
-
-  const sendOtpMessage = () => {
-    const cleanPhone = whatsapp.replace(/[^0-9]/g, '');
-    if (cleanPhone.length < 10) {
-      setNotice({ tone: 'danger', message: 'Informe um número de WhatsApp válido para receber o OTP.' });
-      return;
-    }
-    setSendingOtp(true);
-    setNotice(null);
-    setTimeout(() => {
-      setSendingOtp(false);
-      setOtpModalVisible(true);
-      setNotice({ tone: 'success', message: 'Código de validação enviado via WhatsApp! Use o código "123456" para testar.' });
-    }, 1000);
-  };
-
-  const confirmOtpCode = () => {
-    setOtpError('');
-    if (otpInput === '123456') {
-      setWhatsappVerified(true);
-      setOtpModalVisible(false);
-      setNotice({ tone: 'success', message: 'WhatsApp validado com sucesso! Nível 1 de confiança obtido.' });
-    } else {
-      setOtpError('Código inválido. Digite 123456 para validar.');
-    }
-  };
 
   // Step 1 Submit: Create Establishment & Promo Owner
   const submitRequest = async () => {
@@ -220,92 +132,62 @@ export const RequestEstablishmentExperience = () => {
       setNotice({ tone: 'danger', message: 'Você precisa aceitar os Termos de Uso e Política de Privacidade para continuar.' });
       return;
     }
+    if (!hasAal2) {
+      setNotice({ tone: 'danger', message: 'Confirme o autenticador TOTP antes de cadastrar ou adicionar uma unidade.' });
+      return;
+    }
 
     setSubmitting(true);
-
-    if (onboardingType === 'CNPJ') {
-      const cleanCnpj = cnpj.replace(/[^0-9]/g, '');
-      if (!isValidCnpj(cleanCnpj)) {
-        setNotice({ tone: 'danger', message: 'CNPJ inválido matematicamente.' });
-        setSubmitting(false);
+    const document = onboardingType === 'CPF' ? cpf : cnpj;
+    if (onboardingType === 'CPF' ? !isValidCpf(document) : !isValidCnpj(document)) {
+      setNotice({ tone: 'danger', message: `${onboardingType} inválido.` });
+      setSubmitting(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-business-registration', {
+        body: {
+          documentType: onboardingType,
+          document,
+          name: name.trim(),
+          slug: cleanSlug,
+          address: '',
+          phone,
+          primaryColor,
+        },
+      });
+      if (error || data?.error) {
+        const code = data?.error ?? error?.message;
+        const message = code?.includes('slug_unavailable')
+          ? 'O endereço digital solicitado já está em uso.'
+          : code?.includes('aal2_required')
+          ? 'Confirme novamente o autenticador TOTP.'
+          : code?.includes('invalid_phone')
+          ? 'Informe um telefone brasileiro válido com DDD ou deixe o campo vazio.'
+          : 'Não foi possível validar esses dados. O cadastro poderá exigir análise.';
+        throw new Error(message);
+      }
+      if (data?.status === 'under_review') {
+        setNotice({ tone: 'success', message: 'Recebemos o cadastro e ele seguirá para análise, sem expor dados de terceiros.' });
+        await loadRequest();
         return;
       }
-      try {
-        const { data, error } = await supabase.functions.invoke('verify-cnpj-and-promote', {
-          body: {
-            cnpj: cnpj.replace(/[^0-9]/g, ''),
-            name: name.trim(),
-            slug: cleanSlug,
-            address: null,
-            phone: phone.trim() || null,
-            primary_color: primaryColor,
-          }
-        });
-
-        if (error || !data || data.error) {
-          setNotice({ tone: 'danger', message: data?.error || error?.message || 'Falha na triagem do CNPJ.' });
-        } else {
-          const { error: consentError } = await supabase.rpc('accept_my_lgpd_terms', {
-            target_marketing_accepted: lgpdMarketingAccepted,
-          });
-          if (consentError) throw consentError;
-
-          setCreatedEstablishmentId(data.establishment_id);
-          setWizardStep(2);
-          setNotice({ tone: 'success', message: 'Dados da operação salvos! Próximo passo: Endereço completo.' });
-        }
-      } catch (err: any) {
-        setNotice({ tone: 'danger', message: err.message || 'Erro de conexão ao validar o CNPJ.' });
-      } finally {
-        setSubmitting(false);
-      }
-    } else {
-      const cleanCpf = cpf.replace(/[^0-9]/g, '');
-      if (!isValidCpf(cleanCpf)) {
-        setNotice({ tone: 'danger', message: 'CPF inválido matematicamente.' });
-        setSubmitting(false);
-        return;
-      }
-
-      if (!whatsappVerified) {
-        setNotice({ tone: 'danger', message: 'Valide seu número de WhatsApp com código OTP antes de cadastrar.' });
-        setSubmitting(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase.rpc('create_establishment_cpf', {
-          target_user_id: profile?.id || '',
-          target_cpf: cleanCpf,
-          requested_name: name.trim(),
-          requested_slug: cleanSlug,
-          requested_address: '',
-          requested_phone: phone.trim(),
-          requested_primary_color: primaryColor,
-        });
-
-        if (error) {
-          const userFriendlyMsg = error.message.includes('cpf_already_registered') 
-            ? 'Este CPF já possui estabelecimento cadastrado.'
-            : error.message.includes('slug_unavailable')
-            ? 'O endereço digital (slug) solicitado já está em uso.'
-            : error.message;
-          setNotice({ tone: 'danger', message: userFriendlyMsg });
-        } else {
-          const { error: consentError } = await supabase.rpc('accept_my_lgpd_terms', {
-            target_marketing_accepted: lgpdMarketingAccepted,
-          });
-          if (consentError) throw consentError;
-
-          setCreatedEstablishmentId(data);
-          setWizardStep(2);
-          setNotice({ tone: 'success', message: 'Cadastro inicial concluído! Agora preencha a localização.' });
-        }
-      } catch (err: any) {
-        setNotice({ tone: 'danger', message: err.message || 'Falha ao processar cadastro autônomo.' });
-      } finally {
-        setSubmitting(false);
-      }
+      const { error: consentError } = await supabase.rpc('accept_my_lgpd_terms', {
+        target_marketing_accepted: lgpdMarketingAccepted,
+      });
+      if (consentError) throw consentError;
+      setCreatedEstablishmentId(data?.establishmentId ?? null);
+      setWizardStep(2);
+      setNotice({
+        tone: 'success',
+        message: data?.status === 'unit_added'
+          ? 'Nova unidade vinculada ao seu grupo. Agora complete a localização.'
+          : 'Cadastro inicial concluído. Agora complete a localização.',
+      });
+    } catch (err: any) {
+      setNotice({ tone: 'danger', message: err.message || 'Falha ao processar o cadastro.' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -505,7 +387,7 @@ export const RequestEstablishmentExperience = () => {
                       value={cpf} 
                       onChangeText={(val) => setCpf(formatCpf(val))} 
                       placeholder="000.000.000-00" 
-                      hint="Rejeita emojis/letras. Sujeito a validação de WhatsApp OTP." 
+                      hint="Documento privado do titular; não será exibido publicamente."
                     />
                   )}
 
@@ -513,28 +395,8 @@ export const RequestEstablishmentExperience = () => {
                   <AppInput label="Endereço digital" testID="request-establishment-slug-input" icon={<Link2 color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" placeholder="navalha-studio" hint={cleanSlug ? `cutsync.com/${cleanSlug}` : 'Use letras, números e hífens.'} />
                   <AppInput label="Telefone comercial" testID="request-establishment-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={(val) => setPhone(formatPhoneWithDdi(val))} keyboardType="phone-pad" placeholder="+55 (11) 99999-9999" />
                   
-                  {onboardingType === 'CPF' && (
-                    <View style={styles.whatsappVerificationContainer}>
-                      <AppInput 
-                        testID="request-establishment-whatsapp-input"
-                        containerStyle={{ flex: 1 }}
-                        label="WhatsApp para validação OTP" 
-                        value={whatsapp} 
-                        onChangeText={(val) => { setWhatsapp(formatPhoneWithDdi(val)); setWhatsappVerified(false); }} 
-                        placeholder="+55 (11) 99999-9999" 
-                        editable={!whatsappVerified}
-                      />
-                      <AppButton 
-                        testID="request-establishment-whatsapp-button"
-                        label={whatsappVerified ? "Validado" : "Validar"} 
-                        onPress={sendOtpMessage} 
-                        loading={sendingOtp} 
-                        disabled={whatsappVerified}
-                        variant={whatsappVerified ? "success" : "secondary"}
-                        style={styles.verificationButton}
-                      />
-                    </View>
-                  )}
+                  <Text style={styles.securityText}>Telefone é somente contato comercial, pode ser compartilhado e não funciona como login.</Text>
+                  {!hasAal2 && <TotpSecuritySetup onVerified={() => setHasAal2(true)} />}
 
                   <AppInput label="Cor principal" testID="request-establishment-color-input" value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" placeholder="#F5A524" />
 
@@ -597,38 +459,16 @@ export const RequestEstablishmentExperience = () => {
 
             <AppCard testID="request-establishment-security-card" style={styles.securityCard}>
               <ShieldCheck color={colors.success} size={24} />
-              <Text style={styles.securityCardTitle}>Como funciona o GSP?</Text>
+              <Text style={styles.securityCardTitle}>Identidade protegida</Text>
               <Text style={styles.securityCardText}>
-                No **Nível 1 (WhatsApp)**, liberamos o uso da agenda local (balcão). 
-                Para colocar a URL no ar no marketplace, passamos ao **Nível 2 (Confirmação de e-mail)**.
-                Por fim, transações e saques via gateway exigem o **Nível 3 (KYC / Documento)**.
+                CPF e CNPJ são cifrados no servidor e exibidos somente de forma mascarada.
+                O autenticador TOTP protege o cadastro, novas unidades e demais ações críticas.
               </Text>
             </AppCard>
           </View>
         )}
       </ScrollView>
 
-      <Modal visible={otpModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <AppCard testID="request-establishment-otp-card" style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Validação OTP WhatsApp</Text>
-              <Pressable onPress={() => setOtpModalVisible(false)}><X size={18} color={colors.text} /></Pressable>
-            </View>
-            <Text style={styles.modalDesc}>Enviamos um código de verificação para o número {whatsapp}.</Text>
-            <AppInput 
-              testID="request-establishment-otp-input"
-              label="Código OTP de 6 dígitos" 
-              value={otpInput} 
-              onChangeText={setOtpInput} 
-              placeholder="Digite o código" 
-              keyboardType="number-pad" 
-            />
-            {!!otpError && <Text style={styles.otpError}>{otpError}</Text>}
-            <AppButton testID="request-establishment-otp-button" label="Confirmar Código" onPress={confirmOtpCode} fullWidth />
-          </AppCard>
-        </View>
-      </Modal>
     </ClientShell>
   );
 };
@@ -646,8 +486,6 @@ const styles = StyleSheet.create({
   tabLabel: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   tabLabelActive: { color: colors.text, fontFamily: typography.bodyStrong },
   fields: { gap: 16 },
-  whatsappVerificationContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  verificationButton: { minHeight: 48, justifyContent: 'center' },
   lgpdSection: { gap: 12, marginTop: 8, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, borderBottomWidth: 1, borderBottomColor: colors.border },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   lgpdText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
@@ -660,12 +498,6 @@ const styles = StyleSheet.create({
   statusDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: 12 },
   securityRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22, paddingTop: 18, borderTopWidth: 1, borderTopColor: colors.border },
   securityText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalCard: { width: '100%', maxWidth: 400, padding: 24, gap: 16 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18 },
-  modalDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
-  otpError: { color: colors.danger, fontFamily: typography.bodyStrong, fontSize: 11 },
   // Wizard Indicators
   indicatorContainer: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 16, marginBottom: 12 },
   indicatorWrapper: { alignItems: 'center', flex: 1 },
