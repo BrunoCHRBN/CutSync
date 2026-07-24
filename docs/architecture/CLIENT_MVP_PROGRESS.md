@@ -1,6 +1,6 @@
 # MVP do Client — Fase 3
 
-Status: Fatia 7 concluída no Android com FCM v1; iOS/APNs adiado
+Status: Fatia 8 implementada localmente; validação remota de Sentry, exclusão e artefatos finais pendente
 
 Data da última verificação: 2026-07-23
 
@@ -303,6 +303,43 @@ O EAS Project ID e o FCM v1 foram configurados para `com.cutsync.client`. APNs p
 - a entrega Push foi validada no Android com FCM v1 e um token real, mas não há evidência equivalente para APNs;
 - o agendamento periódico da Edge Function depende da configuração remota e não é criado com segredos dentro da migration.
 
+## Fatia 8 — distribuição Android, observabilidade e conformidade
+
+Status: configuração e contratos implementados; homologação remota pendente
+
+Entregas:
+
+- projeto EAS do Client isolado e scripts de build direcionados ao workspace correto;
+- perfis Development, Preview APK e Production AAB com canais separados;
+- EAS Update configurado por versão do aplicativo, sem publicação OTA;
+- assets mínimos de ícone, splash, adaptive icon e notificação;
+- Sentry integrado ao Expo Router com navegação, erros tratados e diagnóstico fora de Production;
+- sanitização de eventos com PII desabilitada e somente UUID pseudônimo;
+- solicitação de exclusão criada e consultada exclusivamente por `auth.uid()`;
+- estados `pending`, `processing`, `executed`, `rejected` e `failed`;
+- execução por Edge Function com AAL2, papel de governança e service role somente no servidor;
+- anonimização, revogação de vínculos, remoção da identidade Auth e retentativa idempotente;
+- confirmação destrutiva em duas etapas no Client, sem campo livre;
+- rotas públicas `/privacy` e `/account-deletion`;
+- governança Web migrada da RPC antiga para a Edge Function auditada;
+- checklist técnico da Play Store em `CLIENT_ANDROID_RELEASE_VALIDATION.md`.
+
+### Migration necessária
+
+Aplicar em homologação:
+
+```text
+supabase/migrations/20260724020000_client_account_deletion.sql
+```
+
+Depois da migration, publicar:
+
+```text
+supabase/functions/execute-client-account-deletion
+```
+
+O APK Preview, o AAB Production e a validação de source maps serão feitos somente depois de configurar o DSN e o token do projeto Sentry.
+
 ## Evidências da fatia 1
 
 Executadas em 2026-07-22:
@@ -425,10 +462,27 @@ Executadas em 2026-07-23:
 
 A entrega remota no Android está comprovada. Essa evidência não cobre APNs nem, isoladamente, a execução periódica de lembretes pela Edge Function; esses pontos permanecem explícitos para a futura operação e observabilidade.
 
+## Evidências da fatia 8
+
+Executadas em 2026-07-23:
+
+- `npx expo-doctor` no Client: 20 de 20 verificações aprovadas;
+- `npm run typecheck:client`: aprovado;
+- lint do Client aprovado sem erros;
+- quatro testes unitários de observabilidade e estados de exclusão aprovados;
+- três verificações estáticas dos contratos e da Edge Function aprovadas;
+- exportação Web e bundle Android do Client aprovados;
+- E2E público de `/privacy` e `/account-deletion` aprovado;
+- `npm run test:e2e:client`: proteção sem sessão aprovada e cinco cenários autenticados ignorados por ausência das credenciais no processo;
+- nomes das variáveis públicas e metadados de release confirmados nos ambientes Development, Preview e Production do EAS.
+
+O typecheck completo da Web continua falhando por erros preexistentes fora dos arquivos desta fatia. Docker/Postgres local, migration remota, deploy da Edge Function, projeto Sentry, source maps, APK Preview final e AAB Production ainda não foram validados e não são registrados como concluídos.
+
 ## Próximas fatias
 
-1. preparar distribuição Android e observabilidade dos aplicativos;
-2. monitorar a fila, os tickets e os recibos Push na operação remota;
-3. iniciar avaliações após atendimento somente depois da estabilização da entrega mobile.
+1. concluir os passos remotos documentados da Fatia 8;
+2. iniciar a Fatia 8.1 de experiência visual premium e onboarding;
+3. monitorar a fila, os tickets e os recibos Push na operação remota;
+4. iniciar avaliações após atendimento somente depois da estabilização da entrega mobile.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.
