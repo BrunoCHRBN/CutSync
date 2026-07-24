@@ -27,7 +27,7 @@ export const TeamSandbox = () => {
           <View style={styles.inviteIcon}><Mail size={17} color={colors.warning} /></View>
           <View style={styles.inviteCopy}>
             <Text style={styles.inviteEyebrow}>CONVITE PENDENTE</Text>
-            <Text style={styles.memberName}>Profissional convidado</Text>
+            <Text style={styles.memberName}>Juliana Costa</Text>
             <Text style={styles.memberMeta}>Convite válido por mais 18 horas</Text>
           </View>
           <Pressable onPress={() => setInviteAccepted(true)} style={styles.acceptButton}><Text style={styles.acceptText}>Simular aceite</Text></Pressable>
@@ -37,8 +37,8 @@ export const TeamSandbox = () => {
       <View style={[styles.teamGrid, compact && styles.teamGridStacked]}>
         <View style={styles.memberCard}>
           <View style={styles.memberHeader}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>P</Text></View>
-            <View style={styles.memberCopy}><Text style={styles.memberName}>Profissional da equipe</Text><Text style={styles.memberMeta}>Ativo · 5 serviços</Text></View>
+            <View style={styles.avatar}><Text style={styles.avatarText}>RL</Text></View>
+            <View style={styles.memberCopy}><Text style={styles.memberName}>Rafael Lima</Text><Text style={styles.memberMeta}>Ativo · 5 serviços</Text></View>
             <UserRoundCheck size={18} color={colors.success} />
           </View>
           <View style={styles.scheduleRow}><CalendarClock size={16} color={colors.brand} /><View><Text style={styles.scheduleTitle}>Jornada configurada</Text><Text style={styles.memberMeta}>Terça a sábado · 09:00–18:00</Text></View></View>

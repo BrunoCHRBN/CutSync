@@ -32,7 +32,7 @@ const ClientPreview = () => (
     <Circle cx="79" cy="225" r="8" fill={landingColors.brand} />
     <SvgText x="99" y="230" fontSize="14" fill={landingColors.ink}>Corte essencial · 30 min</SvgText>
     <SvgText x="54" y="291" fontSize="12" fontWeight="700" fill={landingColors.ink}>Profissional</SvgText>
-    {['Qualquer profissional', 'Profissional A', 'Profissional B'].map((label, index) => (
+    {['Qualquer profissional', 'Marcos Lima', 'Ana Souza'].map((label, index) => (
       <G key={label}>
         <Rect x={54 + index * 148} y="309" width="136" height="48" rx="13" fill={index === 0 ? landingColors.brandSoft : landingColors.surfaceSoft} stroke={index === 0 ? landingColors.brand : landingColors.border} />
         <SvgText x={122 + index * 148} y="338" textAnchor="middle" fontSize="11" fill={landingColors.ink}>{label}</SvgText>
@@ -48,8 +48,8 @@ const ClientPreview = () => (
     <Rect x="492" y="124" width="250" height="318" rx="20" fill={landingColors.accentSoft} />
     <Circle cx="617" cy="190" r="35" fill={landingColors.brand} />
     <SvgText x="617" y="196" textAnchor="middle" fontSize="18" fontWeight="700" fill={landingColors.white}>CS</SvgText>
-    <SvgText x="617" y="249" textAnchor="middle" fontSize="18" fontWeight="700" fill={landingColors.ink}>Estabelecimento</SvgText>
-    <SvgText x="617" y="274" textAnchor="middle" fontSize="12" fill={landingColors.inkMuted}>Serviços e horários reais</SvgText>
+    <SvgText x="617" y="249" textAnchor="middle" fontSize="18" fontWeight="700" fill={landingColors.ink}>Studio Central</SvgText>
+    <SvgText x="617" y="274" textAnchor="middle" fontSize="12" fill={landingColors.inkMuted}>Serviços e agenda publicados</SvgText>
     <Line x1="528" y1="303" x2="706" y2="303" stroke={landingColors.borderStrong} />
     <SvgText x="536" y="337" fontSize="11" fill={landingColors.inkMuted}>SERVIÇO</SvgText><SvgText x="698" y="337" textAnchor="end" fontSize="12" fontWeight="700" fill={landingColors.ink}>R$ 45,00</SvgText>
     <Rect x="528" y="366" width="178" height="48" rx="13" fill={landingColors.brand} />
@@ -83,7 +83,7 @@ const OwnerPreview = () => (
     ))}
     <SvgText x="248" y="304" fontSize="13" fontWeight="700" fill={landingColors.ink}>Próximos atendimentos</SvgText>
     {[
-      ['09:30', 'Cliente 01', 'Confirmado'], ['10:30', 'Cliente 02', 'Pendente'], ['11:30', 'Cliente 03', 'Confirmado'],
+      ['09:30', 'João Silva', 'Confirmado'], ['10:30', 'Beatriz Santos', 'Pendente'], ['11:30', 'Carlos Oliveira', 'Confirmado'],
     ].map(([time, client, status], index) => (
       <G key={time}>
         <Rect x="248" y={321 + index * 45} width="500" height="36" rx="10" fill={landingColors.surfaceSoft} />
@@ -103,7 +103,7 @@ const ProfessionalPreview = () => (
     <SvgText x="52" y="170" fontSize="25" fontWeight="700" fill={landingColors.ink}>Seu dia, sem ruído</SvgText>
     <Rect x="52" y="196" width="456" height="94" rx="18" fill={landingColors.accentSoft} />
     <SvgText x="74" y="225" fontSize="10" fill={landingColors.warning}>PRÓXIMO ATENDIMENTO</SvgText>
-    <SvgText x="74" y="258" fontSize="20" fontWeight="700" fill={landingColors.ink}>09:30 · Cliente 01</SvgText>
+    <SvgText x="74" y="258" fontSize="20" fontWeight="700" fill={landingColors.ink}>09:30 · João Silva</SvgText>
     <SvgText x="74" y="279" fontSize="11" fill={landingColors.inkMuted}>Corte essencial · 30 min</SvgText>
     <Rect x="532" y="196" width="194" height="94" rx="18" fill={landingColors.brandSoft} />
     <SvgText x="552" y="225" fontSize="10" fill={landingColors.brand}>PRODUÇÃO CONCLUÍDA</SvgText>

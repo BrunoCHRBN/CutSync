@@ -74,7 +74,7 @@ export const AgendaSandbox = () => {
                       </View>
                     </View>
                     <Text style={styles.clientName}>{appointment.clientName}</Text>
-                    <Text style={styles.metaText}>{appointment.serviceName} · R$ {appointment.price}</Text>
+                    <Text style={styles.metaText}>{appointment.serviceName} · {appointment.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text>
                     {appointment.status !== 'completed' && (
                       <Pressable onPress={() => advanceStatus(appointment)} style={styles.statusButton}>
                         <Text style={styles.statusButtonText}>{appointment.status === 'pending' ? 'Confirmar' : 'Concluir'}</Text>

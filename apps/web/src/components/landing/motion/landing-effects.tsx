@@ -132,17 +132,27 @@ export const AnimatedNumber = ({ value, prefix = '', suffix = '' }: { value: num
   return <Text style={styles.metric}>{prefix}{displayed.toLocaleString('pt-BR')}{suffix}</Text>;
 };
 
-export const RevealOnScroll = ({ children, style, delay = 0, onLayout }: {
+export const RevealOnScroll = ({ children, style, delay = 0, onLayout, onReveal, testID }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   delay?: number;
   onLayout?: (event: LayoutChangeEvent) => void;
+  onReveal?: () => void;
+  testID?: string;
 }) => {
   const { quality } = useLandingMotion();
   const { ref, revealed } = useRevealOnScroll();
+  const revealReported = React.useRef(false);
+  useEffect(() => {
+    if (revealed && !revealReported.current) {
+      revealReported.current = true;
+      onReveal?.();
+    }
+  }, [onReveal, revealed]);
   return (
     <Animated.View
       ref={ref as never}
+      testID={testID}
       onLayout={onLayout}
       entering={quality === 'off' ? undefined : FadeInUp.duration(landingMotion.editorial).delay(delay)}
       style={[style, !revealed && quality !== 'off' && styles.revealPending]}

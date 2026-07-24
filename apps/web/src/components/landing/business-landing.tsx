@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import {
@@ -57,6 +57,7 @@ const BusinessLandingContent = () => {
   const scrollRef = useRef<ScrollView>(null);
   const contentY = useRef(0);
   const sandboxSectionY = useRef(0);
+  const reportedDepths = useRef(new Set<50 | 100>());
   const [activeTab, setActiveTab] = useState<LandingCapabilityId>('agenda');
   const [trackWidth, setTrackWidth] = useState(0);
   const [preview, setPreview] = useState<'owner' | 'professional'>('owner');
@@ -92,16 +93,30 @@ const BusinessLandingContent = () => {
   };
 
   const scrollToSandbox = () => {
+    trackLandingEvent({ name: 'cta_clicked', page: 'business', position: 'hero_secondary', destination: 'demo' });
     selectTab('agenda');
     scrollRef.current?.scrollTo({ y: Math.max(0, sandboxSectionY.current - 86), animated: !reducedMotion });
   };
 
   const startRegistration = () => {
+    trackLandingEvent({ name: 'cta_clicked', page: 'business', position: 'hero_primary', destination: 'registration' });
     trackLandingEvent({ name: 'registration_started', source: 'business' });
     router.push({
       pathname: '/(auth)/register',
       params: { intent: 'establishment', redirect: '/(client)/request-establishment' },
     } as never);
+  };
+
+  const trackScrollDepth = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    if (contentSize.height <= layoutMeasurement.height) return;
+    const depth = ((contentOffset.y + layoutMeasurement.height) / contentSize.height) * 100;
+    ([50, 100] as const).forEach((threshold) => {
+      if (depth >= threshold && !reportedDepths.current.has(threshold)) {
+        reportedDepths.current.add(threshold);
+        trackLandingEvent({ name: 'scroll_depth_reached', page: 'business', depth: threshold });
+      }
+    });
   };
 
   return (
@@ -121,20 +136,19 @@ const BusinessLandingContent = () => {
         </View>
       </GlassSurface>
 
-      <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView ref={scrollRef} onScroll={trackScrollDepth} scrollEventThrottle={32} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.heroOuter}>
           <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
             <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
               <View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>VITRINE E OPERAÇÃO CONECTADAS</Text></View>
-              <Text style={styles.heroTitle}>Do serviço publicado{`\n`}à agenda organizada.</Text>
-              <Text style={styles.heroDescription}>Apresente seu negócio, receba agendamentos e conduza a rotina da equipe em uma experiência conectada.</Text>
+              <Text style={[styles.heroTitle, !isDesktop && styles.heroTitleCompact]}>Sua vitrine e sua agenda{`\n`}trabalhando juntas.</Text>
+              <Text style={styles.heroDescription}>Publique serviços, receba agendamentos e organize a rotina da equipe em um só fluxo.</Text>
               <View style={styles.heroActions}>
-                <MagneticButton label="Cadastrar estabelecimento" inverse onPress={startRegistration} testID="business-primary-cta" />
+                <MagneticButton label="Criar meu estabelecimento" inverse onPress={startRegistration} testID="business-primary-cta" />
                 <Pressable testID="business-demo-cta" accessibilityRole="button" onPress={scrollToSandbox} style={styles.heroSecondaryButton}>
-                  <Text style={styles.heroSecondaryLabel}>Ver o produto em ação</Text><ArrowRight size={16} color={landingColors.white} />
+                  <Text style={styles.heroSecondaryLabel}>Explorar demonstração</Text><ArrowRight size={16} color={landingColors.white} />
                 </Pressable>
               </View>
-              <Text style={styles.heroNote}>Demonstrações baseadas em funcionalidades disponíveis, com dados fictícios.</Text>
             </View>
             {isDesktop && (
               <View style={styles.heroPreviewFrame}>
@@ -169,6 +183,7 @@ const BusinessLandingContent = () => {
 
           <RevealOnScroll
             onLayout={(event) => { sandboxSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'demo' })}
             style={[styles.sandboxSection, landingShadows.soft]}
           >
             <SectionHeading
@@ -220,7 +235,7 @@ const BusinessLandingContent = () => {
             </View>
           </RevealOnScroll>
 
-          <RevealOnScroll style={[styles.roleSection, !isDesktop && styles.roleSectionStacked]}>
+          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'roles' })} style={[styles.roleSection, !isDesktop && styles.roleSectionStacked]}>
             <View style={[styles.roleCopy, !isDesktop && styles.fullWidth]}>
               <Text style={styles.eyebrow}>DUAS ROTINAS, UMA OPERAÇÃO</Text>
               <Text style={styles.sectionTitle}>Cada pessoa vê o que precisa para agir.</Text>
@@ -249,6 +264,27 @@ const BusinessLandingContent = () => {
             <ProductPreview variant={preview} accessibilityLabel={`Prévia ilustrativa da ${preview === 'owner' ? 'visão do dono' : 'visão profissional'}`} style={[styles.rolePreview, !isDesktop && styles.fullWidth]} />
           </RevealOnScroll>
 
+          <RevealOnScroll testID="business-comparison" onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'comparison' })} style={styles.comparisonSection}>
+            <SectionHeading
+              eyebrow="UM FLUXO MAIS CLARO"
+              title="Reúna o que hoje fica separado."
+              description="O CutSync conecta a apresentação do negócio às informações usadas na rotina."
+            />
+            <View style={styles.comparisonGrid}>
+              {[
+                ['Mensagens dispersas', 'Vitrine pública'],
+                ['Anotações separadas', 'Agenda centralizada'],
+                ['Catálogo informal', 'Serviços com preço e duração'],
+              ].map(([before, after]) => (
+                <View key={before} style={styles.comparisonItem}>
+                  <Text style={styles.comparisonBefore}>{before}</Text>
+                  <ArrowRight size={18} color={landingColors.accent} />
+                  <Text style={styles.comparisonAfter}>{after}</Text>
+                </View>
+              ))}
+            </View>
+          </RevealOnScroll>
+
           <RevealOnScroll>
             <EditorialBand
               eyebrow="CONFIGURAÇÃO COM PROPÓSITO"
@@ -272,12 +308,12 @@ const BusinessLandingContent = () => {
             </EditorialBand>
           </RevealOnScroll>
 
-          <RevealOnScroll style={styles.faqSection}>
-            <SectionHeading eyebrow="PERGUNTAS FREQUENTES" title="Para avaliar com calma." description="Informações diretas sobre cadastro, demonstração e condições comerciais." />
+          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'faq' })} style={styles.faqSection}>
+            <SectionHeading eyebrow="PERGUNTAS FREQUENTES" title="Para avaliar com calma." description="Informações diretas sobre cadastro, demonstração e operação." />
             <View style={styles.faqGrid}>
               {[
                 ['A demonstração usa dados reais?', 'Não. Os dados são fictícios, mas as ações representam fluxos disponíveis no produto.'],
-                ['Os preços já estão definidos?', 'As condições comerciais ainda estão em validação e não representam uma oferta publicada.'],
+                ['O que posso apresentar na vitrine?', 'As informações públicas incluem o perfil do estabelecimento e os serviços ativos publicados.'],
                 ['Posso começar com uma equipe pequena?', 'Sim. O cadastro contempla profissionais autônomos e estabelecimentos com equipe.'],
               ].map(([question, answer]) => <View key={question} style={styles.faqItem}><Text style={styles.faqQuestion}>{question}</Text><Text style={styles.faqAnswer}>{answer}</Text></View>)}
             </View>
@@ -288,13 +324,33 @@ const BusinessLandingContent = () => {
             <Text style={styles.finalCtaEyebrow}>SUA VITRINE, SUA OPERAÇÃO</Text>
             <Text style={styles.finalCtaTitle}>Comece a organizar o negócio a partir do que você já oferece.</Text>
             <Text style={styles.finalCtaText}>Crie seu acesso e siga para a configuração do estabelecimento.</Text>
-            <MagneticButton label="Criar meu estabelecimento" onPress={startRegistration} />
+            <MagneticButton label="Criar meu estabelecimento" onPress={() => {
+              trackLandingEvent({ name: 'cta_clicked', page: 'business', position: 'final', destination: 'registration' });
+              trackLandingEvent({ name: 'registration_started', source: 'business' });
+              router.push({
+                pathname: '/(auth)/register',
+                params: { intent: 'establishment', redirect: '/(client)/request-establishment' },
+              } as never);
+            }} />
           </RevealOnScroll>
 
           <View style={styles.footer}>
-            <Text style={styles.footerBrand}>CutSync</Text>
-            <Text style={styles.footerText}>© {new Date().getFullYear()} · Demonstrações com dados fictícios.</Text>
-            <Pressable testID="business-footer-client-link" accessibilityRole="link" onPress={() => router.push('/' as never)}><Text style={styles.footerLink}>Voltar para clientes</Text></Pressable>
+            <View style={styles.footerIdentity}>
+              <Text style={styles.footerBrand}>CutSync</Text>
+              <Text style={styles.footerText}>© {new Date().getFullYear()} · Vitrine e operação conectadas.</Text>
+            </View>
+            <View style={styles.footerLinks}>
+              {[
+                ['Cliente', '/', 'business-footer-client-link'],
+                ['Entrar', '/(auth)/login?audience=business', 'business-footer-login-link'],
+                ['Privacidade', '/privacy', 'business-footer-privacy-link'],
+                ['Exclusão de conta', '/account-deletion', 'business-footer-account-deletion-link'],
+              ].map(([label, href, testID]) => (
+                <Pressable key={label} testID={testID} accessibilityRole="link" onPress={() => router.push(href as never)}>
+                  <Text style={styles.footerLink}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -325,6 +381,7 @@ const styles = StyleSheet.create({
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
   heroBadgeText: { color: landingColors.onBrand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
   heroTitle: { maxWidth: 650, color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 68, lineHeight: 72, letterSpacing: -3.4 },
+  heroTitleCompact: { fontSize: 48, lineHeight: 54, letterSpacing: -2.2 },
   heroDescription: { maxWidth: 540, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   heroSecondaryButton: { minHeight: 54, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: landingRadii.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(255,255,255,0.05)' },
@@ -378,6 +435,11 @@ const styles = StyleSheet.create({
   onboardingStepText: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 13 },
   onboardingTitle: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   onboardingText: { color: landingColors.onBrandMuted, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
+  comparisonSection: { paddingHorizontal: 8, gap: 34 },
+  comparisonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  comparisonItem: { flex: 1, minWidth: 250, minHeight: 128, padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: landingColors.border },
+  comparisonBefore: { flex: 1, color: landingColors.inkMuted, fontFamily: landingTypography.bodyMedium, fontSize: 13, lineHeight: 19 },
+  comparisonAfter: { flex: 1, color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 14, lineHeight: 20 },
   faqSection: { gap: 34 },
   faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 32 },
   faqItem: { flex: 1, minWidth: 250, paddingTop: 24, gap: 12, borderTopWidth: 1, borderTopColor: landingColors.border },
@@ -388,7 +450,9 @@ const styles = StyleSheet.create({
   finalCtaEyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
   finalCtaTitle: { maxWidth: 760, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 48, letterSpacing: -1.8 },
   finalCtaText: { maxWidth: 570, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22 },
-  footer: { minHeight: 130, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTopWidth: 1, borderTopColor: landingColors.border },
+  footer: { minHeight: 150, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24, borderTopWidth: 1, borderTopColor: landingColors.border },
+  footerIdentity: { gap: 7 },
+  footerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
   footerBrand: { color: landingColors.ink, fontFamily: landingTypography.displayBold, fontSize: 20 },
   footerText: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12 },
   footerLink: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },

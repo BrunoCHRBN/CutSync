@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Store } from 'lucide-react-native';
 import { landingColors, landingRadii, landingTypography } from '../../theme/landing-tokens';
 
 interface EditorialBandProps {
@@ -46,14 +47,6 @@ interface EstablishmentMediaProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const getInitials = (name: string) => name
-  .split(/\s+/)
-  .filter(Boolean)
-  .slice(0, 2)
-  .map((part) => part[0])
-  .join('')
-  .toUpperCase();
-
 export const EstablishmentMedia = ({ name, uri, style }: EstablishmentMediaProps) => {
   const [failed, setFailed] = useState(false);
 
@@ -74,7 +67,7 @@ export const EstablishmentMedia = ({ name, uri, style }: EstablishmentMediaProps
       ) : (
         <View accessibilityRole="image" accessibilityLabel={`Identidade visual de ${name}`} style={styles.mediaFallback}>
           <View style={styles.fallbackOrb} />
-          <Text style={styles.mediaInitials}>{getInitials(name)}</Text>
+          <View style={styles.fallbackIcon}><Store size={30} color={landingColors.brand} strokeWidth={1.6} /></View>
           <Text numberOfLines={1} style={styles.mediaCaption}>{name}</Text>
         </View>
       )}
@@ -117,6 +110,6 @@ const styles = StyleSheet.create({
   mediaImage: { width: '100%', height: '100%' },
   mediaFallback: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: landingColors.brandSoft },
   fallbackOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(197,166,109,0.22)' },
-  mediaInitials: { color: landingColors.brand, fontFamily: landingTypography.displayBold, fontSize: 40 },
+  fallbackIcon: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,254,252,0.72)', borderWidth: 1, borderColor: landingColors.border },
   mediaCaption: { maxWidth: '80%', color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 11 },
 });

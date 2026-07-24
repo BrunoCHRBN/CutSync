@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -73,6 +75,8 @@ const ClientLandingContent = () => {
   const searchInputRef = useRef<TextInput>(null);
   const contentY = useRef(0);
   const searchSectionY = useRef(0);
+  const journeySectionY = useRef(0);
+  const reportedDepths = useRef(new Set<50 | 100>());
   const [establishments, setEstablishments] = useState<PublicEstablishment[]>([]);
   const [query, setQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
@@ -159,8 +163,26 @@ const ClientLandingContent = () => {
   const resultCardWidth = (resultGridWidth - (resultColumns - 1) * 16) / resultColumns;
 
   const scrollToSearch = () => {
+    trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' });
     scrollRef.current?.scrollTo({ y: Math.max(0, searchSectionY.current - 84), animated: !reducedMotion });
     setTimeout(() => searchInputRef.current?.focus(), reducedMotion ? 0 : 260);
+  };
+
+  const scrollToJourney = () => {
+    trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_secondary', destination: 'journey' });
+    scrollRef.current?.scrollTo({ y: Math.max(0, journeySectionY.current - 84), animated: !reducedMotion });
+  };
+
+  const trackScrollDepth = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    if (contentSize.height <= layoutMeasurement.height) return;
+    const depth = ((contentOffset.y + layoutMeasurement.height) / contentSize.height) * 100;
+    ([50, 100] as const).forEach((threshold) => {
+      if (depth >= threshold && !reportedDepths.current.has(threshold)) {
+        reportedDepths.current.add(threshold);
+        trackLandingEvent({ name: 'scroll_depth_reached', page: 'client', depth: threshold });
+      }
+    });
   };
 
   const openEstablishment = (establishment: PublicEstablishment, booking = false) => {
@@ -232,17 +254,18 @@ const ClientLandingContent = () => {
         </View>
       </GlassSurface>
 
-      <ScrollView ref={scrollRef} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView ref={scrollRef} onScroll={trackScrollDepth} scrollEventThrottle={32} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <SpotlightSection style={[styles.heroSection, !isDesktop && styles.heroSectionStacked]}>
           <View style={styles.heroCopy}>
             <View style={styles.heroBadge}>
               <View style={styles.liveDot} />
               <Text style={styles.heroBadgeText}>VITRINES E AGENDAS CONECTADAS</Text>
             </View>
-            <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Escolha com calma.{`\n`}Agende com clareza.</Text>
-            <Text style={styles.heroDescription}>Encontre serviços publicados pelos estabelecimentos e consulte os horários diretamente na agenda de cada unidade.</Text>
+            <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Encontre seu próximo horário{`\n`}sem depender de mensagens.</Text>
+            <Text style={styles.heroDescription}>Explore serviços, consulte a agenda de cada estabelecimento e escolha quando agendar.</Text>
             <View style={styles.heroActions}>
-              <MagneticButton label="Buscar estabelecimentos" onPress={scrollToSearch} testID="landing-hero-client-cta" />
+              <MagneticButton label="Ver estabelecimentos" onPress={scrollToSearch} testID="landing-hero-client-cta" />
+              <MagneticButton label="Como funciona" secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
               {!isDesktop && <MagneticButton label="Tenho um negócio" secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
             </View>
           </View>
@@ -255,9 +278,19 @@ const ClientLandingContent = () => {
           )}
         </SpotlightSection>
 
+        <View testID="landing-client-credibility" style={styles.credibilityBand}>
+          {['Explore sem cadastro', 'Consulte serviços e preços', 'Entre apenas para confirmar'].map((label, index) => (
+            <React.Fragment key={label}>
+              {index > 0 && <Text style={styles.credibilityDivider}>·</Text>}
+              <Text style={styles.credibilityText}>{label}</Text>
+            </React.Fragment>
+          ))}
+        </View>
+
         <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
           <RevealOnScroll
             onLayout={(event) => { searchSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'search' })}
             style={styles.searchSection}
           >
             <SectionHeading
@@ -382,7 +415,12 @@ const ClientLandingContent = () => {
             <Text style={styles.resultsNote}>A disponibilidade é consultada antes da confirmação do agendamento.</Text>
           </RevealOnScroll>
 
-          <RevealOnScroll style={styles.journeySection}>
+          <RevealOnScroll
+            testID="landing-client-journey"
+            onLayout={(event) => { journeySectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'journey' })}
+            style={styles.journeySection}
+          >
             <SectionHeading eyebrow="DO ENCONTRO À CONFIRMAÇÃO" title="Uma decisão de cada vez." description="Você pode explorar antes de entrar. A conta é necessária somente para concluir a reserva." />
             <View style={styles.journeyGrid}>
               {[
@@ -399,11 +437,11 @@ const ClientLandingContent = () => {
             </View>
           </RevealOnScroll>
 
-          <RevealOnScroll>
+          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'connected_platform' })}>
             <EditorialBand
               testID="landing-connected-platform"
               eyebrow="UMA PLATAFORMA CONECTADA"
-              title="A vitrine que o cliente vê conversa com a agenda que o estabelecimento organiza."
+              title="O que o cliente encontra acompanha o que o estabelecimento disponibiliza na agenda."
               description="O CutSync conecta informações já publicadas pelo negócio ao caminho de descoberta e agendamento do cliente."
             >
               <View style={styles.platformFlow}>
@@ -418,7 +456,7 @@ const ClientLandingContent = () => {
             </EditorialBand>
           </RevealOnScroll>
 
-          <RevealOnScroll style={styles.faqSection}>
+          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'faq' })} style={styles.faqSection}>
             <SectionHeading eyebrow="ANTES DE RESERVAR" title="O essencial, sem letras pequenas." description="Informações diretas para navegar com confiança." />
             <View style={styles.faqGrid}>
               {[
@@ -435,7 +473,10 @@ const ClientLandingContent = () => {
             <Text style={styles.finalCtaEyebrow}>COMECE PELA BUSCA</Text>
             <Text style={styles.finalCtaTitle}>Seu próximo horário começa com uma escolha clara.</Text>
             <Text style={styles.finalCtaText}>Explore as vitrines publicadas e consulte os horários quando encontrar o serviço certo.</Text>
-            <MagneticButton label="Buscar agora" onPress={scrollToSearch} />
+            <MagneticButton label="Ver estabelecimentos" onPress={() => {
+              trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'final', destination: 'search' });
+              scrollRef.current?.scrollTo({ y: Math.max(0, searchSectionY.current - 84), animated: !reducedMotion });
+            }} />
           </RevealOnScroll>
 
           <View style={styles.footer}>
@@ -480,6 +521,9 @@ const styles = StyleSheet.create({
   heroDescription: { maxWidth: 545, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { paddingTop: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   heroPreview: { width: '47%', maxWidth: 570 },
+  credibilityBand: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 68, marginTop: -42, marginBottom: 74, paddingHorizontal: 24, alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, boxShadow: '0 16px 44px rgba(20,33,25,0.07)' },
+  credibilityText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
+  credibilityDivider: { color: landingColors.accent, fontFamily: landingTypography.displayBold, fontSize: 18 },
   content: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', paddingHorizontal: 24, gap: 148 },
   sectionHeading: { maxWidth: landingLayout.copyWidth, gap: 12 },
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },

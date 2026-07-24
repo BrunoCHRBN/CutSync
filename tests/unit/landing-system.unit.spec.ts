@@ -11,6 +11,8 @@ const clientLanding = fs.readFileSync(path.join(root, 'apps/web/src/components/l
 const businessLanding = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/business-landing.tsx'), 'utf8');
 const capabilities = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/landing-capabilities.ts'), 'utf8');
 const primitives = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/landing-primitives.tsx'), 'utf8');
+const claims = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/landing-claims.ts'), 'utf8');
+const mockData = fs.readFileSync(path.join(root, 'apps/web/src/components/landing/sandbox/mockData.ts'), 'utf8');
 const landingDirectory = path.join(root, 'apps/web/src/components/landing');
 
 const readSourceTree = (directory: string): string => fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
@@ -34,11 +36,11 @@ const contrast = (foreground: string, background: string) => {
 };
 
 test('mantém os tokens claros e os pares principais em contraste AA', () => {
-  expect(tokens).toContain("canvas: '#F7F6F2'");
-  expect(tokens).toContain("canvasWarm: '#EEEAE1'");
-  expect(tokens).toContain("surface: '#FFFEFC'");
-  expect(tokens).toContain("surfaceSoft: '#F4F2EC'");
-  expect(tokens).toContain("brandSoft: '#E3ECE6'");
+  expect(tokens).toContain("canvas: '#F8F7F2'");
+  expect(tokens).toContain("canvasWarm: '#EFECE2'");
+  expect(tokens).toContain("surface: '#FFFEFA'");
+  expect(tokens).toContain("surfaceSoft: '#F3F1E9'");
+  expect(tokens).toContain("brandSoft: '#E6EEE8'");
   expect(tokens).toContain("accent: '#C5A66D'");
   expect(tokens).toContain('rgba(255,254,252');
   expect(tokens).not.toContain('dark:');
@@ -48,20 +50,20 @@ test('mantém os tokens claros e os pares principais em contraste AA', () => {
 });
 
 test('aplica a hierarquia de superfícies sem transformar tudo em cards', () => {
-  expect(clientLanding).toContain('searchSection: { padding: 22, gap: 20, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm');
-  expect(clientLanding).toContain('resultsSection: { padding: 28, gap: 24, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface }');
+  expect(clientLanding).toContain("searchSection: { paddingVertical: 48, paddingHorizontal: 40, gap: 32, borderRadius: landingRadii.xl, backgroundColor: 'rgba(239,236,226,0.72)'");
+  expect(clientLanding).toContain('resultsSection: { marginTop: -36, paddingVertical: 16, gap: 40 }');
   expect(businessLanding).toContain('heroOuter: { backgroundColor: landingColors.brandStrong }');
-  expect(businessLanding).toContain('sandboxSection: { padding: 30, gap: 22, borderRadius: landingRadii.xl, backgroundColor: landingColors.surface');
-  expect(businessLanding).toContain('roleSection: { padding: 38, flexDirection: \'row\', alignItems: \'center\', gap: 40, borderRadius: landingRadii.xl, backgroundColor: landingColors.brandSoft }');
+  expect(businessLanding).toContain('sandboxSection: { paddingVertical: 24, gap: 40 }');
+  expect(businessLanding).toContain("roleSection: { paddingVertical: 72, paddingHorizontal: 48, flexDirection: 'row', alignItems: 'center', gap: 72");
 });
 
 test('mantém rotas finas e dois caminhos públicos claros', () => {
   const rootRoute = fs.readFileSync(path.join(root, 'apps/web/src/app/index.tsx'), 'utf8');
   const businessRoute = fs.readFileSync(path.join(root, 'apps/web/src/app/para-estabelecimentos.tsx'), 'utf8');
   expect(rootRoute).toContain('ClientLanding');
-  expect(rootRoute.split('\n').length).toBeLessThan(10);
+  expect(rootRoute).toContain('<Head>');
   expect(businessRoute).toContain('BusinessLanding');
-  expect(businessRoute.split('\n').length).toBeLessThan(10);
+  expect(businessRoute).toContain('<Head>');
   expect(clientLanding).not.toContain('AudienceSelector');
   expect(clientLanding).not.toContain("name: 'audience_selected'");
   expect(clientLanding).toContain("legacyAudience === 'business'");
@@ -88,7 +90,24 @@ test('usa mídia real somente nos resultados e fornece fallback visual', () => {
   expect(primitives).toContain('cachePolicy="memory-disk"');
   expect(primitives).toContain('onError={() => setFailed(true)}');
   expect(primitives).toContain('mediaFallback');
+  expect(primitives).toContain('<Store');
+  expect(primitives).not.toContain('getInitials');
   expect(clientLanding).toContain('Math.min(maximumResultColumns, Math.max(filtered.length, 1))');
+});
+
+test('humaniza demonstrações sem confundir exemplos com prova social', () => {
+  expect(mockData).toContain('João Silva');
+  expect(mockData).toContain('Marcos Lima');
+  expect(mockData).not.toMatch(/Cliente \d|Profissional [A-Z]/);
+  expect(businessLanding).toContain('Demonstração baseada em funcionalidades disponíveis, com dados fictícios.');
+  expect(businessLanding.indexOf('Demonstração baseada')).toBeGreaterThan(businessLanding.indexOf('PRODUTO DISPONÍVEL'));
+});
+
+test('bloqueia claims comerciais não aprovados e documenta gates mensuráveis', () => {
+  expect(clientLanding + businessLanding).not.toMatch(/30 segundos|agenda cheia|perto de você|sem filas|lista de espera|grátis/i);
+  expect(businessLanding).not.toContain('Os preços já estão definidos?');
+  expect(claims).toContain('baselineWindowDays: 30');
+  expect(claims).toContain('publicationCriterion');
 });
 
 test('limita as demonstrações públicas às capacidades disponíveis', () => {
@@ -113,9 +132,13 @@ test('analytics usa adaptador neutro e payload sem dados pessoais', () => {
   configureLandingAnalytics((event) => events.push(event));
   trackLandingEvent({ name: 'audience_selected', audience: 'observer' });
   trackLandingEvent({ name: 'search_started', filterCount: 2 });
+  trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' });
+  trackLandingEvent({ name: 'scroll_depth_reached', page: 'business', depth: 50 });
   expect(events).toEqual([
     { name: 'audience_selected', audience: 'observer' },
     { name: 'search_started', filterCount: 2 },
+    { name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' },
+    { name: 'scroll_depth_reached', page: 'business', depth: 50 },
   ]);
   expect(JSON.stringify(events)).not.toMatch(/email|phone|address|query/i);
   expect(clientLanding + businessLanding).not.toContain("name: 'audience_selected'");
