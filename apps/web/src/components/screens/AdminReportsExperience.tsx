@@ -7,7 +7,6 @@ import {
 } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { useOperationalContext } from '../../contexts/operational-context';
 import { useAdminReport } from '../../hooks/use-admin-report';
 import { useAdminReportDetails, AdminReportDetailSelection } from '../../hooks/use-admin-report-details';
 import { useAdminReportFilterOptions } from '../../hooks/use-admin-report-filter-options';
@@ -92,7 +91,7 @@ export const AdminReportsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { activeEstablishmentId: establishmentId } = useOperationalContext();
+  const establishmentId = profile?.establishment_id;
   const { establishment } = useEstablishment(establishmentId);
   const { professionals: professionalOptions, services: serviceOptions } = useAdminReportFilterOptions(establishmentId);
   const [draftStart, setDraftStart] = useState(urlState.start);
