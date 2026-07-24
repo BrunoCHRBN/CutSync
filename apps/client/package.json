@@ -1,6 +1,6 @@
 {
   "name": "@cutsync/client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -24,8 +24,10 @@
     "@sentry/react-native": "~7.11.0",
     "@supabase/supabase-js": "2.110.3",
     "expo": "~57.0.8",
+    "expo-blur": "~57.0.2",
     "expo-constants": "~57.0.7",
     "expo-dev-client": "~57.0.9",
+    "expo-haptics": "~57.0.1",
     "expo-image": "~57.0.1",
     "expo-image-picker": "~57.0.6",
     "expo-linking": "~57.0.4",
