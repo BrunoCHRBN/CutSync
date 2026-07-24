@@ -8,6 +8,7 @@ REPORT_SQL = ROOT / "supabase/migrations/20260720004000_admin_reports.sql"
 CATALOG_SQL = ROOT / "supabase/migrations/20260720004100_service_catalog_management.sql"
 REPORT_COMPAT_SQL = ROOT / "supabase/migrations/20260720004200_admin_reports_optional_schedule_blocks.sql"
 INTERACTIVE_REPORT_SQL = ROOT / "supabase/migrations/20260725000000_interactive_admin_reports.sql"
+INTERACTIVE_REPORT_SERVICE_ID_FIX_SQL = ROOT / "supabase/migrations/20260725001000_fix_admin_report_service_id_type.sql"
 REPORT_SCREEN = ROOT / "apps/web/src/components/screens/AdminReportsExperience.tsx"
 REPORT_HOOK = ROOT / "apps/web/src/hooks/use-admin-report.ts"
 SERVICES_SCREEN = ROOT / "apps/web/src/components/screens/ServicesExperience.tsx"
@@ -97,6 +98,19 @@ def test_interactive_report_preserves_legacy_contract_and_hardens_details() -> N
     assert "'email'" not in sql
     assert "REVOKE ALL ON FUNCTION public.get_admin_report_v2" in sql
     assert "REVOKE ALL ON FUNCTION public.get_admin_report_details" in sql
+
+
+def test_interactive_report_uses_text_service_ids_and_repairs_existing_signature() -> None:
+    sql = INTERACTIVE_REPORT_SQL.read_text(encoding="utf-8")
+    fix = INTERACTIVE_REPORT_SERVICE_ID_FIX_SQL.read_text(encoding="utf-8")
+
+    assert sql.count("target_service_id text DEFAULT NULL") == 2
+    assert "target_service_id uuid DEFAULT NULL" not in sql
+    assert "get_admin_report_v2(uuid, date, date, uuid, text, text)" in sql
+    assert "get_admin_report_details(" in fix
+    assert "target_service_id uuid DEFAULT NULL::uuid" in fix
+    assert "target_service_id text DEFAULT NULL::text" in fix
+    assert "NOTIFY pgrst, 'reload schema'" in fix
 
 
 def test_interactive_report_screen_has_tabs_filters_drilldown_and_agenda_link() -> None:

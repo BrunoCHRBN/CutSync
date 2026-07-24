@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION public.get_admin_report_v2(
   target_range_start date,
   target_range_end date,
   target_professional_id uuid DEFAULT NULL,
-  target_service_id uuid DEFAULT NULL,
+  target_service_id text DEFAULT NULL,
   target_status text DEFAULT NULL
 )
 RETURNS jsonb
@@ -300,7 +300,7 @@ CREATE OR REPLACE FUNCTION public.get_admin_report_details(
   target_range_end date,
   target_dimension text,
   target_professional_id uuid DEFAULT NULL,
-  target_service_id uuid DEFAULT NULL,
+  target_service_id text DEFAULT NULL,
   target_status text DEFAULT NULL,
   target_day date DEFAULT NULL,
   target_day_of_week integer DEFAULT NULL,
@@ -405,7 +405,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.get_admin_report_v2(uuid, date, date, uuid, uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_admin_report_v2(uuid, date, date, uuid, uuid, text) TO authenticated;
-REVOKE ALL ON FUNCTION public.get_admin_report_details(uuid, date, date, text, uuid, uuid, text, date, integer, integer, text, integer) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_admin_report_details(uuid, date, date, text, uuid, uuid, text, date, integer, integer, text, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_admin_report_v2(uuid, date, date, uuid, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_admin_report_v2(uuid, date, date, uuid, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_admin_report_details(uuid, date, date, text, uuid, text, text, date, integer, integer, text, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_admin_report_details(uuid, date, date, text, uuid, text, text, date, integer, integer, text, integer) TO authenticated;
