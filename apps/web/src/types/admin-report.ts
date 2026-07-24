@@ -98,6 +98,47 @@ export interface AdminReport {
   generated_at: string;
 }
 
+export type AdminReportTab = 'overview' | 'operations' | 'team' | 'services' | 'clients';
+export type AdminReportStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type AdminReportDetailDimension = 'appointments' | 'clients';
+
+export interface AdminReportFilters {
+  professionalId?: string | null;
+  serviceId?: string | null;
+  status?: AdminReportStatus | null;
+}
+
+export interface AdminReportAppointmentDetail {
+  kind: 'appointment';
+  id: string;
+  date_time: string;
+  status: AdminReportStatus;
+  service_name: string;
+  professional_id: string;
+  professional_name: string;
+  client_name: string;
+  production_value: number;
+}
+
+export interface AdminReportClientDetail {
+  kind: 'client';
+  id: string;
+  display_name: string;
+  last_visit: string;
+  visit_count: number;
+  next_appointment: string | null;
+  operational_status: 'scheduled' | 'active' | 'inactive';
+}
+
+export type AdminReportDetailItem = AdminReportAppointmentDetail | AdminReportClientDetail;
+
+export interface AdminReportDetailPage {
+  dimension: AdminReportDetailDimension;
+  items: AdminReportDetailItem[];
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
 export const emptyAdminReportSummary = (): AdminReportSummary => ({
   production_realized: 0,
   scheduled_value: 0,

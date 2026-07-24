@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { AdminReportDay } from '../../types/admin-report';
 import { colors, radii, typography } from '../../theme/tokens';
@@ -8,6 +8,8 @@ interface ReportChartProps {
   data: AdminReportDay[];
   mode: 'production' | 'occupancy';
   testID: string;
+  onSelectDay?: (day: AdminReportDay) => void;
+  selectedDate?: string | null;
 }
 
 const WIDTH = 720;
@@ -17,7 +19,7 @@ const TOP = 18;
 const RIGHT = 16;
 const BOTTOM = 34;
 
-export const ReportChart = ({ data, mode, testID }: ReportChartProps) => {
+export const ReportChart = ({ data, mode, testID, onSelectDay, selectedDate }: ReportChartProps) => {
   const values = data.map((item) => mode === 'production' ? item.production_realized : item.occupancy_rate);
   const maximum = Math.max(mode === 'occupancy' ? 100 : 0, ...values, 1);
   const plotWidth = WIDTH - LEFT - RIGHT;
@@ -77,6 +79,25 @@ export const ReportChart = ({ data, mode, testID }: ReportChartProps) => {
           </React.Fragment>
         ) : null)}
       </Svg>
+      {onSelectDay ? (
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, styles.hitArea]}>
+          {data.map((item, index) => (
+            <Pressable
+              key={`hit-${item.date}`}
+              testID={`${testID}-point-${item.date}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${new Date(`${item.date}T12:00:00`).toLocaleDateString('pt-BR')}: ${mode === 'production' ? `${item.production_realized.toFixed(2)} de produção` : `${item.occupancy_rate.toFixed(1)}% de ocupação`}`}
+              accessibilityState={{ selected: selectedDate === item.date }}
+              onPress={() => onSelectDay(item)}
+              style={[
+                styles.pointHit,
+                { left: `${data.length <= 1 ? 50 : index * 100 / (data.length - 1)}%` },
+                selectedDate === item.date && styles.pointSelected,
+              ]}
+            />
+          ))}
+        </View>
+      ) : null}
       <View pointerEvents="none" style={styles.labels}>
         {[data[0], data[Math.floor((data.length - 1) / 2)], data[data.length - 1]].map((item, index) => (
           <Text key={`${item.date}-${index}`} style={styles.label}>{new Date(`${item.date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
@@ -92,4 +113,7 @@ const styles = StyleSheet.create({
   label: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   empty: { minHeight: HEIGHT, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: colors.canvasSoft },
   emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
+  hitArea: { left: LEFT, right: RIGHT, top: TOP, bottom: BOTTOM },
+  pointHit: { position: 'absolute', top: 0, bottom: 0, width: 22, marginLeft: -11, borderRadius: radii.pill },
+  pointSelected: { backgroundColor: 'rgba(49,92,155,0.10)', borderWidth: 1, borderColor: colors.brandPrimary },
 });

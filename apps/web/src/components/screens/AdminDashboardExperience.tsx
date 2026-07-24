@@ -67,7 +67,7 @@ const comparisonNote = (current: number, previous: number) => {
 
 export const AdminDashboardExperience = () => {
   const router = useRouter();
-  const { professionalId } = useLocalSearchParams<{ professionalId?: string }>();
+  const { professionalId, date } = useLocalSearchParams<{ professionalId?: string; date?: string }>();
   const { width } = useWindowDimensions();
   const { open: openCommandPalette } = useCommandPalette();
   const isWide = width >= layout.desktopBreakpoint;
@@ -76,7 +76,7 @@ export const AdminDashboardExperience = () => {
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
   const { team: barbers } = useTeam(profile?.establishment_id, true);
   const { services } = useServices(profile?.establishment_id, true);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? new Date(`${date}T12:00:00`) : new Date());
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [showFinished, setShowFinished] = useState(false);
@@ -85,6 +85,12 @@ export const AdminDashboardExperience = () => {
   const [blockSelection, setBlockSelection] = useState<CalendarSlotSelection | null>(null);
   const [blockLoading, setBlockLoading] = useState(false);
   const [blockError, setBlockError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
+    const nextDate = new Date(`${date}T12:00:00`);
+    if (!Number.isNaN(nextDate.getTime())) setSelectedDate(nextDate);
+  }, [date]);
 
   // Estados locais para Encaixe Rápido
   const [quickOpen, setQuickOpen] = useState(false);

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
-import { AdminReport } from '../types/admin-report';
+import { AdminReport, AdminReportFilters } from '../types/admin-report';
 
 interface UseAdminReportOptions {
   establishmentId?: string | null;
   rangeStart: string;
   rangeEnd: string;
   enabled?: boolean;
+  interactive?: boolean;
+  filters?: AdminReportFilters;
 }
 
 const reportErrorMessage = (message: string) => {
@@ -23,12 +25,15 @@ export function useAdminReport({
   rangeStart,
   rangeEnd,
   enabled = true,
+  interactive = false,
+  filters = {},
 }: UseAdminReportOptions) {
   const [report, setReport] = useState<AdminReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
   const instanceId = useId().replace(/:/g, '');
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     const currentRequest = ++requestId.current;
@@ -46,11 +51,20 @@ export function useAdminReport({
     }
 
     setLoading(true);
-    const { data, error: queryError } = await supabase.rpc('get_admin_report', {
-      target_establishment_id: establishmentId,
-      target_range_start: rangeStart,
-      target_range_end: rangeEnd,
-    });
+    const { data, error: queryError } = interactive
+      ? await (supabase.rpc as any)('get_admin_report_v2', {
+        target_establishment_id: establishmentId,
+        target_range_start: rangeStart,
+        target_range_end: rangeEnd,
+        target_professional_id: filters.professionalId || null,
+        target_service_id: filters.serviceId || null,
+        target_status: filters.status || null,
+      })
+      : await supabase.rpc('get_admin_report', {
+        target_establishment_id: establishmentId,
+        target_range_start: rangeStart,
+        target_range_end: rangeEnd,
+      });
     if (currentRequest !== requestId.current) return null;
 
     if (queryError) {
@@ -66,7 +80,7 @@ export function useAdminReport({
     setError(null);
     setLoading(false);
     return nextReport;
-  }, [enabled, establishmentId, rangeEnd, rangeStart]);
+  }, [enabled, establishmentId, filters.professionalId, filters.serviceId, filters.status, interactive, rangeEnd, rangeStart]);
 
   useEffect(() => {
     setReport(null);
@@ -77,16 +91,21 @@ export function useAdminReport({
       return () => { requestId.current += 1; };
     }
 
+    const scheduleRefresh = () => {
+      if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+      realtimeTimer.current = setTimeout(() => { void refresh(); }, 350);
+    };
     const channel = supabase
       .channel(`admin-report-${establishmentId}-${instanceId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments', filter: `establishment_id=eq.${establishmentId}` }, () => { void refresh(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_blocks', filter: `establishment_id=eq.${establishmentId}` }, () => { void refresh(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'services', filter: `establishment_id=eq.${establishmentId}` }, () => { void refresh(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships', filter: `establishment_id=eq.${establishmentId}` }, () => { void refresh(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments', filter: `establishment_id=eq.${establishmentId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_blocks', filter: `establishment_id=eq.${establishmentId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services', filter: `establishment_id=eq.${establishmentId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships', filter: `establishment_id=eq.${establishmentId}` }, scheduleRefresh)
       .subscribe();
 
     return () => {
       requestId.current += 1;
+      if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
       void supabase.removeChannel(channel);
     };
   }, [enabled, establishmentId, instanceId, refresh]);

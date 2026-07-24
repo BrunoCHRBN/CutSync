@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, typeScale } from '../../theme/tokens';
 
 export interface MetricStripItem {
@@ -9,6 +9,8 @@ export interface MetricStripItem {
   value: string;
   note?: string;
   icon?: ReactNode;
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }
 
 interface MetricStripProps {
@@ -18,16 +20,25 @@ interface MetricStripProps {
 
 export const MetricStrip = ({ items, testID = 'metric-strip' }: MetricStripProps) => (
   <View testID={testID} style={styles.container}>
-    {items.map((item) => (
-      <View key={item.key} testID={item.testID || `${testID}-${item.key}`} style={styles.item}>
+    {items.map((item) => {
+      return (
+      <Pressable
+        key={item.key}
+        testID={item.testID || `${testID}-${item.key}`}
+        accessibilityRole={item.onPress ? 'button' : undefined}
+        accessibilityLabel={item.accessibilityLabel}
+        onPress={item.onPress}
+        disabled={!item.onPress}
+        style={({ pressed }: { pressed?: boolean }) => [styles.item, pressed && styles.pressed]}
+      >
         <View style={styles.labelRow}>
           {item.icon}
           <Text style={styles.label}>{item.label}</Text>
         </View>
         <Text testID={item.testID ? `${item.testID}-value` : `${testID}-${item.key}-value`} selectable style={styles.value}>{item.value}</Text>
         {!!item.note && <Text style={styles.note}>{item.note}</Text>}
-      </View>
-    ))}
+      </Pressable>
+    );})}
   </View>
 );
 
@@ -53,4 +64,5 @@ const styles = StyleSheet.create({
   label: { ...typeScale.label, color: colors.textSecondary, textTransform: 'uppercase' },
   value: { ...typeScale.cardTitle, color: colors.text, marginTop: 8, fontVariant: ['tabular-nums'] },
   note: { ...typeScale.small, color: colors.textMuted, marginTop: 2 },
+  pressed: { backgroundColor: colors.canvasSoft },
 });

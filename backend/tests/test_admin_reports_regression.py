@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT_SQL = ROOT / "supabase/migrations/20260720004000_admin_reports.sql"
 CATALOG_SQL = ROOT / "supabase/migrations/20260720004100_service_catalog_management.sql"
 REPORT_COMPAT_SQL = ROOT / "supabase/migrations/20260720004200_admin_reports_optional_schedule_blocks.sql"
+INTERACTIVE_REPORT_SQL = ROOT / "supabase/migrations/20260725000000_interactive_admin_reports.sql"
 REPORT_SCREEN = ROOT / "apps/web/src/components/screens/AdminReportsExperience.tsx"
 REPORT_HOOK = ROOT / "apps/web/src/hooks/use-admin-report.ts"
 SERVICES_SCREEN = ROOT / "apps/web/src/components/screens/ServicesExperience.tsx"
@@ -79,6 +80,39 @@ def test_report_hook_refreshes_relevant_realtime_sources() -> None:
     for table in ("appointments", "schedule_blocks", "services", "memberships"):
         assert f"table: '{table}'" in hook
     assert "target_establishment_id: establishmentId" in hook
+
+
+def test_interactive_report_preserves_legacy_contract_and_hardens_details() -> None:
+    sql = INTERACTIVE_REPORT_SQL.read_text(encoding="utf-8")
+
+    assert "CREATE OR REPLACE FUNCTION public.get_admin_report_v2" in sql
+    assert "CREATE OR REPLACE FUNCTION public.get_admin_report_details" in sql
+    assert "CREATE OR REPLACE FUNCTION public.get_admin_report(" not in sql
+    assert "public.has_active_membership(target_establishment_id, ARRAY['admin'])" in sql
+    assert "target_dimension NOT IN ('appointments', 'clients')" in sql
+    assert "LEAST(GREATEST(COALESCE(target_limit, 25), 1), 25)" in sql
+    assert "report.clients_identified.viewed" in sql
+    assert "'display_name'" in sql
+    assert "'phone'" not in sql
+    assert "'email'" not in sql
+    assert "REVOKE ALL ON FUNCTION public.get_admin_report_v2" in sql
+    assert "REVOKE ALL ON FUNCTION public.get_admin_report_details" in sql
+
+
+def test_interactive_report_screen_has_tabs_filters_drilldown_and_agenda_link() -> None:
+    screen = REPORT_SCREEN.read_text(encoding="utf-8")
+    detail = (ROOT / "apps/web/src/components/reports/report-detail-panel.tsx").read_text(encoding="utf-8")
+    hook = (ROOT / "apps/web/src/hooks/use-admin-report-details.ts").read_text(encoding="utf-8")
+
+    for tab in ("overview", "operations", "team", "services", "clients"):
+        assert f"'{tab}'" in screen
+    assert "ReportFilterBar" in screen
+    assert "ReportDetailPanel" in screen
+    assert "router.setParams" in screen
+    assert "filters: urlState.filters" in screen
+    assert "Abrir na agenda" in detail
+    assert "target_limit: 25" in hook
+    assert "requestId.current" in hook
 
 
 def test_service_management_supports_edit_duplicate_order_and_impact() -> None:
