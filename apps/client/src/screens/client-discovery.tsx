@@ -31,6 +31,7 @@ import {
   type ClientDiscoveryEstablishment,
   listClientDiscoveryEstablishments,
 } from '@/features/discovery/client-discovery-service';
+import { clientTheme } from '@/theme/client-theme';
 
 type CategoryFilter = {
   id: string;
@@ -248,7 +249,9 @@ export function ClientDiscoveryScreen() {
             {CATEGORIES.map((category, index) => (
               <Animated.View
                 key={category.id}
-                entering={FadeInRight.delay(index * 40).duration(320)}
+                entering={FadeInRight
+                  .delay(index * clientTheme.motion.stagger)
+                  .duration(clientTheme.motion.standard)}
               >
                 <CategoryChip
                   testID={'client-discovery-category-' + category.id}
@@ -342,7 +345,9 @@ export function ClientDiscoveryScreen() {
                   {featured.map((item, index) => (
                     <Animated.View
                       key={item.id}
-                      entering={FadeInRight.delay(index * 90).duration(420)}
+                      entering={FadeInRight
+                        .delay(index * clientTheme.motion.stagger)
+                        .duration(clientTheme.motion.emphasized)}
                     >
                       <FeaturedEstablishmentCard
                         establishment={item}
@@ -375,7 +380,9 @@ export function ClientDiscoveryScreen() {
                   {nearby.map((item, index) => (
                     <Animated.View
                       key={item.id}
-                      entering={FadeInRight.delay(index * 70).duration(380)}
+                      entering={FadeInRight
+                        .delay(index * clientTheme.motion.stagger)
+                        .duration(clientTheme.motion.emphasized)}
                     >
                       <CompactEstablishmentCard
                         establishment={item}
@@ -408,7 +415,9 @@ export function ClientDiscoveryScreen() {
                   {popular.map((item, index) => (
                     <Animated.View
                       key={item.id}
-                      entering={FadeInRight.delay(index * 70).duration(380)}
+                      entering={FadeInRight
+                        .delay(index * clientTheme.motion.stagger)
+                        .duration(clientTheme.motion.emphasized)}
                     >
                       <CompactEstablishmentCard
                         establishment={item}

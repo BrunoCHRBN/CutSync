@@ -9,11 +9,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { AppointmentStateCard, appointmentColors } from '@/components/appointments/client-appointment-ui';
 import { useSession } from '@/contexts/session-context';
 import { cancelClientAppointment } from '@/features/appointments/client-appointments-service';
 import { useClientAppointment } from '@/features/appointments/use-client-appointments';
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 export function ClientAppointmentCancelScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -32,8 +35,10 @@ export function ClientAppointmentCancelScreen() {
     setActionError(null);
     try {
       await cancelClientAppointment(appointmentId, reason);
+      void performClientHaptic('success');
       router.replace({ pathname: '/appointments/[id]', params: { id: appointmentId } });
     } catch (error) {
+      void performClientHaptic('error');
       setActionError(error instanceof Error ? error.message : 'Não foi possível cancelar este atendimento.');
       setIsConfirming(false);
     } finally {
@@ -88,7 +93,11 @@ export function ClientAppointmentCancelScreen() {
           description={blockMessage || 'Este atendimento não pode ser cancelado pelo aplicativo.'}
         />
       ) : isConfirming && reason ? (
-        <View testID="client-appointment-cancel-confirmation" style={styles.confirmCard}>
+        <Animated.View
+          entering={FadeInUp.duration(clientTheme.motion.standard)}
+          testID="client-appointment-cancel-confirmation"
+          style={styles.confirmCard}
+        >
           <Text style={styles.confirmTitle}>Esta ação não pode ser desfeita.</Text>
           <Text style={styles.confirmText}>Motivo selecionado: {reason}</Text>
           {!!actionError && <Text testID="client-appointment-cancel-error" style={styles.errorText}>{actionError}</Text>}
@@ -110,10 +119,14 @@ export function ClientAppointmentCancelScreen() {
           >
             <Text style={styles.secondaryButtonText}>Não, manter horário</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       ) : (
         <>
-          <View accessibilityRole="radiogroup" style={styles.reasonList}>
+          <Animated.View
+            accessibilityRole="radiogroup"
+            entering={FadeIn.duration(clientTheme.motion.standard)}
+            style={styles.reasonList}
+          >
             {clientCancellationReasons.map((item) => {
               const selected = reason === item;
               return (
@@ -122,7 +135,11 @@ export function ClientAppointmentCancelScreen() {
                   testID={`client-appointment-cancel-reason-${item}`}
                   accessibilityRole="radio"
                   accessibilityState={{ selected }}
-                  onPress={() => { setReason(item); setActionError(null); }}
+                  onPress={() => {
+                    void performClientHaptic('selection');
+                    setReason(item);
+                    setActionError(null);
+                  }}
                   style={({ pressed }) => [styles.reasonButton, selected && styles.reasonSelected, pressed && styles.pressed]}
                 >
                   <View style={[styles.radio, selected && styles.radioSelected]} />
@@ -130,13 +147,16 @@ export function ClientAppointmentCancelScreen() {
                 </Pressable>
               );
             })}
-          </View>
+          </Animated.View>
           <Pressable
             testID="client-appointment-cancel-continue"
             accessibilityRole="button"
             accessibilityState={{ disabled: !reason }}
             disabled={!reason}
-            onPress={() => setIsConfirming(true)}
+            onPress={() => {
+              void performClientHaptic('warning');
+              setIsConfirming(true);
+            }}
             style={({ pressed }) => [styles.dangerButton, !reason && styles.disabled, pressed && styles.pressed]}
           >
             <Text style={styles.dangerButtonText}>Continuar</Text>
@@ -169,6 +189,6 @@ const styles = StyleSheet.create({
   dangerButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   secondaryButton: { minHeight: 49, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: appointmentColors.border, borderRadius: 16, borderCurve: 'continuous', backgroundColor: '#FFFFFF', paddingHorizontal: 18 },
   secondaryButtonText: { color: appointmentColors.text, fontSize: 14, fontWeight: '700' },
-  disabled: { opacity: 0.45 },
-  pressed: { opacity: 0.72 },
+  disabled: { opacity: clientTheme.opacity.disabled },
+  pressed: { opacity: clientTheme.opacity.pressed },
 });

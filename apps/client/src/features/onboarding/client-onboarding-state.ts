@@ -1,4 +1,5 @@
 export const CLIENT_ONBOARDING_VERSION = 1 as const;
+export const CLIENT_ONBOARDING_STORAGE_KEY = 'cutsync.client.onboarding.version';
 
 export interface ClientOnboardingState {
   version: number | null;

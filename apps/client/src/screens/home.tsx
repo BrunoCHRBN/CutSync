@@ -3,6 +3,7 @@ import { type Href, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import {
   ClientAvatar,
@@ -15,6 +16,8 @@ import {
 } from '@/components/settings/client-settings-ui';
 import { useClientProfile } from '@/contexts/client-profile-context';
 import { useSession } from '@/contexts/session-context';
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 export function ClientHomeScreen() {
   const router = useRouter();
@@ -34,7 +37,10 @@ export function ClientHomeScreen() {
       >
         <ClientBrand />
 
-        <View style={styles.heroCard}>
+        <Animated.View
+          entering={FadeInUp.duration(clientTheme.motion.standard)}
+          style={styles.heroCard}
+        >
           <View style={styles.heroAvatarWrap}>
             <ClientAvatar avatarUrl={profile?.avatarUrl ?? null} name={name} size={72} />
           </View>
@@ -43,18 +49,26 @@ export function ClientHomeScreen() {
             <Text selectable style={styles.heroName}>{name}</Text>
             <Text selectable testID="client-session-email" style={styles.heroEmail}>{email}</Text>
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={styles.introBlock}>
+        <Animated.View
+          entering={FadeIn
+            .delay(clientTheme.motion.stagger)
+            .duration(clientTheme.motion.standard)}
+          style={styles.introBlock}
+        >
           <Text style={styles.introTitle}>Tudo do seu jeito.</Text>
           <Text style={styles.introDescription}>{products.client.purpose}</Text>
-        </View>
+        </Animated.View>
 
         <SettingsSectionLabel>DESCOBRIR</SettingsSectionLabel>
         <Pressable
           testID="client-open-discovery"
           accessibilityRole="button"
-          onPress={() => router.push('/explore')}
+          onPress={() => {
+            void performClientHaptic('selection');
+            router.push('/explore');
+          }}
           style={({ pressed }) => [styles.discoveryCta, pressed && styles.pressed]}
         >
           <View style={styles.discoveryCtaCopy}>
@@ -143,7 +157,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderCurve: 'continuous',
     padding: 20,
-    boxShadow: '0 16px 32px rgba(20, 27, 23, 0.14)',
+    boxShadow: clientTheme.shadows.elevated,
   },
   heroAvatarWrap: { borderRadius: 26, padding: 3, backgroundColor: 'rgba(255, 255, 255, 0.15)' },
   heroCopy: { flex: 1, gap: 4 },
@@ -173,5 +187,5 @@ const styles = StyleSheet.create({
   loadingText: { color: settingsColors.secondary, fontSize: 12 },
   divider: { height: 1, backgroundColor: settingsColors.border },
   securityNote: { color: settingsColors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', paddingHorizontal: 18 },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: clientTheme.opacity.pressed },
 });

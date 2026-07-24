@@ -2,6 +2,7 @@ import Stack from 'expo-router/stack';
 
 import { ClientNotificationsProvider } from '@/contexts/client-notifications-context';
 import { ClientProfileProvider } from '@/contexts/client-profile-context';
+import { clientTheme } from '@/theme/client-theme';
 
 export default function ClientAppLayout() {
   return (
@@ -10,10 +11,10 @@ export default function ClientAppLayout() {
         <Stack
           screenOptions={{
             headerShadowVisible: false,
-            headerStyle: { backgroundColor: '#FBF8F2' },
-            headerTintColor: '#141B17',
+            headerStyle: { backgroundColor: clientTheme.colors.canvas },
+            headerTintColor: clientTheme.colors.ink,
             headerTitleStyle: { fontWeight: '800' },
-            contentStyle: { backgroundColor: '#FBF8F2' },
+            contentStyle: { backgroundColor: clientTheme.colors.canvas },
           }}
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -1,4 +1,3 @@
-import { sharedBrand } from '@cutsync/brand';
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import type { PropsWithChildren } from 'react';
@@ -15,19 +14,26 @@ import type {
   ClientDiscoveryEstablishment,
   ClientDiscoveryProfessional,
 } from '@/features/discovery/client-discovery-service';
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 export const discoveryColors = {
-  background: sharedBrand.colors.canvas,
-  card: sharedBrand.colors.surface,
-  text: sharedBrand.colors.ink,
-  secondary: sharedBrand.colors.inkSoft,
-  muted: sharedBrand.colors.inkMuted,
-  border: sharedBrand.colors.border,
-  accent: sharedBrand.colors.forest,
-  accentBright: sharedBrand.colors.forestBright,
-  accentSoft: sharedBrand.colors.forestSoft,
-  amber: sharedBrand.colors.amber,
-  amberSoft: sharedBrand.colors.amberSoft,
+  background: clientTheme.colors.canvas,
+  card: clientTheme.colors.surface,
+  text: clientTheme.colors.ink,
+  secondary: clientTheme.colors.inkSoft,
+  muted: clientTheme.colors.inkMuted,
+  border: clientTheme.colors.border,
+  accent: clientTheme.colors.forest,
+  accentBright: clientTheme.colors.forestBright,
+  accentSoft: clientTheme.colors.forestSoft,
+  amber: clientTheme.colors.amber,
+  amberSoft: clientTheme.colors.amberSoft,
+};
+
+const select = (action: () => void) => {
+  void performClientHaptic('selection');
+  action();
 };
 
 const initialsOf = (name: string) => {
@@ -77,7 +83,7 @@ export function DiscoveryMessage({ title, description, actionLabel, onAction, te
       {actionLabel && onAction && (
         <Pressable
           accessibilityRole="button"
-          onPress={onAction}
+          onPress={() => select(onAction)}
           style={({ pressed }) => [styles.stateButton, pressed && styles.pressed]}
         >
           <Text style={styles.stateButtonText}>{actionLabel}</Text>
@@ -97,7 +103,7 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
       testID={'client-discovery-featured-' + establishment.slug}
       accessibilityRole="button"
       accessibilityLabel={'Abrir ' + establishment.name}
-      onPress={onPress}
+      onPress={() => select(onPress)}
       style={({ pressed }) => [styles.featuredCard, pressed && styles.cardPressed]}
     >
       {establishment.bannerUrl ? (
@@ -156,7 +162,7 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
       testID={'client-discovery-compact-' + establishment.slug}
       accessibilityRole="button"
       accessibilityLabel={'Abrir ' + establishment.name}
-      onPress={onPress}
+      onPress={() => select(onPress)}
       style={({ pressed }) => [styles.compactCard, pressed && styles.cardPressed]}
     >
       {establishment.bannerUrl ? (
@@ -201,7 +207,7 @@ export function CategoryChip({ label, active, onPress, testID }: {
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      onPress={onPress}
+      onPress={() => select(onPress)}
       style={({ pressed }) => [
         styles.categoryChip,
         active && styles.categoryChipActive,
@@ -225,7 +231,7 @@ export function EstablishmentCard({ establishment, onPress }: {
       testID={'client-discovery-card-' + establishment.slug}
       accessibilityRole="button"
       accessibilityLabel={'Abrir ' + establishment.name}
-      onPress={onPress}
+      onPress={() => select(onPress)}
       style={({ pressed }) => [styles.establishmentCard, pressed && styles.cardPressed]}
     >
       {establishment.bannerUrl ? (

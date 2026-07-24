@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import {
   AppointmentStateCard,
@@ -19,8 +20,11 @@ import {
   appointmentColors,
 } from '@/components/appointments/client-appointment-ui';
 import { ClientBrand } from '@/components/settings/client-settings-ui';
+import { ClientButton } from '@/components/ui/client-ui';
 import { useSession } from '@/contexts/session-context';
 import { useClientAppointments } from '@/features/appointments/use-client-appointments';
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 type AppointmentTab = 'upcoming' | 'history';
 
@@ -31,6 +35,11 @@ export function ClientAppointmentsScreen() {
   const query = useClientAppointments(user?.id ?? null);
   const groups = useMemo(() => partitionClientAppointments(query.appointments), [query.appointments]);
   const visible = tab === 'upcoming' ? groups.upcoming : groups.history;
+  const selectTab = (nextTab: AppointmentTab) => {
+    if (nextTab === tab) return;
+    void performClientHaptic('selection');
+    setTab(nextTab);
+  };
 
   return (
     <ScrollView
@@ -50,18 +59,26 @@ export function ClientAppointmentsScreen() {
       <StatusBar style="dark" />
       <ClientBrand />
 
-      <View style={styles.hero}>
+      <Animated.View
+        entering={FadeInUp.duration(clientTheme.motion.standard)}
+        style={styles.hero}
+      >
         <Text style={styles.eyebrow}>SUA AGENDA</Text>
         <Text style={styles.title}>Seus horários, sempre por perto.</Text>
         <Text style={styles.description}>Acompanhe confirmações, próximos atendimentos e seu histórico.</Text>
-      </View>
+      </Animated.View>
 
-      <View accessibilityRole="tablist" testID="client-appointments-tabs" style={styles.tabs}>
+      <Animated.View
+        accessibilityRole="tablist"
+        entering={FadeIn.delay(clientTheme.motion.stagger).duration(clientTheme.motion.standard)}
+        testID="client-appointments-tabs"
+        style={styles.tabs}
+      >
         <Pressable
           testID="client-appointments-upcoming-tab"
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === 'upcoming' }}
-          onPress={() => setTab('upcoming')}
+          onPress={() => selectTab('upcoming')}
           style={[styles.tab, tab === 'upcoming' && styles.tabActive]}
         >
           <Text style={[styles.tabText, tab === 'upcoming' && styles.tabTextActive]}>Próximos</Text>
@@ -71,13 +88,13 @@ export function ClientAppointmentsScreen() {
           testID="client-appointments-history-tab"
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === 'history' }}
-          onPress={() => setTab('history')}
+          onPress={() => selectTab('history')}
           style={[styles.tab, tab === 'history' && styles.tabActive]}
         >
           <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>Histórico</Text>
           <Text style={[styles.tabCount, tab === 'history' && styles.tabCountActive]}>{groups.history.length}</Text>
         </Pressable>
-      </View>
+      </Animated.View>
 
       {!!query.error && (
         <View testID="client-appointments-error" style={styles.errorNotice}>
@@ -101,14 +118,12 @@ export function ClientAppointmentsScreen() {
               ? 'Encontre um estabelecimento e reserve seu próximo atendimento.'
               : 'Atendimentos concluídos e cancelados aparecerão aqui.'}
             action={tab === 'upcoming' ? (
-              <Pressable
+              <ClientButton
                 testID="client-appointments-explore"
-                accessibilityRole="button"
                 onPress={() => router.push('/explore')}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.primaryButtonText}>Descobrir lugares</Text>
-              </Pressable>
+                label="Descobrir lugares"
+                haptic="selection"
+              />
             ) : undefined}
           />
         </View>
@@ -151,7 +166,4 @@ const styles = StyleSheet.create({
   errorNotice: { gap: 10, borderWidth: 1, borderColor: '#E8C4BE', borderRadius: 18, borderCurve: 'continuous', backgroundColor: '#FFF7F5', padding: 16 },
   errorText: { color: '#8E2F26', fontSize: 12, lineHeight: 18 },
   retryText: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '800' },
-  primaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forest, paddingHorizontal: 24 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.3 },
-  pressed: { opacity: 0.68 },
 });

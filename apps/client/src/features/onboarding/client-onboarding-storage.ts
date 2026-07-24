@@ -2,11 +2,10 @@ import * as SecureStore from 'expo-secure-store';
 
 import {
   CLIENT_ONBOARDING_VERSION,
+  CLIENT_ONBOARDING_STORAGE_KEY,
   type ClientOnboardingState,
   resolveClientOnboardingState,
 } from '@/features/onboarding/client-onboarding-state';
-
-export const CLIENT_ONBOARDING_STORAGE_KEY = 'cutsync.client.onboarding.version';
 
 const isWeb = process.env.EXPO_OS === 'web';
 

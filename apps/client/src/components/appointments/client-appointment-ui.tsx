@@ -1,22 +1,24 @@
-import { sharedBrand } from '@cutsync/brand';
 import {
   clientAppointmentStatusLabels,
   formatClientAppointmentDateTime,
 } from '@cutsync/domain';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import type { ClientAppointment } from '@/features/appointments/client-appointments-service';
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 export const appointmentColors = {
-  background: sharedBrand.colors.canvas,
-  card: sharedBrand.colors.surface,
-  text: sharedBrand.colors.ink,
-  secondary: sharedBrand.colors.inkSoft,
-  muted: sharedBrand.colors.inkMuted,
-  border: sharedBrand.colors.border,
-  accent: sharedBrand.colors.forest,
-  accentSoft: sharedBrand.colors.forestSoft,
+  background: clientTheme.colors.canvas,
+  card: clientTheme.colors.surface,
+  text: clientTheme.colors.ink,
+  secondary: clientTheme.colors.inkSoft,
+  muted: clientTheme.colors.inkMuted,
+  border: clientTheme.colors.border,
+  accent: clientTheme.colors.forest,
+  accentSoft: clientTheme.colors.forestSoft,
   pending: '#8A6419',
   pendingSoft: '#F7EBD1',
   confirmed: '#315E99',
@@ -59,32 +61,40 @@ export function ClientAppointmentCard({ appointment, onPress, featured = false }
   }).format(new Date(appointment.startsAt));
 
   return (
-    <Pressable
-      testID={'client-appointment-card-' + appointment.id}
-      accessibilityRole="button"
-      accessibilityLabel={`Abrir atendimento em ${appointment.establishment.name}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, featured && styles.featuredCard, pressed && styles.pressed]}
+    <Animated.View
+      entering={FadeInUp.duration(clientTheme.motion.standard)}
+      style={styles.animatedCard}
     >
-      <View style={[styles.dateBlock, featured && styles.dateBlockFeatured]}>
-        <Text style={[styles.month, featured && styles.monthFeatured]}>{month}</Text>
-        <Text style={[styles.day, featured && styles.dayFeatured]}>{day}</Text>
-        <Text style={[styles.time, featured && styles.timeFeatured]}>{formatted.timeLabel}</Text>
-      </View>
-      <View style={styles.cardCopy}>
-        <View style={styles.cardTopline}>
-          <Text numberOfLines={1} style={styles.establishmentName}>{appointment.establishment.name}</Text>
-          <AppointmentStatusBadge appointment={appointment} />
+      <Pressable
+        testID={'client-appointment-card-' + appointment.id}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir atendimento em ${appointment.establishment.name}`}
+        onPress={() => {
+          void performClientHaptic('selection');
+          onPress();
+        }}
+        style={({ pressed }) => [styles.card, featured && styles.featuredCard, pressed && styles.pressed]}
+      >
+        <View style={[styles.dateBlock, featured && styles.dateBlockFeatured]}>
+          <Text style={[styles.month, featured && styles.monthFeatured]}>{month}</Text>
+          <Text style={[styles.day, featured && styles.dayFeatured]}>{day}</Text>
+          <Text style={[styles.time, featured && styles.timeFeatured]}>{formatted.timeLabel}</Text>
         </View>
-        <Text numberOfLines={1} style={styles.serviceName}>{appointment.service.name}</Text>
-        <Text numberOfLines={1} style={styles.professionalName}>com {appointment.professional.name}</Text>
-        <Text numberOfLines={1} style={styles.dateLabel}>{formatted.dateLabel}</Text>
-        {appointment.rescheduleCount > 0 && (
-          <Text style={styles.rescheduleLabel}>Reagendado {appointment.rescheduleCount}x</Text>
-        )}
-      </View>
-      <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
-    </Pressable>
+        <View style={styles.cardCopy}>
+          <View style={styles.cardTopline}>
+            <Text numberOfLines={1} style={styles.establishmentName}>{appointment.establishment.name}</Text>
+            <AppointmentStatusBadge appointment={appointment} />
+          </View>
+          <Text numberOfLines={1} style={styles.serviceName}>{appointment.service.name}</Text>
+          <Text numberOfLines={1} style={styles.professionalName}>com {appointment.professional.name}</Text>
+          <Text numberOfLines={1} style={styles.dateLabel}>{formatted.dateLabel}</Text>
+          {appointment.rescheduleCount > 0 && (
+            <Text style={styles.rescheduleLabel}>Reagendado {appointment.rescheduleCount}x</Text>
+          )}
+        </View>
+        <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -107,13 +117,16 @@ export function AppointmentStateCard({ title, description, action }: {
   action?: ReactNode;
 }) {
   return (
-    <View style={styles.stateCard}>
+    <Animated.View
+      entering={FadeIn.duration(clientTheme.motion.standard)}
+      style={styles.stateCard}
+    >
       <View style={styles.stateCopy}>
         <Text style={styles.stateTitle}>{title}</Text>
         <Text selectable style={styles.stateDescription}>{description}</Text>
       </View>
       {action}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -121,6 +134,7 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   statusDot: { width: 6, height: 6, borderRadius: 999 },
   statusText: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.5 },
+  animatedCard: { width: '100%' },
   card: {
     minHeight: 156,
     flexDirection: 'row',
@@ -132,10 +146,10 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     backgroundColor: appointmentColors.card,
     padding: 16,
-    boxShadow: '0 10px 24px rgba(20, 27, 23, 0.06)',
+    boxShadow: clientTheme.shadows.card,
   },
   featuredCard: { borderColor: 'transparent', backgroundColor: appointmentColors.accent },
-  pressed: { opacity: 0.72, transform: [{ scale: 0.994 }] },
+  pressed: { opacity: clientTheme.opacity.pressed, transform: [{ scale: 0.994 }] },
   dateBlock: { width: 62, alignItems: 'center', justifyContent: 'center', gap: 2, borderRightWidth: 1, borderRightColor: appointmentColors.border, paddingRight: 14 },
   dateBlockFeatured: { borderRightColor: 'rgba(255, 255, 255, 0.2)' },
   month: { color: appointmentColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
@@ -156,7 +170,7 @@ const styles = StyleSheet.create({
   detailRowBorder: { borderBottomWidth: 1, borderBottomColor: appointmentColors.border },
   detailLabel: { color: appointmentColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.15, textTransform: 'uppercase' },
   detailValue: { color: appointmentColors.text, fontSize: 15, lineHeight: 21, fontWeight: '600' },
-  stateCard: { alignItems: 'center', gap: 18, borderRadius: 26, borderCurve: 'continuous', backgroundColor: appointmentColors.card, padding: 28, boxShadow: '0 10px 24px rgba(20, 27, 23, 0.05)' },
+  stateCard: { alignItems: 'center', gap: 18, borderRadius: 26, borderCurve: 'continuous', backgroundColor: appointmentColors.card, padding: 28, boxShadow: clientTheme.shadows.card },
   stateCopy: { alignItems: 'center', gap: 8 },
   stateTitle: { color: appointmentColors.text, fontSize: 18, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
   stateDescription: { color: appointmentColors.secondary, fontSize: 13, lineHeight: 20, textAlign: 'center' },

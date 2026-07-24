@@ -1,4 +1,3 @@
-import { sharedBrand } from '@cutsync/brand';
 import * as Sentry from '@sentry/react-native';
 import { Stack, useNavigationContainerRef, usePathname } from 'expo-router';
 import { useEffect } from 'react';
@@ -15,6 +14,7 @@ import {
   clientObservability,
 } from '@/features/observability/client-observability';
 import { resolveClientEntryState } from '@/features/onboarding/client-onboarding-state';
+import { clientTheme } from '@/theme/client-theme';
 
 function ClientRootLayout() {
   return (
@@ -58,7 +58,7 @@ function ClientNavigator() {
     return (
       <View testID="client-session-loading" style={styles.loadingScreen}>
         <View style={styles.brandMark} />
-        <ActivityIndicator color={sharedBrand.colors.forest} size="small" />
+        <ActivityIndicator color={clientTheme.colors.forest} size="small" />
         <Text style={styles.loadingText}>Preparando seu CutSync…</Text>
       </View>
     );
@@ -88,16 +88,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 14,
-    backgroundColor: sharedBrand.colors.sandSoft,
+    backgroundColor: clientTheme.colors.sandSoft,
   },
   brandMark: {
     width: 28,
     height: 28,
     borderRadius: 9,
-    backgroundColor: sharedBrand.colors.forest,
+    backgroundColor: clientTheme.colors.forest,
   },
   loadingText: {
-    color: sharedBrand.colors.forestDark,
+    color: clientTheme.colors.forestDark,
     fontSize: 14,
     fontWeight: '600',
   },

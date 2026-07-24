@@ -1,4 +1,4 @@
-import { products, sharedBrand } from '@cutsync/brand';
+import { products } from '@cutsync/brand';
 import { getForbiddenInputMessage } from '@cutsync/validation';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -14,16 +14,20 @@ import {
   type TextInputProps,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 export const settingsColors = {
-  background: sharedBrand.colors.canvas,
-  card: sharedBrand.colors.surface,
-  text: sharedBrand.colors.ink,
-  secondary: sharedBrand.colors.inkSoft,
-  muted: sharedBrand.colors.inkMuted,
-  border: sharedBrand.colors.border,
-  accent: sharedBrand.colors.forest,
-  accentSoft: sharedBrand.colors.forestSoft,
+  background: clientTheme.colors.canvas,
+  card: clientTheme.colors.surface,
+  text: clientTheme.colors.ink,
+  secondary: clientTheme.colors.inkSoft,
+  muted: clientTheme.colors.inkMuted,
+  border: clientTheme.colors.border,
+  accent: clientTheme.colors.forest,
+  accentSoft: clientTheme.colors.forestSoft,
 };
 
 export function ClientSettingsPage({ testID, description, children }: PropsWithChildren<{
@@ -47,7 +51,14 @@ export function ClientSettingsPage({ testID, description, children }: PropsWithC
 }
 
 export function SettingsCard({ children }: PropsWithChildren) {
-  return <View style={styles.card}>{children}</View>;
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(clientTheme.motion.standard)}
+      style={styles.card}
+    >
+      {children}
+    </Animated.View>
+  );
 }
 
 export function SettingsSectionLabel({ children }: PropsWithChildren) {
@@ -60,7 +71,8 @@ export function SettingsNotice({ message, tone = 'danger', testID }: {
   testID?: string;
 }) {
   return (
-    <View
+    <Animated.View
+      entering={FadeIn.duration(clientTheme.motion.fast)}
       accessibilityLiveRegion="polite"
       testID={testID}
       style={[
@@ -81,7 +93,7 @@ export function SettingsNotice({ message, tone = 'danger', testID }: {
       >
         {message}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -143,7 +155,10 @@ export function SettingsButton({ label, onPress, loading, disabled, tone = 'prim
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={isDisabled}
-      onPress={onPress}
+      onPress={() => {
+        void performClientHaptic(tone === 'danger' ? 'warning' : 'selection');
+        onPress();
+      }}
       style={({ pressed }) => [
         styles.button,
         tone === 'secondary' && styles.buttonSecondary,
@@ -177,7 +192,10 @@ export function SettingsMenuRow({ title, subtitle, onPress, testID }: {
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={() => {
+        void performClientHaptic('selection');
+        onPress();
+      }}
       style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
     >
       <View style={styles.menuCopy}>
@@ -207,7 +225,10 @@ export function SettingsSwitchRow({ title, subtitle, value, onValueChange, disab
         testID={testID}
         accessibilityLabel={title}
         disabled={disabled}
-        onValueChange={onValueChange}
+        onValueChange={(nextValue) => {
+          void performClientHaptic(nextValue ? 'toggle-on' : 'toggle-off');
+          onValueChange(nextValue);
+        }}
         thumbColor="#FFFFFF"
         trackColor={{ false: '#D3CDBB', true: settingsColors.accent }}
         value={value}
@@ -279,7 +300,7 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 16,
     borderCurve: 'continuous',
-    boxShadow: '0 10px 26px rgba(20, 27, 23, 0.06)',
+    boxShadow: clientTheme.shadows.card,
   },
   sectionLabel: {
     color: settingsColors.muted,
@@ -300,10 +321,10 @@ const styles = StyleSheet.create({
   field: { gap: 8 },
   fieldLabel: { color: settingsColors.text, fontSize: 13, fontWeight: '700' },
   input: {
-    minHeight: 54,
+    minHeight: clientTheme.sizing.control,
     borderWidth: 1,
     borderColor: settingsColors.border,
-    borderRadius: 16,
+    borderRadius: clientTheme.radii.md,
     borderCurve: 'continuous',
     paddingHorizontal: 16,
     color: settingsColors.text,
@@ -313,7 +334,7 @@ const styles = StyleSheet.create({
   inputReadOnly: { color: settingsColors.muted, backgroundColor: '#F3EFE4' },
   helper: { color: settingsColors.muted, fontSize: 11, lineHeight: 16 },
   button: {
-    minHeight: 54,
+    minHeight: clientTheme.sizing.control,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
@@ -323,7 +344,7 @@ const styles = StyleSheet.create({
   },
   buttonSecondary: { backgroundColor: settingsColors.card, borderWidth: 1, borderColor: settingsColors.border },
   buttonDanger: { backgroundColor: '#FFF7F5', borderWidth: 1, borderColor: '#E6C3BD' },
-  buttonDisabled: { opacity: 0.45 },
+  buttonDisabled: { opacity: clientTheme.opacity.disabled },
   buttonPressed: { transform: [{ scale: 0.99 }] },
   buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.3 },
   buttonSecondaryText: { color: settingsColors.accent },
@@ -335,7 +356,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
   },
-  menuRowPressed: { opacity: 0.55 },
+  menuRowPressed: { opacity: clientTheme.opacity.pressed },
   menuCopy: { flex: 1, gap: 4 },
   menuTitle: { color: settingsColors.text, fontSize: 15, fontWeight: '700' },
   menuSubtitle: { color: settingsColors.secondary, fontSize: 12, lineHeight: 18 },

@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import {
   DiscoveryLoading,
@@ -31,6 +32,8 @@ import {
   loadClientAppointment,
   rescheduleClientAppointment,
 } from '@/features/appointments/client-appointments-service';
+import { performClientHaptic } from '@/features/experience/client-haptics';
+import { clientTheme } from '@/theme/client-theme';
 
 type BookingStep = 1 | 2 | 3 | 4;
 
@@ -153,6 +156,7 @@ export function ClientBookingScreen() {
   });
 
   const moveTo = (nextStep: BookingStep) => {
+    void performClientHaptic('selection');
     setStep(nextStep);
     setBookingError(null);
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
@@ -174,6 +178,7 @@ export function ClientBookingScreen() {
   };
 
   const selectDate = (localDate: string) => {
+    void performClientHaptic('selection');
     setSelectedLocalDate(localDate);
     setSelectedSlot(null);
     setBookingError(null);
@@ -218,7 +223,9 @@ export function ClientBookingScreen() {
             startsAt: freshSlot.startsAt,
           });
       setBookingResult(result);
+      void performClientHaptic('success');
     } catch (error) {
+      void performClientHaptic('error');
       setBookingError(error instanceof Error ? error.message : 'Não foi possível concluir o agendamento.');
     } finally {
       setIsBooking(false);
@@ -257,8 +264,16 @@ export function ClientBookingScreen() {
         style={styles.page}
       >
         <StatusBar style="dark" />
-        <View style={styles.successMark}><Text style={styles.successMarkText}>OK</Text></View>
-        <View style={styles.successCopy}>
+        <Animated.View
+          entering={FadeIn.duration(clientTheme.motion.fast)}
+          style={styles.successMark}
+        >
+          <Text style={styles.successMarkText}>OK</Text>
+        </Animated.View>
+        <Animated.View
+          entering={FadeInUp.duration(clientTheme.motion.standard)}
+          style={styles.successCopy}
+        >
           <Text style={styles.eyebrow}>{confirmed ? 'HORÁRIO CONFIRMADO' : 'SOLICITAÇÃO ENVIADA'}</Text>
           <Text style={styles.successTitle}>
             {isRescheduling
@@ -270,8 +285,13 @@ export function ClientBookingScreen() {
               ? 'O estabelecimento já confirmou este atendimento.'
               : 'Você verá a confirmação assim que o estabelecimento aceitar o pedido.'}
           </Text>
-        </View>
-        <View style={styles.summaryCard}>
+        </Animated.View>
+        <Animated.View
+          entering={FadeInUp
+            .delay(clientTheme.motion.stagger)
+            .duration(clientTheme.motion.emphasized)}
+          style={styles.summaryCard}
+        >
           <SummaryRow label="Local" value={options.establishmentName} />
           <View style={styles.divider} />
           <SummaryRow label="Serviço" value={selectedOffer.service.name} />
@@ -281,7 +301,7 @@ export function ClientBookingScreen() {
           <SummaryRow label="Data" value={formatBookingDateLong(selectedLocalDate)} />
           <View style={styles.divider} />
           <SummaryRow label="Horário" value={selectedSlot.localTime} />
-        </View>
+        </Animated.View>
         <Text selectable testID="client-booking-appointment-id" style={styles.protocol}>
           Protocolo {bookingResult.appointmentId}
         </Text>

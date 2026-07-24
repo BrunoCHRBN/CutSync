@@ -1,11 +1,38 @@
 import { expect, test } from '@playwright/test';
 
+import {
+  CLIENT_ONBOARDING_STORAGE_KEY,
+  CLIENT_ONBOARDING_VERSION,
+} from '../src/features/onboarding/client-onboarding-state';
+
 const credentials = {
   email: process.env.CUTSYNC_E2E_CLIENT_EMAIL,
   password: process.env.CUTSYNC_E2E_CLIENT_PASSWORD,
 };
 
+const bypassOnboarding = async (page: import('@playwright/test').Page) => {
+  await page.addInitScript(({ key, version }) => {
+    window.localStorage.setItem(key, String(version));
+  }, {
+    key: CLIENT_ONBOARDING_STORAGE_KEY,
+    version: CLIENT_ONBOARDING_VERSION,
+  });
+};
+
+test('apresenta o onboarding uma vez e permite pular', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('client-onboarding-screen')).toBeVisible();
+  await expect(page.getByTestId('client-onboarding-art-discover')).toBeVisible();
+  await page.getByTestId('client-onboarding-skip').click();
+  await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByTestId('client-onboarding-screen')).toHaveCount(0);
+  await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
+});
+
 test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page }) => {
+  await bypassOnboarding(page);
   for (const privatePath of ['/profile', '/explore', '/appointments', '/appointments/appointment-test', '/appointments/appointment-test/cancel', '/establishments/estudio-teste', '/booking/estudio-teste']) {
     await page.goto(privatePath);
     await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
@@ -20,6 +47,7 @@ test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page
 test('cliente consulta perfil e preferências sem alterar dados', async ({ page }) => {
   test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
 
+  await bypassOnboarding(page);
   await page.goto('/sign-in');
   await expect(page.getByTestId('client-auth-config-message')).toHaveCount(0);
   await expect(page.getByTestId('client-sign-in-submit')).toBeEnabled();
@@ -29,6 +57,11 @@ test('cliente consulta perfil e preferências sem alterar dados', async ({ page 
 
   await expect(page.getByTestId('client-app-shell')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('client-profile-load-error')).toHaveCount(0, { timeout: 20_000 });
+
+  await page.getByTestId('client-open-introduction').click();
+  await expect(page.getByTestId('client-introduction-screen')).toBeVisible();
+  await page.getByTestId('client-introduction-close').click();
+  await expect(page.getByTestId('client-app-shell')).toBeVisible();
 
   await page.getByTestId('client-open-profile').click();
   await expect(page.getByTestId('client-profile-screen')).toBeVisible();
@@ -62,6 +95,7 @@ test('cliente consulta perfil e preferências sem alterar dados', async ({ page 
 test('cliente descobre estabelecimentos, serviços e profissionais sem gravar dados', async ({ page }) => {
   test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
 
+  await bypassOnboarding(page);
   await page.goto('/sign-in');
   await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
   await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
@@ -92,6 +126,7 @@ test('cliente descobre estabelecimentos, serviços e profissionais sem gravar da
 test('cliente consulta disponibilidade real e revisa o agendamento sem confirmar', async ({ page }) => {
   test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
 
+  await bypassOnboarding(page);
   await page.goto('/sign-in');
   await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
   await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
@@ -136,6 +171,7 @@ test('cliente consulta disponibilidade real e revisa o agendamento sem confirmar
 test('cliente consulta próximos, histórico e detalhe sem alterar o atendimento', async ({ page }) => {
   test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
 
+  await bypassOnboarding(page);
   await page.goto('/sign-in');
   await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
   await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
@@ -160,6 +196,7 @@ test('cliente consulta próximos, histórico e detalhe sem alterar o atendimento
 test('cliente abre cancelamento e reagendamento sem confirmar alterações', async ({ page }) => {
   test.skip(!credentials.email || !credentials.password, 'Configure CUTSYNC_E2E_CLIENT_EMAIL e CUTSYNC_E2E_CLIENT_PASSWORD.');
 
+  await bypassOnboarding(page);
   await page.goto('/sign-in');
   await page.getByTestId('client-sign-in-email').fill(credentials.email as string);
   await page.getByTestId('client-sign-in-password').fill(credentials.password as string);
