@@ -83,7 +83,15 @@ export async function listPrivacyRequests(status?: string): Promise<PrivacyReque
   return (result.data || []) as PrivacyRequest[];
 }
 export async function submitPrivacyRequest(profileId: string, reason: string) { const result = await rpc('submit_governance_privacy_request', { target_profile_id: profileId, reason: reason.trim() }); if (result.error) ensure(result.error, 'Não foi possível abrir a solicitação LGPD.'); return result.data as PrivacyRequest; }
-export async function executePrivacyRequest(id: string, reason: string) { const result = await rpc('execute_governance_privacy_request', { request_id: id, reason: reason.trim() }); if (result.error) ensure(result.error, 'Não foi possível executar a anonimização.'); return result.data; }
+export async function executePrivacyRequest(id: string, reason: string) {
+  const result = await supabaseGovernance.functions.invoke('execute-client-account-deletion', {
+    body: { requestId: id, reason: reason.trim() },
+  });
+  if (result.error) {
+    throw new Error('Não foi possível executar a exclusão auditada. Verifique o AAL2 e tente novamente.');
+  }
+  return result.data as { requestId: string; status: 'executed'; idempotent: boolean };
+}
 export async function rejectPrivacyRequest(id: string, reason: string) { const result = await rpc('reject_governance_privacy_request', { request_id: id, reason: reason.trim() }); if (result.error) ensure(result.error, 'Não foi possível rejeitar a solicitação LGPD.'); }
 
 export async function listGovernanceUsers(): Promise<GovernanceUser[]> { const result = await rpc('list_governance_users', {}); if (result.error) ensure(result.error, 'Não foi possível carregar os papéis.'); return (result.data || []) as GovernanceUser[]; }

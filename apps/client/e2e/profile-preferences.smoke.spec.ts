@@ -50,6 +50,13 @@ test('cliente consulta perfil e preferências sem alterar dados', async ({ page 
   await expect(page.getByTestId('client-security-screen')).toBeVisible();
   await expect(page.getByTestId('client-request-password-reset')).toBeVisible();
   await expect(page.getByTestId('client-sign-out-button')).toBeVisible();
+  await expect(page.getByTestId('client-account-deletion-explanation')).toBeVisible();
+  const deletionButton = page.getByTestId('client-request-account-deletion');
+  await expect(deletionButton).toBeVisible();
+  if (await deletionButton.isEnabled()) {
+    page.once('dialog', async (dialog) => { await dialog.dismiss(); });
+    await deletionButton.click();
+  }
 });
 
 test('cliente descobre estabelecimentos, serviços e profissionais sem gravar dados', async ({ page }) => {

@@ -25,7 +25,8 @@ function RootLayoutNavigation() {
   const segments = useSegments();
   const router = useRouter();
   const firstSegment = segments[0] as string | undefined;
-  const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos';
+  const isPublicCompliance = firstSegment === 'privacy' || firstSegment === 'account-deletion';
+  const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos' || isPublicCompliance;
 
   useEffect(() => {
     if (loading) return;
@@ -49,6 +50,7 @@ function RootLayoutNavigation() {
 
     // A Central mantém uma sessão Supabase separada e volátil no layout de governança.
     if (isGovernance) return;
+    if (isPublicCompliance) return;
 
     if (!user) {
       // Rotas protegidas exigem autenticação — redirecionar para o Marketplace público (/)
@@ -101,7 +103,7 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [buildTarget, user, profile, loading, isSuperadmin, governanceRole, segments, router, firstSegment]);
+  }, [buildTarget, user, profile, loading, isSuperadmin, governanceRole, segments, router, firstSegment, isPublicCompliance]);
 
   if (loading && !isPublicMarketing) {
     return (

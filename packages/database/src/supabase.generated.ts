@@ -846,12 +846,17 @@ export type Database = {
       }
       governance_privacy_requests: {
         Row: {
+          attempt_count: number
+          auth_deleted_at: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
           decision_reason: string | null
           executed_at: string | null
           id: string
+          last_error_code: string | null
+          processing_started_at: string | null
+          profile_anonymized_at: string | null
           request_reason: string
           requested_by: string
           status: string
@@ -859,12 +864,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attempt_count?: number
+          auth_deleted_at?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_reason?: string | null
           executed_at?: string | null
           id?: string
+          last_error_code?: string | null
+          processing_started_at?: string | null
+          profile_anonymized_at?: string | null
           request_reason: string
           requested_by: string
           status?: string
@@ -872,12 +882,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attempt_count?: number
+          auth_deleted_at?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_reason?: string | null
           executed_at?: string | null
           id?: string
+          last_error_code?: string | null
+          processing_started_at?: string | null
+          profile_anonymized_at?: string | null
           request_reason?: string
           requested_by?: string
           status?: string
@@ -2540,7 +2555,20 @@ export type Database = {
         Args: { reason: string; target_request_id: string }
         Returns: { establishment_id: string; expires_at: string; invitation_id: string; invited_email: string; raw_token: string }[]
       }
+      anonymize_client_account_deletion: { Args: { target_request_id: string }; Returns: Json }
+      begin_client_account_deletion_execution: {
+        Args: { execution_reason: string; target_request_id: string }
+        Returns: {
+          auth_deleted_at: string | null
+          profile_anonymized_at: string | null
+          request_id: string
+          status: string
+          target_profile_id: string
+        }[]
+      }
+      complete_client_account_deletion: { Args: { target_request_id: string }; Returns: Json }
       execute_governance_privacy_request: { Args: { reason: string; request_id: string }; Returns: Json }
+      fail_client_account_deletion: { Args: { target_error_code: string; target_request_id: string }; Returns: undefined }
       finalize_establishment_onboarding: { Args: { opening_hours: string; target_establishment_id: string }; Returns: undefined }
       grant_governance_role: { Args: { reason: string; target_profile_id: string; target_role: Database["public"]["Enums"]["governance_role_enum"] }; Returns: Database["public"]["Tables"]["governance_users"]["Row"] }
       list_governance_establishment_requests: { Args: { page_offset?: number; page_size?: number; search_term?: string; status_filter?: string }; Returns: Json[] }
@@ -2549,6 +2577,18 @@ export type Database = {
       list_governance_privacy_requests: { Args: { status_filter?: string }; Returns: Json[] }
       list_governance_users: { Args: never; Returns: Json[] }
       list_governance_verification_reviews: { Args: { status_filter?: string; target_establishment_id?: string }; Returns: Json[] }
+      get_client_account_deletion_request: {
+        Args: never
+        Returns: {
+          created_at: string
+          decision_reason: string | null
+          executed_at: string | null
+          id: string
+          processing_started_at: string | null
+          status: string
+          updated_at: string
+        }[]
+      }
       reject_governance_establishment_request: { Args: { reason: string; target_request_id: string }; Returns: undefined }
       reject_governance_privacy_request: { Args: { reason: string; request_id: string }; Returns: Json }
       revoke_governance_invitation: { Args: { reason: string; target_invitation_id: string }; Returns: undefined }
@@ -2556,6 +2596,15 @@ export type Database = {
       revoke_governance_role: { Args: { reason: string; target_profile_id: string }; Returns: undefined }
       review_governance_verification: { Args: { reason: string; target_decision: string; target_review_id: string }; Returns: Json }
       submit_governance_privacy_request: { Args: { reason: string; target_profile_id: string }; Returns: Database["public"]["Tables"]["governance_privacy_requests"]["Row"] }
+      submit_client_account_deletion_request: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+        }[]
+      }
       submit_governance_verification: { Args: { document_path: string; reason: string; target_establishment_id: string }; Returns: Json }
       upsert_my_professional_profile: {
         Args: {

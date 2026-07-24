@@ -429,3 +429,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/dispatch-client-notifications/deno.json"
 entrypoint = "./functions/dispatch-client-notifications/index.ts"
+
+[functions.execute-client-account-deletion]
+enabled = true
+verify_jwt = false
+import_map = "./functions/execute-client-account-deletion/deno.json"
+entrypoint = "./functions/execute-client-account-deletion/index.ts"

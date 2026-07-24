@@ -2,7 +2,7 @@ import type { GovernanceRole } from './governance-knowledge';
 
 export type GovernanceRequestStatus = 'pending' | 'approved' | 'rejected';
 export type VerificationDecision = 'submitted' | 'approved' | 'rejected';
-export type PrivacyRequestStatus = 'pending' | 'executed' | 'rejected';
+export type PrivacyRequestStatus = 'pending' | 'processing' | 'executed' | 'rejected' | 'failed';
 
 export interface GovernanceRequest {
   id: string;
