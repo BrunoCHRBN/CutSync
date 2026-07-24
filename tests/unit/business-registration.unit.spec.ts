@@ -47,8 +47,14 @@ test('routes business registration through the private AAL2 endpoint', () => {
   expect(onboarding).not.toContain("eq('document_number'");
   expect(onboarding).not.toContain('123456');
   expect(migration).toContain('document_fingerprint text NOT NULL UNIQUE');
-  expect(migration).toContain("target_document_last4 !~ CASE target_document_type");
-  expect(migration).toContain("ELSE '^[A-Z0-9]{4}$'");
+  expect(migration).toContain(
+    "target_document_type = 'CPF' AND target_document_last4 !~ '^[0-9]{4}$'",
+  );
+  expect(migration).toContain(
+    "target_document_type = 'CNPJ' AND target_document_last4 !~ '^[A-Z0-9]{4}$'",
+  );
+  expect(migration).toContain('ALTER TABLE public.organization_billing_accounts');
+  expect(migration).toContain("to_regclass('public.billing_accounts') IS NOT NULL");
   expect(migration).toContain("RAISE EXCEPTION 'aal2_required'");
   expect(migration).toContain('identity_migration_conflicts');
 });

@@ -74,11 +74,31 @@ CREATE TABLE public.identity_migration_conflicts (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.billing_accounts
-  ADD COLUMN legal_entity_id uuid REFERENCES public.legal_entities(id) ON DELETE RESTRICT;
-CREATE INDEX billing_accounts_legal_entity_idx
-  ON public.billing_accounts(legal_entity_id)
+ALTER TABLE public.organization_billing_accounts
+  ADD COLUMN IF NOT EXISTS legal_entity_id uuid
+  REFERENCES public.legal_entities(id) ON DELETE RESTRICT;
+CREATE INDEX organization_billing_accounts_legal_entity_idx
+  ON public.organization_billing_accounts(legal_entity_id)
   WHERE legal_entity_id IS NOT NULL;
+
+-- The establishment-scoped billing model is legacy and may not exist in
+-- environments already consolidated on organization billing.
+DO $$
+BEGIN
+  IF to_regclass('public.billing_accounts') IS NOT NULL THEN
+    EXECUTE '
+      ALTER TABLE public.billing_accounts
+      ADD COLUMN IF NOT EXISTS legal_entity_id uuid
+      REFERENCES public.legal_entities(id) ON DELETE RESTRICT
+    ';
+    EXECUTE '
+      CREATE INDEX IF NOT EXISTS billing_accounts_legal_entity_idx
+      ON public.billing_accounts(legal_entity_id)
+      WHERE legal_entity_id IS NOT NULL
+    ';
+  END IF;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.normalize_brazil_phone_e164(input_phone text)
 RETURNS text
@@ -285,10 +305,8 @@ BEGIN
   ) THEN RAISE EXCEPTION 'authentication_required'; END IF;
   IF target_document_type NOT IN ('CPF', 'CNPJ')
     OR target_document_fingerprint !~ '^[0-9a-f]{64}$'
-    OR target_document_last4 !~ CASE target_document_type
-      WHEN 'CPF' THEN '^[0-9]{4}$'
-      ELSE '^[A-Z0-9]{4}$'
-    END
+    OR (target_document_type = 'CPF' AND target_document_last4 !~ '^[0-9]{4}$')
+    OR (target_document_type = 'CNPJ' AND target_document_last4 !~ '^[A-Z0-9]{4}$')
   THEN RAISE EXCEPTION 'invalid_document'; END IF;
   IF char_length(btrim(requested_name)) NOT BETWEEN 2 AND 120
     OR lower(btrim(requested_slug)) !~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'
