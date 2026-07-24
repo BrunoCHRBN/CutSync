@@ -10,6 +10,7 @@ import {
 } from '@/components/settings/client-settings-ui';
 import { useClientProfile } from '@/contexts/client-profile-context';
 import { useSession } from '@/contexts/session-context';
+import { clientObservability } from '@/features/observability/client-observability';
 
 export function ClientSecurityScreen() {
   const { profile } = useClientProfile();
@@ -84,6 +85,25 @@ export function ClientSecurityScreen() {
           onPress={confirmSignOut}
         />
       </SettingsCard>
+
+      {clientObservability.diagnosticsEnabled && (
+        <>
+          <SettingsSectionLabel>DIAGNÓSTICO</SettingsSectionLabel>
+          <SettingsCard>
+            <SettingsButton
+              testID="client-send-observability-diagnostic"
+              label="Enviar diagnóstico de observabilidade"
+              tone="secondary"
+              disabled={isRequestingPassword || isSigningOut}
+              onPress={() => {
+                clientObservability.sendDiagnostic();
+                setTone('success');
+                setMessage('Diagnóstico enviado sem dados pessoais.');
+              }}
+            />
+          </SettingsCard>
+        </>
+      )}
 
       {message && <SettingsNotice testID="client-security-message" message={message} tone={tone} />}
     </ClientSettingsPage>

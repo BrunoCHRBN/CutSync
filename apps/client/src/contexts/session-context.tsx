@@ -17,6 +17,7 @@ import {
 import { getClientAuthRedirectUrl } from '@/lib/auth-deep-link';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { disableClientPushNotifications } from '@/features/notifications/client-push-service';
+import { clientObservability } from '@/features/observability/client-observability';
 
 type AuthActionResult = { ok: true } | { ok: false; message: string };
 type SignUpActionResult =
@@ -113,7 +114,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (error) return { ok: false, message: getClientAuthErrorMessage(error) };
         setBootstrapError(null);
         return { ok: true };
-      } catch {
+      } catch (error) {
+        clientObservability.captureError(error, 'client_auth_sign_in_failed', '/sign-in');
         return { ok: false, message: 'Não foi possível conectar agora. Verifique sua internet e tente novamente.' };
       }
     },
@@ -135,6 +137,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (error) return { ok: false, message: getClientSignUpErrorMessage(error) };
         return { ok: true, email: validation.email, confirmationRequired: !data.session };
       } catch (error) {
+        clientObservability.captureError(error, 'client_auth_sign_up_failed', '/sign-up');
         return { ok: false, message: getClientSignUpErrorMessage(error as { message?: string }) };
       }
     },
@@ -152,6 +155,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (error) return { ok: false, message: getClientEmailActionErrorMessage(error) };
         return { ok: true };
       } catch (error) {
+        clientObservability.captureError(error, 'client_auth_resend_confirmation_failed', '/check-email');
         return { ok: false, message: getClientEmailActionErrorMessage(error as { message?: string }) };
       }
     },
@@ -167,6 +171,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (error) return { ok: false, message: getClientEmailActionErrorMessage(error) };
         return { ok: true };
       } catch (error) {
+        clientObservability.captureError(error, 'client_auth_password_reset_request_failed', '/forgot-password');
         return { ok: false, message: getClientEmailActionErrorMessage(error as { message?: string }) };
       }
     },
@@ -181,7 +186,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
         await supabase.auth.signOut();
         setSession(null);
         return { ok: true };
-      } catch {
+      } catch (error) {
+        clientObservability.captureError(error, 'client_auth_password_update_failed', '/reset-password');
         return { ok: false, message: 'O link expirou ou não pôde ser usado. Solicite uma nova recuperação.' };
       }
     },
@@ -193,7 +199,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (error) return { ok: false, message: 'Não foi possível sair agora. Tente novamente.' };
         setSession(null);
         return { ok: true };
-      } catch {
+      } catch (error) {
+        clientObservability.captureError(error, 'client_auth_sign_out_failed', '/security');
         return { ok: false, message: 'Não foi possível sair agora. Tente novamente.' };
       }
     },

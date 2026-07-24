@@ -1,10 +1,16 @@
 import { sharedBrand } from '@cutsync/brand';
-import { Stack } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
+import { Stack, useNavigationContainerRef, usePathname } from 'expo-router';
+import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { SessionProvider, useSession } from '@/contexts/session-context';
+import {
+  clientNavigationIntegration,
+  clientObservability,
+} from '@/features/observability/client-observability';
 
-export default function ClientRootLayout() {
+function ClientRootLayout() {
   return (
     <SessionProvider>
       <ClientNavigator />
@@ -13,7 +19,21 @@ export default function ClientRootLayout() {
 }
 
 function ClientNavigator() {
-  const { isLoading, session } = useSession();
+  const { isLoading, session, user } = useSession();
+  const navigationContainerRef = useNavigationContainerRef();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    clientNavigationIntegration.registerNavigationContainer(navigationContainerRef);
+  }, [navigationContainerRef]);
+
+  useEffect(() => {
+    clientObservability.setUser(user?.id);
+  }, [user?.id]);
+
+  useEffect(() => {
+    clientObservability.setRoute(pathname);
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -37,6 +57,8 @@ function ClientNavigator() {
     </Stack>
   );
 }
+
+export default Sentry.wrap(ClientRootLayout);
 
 const styles = StyleSheet.create({
   loadingScreen: {

@@ -21,6 +21,7 @@
     "@cutsync/database": "*",
     "@cutsync/domain": "*",
     "@cutsync/validation": "*",
+    "@sentry/react-native": "~7.11.0",
     "@supabase/supabase-js": "2.110.3",
     "expo": "~57.0.8",
     "expo-constants": "~57.0.7",

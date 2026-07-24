@@ -64,7 +64,14 @@
           "defaultChannel": "appointments"
         }
       ],
-      "expo-splash-screen"
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "cutsync",
+          "project": "cutsync-client",
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
