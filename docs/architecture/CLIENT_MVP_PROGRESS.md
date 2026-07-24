@@ -1,8 +1,8 @@
 # MVP do Client — Fase 3
 
-Status: Fatia 8 implementada localmente; validação remota de Sentry, exclusão e artefatos finais pendente
+Status: Fatia 8.1 implementada; APK Preview bloqueado pela ausência do token Sentry no EAS
 
-Data da última verificação: 2026-07-23
+Data da última verificação: 2026-07-24
 
 ## Objetivo
 
@@ -480,9 +480,31 @@ O typecheck completo da Web continua falhando por erros preexistentes fora dos a
 
 ## Próximas fatias
 
-1. concluir os passos remotos documentados da Fatia 8;
-2. iniciar a Fatia 8.1 de experiência visual premium e onboarding;
-3. monitorar a fila, os tickets e os recibos Push na operação remota;
-4. iniciar avaliações após atendimento somente depois da estabilização da entrega mobile.
+1. configurar `SENTRY_AUTH_TOKEN` no EAS e repetir o APK Preview da Fatia 8.1;
+2. validar visualmente onboarding, movimento, blur e haptics no Android;
+3. gerar o AAB Production `0.2.0` somente depois da aprovação do Preview;
+4. concluir os demais passos remotos documentados da Fatia 8;
+5. monitorar a fila, os tickets e os recibos Push na operação remota;
+6. iniciar avaliações após atendimento somente depois da estabilização da entrega mobile.
 
 Cada fatia deve incluir sua regra compartilhável, interface própria do Client, testes automatizados e validação do fluxo renderizado antes de avançar.
+
+## Evidências da fatia 8.1
+
+Executadas em 2026-07-24:
+
+- versão do Client e runtime OTA atualizados para `0.2.0`;
+- sistema visual premium, onboarding, movimento reduzível e haptics implementados;
+- `npm run typecheck:client` e lint do Client aprovados;
+- 5 testes unitários focados aprovados;
+- E2E do onboarding, persistência e proteção de rotas aprovado;
+- 5 cenários autenticados ignorados por ausência das credenciais no processo;
+- `expo-doctor`: 20 de 20 verificações aprovadas;
+- exportação Web e bundle Android aprovados;
+- Gradle confirmou o autolinking de `expo-blur` e `expo-haptics`;
+- build Preview `8583a258-80a2-4253-a0d4-8939394d3b79` chegou à etapa Sentry e
+  falhou porque `SENTRY_AUTH_TOKEN` não está configurado no ambiente Preview.
+
+O APK, a validação visual Android, os source maps e o AAB Production não são
+registrados como concluídos. Os detalhes estão em
+`docs/architecture/CLIENT_PREMIUM_EXPERIENCE_VALIDATION.md`.
