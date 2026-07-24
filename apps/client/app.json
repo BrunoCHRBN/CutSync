@@ -6,6 +6,13 @@
     "orientation": "portrait",
     "scheme": "cutsync",
     "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ebed753a-2b13-4fa1-bb73-fc28270c2cec"
+    },
     "ios": {
       "bundleIdentifier": "com.cutsync.client",
       "supportsTablet": true,
@@ -15,10 +22,25 @@
     },
     "android": {
       "package": "com.cutsync.client",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#294D3A"
+      }
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F3EFE3",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain"
+        }
+      ],
       [
         "expo-secure-store",
         {
@@ -37,10 +59,12 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/notification-icon.png",
           "color": "#294D3A",
           "defaultChannel": "appointments"
         }
-      ]
+      ],
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true,
