@@ -27,7 +27,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { landingColors, landingLayout, landingRadii, landingTypography } from '../../theme/landing-tokens';
-import { Establishment, mapEstablishment } from '@cutsync/database';
+import { Establishment } from '@cutsync/database';
 import { getOpeningStatus } from '@cutsync/domain';
 import { trackLandingEvent } from './landing-analytics';
 import { EditorialBand, EstablishmentMedia } from './landing-primitives';
@@ -75,9 +75,10 @@ const ClientLandingContent = () => {
   const scrollRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
   const contentY = useRef(0);
-  const searchSectionY = useRef(0);
+  const resultsSectionY = useRef(0);
   const journeySectionY = useRef(0);
   const reportedDepths = useRef(new Set<50 | 100>());
+  const searchReported = useRef(false);
   const [establishments, setEstablishments] = useState<PublicEstablishment[]>([]);
   const [hoveredEstablishment, setHoveredEstablishment] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -106,15 +107,27 @@ const ClientLandingContent = () => {
     setLoading(true);
     setError('');
     try {
-      const { data, error: queryError } = await supabase
-        .from('establishments')
-        .select('*, services(id,name,price,is_active)')
-        .eq('account_status', 'active')
-        .order('created_at', { ascending: false });
+      const { data, error: queryError } = await supabase.rpc('list_public_discovery_establishments' as never, {
+        result_limit: 50,
+      } as never);
       if (queryError) throw queryError;
       setEstablishments(((data ?? []) as unknown as (Record<string, unknown> & { services?: PublicService[] })[]).map((row) => ({
-        ...mapEstablishment(row as never),
-        services: (row.services ?? [])
+        id: String(row.id),
+        name: String(row.name),
+        slug: String(row.slug),
+        logoUrl: row.logo_url ? String(row.logo_url) : null,
+        bannerUrl: row.banner_url ? String(row.banner_url) : null,
+        primaryColor: landingColors.brand,
+        timezone: row.timezone ? String(row.timezone) : 'America/Sao_Paulo',
+        currency: row.currency ? String(row.currency) : 'BRL',
+        description: row.description ? String(row.description) : null,
+        address: row.address ? String(row.address) : null,
+        openingHours: row.opening_hours ? String(row.opening_hours) : null,
+        averageRating: Number(row.average_rating ?? 0),
+        reviewCount: Number(row.review_count ?? 0),
+        discoveryStatus: 'published',
+        publishedAt: row.published_at ? String(row.published_at) : null,
+        services: (Array.isArray(row.services) ? row.services : [])
           .filter((service) => service.is_active !== false)
           .map((service) => ({ ...service, price: Number(service.price) })),
       })));
@@ -166,8 +179,13 @@ const ClientLandingContent = () => {
 
   const scrollToSearch = () => {
     trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' });
-    scrollRef.current?.scrollTo({ y: Math.max(0, searchSectionY.current - 84), animated: !reducedMotion });
-    setTimeout(() => searchInputRef.current?.focus(), reducedMotion ? 0 : 260);
+    scrollRef.current?.scrollTo({ y: Math.max(0, resultsSectionY.current - 84), animated: !reducedMotion });
+  };
+
+  const reportSearchStarted = (filterCount: number) => {
+    if (searchReported.current) return;
+    searchReported.current = true;
+    trackLandingEvent({ name: 'search_started', source: 'hero', filterCount });
   };
 
   const scrollToJourney = () => {
@@ -265,14 +283,71 @@ const ClientLandingContent = () => {
             </SectionReveal>
             <MaskedReveal delay={70}><Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Encontre seu próximo horário{`\n`}sem depender de mensagens.</Text></MaskedReveal>
             <SectionReveal delay={210}><Text style={styles.heroDescription}>Explore serviços, consulte a agenda de cada estabelecimento e escolha quando agendar.</Text></SectionReveal>
-            <SectionReveal delay={320} style={styles.heroActions}>
-              <MagneticButton label="Ver estabelecimentos" onPress={scrollToSearch} testID="landing-hero-client-cta" />
+            <SectionReveal delay={280}>
+              <GlassSurface variant="search" style={styles.heroSearchPanel}>
+                <View style={[styles.searchFields, !isDesktop && styles.searchFieldsStacked]}>
+                  <View style={styles.inputShell}>
+                    <Search size={18} color={landingColors.inkMuted} />
+                    <TextInput
+                      ref={searchInputRef}
+                      testID="landing-search-input"
+                      accessibilityLabel="Buscar por estabelecimento ou serviço"
+                      value={query}
+                      onChangeText={(value) => {
+                        if (value) reportSearchStarted(locationQuery ? 2 : 1);
+                        setQuery(value);
+                      }}
+                      placeholder="Estabelecimento ou serviço"
+                      placeholderTextColor={landingColors.inkMuted}
+                      style={styles.input}
+                    />
+                  </View>
+                  <View style={styles.inputShell}>
+                    <MapPin size={18} color={landingColors.inkMuted} />
+                    <TextInput
+                      testID="landing-location-input"
+                      accessibilityLabel="Filtrar por bairro ou cidade"
+                      value={locationQuery}
+                      onChangeText={(value) => {
+                        if (value) reportSearchStarted(query ? 2 : 1);
+                        setLocationQuery(value);
+                      }}
+                      placeholder="Bairro ou cidade"
+                      placeholderTextColor={landingColors.inkMuted}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                  {availableServiceGroups.map((group) => {
+                    const selected = group.id === serviceGroup;
+                    return (
+                      <Pressable
+                        key={group.id}
+                        testID={`landing-service-filter-${group.id}`}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        onPress={() => {
+                          if (group.id !== 'all') reportSearchStarted((query ? 1 : 0) + (locationQuery ? 1 : 0) + 1);
+                          setServiceGroup(group.id);
+                        }}
+                        style={[styles.chip, selected && styles.chipSelected]}
+                      >
+                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </GlassSurface>
+            </SectionReveal>
+            <SectionReveal delay={390} style={styles.heroActions}>
+              <MagneticButton label="Explorar resultados" onPress={scrollToSearch} testID="landing-hero-client-cta" />
               <MagneticButton label="Como funciona" secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
               {!isDesktop && <MagneticButton label="Tenho um negócio" secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
             </SectionReveal>
           </View>
           {isDesktop && (
-            <MaskedReveal delay={420} style={styles.heroPreview}><ProductPreview
+            <MaskedReveal delay={470} style={styles.heroPreview}><ProductPreview
               variant="client"
               accessibilityLabel="Demonstração ilustrativa do fluxo de agendamento do CutSync"
               style={{ width: '100%' }}
@@ -291,67 +366,10 @@ const ClientLandingContent = () => {
 
         <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
           <RevealOnScroll
-            onLayout={(event) => { searchSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            onLayout={(event) => { resultsSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'search' })}
-            style={styles.searchSection}
+            style={styles.resultsSection}
           >
-            <SectionHeading
-              eyebrow="BUSCA DIRETA"
-              title="O que você procura hoje?"
-              description="Pesquise por serviço, estabelecimento, bairro ou cidade. Os horários são confirmados no fluxo de agendamento."
-            />
-            <GlassSurface variant="search" style={styles.searchPanel}>
-              <View style={[styles.searchFields, !isDesktop && styles.searchFieldsStacked]}>
-                <View style={styles.inputShell}>
-                  <Search size={18} color={landingColors.inkMuted} />
-                  <TextInput
-                    ref={searchInputRef}
-                    testID="landing-search-input"
-                    accessibilityLabel="Buscar por estabelecimento ou serviço"
-                    value={query}
-                    onChangeText={(value) => {
-                      if (!query && value) trackLandingEvent({ name: 'search_started', filterCount: locationQuery ? 2 : 1 });
-                      setQuery(value);
-                    }}
-                    placeholder="Estabelecimento ou serviço"
-                    placeholderTextColor={landingColors.inkMuted}
-                    style={styles.input}
-                  />
-                </View>
-                <View style={styles.inputShell}>
-                  <MapPin size={18} color={landingColors.inkMuted} />
-                  <TextInput
-                    testID="landing-location-input"
-                    accessibilityLabel="Filtrar por bairro ou cidade"
-                    value={locationQuery}
-                    onChangeText={setLocationQuery}
-                    placeholder="Bairro ou cidade"
-                    placeholderTextColor={landingColors.inkMuted}
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {availableServiceGroups.map((group) => {
-                  const selected = group.id === serviceGroup;
-                  return (
-                    <Pressable
-                      key={group.id}
-                      testID={`landing-service-filter-${group.id}`}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      onPress={() => setServiceGroup(group.id)}
-                      style={[styles.chip, selected && styles.chipSelected]}
-                    >
-                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </GlassSurface>
-          </RevealOnScroll>
-
-          <RevealOnScroll style={styles.resultsSection}>
             <View style={styles.resultsHeadingRow}>
               <SectionHeading
                 eyebrow="VITRINES PUBLICADAS"
@@ -481,7 +499,7 @@ const ClientLandingContent = () => {
             <Text style={styles.finalCtaText}>Explore as vitrines publicadas e consulte os horários quando encontrar o serviço certo.</Text>
             <MagneticButton label="Ver estabelecimentos" onPress={() => {
               trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'final', destination: 'search' });
-              scrollRef.current?.scrollTo({ y: Math.max(0, searchSectionY.current - 84), animated: !reducedMotion });
+              scrollRef.current?.scrollTo({ y: Math.max(0, resultsSectionY.current - 84), animated: !reducedMotion });
             }} />
           </RevealOnScroll>
 
@@ -516,17 +534,18 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(41,75,58,0.14)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.68)' },
   accountButtonText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   scroll: { paddingBottom: 36 },
-  heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 680, paddingHorizontal: 28, paddingTop: 104, paddingBottom: 160, flexDirection: 'row', alignItems: 'center', gap: 96 },
-  heroSectionStacked: { minHeight: 0, paddingTop: 96, paddingBottom: 136, flexDirection: 'column', alignItems: 'stretch' },
-  heroCopy: { flex: 1, minWidth: 280, gap: 22, zIndex: 2 },
+  heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 760, paddingHorizontal: 28, paddingTop: 88, paddingBottom: 112, flexDirection: 'row', alignItems: 'center', gap: 64 },
+  heroSectionStacked: { minHeight: 0, paddingTop: 56, paddingBottom: 72, flexDirection: 'column', alignItems: 'stretch' },
+  heroCopy: { flex: 1.08, minWidth: 280, gap: 18, zIndex: 2 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
   heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
   heroTitle: { maxWidth: 650, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 68, lineHeight: 72, letterSpacing: -3.4 },
-  heroTitleMobile: { fontSize: 44, lineHeight: 49, letterSpacing: -2.1 },
+  heroTitleMobile: { fontSize: 40, lineHeight: 45, letterSpacing: -1.9 },
   heroDescription: { maxWidth: 545, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { paddingTop: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  heroPreview: { width: '47%', maxWidth: 570 },
+  heroPreview: { width: '49%', maxWidth: 620 },
+  heroSearchPanel: { padding: 13, gap: 11, borderRadius: landingRadii.lg, backgroundColor: 'rgba(255,254,250,0.94)' },
   credibilityBand: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 68, marginTop: -42, marginBottom: 74, paddingHorizontal: 24, alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, boxShadow: '0 16px 44px rgba(20,33,25,0.07)' },
   credibilityText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   credibilityDivider: { color: landingColors.accent, fontFamily: landingTypography.displayBold, fontSize: 18 },
@@ -535,8 +554,6 @@ const styles = StyleSheet.create({
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 44, lineHeight: 49, letterSpacing: -1.65 },
   sectionDescription: { maxWidth: 600, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
-  searchSection: { paddingVertical: 48, paddingHorizontal: 40, gap: 32, borderRadius: landingRadii.xl, backgroundColor: 'rgba(239,236,226,0.72)', borderWidth: 1, borderColor: 'rgba(41,75,58,0.06)', transform: [{ translateY: -72 }] },
-  searchPanel: { padding: 16, gap: 14, borderRadius: landingRadii.lg },
   searchFields: { flexDirection: 'row', gap: 10 },
   searchFieldsStacked: { flexDirection: 'column' },
   inputShell: { flex: 1, minHeight: 58, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: 'rgba(41,75,58,0.12)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.86)' },
@@ -546,7 +563,7 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: landingColors.brand, borderColor: landingColors.brand },
   chipText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 13 },
   chipTextSelected: { color: landingColors.white },
-  resultsSection: { marginTop: -36, paddingVertical: 16, gap: 40 },
+  resultsSection: { paddingVertical: 48, gap: 40 },
   resultsHeadingRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 18 },
   resultsCount: { color: landingColors.brand, fontFamily: landingTypography.mono, fontSize: 13, fontVariant: ['tabular-nums'] },
   establishmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },

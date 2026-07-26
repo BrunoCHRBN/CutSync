@@ -7,10 +7,11 @@ test('landing cliente — busca e navegação explícita de negócio', async ({ 
   await expect(page).toHaveTitle('CutSync — Encontre serviços e agende seu horário');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/$/);
 
-  await page.getByTestId('landing-hero-client-cta').click();
-  await expect(page.getByTestId('landing-search-input')).toBeFocused();
+  await expect(page.getByTestId('landing-search-input')).toBeInViewport();
   await page.getByTestId('landing-search-input').fill('corte');
+  await page.getByTestId('landing-hero-client-cta').click();
   await expect(page.getByTestId('landing-results-count')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/Shop\s*\d+/i);
   await expect(page.locator('body')).not.toContainText(/recomendad[oa]s?|populares?/i);
 
   await page.getByTestId('landing-hero-client-secondary-cta').click();
@@ -112,8 +113,9 @@ test('landing respeita movimento reduzido', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('client-public-landing')).toBeVisible();
+  await expect(page.getByTestId('landing-search-input')).toBeInViewport();
   await page.getByTestId('landing-hero-client-cta').click();
-  await expect(page.getByTestId('landing-search-input')).toBeFocused();
+  await expect(page.getByTestId('landing-results-count')).toBeVisible();
   await page.getByTestId('landing-account-button').click();
   await expect(page.getByTestId('access-path-modal')).toBeVisible();
 });
@@ -146,8 +148,12 @@ test('capturas visuais das landings e da narrativa', async ({ page }, testInfo) 
   await expect(page.getByTestId('business-public-landing')).toHaveScreenshot(`business-${testInfo.project.name}.png`, { animations: 'disabled' });
   if (testInfo.project.name === 'desktop-1440') {
     await page.getByTestId('business-demo-cta').click();
-    await expect(page.getByTestId('business-story-services')).toBeVisible();
-    await page.getByTestId('business-sandbox-tab-services').click();
-    await expect(page.getByTestId('business-services-demo')).toHaveScreenshot('business-sticky-services-desktop-1440.png', { animations: 'disabled' });
+    for (const chapter of ['agenda', 'services', 'team'] as const) {
+      await expect(page.getByTestId(`business-story-${chapter}`)).toBeVisible();
+      await page.getByTestId(`business-sandbox-tab-${chapter}`).click();
+      await expect(page.getByTestId(`business-${chapter}-demo`)).toHaveScreenshot(`business-sticky-${chapter}-desktop-1440.png`, { animations: 'disabled' });
+    }
+    await page.getByTestId('business-comparison').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('business-comparison')).toHaveScreenshot('business-comparison-desktop-1440.png', { animations: 'disabled' });
   }
 });

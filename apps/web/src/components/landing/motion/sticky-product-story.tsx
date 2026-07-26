@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import { landingColors, landingMotion, landingTypography } from '../../../theme/landing-tokens';
 import { LandingCapabilityId } from '../landing-capabilities';
@@ -36,6 +36,8 @@ export const StickyProductStory = forwardRef<StickyProductStoryHandle, StickyPro
   style,
 }, forwardedRef) => {
   const { quality } = useLandingMotion();
+  const { height } = useWindowDimensions();
+  const chapterHeight = Math.max(520, Math.min(680, Math.round(height * 0.66)));
   const nodes = useRef(new Map<LandingCapabilityId, unknown>());
 
   useImperativeHandle(forwardedRef, () => ({
@@ -78,7 +80,7 @@ export const StickyProductStory = forwardRef<StickyProductStoryHandle, StickyPro
               accessibilityRole="button"
               accessibilityState={{ selected }}
               onPress={() => onActiveChange(chapter.id)}
-              style={[styles.chapter, selected && styles.chapterActive]}
+              style={[styles.chapter, { minHeight: chapterHeight }, selected && styles.chapterActive]}
             >
               <View style={styles.chapterTop}>
                 <Text style={[styles.index, selected && styles.indexActive]}>{chapter.index}</Text>
@@ -109,10 +111,9 @@ export const StickyProductStory = forwardRef<StickyProductStoryHandle, StickyPro
 StickyProductStory.displayName = 'StickyProductStory';
 
 const styles = StyleSheet.create({
-  layout: { flexDirection: 'row', alignItems: 'flex-start', gap: 48 },
-  chapters: { width: 330 },
+  layout: { flexDirection: 'row', alignItems: 'flex-start', gap: 32 },
+  chapters: { width: 310 },
   chapter: {
-    minHeight: '78vh',
     paddingVertical: 52,
     paddingHorizontal: 24,
     justifyContent: 'center',
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
   previewSticky: {
     position: 'sticky',
     top: 96,
-    minHeight: 560,
-    paddingVertical: 24,
+    minHeight: 520,
+    paddingVertical: 16,
   } as never,
 });

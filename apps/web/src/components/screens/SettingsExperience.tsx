@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Clock3, Copy, ExternalLink, ImageIcon, KeyRound, Link2, MapPin, Palette, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
+import { Check, Clock3, Copy, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, Link2, MapPin, Palette, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +18,15 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
 import { StickyActionBar } from '../ui/sticky-action-bar';
 
-type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'policies' | 'security';
+type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'security';
+
+interface DiscoveryRequirements {
+  account_active: boolean;
+  name_valid: boolean;
+  slug_valid: boolean;
+  address_present: boolean;
+  active_service_present: boolean;
+}
 
 interface SettingsSnapshot {
   name: string;
@@ -62,6 +70,7 @@ const settingsSections: { key: SettingsSection; label: string; Icon: typeof Stor
   { key: 'contact', label: 'Contato', Icon: Phone },
   { key: 'images', label: 'Imagens', Icon: ImageIcon },
   { key: 'schedule', label: 'Funcionamento', Icon: Clock3 },
+  { key: 'publication', label: 'Publicação', Icon: Eye },
   { key: 'policies', label: 'Políticas & Geodecisões', Icon: ShieldCheck },
   { key: 'security', label: 'Segurança', Icon: KeyRound },
 ];
@@ -100,6 +109,9 @@ export const SettingsExperience = () => {
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>('brand');
   const [savedSnapshot, setSavedSnapshot] = useState('');
+  const [discoveryStatus, setDiscoveryStatus] = useState<'draft' | 'published'>('draft');
+  const [discoveryRequirements, setDiscoveryRequirements] = useState<DiscoveryRequirements | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const currentSnapshot = useMemo(() => JSON.stringify({
     name,
@@ -244,6 +256,62 @@ export const SettingsExperience = () => {
     setNotice({ tone: 'success', message: 'Foto adicionada ao preview. Salve para publicar.' });
   };
 
+  const loadDiscoveryPublication = useCallback(async () => {
+    if (!activeEstablishmentId) return;
+    const { data, error } = await supabase.rpc('get_establishment_discovery_publication' as never, {
+      target_establishment_id: activeEstablishmentId,
+    } as never);
+    if (error) {
+      setNotice({ tone: 'danger', message: 'Não foi possível consultar a publicação da vitrine.' });
+      return;
+    }
+    const publication = data?.[0];
+    setDiscoveryStatus(publication?.discovery_status === 'published' ? 'published' : 'draft');
+    setDiscoveryRequirements((publication?.requirements ?? null) as unknown as DiscoveryRequirements | null);
+  }, [activeEstablishmentId]);
+
+  useEffect(() => {
+    void loadDiscoveryPublication();
+  }, [loadDiscoveryPublication]);
+
+  const toggleDiscoveryPublication = async () => {
+    if (!activeEstablishmentId || isDirty) {
+      setNotice({ tone: 'danger', message: 'Salve as alterações antes de publicar a vitrine.' });
+      return;
+    }
+    setPublishing(true);
+    setNotice(null);
+    try {
+      const rpc = discoveryStatus === 'published'
+        ? 'unpublish_establishment_discovery'
+        : 'publish_establishment_discovery';
+      const { data, error } = await supabase.rpc(rpc as never, {
+        target_establishment_id: activeEstablishmentId,
+      } as never);
+      if (error) throw error;
+      const publication = data?.[0];
+      setDiscoveryStatus(publication?.discovery_status === 'published' ? 'published' : 'draft');
+      setDiscoveryRequirements((publication?.requirements ?? null) as unknown as DiscoveryRequirements | null);
+      setNotice({
+        tone: 'success',
+        message: publication?.discovery_status === 'published'
+          ? 'Vitrine publicada na descoberta.'
+          : 'Vitrine removida da descoberta sem alterar seus dados.',
+      });
+    } catch (error) {
+      const unmet = getErrorMessage(error, '').includes('discovery_requirements_not_met');
+      setNotice({
+        tone: 'danger',
+        message: unmet
+          ? 'Complete todos os requisitos antes de publicar.'
+          : 'Não foi possível alterar a publicação da vitrine.',
+      });
+      await loadDiscoveryPublication();
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (barbershop) {
@@ -347,6 +415,7 @@ export const SettingsExperience = () => {
         professionalPixAllowed: professionalPixAllowed,
       }));
       setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
+      await loadDiscoveryPublication();
     } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível salvar todas as alterações.' });
     } finally {
@@ -416,6 +485,59 @@ export const SettingsExperience = () => {
           </ScrollView>
         <View style={[styles.workspace, isWide && styles.workspaceWide]}>
           <View style={styles.formColumn}>
+            {activeSection === 'publication' ? <FormSection
+              testID="settings-publication-section"
+              title="Publicação da vitrine"
+              description="Controle quando o estabelecimento aparece na descoberta pública. Despublicar não altera agenda, serviços ou equipe."
+            >
+              <View style={[styles.publicationStatus, discoveryStatus === 'published' && styles.publicationStatusPublished]}>
+                <View style={styles.publicationStatusIcon}>
+                  {discoveryStatus === 'published' ? <Eye color={colors.success} size={20} /> : <EyeOff color={colors.textMuted} size={20} />}
+                </View>
+                <View style={styles.publicationStatusCopy}>
+                  <Text testID="settings-publication-status" style={styles.publicationStatusTitle}>
+                    {discoveryStatus === 'published' ? 'Vitrine publicada' : 'Vitrine em rascunho'}
+                  </Text>
+                  <Text style={styles.publicationStatusText}>
+                    {discoveryStatus === 'published'
+                      ? 'Clientes podem encontrar este estabelecimento na busca pública.'
+                      : 'O perfil público permanece fora dos resultados até ser publicado.'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.requirementsList}>
+                {([
+                  ['account_active', 'Conta do estabelecimento ativa'],
+                  ['name_valid', 'Nome comercial válido'],
+                  ['slug_valid', 'Endereço digital válido'],
+                  ['address_present', 'Endereço físico preenchido'],
+                  ['active_service_present', 'Ao menos um serviço ativo'],
+                ] as const).map(([key, label]) => {
+                  const complete = discoveryRequirements?.[key] === true;
+                  return (
+                    <View key={key} testID={`settings-publication-requirement-${key}`} style={styles.requirementRow}>
+                      <View style={[styles.requirementIcon, complete && styles.requirementIconComplete]}>
+                        {complete ? <Check color={colors.white} size={12} /> : <Text style={styles.requirementPending}>·</Text>}
+                      </View>
+                      <Text style={[styles.requirementText, complete && styles.requirementTextComplete]}>{label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <AppButton
+                testID="settings-publication-toggle"
+                label={discoveryStatus === 'published' ? 'Despublicar vitrine' : 'Publicar vitrine'}
+                icon={discoveryStatus === 'published' ? <EyeOff color={colors.text} size={17} /> : <Eye color={colors.white} size={17} />}
+                variant={discoveryStatus === 'published' ? 'secondary' : 'admin'}
+                disabled={publishing || isDirty || (discoveryStatus !== 'published' && !Object.values(discoveryRequirements ?? {}).every(Boolean))}
+                loading={publishing}
+                onPress={() => void toggleDiscoveryPublication()}
+              />
+              {isDirty ? <Text style={styles.publicationHint}>Salve as alterações pendentes antes de publicar.</Text> : null}
+            </FormSection> : null}
+
             {activeSection === 'brand' ? <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
               <View style={styles.logoRow}>
                 <View testID="settings-logo-preview" style={styles.logoPreview}>
@@ -711,5 +833,19 @@ const styles = StyleSheet.create({
   visibilityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: radii.md, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.border, marginTop: 14 },
   visibilityCopy: { flex: 1, marginRight: 16 },
   visibilityTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  visibilityText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16, marginTop: 4 }
+  visibilityText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  publicationStatus: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvasSoft },
+  publicationStatusPublished: { borderColor: colors.success, backgroundColor: colors.successSoft },
+  publicationStatusIcon: { width: 38, height: 38, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  publicationStatusCopy: { flex: 1, gap: 3 },
+  publicationStatusTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  publicationStatusText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
+  requirementsList: { gap: 10 },
+  requirementRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  requirementIcon: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  requirementIconComplete: { borderColor: colors.success, backgroundColor: colors.success },
+  requirementPending: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 14 },
+  requirementText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
+  requirementTextComplete: { color: colors.text, fontFamily: typography.bodyStrong },
+  publicationHint: { color: colors.warning, fontFamily: typography.body, fontSize: 11 },
 });

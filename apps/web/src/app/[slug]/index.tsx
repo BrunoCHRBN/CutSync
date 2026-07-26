@@ -144,11 +144,17 @@ export default function BarbershopSlugScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Banner Hero com máscara de gradiente */}
         <View style={styles.heroContainer}>
-          <Image 
-            source={{ uri: barbershop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=1200' }} 
-            style={styles.bannerImage} 
-            resizeMode="cover"
-          />
+          {barbershop.bannerUrl ? (
+            <Image
+              source={{ uri: barbershop.bannerUrl }}
+              style={styles.bannerImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View accessibilityRole="image" accessibilityLabel={`Identidade visual de ${barbershop.name}`} style={styles.bannerFallback}>
+              <Store color={colors.brand} size={34} strokeWidth={1.5} />
+            </View>
+          )}
           <LinearGradient
             colors={['rgba(244,244,245,0)', 'rgba(244,244,245,0.55)', '#F4F4F5']}
             locations={[0, 0.62, 1]}
@@ -521,6 +527,7 @@ const styles = StyleSheet.create({
   // Hero
   heroContainer: { width: '100%', height: 250, position: 'relative' },
   bannerImage: { width: '100%', height: '100%' },
+  bannerFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
   bannerFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 130 },
   heroCopy: { paddingHorizontal: 20, marginTop: -48, zIndex: 2 },
   heroCopyWide: { paddingHorizontal: 40 },

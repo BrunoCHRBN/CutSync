@@ -135,6 +135,8 @@ export interface Establishment {
   shareAgendas?: boolean;
   galleryUrls?: string | null;
   accountStatus?: 'pending_verification' | 'active' | 'delinquent' | 'blocked';
+  discoveryStatus?: 'draft' | 'published';
+  publishedAt?: string | null;
   averageRating?: number;
   reviewCount?: number;
   averagePrice?: number;
@@ -246,6 +248,8 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   shareAgendas: row.share_agendas !== false,
   galleryUrls: row.gallery_urls,
   accountStatus: row.account_status as any,
+  discoveryStatus: 'discovery_status' in row ? ((row as unknown as Record<string, unknown>).discovery_status as 'draft' | 'published') : 'draft',
+  publishedAt: 'published_at' in row ? ((row as unknown as Record<string, unknown>).published_at as string | null) : null,
   averageRating: 'average_rating' in row ? Number((row as any).average_rating || 0) : 0,
   reviewCount: 'review_count' in row ? Number((row as any).review_count || 0) : 0,
   averagePrice: 'average_price' in row ? Number((row as any).average_price || 0) : 0,

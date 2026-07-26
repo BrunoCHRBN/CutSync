@@ -7,9 +7,12 @@ import {
   CalendarRange,
   Check,
   LogIn,
+  MessageSquareText,
+  NotebookPen,
   Scissors,
   Sparkles,
   Store,
+  Tags,
   UsersRound,
 } from 'lucide-react-native';
 import { landingColors, landingLayout, landingRadii, landingShadows, landingTypography } from '../../theme/landing-tokens';
@@ -306,14 +309,25 @@ const BusinessLandingContent = () => {
             />
             <StaggerGroup style={styles.comparisonGrid}>
               {[
-                ['Mensagens dispersas', 'Vitrine pública'],
-                ['Anotações separadas', 'Agenda centralizada'],
-                ['Catálogo informal', 'Serviços com preço e duração'],
-              ].map(([before, after], index) => (
+                { before: 'Mensagens dispersas', after: 'Vitrine pública', Icon: MessageSquareText, fragments: ['Tem horário?', 'Qual o valor?'] },
+                { before: 'Anotações separadas', after: 'Agenda centralizada', Icon: NotebookPen, fragments: ['09:30 · Corte', '11:00 · Barba'] },
+                { before: 'Catálogo informal', after: 'Serviços com preço e duração', Icon: Tags, fragments: ['Corte', 'Corte + barba'] },
+              ].map(({ before, after, Icon, fragments }, index) => (
                 <StaggerItem key={before} index={index} style={styles.comparisonItem}>
-                  <Text style={styles.comparisonBefore}>{before}</Text>
-                  <ArrowRight size={18} color={landingColors.accent} />
-                  <Text style={styles.comparisonAfter}>{after}</Text>
+                  <View style={styles.comparisonBeforePanel}>
+                    <View style={styles.comparisonLabelRow}><Icon size={17} color={landingColors.inkMuted} /><Text style={styles.comparisonBefore}>{before}</Text></View>
+                    {fragments.map((fragment, fragmentIndex) => (
+                      <View key={fragment} style={[styles.comparisonFragment, fragmentIndex === 1 && styles.comparisonFragmentOffset]}>
+                        <View style={styles.comparisonFragmentDot} />
+                        <Text style={styles.comparisonFragmentText}>{fragment}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.comparisonArrow}><ArrowRight size={18} color={landingColors.accent} /></View>
+                  <View style={styles.comparisonAfterPanel}>
+                    <Check size={15} color={landingColors.white} />
+                    <Text style={styles.comparisonAfter}>{after}</Text>
+                  </View>
                 </StaggerItem>
               ))}
             </StaggerGroup>
@@ -471,9 +485,17 @@ const styles = StyleSheet.create({
   onboardingText: { color: landingColors.onBrandMuted, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
   comparisonSection: { paddingHorizontal: 8, gap: 34 },
   comparisonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  comparisonItem: { flex: 1, minWidth: 250, minHeight: 128, padding: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: landingColors.border },
-  comparisonBefore: { flex: 1, color: landingColors.inkMuted, fontFamily: landingTypography.bodyMedium, fontSize: 13, lineHeight: 19 },
-  comparisonAfter: { flex: 1, color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 14, lineHeight: 20 },
+  comparisonItem: { flex: 1, minWidth: 270, minHeight: 250, padding: 18, gap: 13, borderRadius: landingRadii.lg, borderWidth: 1, borderColor: landingColors.border, backgroundColor: landingColors.surfaceSoft },
+  comparisonBeforePanel: { minHeight: 116, padding: 14, gap: 9, borderRadius: landingRadii.md, borderWidth: 1, borderColor: landingColors.border, backgroundColor: landingColors.surface },
+  comparisonLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  comparisonBefore: { flex: 1, color: landingColors.inkMuted, fontFamily: landingTypography.bodyMedium, fontSize: 12, lineHeight: 18 },
+  comparisonFragment: { maxWidth: '82%', paddingVertical: 7, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: landingRadii.sm, backgroundColor: landingColors.canvasWarm },
+  comparisonFragmentOffset: { alignSelf: 'flex-end' },
+  comparisonFragmentDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: landingColors.borderStrong },
+  comparisonFragmentText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 10 },
+  comparisonArrow: { position: 'absolute', top: 123, alignSelf: 'center', width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.surface, borderWidth: 1, borderColor: landingColors.border },
+  comparisonAfterPanel: { minHeight: 72, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: landingRadii.md, backgroundColor: landingColors.brand },
+  comparisonAfter: { flex: 1, color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 13, lineHeight: 19 },
   faqSection: { gap: 34 },
   faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 32 },
   faqItem: { flex: 1, minWidth: 250, paddingTop: 24, gap: 12, borderTopWidth: 1, borderTopColor: landingColors.border },

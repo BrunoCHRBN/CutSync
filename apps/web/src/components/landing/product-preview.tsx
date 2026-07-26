@@ -73,7 +73,7 @@ const OwnerPreview = () => (
     <SvgText x="248" y="132" fontSize="12" letterSpacing="1.2" fill={landingColors.inkMuted}>HOJE NA UNIDADE</SvgText>
     <SvgText x="248" y="166" fontSize="24" fontWeight="700" fill={landingColors.ink}>Operação em foco</SvgText>
     {[
-      ['PRODUÇÃO', 'R$ 820'], ['AGENDADO', 'R$ 460'], ['OCUPAÇÃO', '68%'], ['PENDENTES', '2'],
+      ['ATENDIMENTOS', '8'], ['CONFIRMADOS', '6'], ['PENDENTES', '2'], ['EQUIPE', '4'],
     ].map(([label, value], index) => (
       <G key={label}>
         <Rect x={248 + index * 124} y="190" width="112" height="76" rx="14" fill={index === 2 ? landingColors.brandSoft : landingColors.surfaceSoft} stroke={landingColors.border} />
@@ -106,9 +106,9 @@ const ProfessionalPreview = () => (
     <SvgText x="74" y="258" fontSize="20" fontWeight="700" fill={landingColors.ink}>09:30 · João Silva</SvgText>
     <SvgText x="74" y="279" fontSize="11" fill={landingColors.inkMuted}>Corte essencial · 30 min</SvgText>
     <Rect x="532" y="196" width="194" height="94" rx="18" fill={landingColors.brandSoft} />
-    <SvgText x="552" y="225" fontSize="10" fill={landingColors.brand}>PRODUÇÃO CONCLUÍDA</SvgText>
-    <SvgText x="552" y="259" fontSize="21" fontWeight="700" fill={landingColors.ink}>R$ 410</SvgText>
-    <SvgText x="552" y="279" fontSize="10" fill={landingColors.inkMuted}>Comissão projetada: R$ 205</SvgText>
+    <SvgText x="552" y="225" fontSize="10" fill={landingColors.brand}>ATENDIMENTOS CONCLUÍDOS</SvgText>
+    <SvgText x="552" y="259" fontSize="21" fontWeight="700" fill={landingColors.ink}>4</SvgText>
+    <SvgText x="552" y="279" fontSize="10" fill={landingColors.inkMuted}>Próximo horário: 10:30</SvgText>
     <SvgText x="52" y="330" fontSize="13" fontWeight="700" fill={landingColors.ink}>Agenda do dia</SvgText>
     {[
       ['09:30', 'Corte essencial', 'Confirmado'], ['10:30', 'Corte e barba', 'Confirmado'], ['13:00', 'Barba', 'Pendente'],

@@ -15,7 +15,7 @@ export type LandingEvent =
   | { name: 'access_path_selected'; source: 'client' | 'business'; path: 'client' | 'business' | 'establishment' }
   /** @deprecated Compatibilidade temporária com integrações anteriores à navegação em duas rotas. */
   | { name: 'audience_selected'; audience: LandingAudience }
-  | { name: 'search_started'; filterCount: number }
+  | { name: 'search_started'; source: 'hero'; filterCount: number }
   | { name: 'establishment_opened'; establishmentId: string }
   | { name: 'booking_started'; establishmentId: string }
   | { name: 'business_preview_interacted'; preview: 'owner' | 'professional' }

@@ -17,6 +17,8 @@ const landingDirectory = path.join(root, 'apps/web/src/components/landing');
 const motion = fs.readFileSync(path.join(landingDirectory, 'motion/landing-effects.tsx'), 'utf8');
 const motionProvider = fs.readFileSync(path.join(landingDirectory, 'motion/landing-motion.tsx'), 'utf8');
 const stickyStory = fs.readFileSync(path.join(landingDirectory, 'motion/sticky-product-story.tsx'), 'utf8');
+const publicationMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260731000000_public_discovery_publication.sql'), 'utf8');
+const settingsExperience = fs.readFileSync(path.join(root, 'apps/web/src/components/screens/SettingsExperience.tsx'), 'utf8');
 
 const readSourceTree = (directory: string): string => fs.readdirSync(directory, { withFileTypes: true }).map((entry) => {
   const target = path.join(directory, entry.name);
@@ -53,8 +55,8 @@ test('mantém os tokens claros e os pares principais em contraste AA', () => {
 });
 
 test('aplica a hierarquia de superfícies sem transformar tudo em cards', () => {
-  expect(clientLanding).toContain("searchSection: { paddingVertical: 48, paddingHorizontal: 40, gap: 32, borderRadius: landingRadii.xl, backgroundColor: 'rgba(239,236,226,0.72)'");
-  expect(clientLanding).toContain('resultsSection: { marginTop: -36, paddingVertical: 16, gap: 40 }');
+  expect(clientLanding).toContain('heroSearchPanel:');
+  expect(clientLanding).toContain('resultsSection: { paddingVertical: 48, gap: 40 }');
   expect(businessLanding).toContain('heroOuter: { backgroundColor: landingColors.brandStrong }');
   expect(businessLanding).toContain('sandboxSection: { paddingVertical: 24, gap: 40 }');
   expect(businessLanding).toContain("roleSection: { paddingVertical: 72, paddingHorizontal: 48, flexDirection: 'row', alignItems: 'center', gap: 72");
@@ -134,12 +136,12 @@ test('analytics usa adaptador neutro e payload sem dados pessoais', () => {
   const events: unknown[] = [];
   configureLandingAnalytics((event) => events.push(event));
   trackLandingEvent({ name: 'audience_selected', audience: 'observer' });
-  trackLandingEvent({ name: 'search_started', filterCount: 2 });
+  trackLandingEvent({ name: 'search_started', source: 'hero', filterCount: 2 });
   trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' });
   trackLandingEvent({ name: 'scroll_depth_reached', page: 'business', depth: 50 });
   expect(events).toEqual([
     { name: 'audience_selected', audience: 'observer' },
-    { name: 'search_started', filterCount: 2 },
+    { name: 'search_started', source: 'hero', filterCount: 2 },
     { name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' },
     { name: 'scroll_depth_reached', page: 'business', depth: 50 },
   ]);
@@ -169,4 +171,23 @@ test('sincroniza narrativa sticky no desktop e preserva fallback acessível', ()
   expect(businessLanding).toContain('if (current === id)');
   expect(clientLanding).toContain('onHoverIn');
   expect(clientLanding).toContain("quality === 'high'");
+});
+
+test('publica somente vitrines elegíveis e mantém a descoberta pública sem cadastro', () => {
+  expect(publicationMigration).toContain("discovery_status IN ('draft', 'published')");
+  expect(publicationMigration).toContain("!~* '^shop[[:space:]_-]*[0-9]+$'");
+  expect(publicationMigration).toContain('active_service_present');
+  expect(publicationMigration).toContain('GRANT EXECUTE ON FUNCTION public.list_public_discovery_establishments(integer) TO anon, authenticated');
+  expect(clientLanding).toContain("rpc('list_public_discovery_establishments'");
+  expect(clientLanding).not.toContain(".from('establishments')");
+  expect(settingsExperience).toContain('settings-publication-toggle');
+  expect(settingsExperience).toContain('unpublish_establishment_discovery');
+});
+
+test('mantém busca no hero e comparação editorial sem marcas externas', () => {
+  expect(clientLanding.indexOf('landing-search-input')).toBeLessThan(clientLanding.indexOf('landing-client-credibility'));
+  expect(clientLanding).toContain('Explorar resultados');
+  expect(businessLanding).toContain('comparisonBeforePanel');
+  expect(businessLanding).not.toMatch(/WhatsApp|Excel/);
+  expect(stickyStory).toContain('height * 0.66');
 });
