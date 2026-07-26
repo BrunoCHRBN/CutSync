@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -33,11 +34,14 @@ import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
-import { getTodayInTimeZone } from '@cutsync/domain';
+import { getBookingDateOptions, getTodayInTimeZone } from '@cutsync/domain';
 import { InlineNotice } from '../ui/InlineNotice';
 import { AppButton } from '../ui/AppButton';
+import { BookingStepper } from '../ui/BookingStepper';
 
 export const BookingExperience = () => {
+  const { width } = useWindowDimensions();
+  const isMobileWeb = width < layout.mobileBreakpoint;
   const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -89,6 +93,7 @@ export const BookingExperience = () => {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [showFullCalendar, setShowFullCalendar] = useState(false);
 
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -187,7 +192,7 @@ export const BookingExperience = () => {
   // Month navigation
   const handlePrevMonth = () => {
     const prev = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
-    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    const today = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
     if (prev.getFullYear() < today.getFullYear() || (prev.getFullYear() === today.getFullYear() && prev.getMonth() < today.getMonth())) {
       return;
     }
@@ -202,7 +207,7 @@ export const BookingExperience = () => {
   const monthWeeks = useMemo(() => buildMonthWeeks(viewDate), [viewDate]);
 
   const isDateSelectable = (date: Date) => {
-    const today = getTodayInTimeZone(barbershop?.time_zone || 'America/Sao_Paulo');
+    const today = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
     today.setHours(0, 0, 0, 0);
     const target = new Date(date);
     target.setHours(0, 0, 0, 0);
@@ -212,6 +217,13 @@ export const BookingExperience = () => {
   const formattedMonthYearLabel = useMemo(() => {
     return viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   }, [viewDate]);
+  const todayInShopTimeZone = getTodayInTimeZone(barbershop?.timezone || 'America/Sao_Paulo');
+  const previousMonthDisabled = viewDate.getFullYear() === todayInShopTimeZone.getFullYear()
+    && viewDate.getMonth() === todayInShopTimeZone.getMonth();
+  const quickDates = useMemo(
+    () => getBookingDateOptions(barbershop?.timezone || 'America/Sao_Paulo', 14),
+    [barbershop?.timezone],
+  );
 
   // Group slots by period
   const groupedSlots = useMemo(() => {
@@ -229,7 +241,7 @@ export const BookingExperience = () => {
     return { morning, afternoon, evening };
   }, [availableSlots]);
 
-  const primaryColor = barbershop?.primary_color || '#113939';
+  const primaryColor = barbershop?.primaryColor || '#113939';
 
   // Booking Execution
   const executeBooking = async (userId: string) => {
@@ -262,8 +274,7 @@ export const BookingExperience = () => {
         new Date(chosenSlot.startsAt),
       );
 
-      displayAlert('Agendamento Confirmado!', 'Seu horário foi reservado com sucesso.');
-      router.replace('/appointments' as any);
+      router.replace('/appointments?feedback=appointment_created' as any);
     } catch (err: any) {
       console.error('Booking execution error:', err);
       setBookingError(err.message || 'Erro ao processar agendamento.');
@@ -380,8 +391,8 @@ export const BookingExperience = () => {
         <View style={styles.mainWrapper}>
           {/* ─── SALON HERO CARD ────────────────────────────────────── */}
           <View style={styles.heroCard}>
-            {barbershop?.banner_url ? (
-              <Image source={{ uri: barbershop.banner_url }} style={styles.heroImg} contentFit="cover" />
+            {barbershop?.bannerUrl ? (
+              <Image source={{ uri: barbershop.bannerUrl }} style={styles.heroImg} contentFit="cover" />
             ) : (
               <View style={styles.heroFallback}>
                 <Scissors size={28} color="#113939" />
@@ -390,8 +401,8 @@ export const BookingExperience = () => {
 
             <View style={styles.heroInfoRow}>
               <View style={styles.heroLogoCircle}>
-                {barbershop?.logo_url ? (
-                  <Image source={{ uri: barbershop.logo_url }} style={styles.logoImg} contentFit="cover" />
+                {barbershop?.logoUrl ? (
+                  <Image source={{ uri: barbershop.logoUrl }} style={styles.logoImg} contentFit="cover" />
                 ) : (
                   <Scissors size={20} color="#113939" />
                 )}
@@ -407,44 +418,26 @@ export const BookingExperience = () => {
               <View style={styles.ratingBadge}>
                 <Star size={11} color="#F5A524" fill="#F5A524" />
                 <Text style={styles.ratingText}>
-                  {barbershop?.average_rating ? Number(barbershop.average_rating).toFixed(1) : '4.9'}
+                  {barbershop?.averageRating ? Number(barbershop.averageRating).toFixed(1) : 'Novo'}
                 </Text>
               </View>
             </View>
           </View>
 
           {/* ─── INTERACTIVE 4-STEP WIZARD TRACKER ──────────────────── */}
-          <View style={styles.stepTracker}>
-            {[
-              { step: 1 as const, label: '1. Serviço', done: Boolean(selectedService) },
-              { step: 2 as const, label: '2. Profissional', done: Boolean(selectedBarber) },
-              { step: 3 as const, label: '3. Data & Horário', done: Boolean(selectedDate && selectedTime) },
-              { step: 4 as const, label: '4. Confirmação', done: wizardStep === 4 },
-            ].map((st) => (
-              <Pressable
-                key={st.step}
-                disabled={st.step > wizardStep && !st.done}
-                style={[
-                  styles.stepPill,
-                  wizardStep === st.step && styles.stepPillActive,
-                  st.done && styles.stepPillDone,
-                ]}
-                onPress={() => {
-                  tapLight();
-                  animateStep(st.step);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.stepPillText,
-                    (wizardStep === st.step || st.done) && styles.stepPillTextActive,
-                  ]}
-                >
-                  {st.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <BookingStepper
+            currentStep={wizardStep}
+            items={[
+              { step: 1, label: 'Serviço', done: Boolean(selectedService) },
+              { step: 2, label: 'Profissional', done: Boolean(selectedBarber) },
+              { step: 3, label: 'Data e horário', done: Boolean(selectedDate && selectedTime) },
+              { step: 4, label: 'Confirmação', done: false },
+            ]}
+            onStepPress={(step) => {
+              tapLight();
+              animateStep(step as 1 | 2 | 3 | 4);
+            }}
+          />
 
           {/* ─── PASSO 1: ESCOLHA O SERVIÇO ───────────────────────────── */}
           {wizardStep === 1 && (
@@ -466,6 +459,10 @@ export const BookingExperience = () => {
                       onPress={() => {
                         tapLight();
                         setSelectedService(srv.id);
+                        if (selectedBarber && !getServicePriceAndDuration(srv.id, selectedBarber).isActive) {
+                          setSelectedBarber(null);
+                          setSelectedDate(null);
+                        }
                         setSelectedTime(null);
                         // Auto advance to Step 2
                         animateStep(2);
@@ -532,8 +529,8 @@ export const BookingExperience = () => {
                         }}
                       >
                         <View style={styles.barberAvatar}>
-                          {barber.fotoUrl ? (
-                            <Image source={{ uri: barber.fotoUrl }} style={styles.avatarImg} contentFit="cover" />
+                          {barber.avatarUrl ? (
+                            <Image source={{ uri: barber.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
                           ) : (
                             <UserRound size={18} color="#113939" />
                           )}
@@ -580,15 +577,50 @@ export const BookingExperience = () => {
                 </Text>
               </View>
 
-              {/* Calendário Grid */}
-              <View style={styles.calendarCard}>
+              {isMobileWeb ? (
+                <View style={styles.quickDatesSection}>
+                  <Text style={styles.quickDatesTitle}>Próximos dias</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickDatesRow}>
+                    {quickDates.map((option) => {
+                      const selected = selectedDate?.toISOString().slice(0, 10) === option.localDate;
+                      return (
+                        <Pressable
+                          key={option.localDate}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`${option.isToday ? 'Hoje, ' : ''}${option.weekdayLabel}, dia ${option.dayLabel} de ${option.monthLabel}`}
+                          onPress={() => {
+                            tapLight();
+                            setSelectedDate(new Date(`${option.localDate}T12:00:00`));
+                            setSelectedTime(null);
+                          }}
+                          style={[styles.quickDate, selected && styles.quickDateSelected]}
+                        >
+                          <Text style={[styles.quickDateWeekday, selected && styles.quickDateTextSelected]}>{option.isToday ? 'Hoje' : option.weekdayLabel}</Text>
+                          <Text style={[styles.quickDateDay, selected && styles.quickDateTextSelected]}>{option.dayLabel}</Text>
+                          <Text style={[styles.quickDateMonth, selected && styles.quickDateTextSelected]}>{option.monthLabel}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                  <AppButton
+                    label={showFullCalendar ? 'Ocultar calendário completo' : 'Ver calendário completo'}
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => setShowFullCalendar((current) => !current)}
+                  />
+                </View>
+              ) : null}
+
+              {/* Calendário mensal no desktop e sob demanda no mobile Web. */}
+              {(!isMobileWeb || showFullCalendar) ? <View style={styles.calendarCard}>
                 <View style={styles.calendarTitleRow}>
                   <Text style={styles.calendarMonthTitle}>{formattedMonthYearLabel}</Text>
                   <View style={styles.monthNav}>
-                    <Pressable onPress={handlePrevMonth} style={styles.monthNavBtn}>
+                    <Pressable accessibilityLabel="Mês anterior" disabled={previousMonthDisabled} onPress={handlePrevMonth} style={[styles.monthNavBtn, previousMonthDisabled && styles.monthNavBtnDisabled]}>
                       <ChevronLeft size={16} color={colors.text} />
                     </Pressable>
-                    <Pressable onPress={handleNextMonth} style={styles.monthNavBtn}>
+                    <Pressable accessibilityLabel="Próximo mês" onPress={handleNextMonth} style={styles.monthNavBtn}>
                       <ChevronRight size={16} color={colors.text} />
                     </Pressable>
                   </View>
@@ -641,7 +673,7 @@ export const BookingExperience = () => {
                     </View>
                   ))}
                 </View>
-              </View>
+              </View> : null}
 
               {/* Time Slots */}
               {selectedDate && (
@@ -747,6 +779,7 @@ export const BookingExperience = () => {
                   onPress={() => animateStep(4)}
                 />
               </View>
+              {!selectedDate || !selectedTime ? <Text accessibilityLiveRegion="polite" style={styles.selectionHint}>Selecione uma data e um horário para continuar.</Text> : null}
             </View>
             </Animated.View>
           )}
@@ -1155,6 +1188,24 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 10,
   },
+  quickDatesSection: { gap: 10 },
+  quickDatesTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  quickDatesRow: { gap: 8, paddingBottom: 4 },
+  quickDate: {
+    width: 72,
+    minHeight: 82,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  quickDateSelected: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  quickDateWeekday: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'capitalize' },
+  quickDateDay: { color: colors.text, fontFamily: typography.display, fontSize: 20, marginVertical: 2 },
+  quickDateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, textTransform: 'capitalize' },
+  quickDateTextSelected: { color: colors.white },
   calendarTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1172,8 +1223,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   monthNavBtn: {
-    width: 30,
-    height: 30,
+    width: 48,
+    height: 48,
     borderRadius: radii.sm,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -1181,6 +1232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  monthNavBtnDisabled: { opacity: 0.35 },
   weekHeaderRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -1202,11 +1254,11 @@ const styles = StyleSheet.create({
   },
   emptyDayCell: {
     flex: 1,
-    height: 38,
+    height: 48,
   },
   dayCell: {
     flex: 1,
-    height: 38,
+    height: 48,
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1258,6 +1310,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timeChip: {
+    minHeight: 48,
+    minWidth: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 14,
     paddingVertical: 8,
     backgroundColor: '#FFFFFF',
@@ -1265,6 +1321,7 @@ const styles = StyleSheet.create({
     borderColor: '#E4E5DF',
     borderRadius: radii.sm,
   },
+  selectionHint: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, textAlign: 'right' },
   timeChipSelected: {
     backgroundColor: '#113939',
     borderColor: '#113939',

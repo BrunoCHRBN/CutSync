@@ -17,7 +17,9 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          cancellation_note_internal: string | null
           cancellation_reason: string | null
+          cancellation_reason_code: string | null
           cancelled_by_role: string | null
           client_id: string | null
           client_name: string | null
@@ -36,7 +38,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cancellation_note_internal?: string | null
           cancellation_reason?: string | null
+          cancellation_reason_code?: string | null
           cancelled_by_role?: string | null
           client_id?: string | null
           client_name?: string | null
@@ -55,7 +59,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cancellation_note_internal?: string | null
           cancellation_reason?: string | null
+          cancellation_reason_code?: string | null
           cancelled_by_role?: string | null
           client_id?: string | null
           client_name?: string | null
@@ -2121,6 +2127,31 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_client_appointments_v2: {
+        Args: never
+        Returns: {
+          appointment_id: string
+          appointment_status: string
+          cancellation_reason_code: string
+          cancelled_by_role: string
+          establishment_address: string
+          establishment_currency: string
+          establishment_id: string
+          establishment_name: string
+          establishment_phone: string
+          establishment_slug: string
+          establishment_timezone: string
+          min_cancellation_hours: number
+          professional_id: string
+          professional_name: string
+          reschedule_count: number
+          service_duration_minutes: number
+          service_id: string
+          service_name: string
+          service_price: number
+          starts_at: string
+        }[]
+      }
       get_establishment_client_contacts: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -2507,6 +2538,15 @@ export type Database = {
       update_appointment_status: {
         Args: {
           new_cancellation_reason?: string
+          new_status: string
+          target_appointment_id: string
+        }
+        Returns: string
+      }
+      update_appointment_status_v2: {
+        Args: {
+          new_cancellation_note_internal?: string
+          new_cancellation_reason_code?: string
           new_status: string
           target_appointment_id: string
         }

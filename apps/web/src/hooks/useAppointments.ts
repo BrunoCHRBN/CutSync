@@ -61,6 +61,78 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         throw new Error('O fim do intervalo não pode ser anterior ao início.');
       }
 
+      if (clientId && !establishmentId && !professionalId) {
+        const { data, error: rpcError } = await (supabase.rpc as any)('get_client_appointments_v2');
+        const requestedStatuses = statusFilter ? statusFilter.split(',') : [];
+        if (rpcError) {
+          // Compatibilidade de uma versão: consulta somente campos públicos enquanto
+          // a RPC v2 ainda não foi aplicada no ambiente conectado.
+          let legacyQuery = supabase.from('appointments').select(`
+            id, establishment_id, client_id, professional_id, service_id, date_time,
+            ends_at, duration_minutes, status, cancellation_reason, cancelled_by_role,
+            reschedule_count, original_date_time, created_at, updated_at, deleted_at,
+            service:services(id,name,price,duration_minutes),
+            establishment:establishments(id,name,slug,address,phone,timezone,currency,min_cancellation_hours)
+          `).eq('client_id', clientId);
+          if (requestedStatuses.length > 0) legacyQuery = legacyQuery.in('status', requestedStatuses);
+          const { data: legacyData, error: legacyError } = await legacyQuery.order('date_time', { ascending });
+          if (legacyError) throw legacyError;
+          const appointmentIds = (legacyData ?? []).map((row: any) => row.id);
+          const { data: participantNames, error: participantError } = appointmentIds.length
+            ? await supabase.rpc('get_appointment_participant_names', { target_appointment_ids: appointmentIds })
+            : { data: [], error: null };
+          if (participantError) throw participantError;
+          const names = new Map((participantNames ?? []).map((item: any) => [item.appointment_id, item]));
+          setAppointments((legacyData ?? []).map((row: any) => mapAppointment({
+            ...row,
+            professional: {
+              id: row.professional_id,
+              name: (names.get(row.id) as any)?.professional_name || 'Profissional',
+            },
+          })));
+          setError(null);
+          return;
+        }
+        const rows = (data ?? []).filter((row: any) => (
+          requestedStatuses.length === 0 || requestedStatuses.includes(row.appointment_status)
+        ));
+        setAppointments(rows.map((row: any) => mapAppointment({
+          id: row.appointment_id,
+          establishment_id: row.establishment_id,
+          client_id: clientId,
+          client_name: null,
+          professional_id: row.professional_id,
+          service_id: row.service_id,
+          date_time: row.starts_at,
+          ends_at: row.starts_at,
+          duration_minutes: row.service_duration_minutes || 0,
+          status: row.appointment_status,
+          cancellation_reason: null,
+          cancellation_reason_code: row.cancellation_reason_code,
+          cancelled_by_role: row.cancelled_by_role,
+          reschedule_count: row.reschedule_count,
+          original_date_time: null,
+          created_at: row.starts_at,
+          updated_at: row.starts_at,
+          deleted_at: null,
+          client: null,
+          professional: { id: row.professional_id, name: row.professional_name, phone: null },
+          service: { id: row.service_id, name: row.service_name, price: row.service_price, duration_minutes: row.service_duration_minutes },
+          establishment: {
+            id: row.establishment_id,
+            name: row.establishment_name,
+            slug: row.establishment_slug,
+            address: row.establishment_address,
+            phone: row.establishment_phone,
+            timezone: row.establishment_timezone,
+            currency: row.establishment_currency,
+            min_cancellation_hours: row.min_cancellation_hours,
+          },
+        } as any)));
+        setError(null);
+        return;
+      }
+
       let query = supabase.from('appointments').select(`
         *,
         service:services(id,name,price,duration_minutes),

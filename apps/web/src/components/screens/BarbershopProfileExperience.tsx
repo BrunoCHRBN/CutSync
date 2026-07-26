@@ -10,6 +10,7 @@ import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { SectionHeading } from '../ui/SectionHeading';
+import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf, readableForeground } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
@@ -124,12 +125,15 @@ export const BarbershopProfileExperience = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Banner Hero com máscara de gradiente */}
+        {/* Mídia real ou fallback institucional, sem imagem genérica externa. */}
         <View style={styles.heroContainer}>
-          <Image 
-            source={{ uri: barbershop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=1200' }} 
-            style={styles.bannerImage} 
-            resizeMode="cover"
+          <EstablishmentMedia
+            testID="barbershop-profile-banner"
+            name={barbershop.name}
+            uri={barbershop.bannerUrl}
+            color={accent}
+            category="Perfil do estabelecimento"
+            style={styles.bannerImage}
           />
           <LinearGradient
             colors={['rgba(245,245,242,0)', 'rgba(245,245,242,0.2)', colors.canvas]}
@@ -226,7 +230,7 @@ export const BarbershopProfileExperience = () => {
                 <View style={styles.mapPlaceholder}>
                   <MapPin color={colors.brandPrimary} size={26} />
                   <Text style={styles.mapPlaceholderTitle}>Veja a localização no mapa</Text>
-                  <Text style={styles.mapPlaceholderText}>O mapa é carregado somente quando solicitado.</Text>
+                  <Text style={styles.mapPlaceholderText}>{barbershop.address}. O mapa interativo só será conectado após sua escolha.</Text>
                   <AppButton label="Carregar mapa" onPress={() => setMapLoaded(true)} testID="barbershop-profile-load-map-button" variant="secondary" />
                 </View>
               )}
@@ -317,12 +321,10 @@ export const BarbershopProfileExperience = () => {
           )}
         </View>
 
-        {/* Galeria */}
-        <View style={styles.section}>
-          <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
-          {galleryPhotos.length === 0 ? (
-            <EmptyState testID="barbershop-gallery-empty" title="Galeria" description="As fotos do estabelecimento aparecerão aqui em breve." icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
-          ) : (
+        {/* Galerias vazias não ocupam espaço na jornada do cliente. */}
+        {galleryPhotos.length > 0 ? (
+          <View style={styles.section}>
+            <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
             <FlatList
               data={galleryPhotos}
               keyExtractor={(url, idx) => `${url}-${idx}`}
@@ -333,12 +335,12 @@ export const BarbershopProfileExperience = () => {
                 <Image source={{ uri: item }} style={styles.galleryImage} />
               )}
             />
-          )}
-        </View>
+          </View>
+        ) : null}
       </ScrollView>
 
       {/* Barra de ação flutuante (glassmorphism) */}
-      <View style={styles.floatingWrap} pointerEvents="box-none">
+      <View style={[styles.floatingWrap, isWide && styles.floatingWrapWide]} pointerEvents="box-none">
         <View testID="barbershop-booking-cta" style={styles.floatingBar}>
           <View style={styles.floatingCopy}>
             <Text style={styles.floatingEyebrow}>Pronto para o próximo corte?</Text>
@@ -419,6 +421,7 @@ const styles = StyleSheet.create({
   barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover' },
   floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
+  floatingWrapWide: { left: undefined, right: 28, alignItems: 'flex-end' },
   floatingBar: {
     width: '100%',
     maxWidth: 680,

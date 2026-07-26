@@ -37,4 +37,26 @@ test('protege a vitrine contra unidades não publicadas e mantém retry real', (
   expect(explore).toContain('client-shops-retry-button');
   expect(explore).toContain('contentFit="contain"');
   expect(explore).not.toContain('onSync={');
+  expect(explore).toContain('client-filters-clear-all');
+  expect(explore).toContain('client-empty-clear-filters');
+  expect(explore).not.toContain('images.unsplash.com/photo-1585747860715');
+  expect(explore).toContain('desktopGrid');
+});
+
+test('consolida os padrões responsivos e seguros do cliente Web', () => {
+  const profile = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
+  const booking = readSource('apps/web/src/components/screens/BookingExperience.tsx');
+  const settings = readSource('apps/web/src/components/screens/client-settings-experience.tsx');
+
+  expect(profile).toContain('EstablishmentMedia');
+  expect(profile).not.toContain('images.unsplash.com/photo-1585747860715');
+  expect(profile).toContain('galleryPhotos.length > 0');
+  expect(booking).toContain('BookingStepper');
+  expect(booking).toContain('previousMonthDisabled');
+  expect(booking).toContain('getBookingDateOptions');
+  expect(booking).toContain('Ver calendário completo');
+  expect(settings).toContain('ClientSwitch');
+  expect(settings).toContain('client-settings-discard-button');
+  expect(settings).toContain('client-settings-avatar-button');
+  expect(settings).toContain('client-settings-avatar-remove');
 });

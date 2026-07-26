@@ -264,14 +264,18 @@ export const AdminDashboardExperience = () => {
         return;
       }
 
-      const rpcParams: { target_appointment_id: string; new_status: string; new_cancellation_reason?: string } = {
+      const rpcParams: {
+        target_appointment_id: string;
+        new_status: string;
+        new_cancellation_note_internal?: string;
+      } = {
         target_appointment_id: id,
         new_status: status,
       };
       if (status === 'cancelled') {
-        rpcParams.new_cancellation_reason = reason;
+        rpcParams.new_cancellation_note_internal = reason;
       }
-      const { error } = await supabase.rpc('update_appointment_status', rpcParams);
+      const { error } = await supabase.rpc('update_appointment_status_v2', rpcParams);
       if (error) throw error;
       await refresh();
     } catch (err) {

@@ -21,6 +21,7 @@ export interface AppButtonProps {
   loading?: boolean;
   disabled?: boolean;
   icon?: ReactNode;
+  iconPosition?: 'left' | 'right';
   leadingIcon?: ReactNode;
   trailingIcon?: ReactNode;
   shortcutLabel?: string;
@@ -38,6 +39,7 @@ export const AppButton = ({
   loading = false,
   disabled = false,
   icon,
+  iconPosition = 'left',
   leadingIcon,
   trailingIcon,
   shortcutLabel,
@@ -55,11 +57,12 @@ export const AppButton = ({
       accessibilityLabel={label}
       disabled={isDisabled}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={({ pressed, hovered }) => [
         styles.base,
         styles[variant],
         styles[`${size}Size`],
         fullWidth && styles.fullWidth,
+        hovered && !isDisabled && styles.hovered,
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
@@ -69,10 +72,10 @@ export const AppButton = ({
         <ActivityIndicator color={variant === 'primary' || variant === 'admin' ? colors.ink : colors.text} />
       ) : (
         <View style={styles.content}>
-          {leadingIcon ?? icon}
+          {leadingIcon ?? (iconPosition === 'left' ? icon : null)}
           <Text style={[styles.label, styles[`${variant}Label`], foregroundColor ? { color: foregroundColor } : null]}>{label}</Text>
           {!!shortcutLabel && <Text style={[styles.shortcut, styles[`${variant}Label`]]}>{shortcutLabel}</Text>}
-          {trailingIcon}
+          {trailingIcon ?? (iconPosition === 'right' ? icon : null)}
         </View>
       )}
     </Pressable>

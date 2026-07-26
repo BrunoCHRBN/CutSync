@@ -208,6 +208,7 @@ export interface AppointmentRecord {
   dateTime: Date;
   status: AppointmentStatus;
   cancellationReason?: string | null;
+  cancellationReasonCode?: string | null;
   cancelledByRole?: 'client' | 'professional' | 'admin' | null;
   rescheduleCount: number;
   originalDateTime?: Date | null;
@@ -298,6 +299,7 @@ export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => (
   dateTime: new Date(row.date_time),
   status: toAppointmentStatus(row.status),
   cancellationReason: row.cancellation_reason,
+  cancellationReasonCode: 'cancellation_reason_code' in row ? (row as any).cancellation_reason_code : null,
   cancelledByRole: row.cancelled_by_role === 'client' || row.cancelled_by_role === 'professional' || row.cancelled_by_role === 'admin'
     ? row.cancelled_by_role
     : null,

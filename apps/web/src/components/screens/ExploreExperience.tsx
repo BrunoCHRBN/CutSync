@@ -11,6 +11,8 @@ import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
+import { ClientFilterChip } from '../ui/ClientFilterChip';
+import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
@@ -52,6 +54,48 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
+const ShopCard = ({ shop, onOpen, desktop = false }: {
+  shop: Establishment;
+  onOpen: (id: string) => void;
+  desktop?: boolean;
+}) => {
+  const accent = shop.primaryColor || colors.accent;
+  const opening = getOpeningStatus(shop.openingHours, shop.timezone);
+  return (
+    <Pressable
+      testID={`client-shop-card-${shop.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Ver ${shop.name}`}
+      onPress={() => { tapLight(); onOpen(shop.id); }}
+      style={({ pressed }) => [styles.shopCard, desktop ? styles.gridCard : styles.carouselSlide, pressed && styles.pressed]}
+    >
+      <View style={styles.visual}>
+        <EstablishmentMedia name={shop.name} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
+        <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
+      </View>
+      <View style={styles.shopBody}>
+        <View style={styles.shopHeaderRow}>
+          <View style={styles.shopLogoCircle}>
+            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>}
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
+            <View style={styles.ratingPriceRow}>
+              <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
+              {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
+              <Text style={styles.metaDivider}>·</Text>
+              <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
+        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text></View>
+        <View style={styles.cardFooter}><Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text><View style={styles.openButton}><ArrowUpRight color={colors.textSecondary} size={15} strokeWidth={1.8} /></View></View>
+      </View>
+    </Pressable>
+  );
+};
+
 /* ─── Carousel Component ────────────────────────────────────────────────── */
 function ShopCarousel({
   shops,
@@ -85,6 +129,16 @@ function ShopCarousel({
 
   const startIdx = currentPage * cardsPerPage;
   const endIdx = Math.min(startIdx + cardsPerPage, shops.length);
+  const cards = shops.map((shop) => <ShopCard key={shop.id} shop={shop} onOpen={onOpen} desktop={winWidth >= layout.desktopBreakpoint} />);
+
+  if (winWidth >= layout.desktopBreakpoint) {
+    return (
+      <View testID="client-shops-grid" style={styles.carouselContainer}>
+        <Text style={styles.carouselPageInfo}>{shops.length} {shops.length === 1 ? 'estabelecimento' : 'estabelecimentos'}</Text>
+        <View style={styles.desktopGrid}>{cards}</View>
+      </View>
+    );
+  }
 
   return (
     <View testID="client-shops-grid" style={styles.carouselContainer}>
@@ -123,63 +177,7 @@ function ShopCarousel({
         contentContainerStyle={styles.carouselTrack}
         style={styles.carouselScroll}
       >
-        {shops.map((shop) => {
-          const accent = shop.primaryColor || colors.accent;
-          const opening = getOpeningStatus(shop.openingHours, shop.timezone);
-          return (
-            <Pressable
-              key={shop.id}
-              testID={`client-shop-card-${shop.id}`}
-              accessibilityRole="button"
-              accessibilityLabel={`Ver ${shop.name}`}
-              onPress={() => { tapLight(); onOpen(shop.id); }}
-              style={({ pressed }) => [styles.shopCard, styles.carouselSlide, pressed && styles.pressed]}
-            >
-              <View style={styles.visual}>
-                <Image
-                  source={{ uri: shop.bannerUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=600' }}
-                  style={styles.bannerVisualImage}
-                  contentFit="cover"
-                  transition={160}
-                />
-                <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
-              </View>
-              <View style={styles.shopBody}>
-                <View style={styles.shopHeaderRow}>
-                  <View style={styles.shopLogoCircle}>
-                    {shop.logoUrl ? (
-                      <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" />
-                    ) : (
-                      <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>
-                    )}
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
-                    <View style={styles.ratingPriceRow}>
-                      <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
-                      {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
-                      <Text style={styles.metaDivider}>·</Text>
-                      <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.shopMeta}>
-                  <MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />
-                  <Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text>
-                </View>
-                <View style={styles.shopMeta}>
-                  <Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} />
-                  <View style={[styles.openDot, !opening.isOpen && styles.closedDot]} />
-                  <Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text>
-                </View>
-                <View style={styles.cardFooter}>
-                  <Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
-                  <View style={styles.openButton}><ArrowUpRight color={colors.textSecondary} size={15} strokeWidth={1.8} /></View>
-                </View>
-              </View>
-            </Pressable>
-          );
-        })}
+        {cards}
       </ScrollView>
 
       {/* Dot Indicators */}
@@ -195,7 +193,6 @@ function ShopCarousel({
 }
 
 export const ExploreExperience = () => {
-  const { width } = useWindowDimensions();
   const router = useRouter();
   const { search: searchParam } = useLocalSearchParams<{ search?: string }>();
   const { profile, signOut } = useAuth();
@@ -315,6 +312,16 @@ export const ExploreExperience = () => {
     router.push({ pathname: '/(client)/barbershop', params: { barbershopId: id } });
   };
 
+  const hasActiveFilters = openOnly || selectedEstado !== 'Todos' || selectedPriceLevel !== null || minRating !== null;
+  const clearFilters = () => {
+    setOpenOnly(false);
+    setSelectedEstado('Todos');
+    setSelectedCidade('Todos');
+    setSelectedBairro('Todos');
+    setSelectedPriceLevel(null);
+    setMinRating(null);
+  };
+
   return (
     <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
@@ -387,7 +394,16 @@ export const ExploreExperience = () => {
 
             <View style={styles.searchMeta}>
               <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento encontrado' : 'estabelecimentos encontrados'}</Text>
+              {hasActiveFilters ? <Pressable testID="client-filters-clear-all" accessibilityRole="button" onPress={clearFilters}><Text style={styles.clearAll}>Limpar todos</Text></Pressable> : null}
             </View>
+            {hasActiveFilters ? (
+              <View testID="client-active-filters" style={styles.activeFilters}>
+                {openOnly ? <ClientFilterChip label="Aberto agora" active removable onPress={() => setOpenOnly(false)} /> : null}
+                {selectedEstado !== 'Todos' ? <ClientFilterChip label={locationLabel} active removable onPress={() => { setSelectedEstado('Todos'); setSelectedCidade('Todos'); setSelectedBairro('Todos'); }} /> : null}
+                {selectedPriceLevel !== null ? <ClientFilterChip label={`Preço: ${'$'.repeat(selectedPriceLevel)}`} active removable onPress={() => setSelectedPriceLevel(null)} /> : null}
+                {minRating !== null ? <ClientFilterChip label={`★ ${minRating.toFixed(1)}+`} active removable onPress={() => setMinRating(null)} /> : null}
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -410,7 +426,13 @@ export const ExploreExperience = () => {
             </View>
           </View>
         ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
-          <EmptyState testID="client-shops-empty" title={search ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'} description={search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Fique de olho, novos parceiros estarão disponíveis em breve!'} icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
+          <EmptyState
+            testID="client-shops-empty"
+            title={search || hasActiveFilters ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'}
+            description={hasActiveFilters ? 'Os filtros atuais não encontraram estabelecimentos. Remova um filtro ou limpe todos para ampliar a busca.' : search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Fique de olho, novos parceiros estarão disponíveis em breve!'}
+            icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />}
+            action={hasActiveFilters ? <AppButton testID="client-empty-clear-filters" label="Limpar filtros" onPress={clearFilters} variant="secondary" size="sm" /> : undefined}
+          />
         ) : (
           <ShopCarousel shops={filtered} onOpen={openShop} />
         )}
@@ -600,6 +622,8 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, minHeight: 50, color: colors.text, fontFamily: typography.body, fontSize: 14, outlineStyle: 'none' } as any,
   searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 10 },
   resultCount: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginLeft: 4 },
+  clearAll: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, textDecorationLine: 'underline' },
+  activeFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   filterChip: {
     alignItems: 'center',
     borderColor: colors.borderSubtle,
@@ -631,6 +655,8 @@ const styles = StyleSheet.create({
   carouselScroll: { overflow: 'hidden' } as any,
   carouselTrack: { flexDirection: 'row', gap: 16, paddingBottom: 4 },
   carouselSlide: { width: 320, flexShrink: 0 },
+  desktopGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  gridCard: { width: '31.8%', minWidth: 280, flexGrow: 1 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
   dotActive: { backgroundColor: colors.brandPrimary, width: 20 },

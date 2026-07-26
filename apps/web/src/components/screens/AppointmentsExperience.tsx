@@ -18,9 +18,10 @@ import { colors, radii, typography, atmosphericShadow } from '../../theme/tokens
 import { tapLight } from '../../utils/haptics';
 import {
   appointmentFeedbackMessages,
-  clientCancellationReasons,
+  clientCancellationReasonOptions,
+  getPublicCancellationReasonLabel,
   translateAppointmentError,
-  type ClientCancellationReason,
+  type ClientCancellationReasonCode,
 } from '@cutsync/domain';
 
 type AppointmentTab = 'upcoming' | 'history';
@@ -38,6 +39,8 @@ interface AppointmentDetail {
   shopSlug: string;
   rescheduleCount: number;
   cancellationReason?: string;
+  cancellationReasonCode?: string;
+  cancelledByRole?: string | null;
   minCancellationHours: number;
 }
 
@@ -61,7 +64,7 @@ export const AppointmentsExperience = () => {
   const syncError = activeQuery.error;
   const refresh = activeQuery.refresh;
   const [cancelId, setCancelId] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState<ClientCancellationReason | null>(null);
+  const [selectedReason, setSelectedReason] = useState<ClientCancellationReasonCode | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
   const [reviewsMap, setReviewsMap] = useState<Map<string, { rating: number; comment?: string }>>(new Map());
@@ -104,7 +107,7 @@ export const AppointmentsExperience = () => {
       setSelectedRating(5);
       setCommentText('');
       setNotice({ tone: 'success', message: 'Sua avaliação foi enviada com sucesso! Obrigado pelo feedback.' });
-    } catch (err) {
+    } catch {
       setNotice({ tone: 'danger', message: 'Não foi possível enviar sua avaliação no momento.' });
     } finally {
       setSubmittingReview(false);
@@ -119,6 +122,12 @@ export const AppointmentsExperience = () => {
     }
   }, [feedback]);
 
+  useEffect(() => {
+    if (!notice || notice.tone !== 'success') return;
+    const timeout = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [notice]);
+
   const appointments = useMemo<AppointmentDetail[]>(() => records.map((item) => ({
       id: item.id,
       dateTime: item.dateTime,
@@ -132,6 +141,8 @@ export const AppointmentsExperience = () => {
       shopSlug: item.establishment?.slug || '',
       rescheduleCount: item.rescheduleCount,
       cancellationReason: item.cancellationReason || '',
+      cancellationReasonCode: item.cancellationReasonCode || undefined,
+      cancelledByRole: item.cancelledByRole,
       minCancellationHours: item.establishment?.minCancellationHours ?? 24,
     })), [records]);
 
@@ -144,7 +155,30 @@ export const AppointmentsExperience = () => {
     return tab === 'upcoming' ? isUpcoming : !isUpcoming;
   }), [appointments, tab]);
 
-  const cancelAppointment = async (reason: ClientCancellationReason, item: AppointmentDetail) => {
+  const groupLabelFor = (date: Date) => {
+    const today = new Date(referenceTime);
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(date);
+    target.setHours(0, 0, 0, 0);
+    const days = Math.round((target.getTime() - today.getTime()) / 86400000);
+    if (days === 0) return 'Hoje';
+    if (days === 1) return 'Amanhã';
+    if (days > 1 && days <= 7) return 'Esta semana';
+    return tab === 'upcoming'
+      ? 'Mais adiante'
+      : target.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
+  const hasLateCancellation = tab === 'upcoming' && visible.some((item) => {
+    const hours = (item.dateTime.getTime() - referenceTime) / 3600000;
+    return hours >= 0 && hours < item.minCancellationHours;
+  });
+
+  const pendingReview = tab === 'history'
+    ? visible.find((item) => item.status === 'completed' && !reviewsMap.has(item.id))
+    : undefined;
+
+  const cancelAppointment = async (reason: ClientCancellationReasonCode, item: AppointmentDetail) => {
     const formattedDate = item.dateTime.toLocaleDateString('pt-BR');
     const formattedTime = item.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const message = `Você tem certeza que deseja cancelar o seu agendamento para o dia ${formattedDate} às ${formattedTime}?`;
@@ -152,10 +186,10 @@ export const AppointmentsExperience = () => {
     const proceedCancel = async () => {
       setActionLoading(true);
       try {
-        const { error } = await supabase.rpc('update_appointment_status', {
+        const { error } = await supabase.rpc('update_appointment_status_v2', {
           target_appointment_id: item.id,
           new_status: 'cancelled',
-          new_cancellation_reason: reason,
+          new_cancellation_reason_code: reason,
         });
         if (error) throw error;
         setCancelId(null);
@@ -237,6 +271,7 @@ export const AppointmentsExperience = () => {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SectionHeading testID="client-appointments-heading" eyebrow="Sua agenda" title="Meus agendamentos" description="Acompanhe confirmações, próximos horários e seu histórico em um só lugar." />
         {!!notice && <InlineNotice testID="client-appointments-notice" tone={notice.tone} message={notice.message} />}
+        {!!syncError && <InlineNotice testID="client-appointments-sync-error" tone="danger" title="Não foi possível atualizar sua agenda" message={syncError} />}
         <View style={styles.tabBox}>
           <SegmentedControl<AppointmentTab>
             testID="client-appointments-tabs"
@@ -245,6 +280,23 @@ export const AppointmentsExperience = () => {
             options={[{ value: 'upcoming', label: 'Próximos' }, { value: 'history', label: 'Histórico' }]}
           />
         </View>
+        {hasLateCancellation ? (
+          <InlineNotice
+            testID="client-appointments-cancellation-policy"
+            tone="info"
+            title="Alterações próximas do horário"
+            message="Quando o prazo do aplicativo estiver encerrado, combine cancelamento ou reagendamento diretamente com o estabelecimento."
+          />
+        ) : null}
+        {pendingReview ? (
+          <InlineNotice
+            testID="client-appointments-pending-review"
+            tone="success"
+            title="Como foi seu atendimento?"
+            message={`${pendingReview.shopName} aguarda sua avaliação.`}
+            action={<AppButton label="Avaliar agora" size="sm" variant="secondary" onPress={() => setReviewingAppointment(pendingReview)} />}
+          />
+        ) : null}
 
         {loading ? <ActivityIndicator testID="client-appointments-loading" color={colors.accent} style={styles.loader} /> : visible.length === 0 ? (
           <EmptyState testID="client-appointments-empty" title={tab === 'upcoming' ? 'Nenhum horário marcado' : 'Histórico vazio'} description={tab === 'upcoming' ? 'Explore os estabelecimentos e reserve seu próximo atendimento.' : 'Seus atendimentos concluídos aparecerão aqui.'} icon={<CalendarDays color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
@@ -258,9 +310,13 @@ export const AppointmentsExperience = () => {
               const timeDiff = item.dateTime.getTime() - referenceTime;
               const hoursDiff = timeDiff / (1000 * 60 * 60);
               const isLateCancellation = hoursDiff >= 0 && hoursDiff < item.minCancellationHours;
+              const groupLabel = groupLabelFor(item.dateTime);
+              const previousGroupLabel = index > 0 ? groupLabelFor(visible[index - 1].dateTime) : null;
 
               return (
-                <AppCard key={item.id} testID={`client-appointment-${item.id}`} style={[styles.card, tab === 'upcoming' && index === 0 && styles.nextCard]}>
+                <React.Fragment key={item.id}>
+                {groupLabel !== previousGroupLabel ? <Text style={styles.groupHeading}>{groupLabel}</Text> : null}
+                <AppCard testID={`client-appointment-${item.id}`} style={[styles.card, tab === 'upcoming' && index === 0 && styles.nextCard]}>
                   <View style={styles.dateBlock}>
                     <Text style={styles.month}>{item.dateTime.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</Text>
                     <Text style={styles.day}>{item.dateTime.getDate()}</Text>
@@ -278,9 +334,9 @@ export const AppointmentsExperience = () => {
                       </View>
                     ) : null}
 
-                    {item.status === 'cancelled' && !!item.cancellationReason ? (
+                    {item.status === 'cancelled' && (!!item.cancellationReasonCode || !!item.cancellationReason) ? (
                       <View style={styles.reasonDisplay}>
-                        <Text style={styles.reasonDisplayText}>Motivo: {item.cancellationReason}</Text>
+                        <Text style={styles.reasonDisplayText}>Motivo: {getPublicCancellationReasonLabel(item.cancellationReasonCode, item.cancellationReason, item.cancelledByRole)}</Text>
                       </View>
                     ) : null}
 
@@ -288,20 +344,20 @@ export const AppointmentsExperience = () => {
                       <View style={styles.cancelReasonContainer}>
                         <Text style={styles.reasonTitle}>Qual o motivo do cancelamento?</Text>
                         <View style={styles.reasonsGrid}>
-                          {clientCancellationReasons.map((reason) => (
+                          {clientCancellationReasonOptions.map((reason) => (
                             <Pressable 
-                              key={reason}
-                              onPress={() => { tapLight(); setSelectedReason(reason); }}
+                              key={reason.code}
+                              onPress={() => { tapLight(); setSelectedReason(reason.code); }}
                               style={({ pressed }) => [
                                 styles.reasonChip,
-                                selectedReason === reason && styles.reasonChipActive,
+                                selectedReason === reason.code && styles.reasonChipActive,
                                 pressed && styles.pressedScale,
                               ]}
                             >
                               <Text style={[
                                 styles.reasonChipText,
-                                selectedReason === reason && styles.reasonChipActiveText
-                              ]}>{reason}</Text>
+                                selectedReason === reason.code && styles.reasonChipActiveText
+                              ]}>{reason.label}</Text>
                             </Pressable>
                           ))}
                         </View>
@@ -327,9 +383,6 @@ export const AppointmentsExperience = () => {
                     ) : cancellable ? (
                       isLateCancellation ? (
                         <View style={styles.lateNoticeContainer}>
-                          <Text style={styles.lateNoticeText}>
-                            Cancelamentos e reagendamentos com menos de {item.minCancellationHours}h de antecedência devem ser combinados diretamente com o estabelecimento.
-                          </Text>
                           <View style={styles.lateButtonsRow}>
                             <AppButton
                               label="Cancelar"
@@ -355,8 +408,8 @@ export const AppointmentsExperience = () => {
                             label="Reagendar" 
                             testID={`client-appointment-${item.id}-reschedule-button`} 
                             onPress={() => handleReschedule(item)} 
-                            variant="secondary" 
-                            icon={<RefreshCw color={colors.textSecondary} size={13} strokeWidth={1.8} />}
+                            variant="primary"
+                            icon={<RefreshCw color={colors.ink} size={13} strokeWidth={1.8} />}
                             style={styles.actionBtn}
                           />
                           <AppButton 
@@ -393,6 +446,7 @@ export const AppointmentsExperience = () => {
                     ) : null}
                   </View>
                 </AppCard>
+                </React.Fragment>
               );
             })}
           </View>
@@ -458,6 +512,7 @@ const styles = StyleSheet.create({
   tabBox: { width: '100%', maxWidth: 300, marginTop: 28, marginBottom: 18 },
   loader: { margin: 50 },
   list: { gap: 12 },
+  groupHeading: { color: colors.text, fontFamily: typography.display, fontSize: 16, marginTop: 14 },
   card: { flexDirection: 'row', gap: 18 },
   nextCard: { borderColor: colors.brandSecondary, borderWidth: 1.5, backgroundColor: colors.surface },
   dateBlock: { width: 58, alignItems: 'flex-start', paddingTop: 2 },

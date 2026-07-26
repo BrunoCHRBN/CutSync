@@ -5,6 +5,7 @@ export const colors = {
   brandPrimaryPressed: '#203327',
   brandSecondary: '#DAD2B6',
   brandSecondarySoft: '#F0ECE0',
+  background: '#F5F5F2',
   canvas: '#F5F5F2',
   canvasSubtle: '#EFEEE9',
   canvasSoft: '#F8F8F5',
@@ -70,6 +71,7 @@ export const typeScale = {
   body: { fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
   bodyStrong: { fontFamily: typography.bodyStrong, fontSize: 14, lineHeight: 21 },
   small: { fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
+  smallStrong: { fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 17 },
   label: { fontFamily: typography.bodyStrong, fontSize: 11, lineHeight: 14, letterSpacing: 0.3 },
   metric: { fontFamily: typography.display, fontSize: 30, lineHeight: 34, letterSpacing: -1, fontVariant: ['tabular-nums'] as const },
 };
@@ -117,6 +119,7 @@ export const layout = {
   formMax: 760,
   mobileBreakpoint: 760,
   desktopBreakpoint: 1040,
+  touchTarget: 48,
 };
 
 export const motion = {
@@ -124,3 +127,8 @@ export const motion = {
   standard: 160,
   slow: 180,
 };
+
+export const focusRing = Platform.select({
+  web: { outlineStyle: 'solid', outlineWidth: 2, outlineColor: colors.brandPrimary, outlineOffset: 2 } as any,
+  default: {},
+});

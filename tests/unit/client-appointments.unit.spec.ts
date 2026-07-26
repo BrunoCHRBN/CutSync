@@ -6,8 +6,10 @@ import { expect, test } from '@playwright/test';
 
 import {
   clientCancellationReasons,
+  clientCancellationReasonOptions,
   formatClientAppointmentDateTime,
   getClientAppointmentBlockMessage,
+  getPublicCancellationReasonLabel,
   partitionClientAppointments,
 } from '../../packages/domain/src/client-appointments';
 
@@ -38,6 +40,10 @@ test('formata o atendimento no fuso do estabelecimento', () => {
 test('mantém motivos fechados e mensagens das políticas', () => {
   expect(clientCancellationReasons).toHaveLength(5);
   expect(clientCancellationReasons).toContain('Vou reagendar');
+  expect(clientCancellationReasonOptions).toContainEqual({ code: 'client_reschedule', label: 'Vou reagendar' });
+  expect(getPublicCancellationReasonLabel('client_health')).toBe('Questões de saúde');
+  expect(getPublicCancellationReasonLabel(null, 'QA cleanup', 'admin')).toBe('Cancelado pelo estabelecimento');
+  expect(getPublicCancellationReasonLabel(null, 'texto interno', 'professional')).toBe('Cancelado pelo profissional');
   expect(getClientAppointmentBlockMessage('cancellation_window_closed', 24)).toContain('24h');
   expect(getClientAppointmentBlockMessage('reschedule_limit_reached', 24)).toContain('dois');
 });
@@ -87,6 +93,7 @@ test('expõe cancelamento fechado e ações orientadas pelas permissões do back
   const cancel = readSource('apps/client/src/screens/client-appointment-cancel.tsx');
   const service = readSource('apps/client/src/features/appointments/client-appointments-service.ts');
   const webAppointments = readSource('apps/web/src/components/screens/AppointmentsExperience.tsx');
+  const webHook = readSource('apps/web/src/hooks/useAppointments.ts');
 
   expect(appLayout).toContain('name="appointments/[id]/cancel"');
   expect(cancel).toContain('clientCancellationReasons.map');
@@ -98,7 +105,34 @@ test('expõe cancelamento fechado e ações orientadas pelas permissões do back
   expect(service).toContain("rpc('update_appointment_status'");
   expect(service).not.toContain("from('appointments')");
   expect(webAppointments).toContain('item.minCancellationHours');
-  expect(webAppointments).toContain('clientCancellationReasons.map');
+  expect(webAppointments).toContain('clientCancellationReasonOptions.map');
+  expect(webAppointments).toContain("rpc('update_appointment_status_v2'");
+  expect(webHook).toContain("'get_client_appointments_v2'");
+  expect(webHook).toContain('Compatibilidade de uma versão');
+  expect(webHook).not.toContain('cancellation_note_internal');
+  expect(webAppointments).toContain('client-appointments-cancellation-policy');
+  expect(webAppointments).toContain('groupLabelFor');
+  expect(webAppointments).toContain('client-appointments-pending-review');
+});
+
+test('separa o motivo público da nota interna na migração aditiva', () => {
+  const migration = readSource('supabase/migrations/20260728000000_safe_cancellation_contract.sql');
+  expect(migration).toContain('cancellation_reason_code');
+  expect(migration).toContain('cancellation_note_internal');
+  expect(migration).toContain('update_appointment_status_v2');
+  expect(migration).toContain('get_client_appointments_v2');
+  expect(migration).not.toMatch(/get_client_appointments_v2[\s\S]*cancellation_note_internal[\s\S]*RETURNS TABLE/);
+  expect(migration).toContain("RAISE EXCEPTION 'forbidden'");
+  expect(migration).not.toContain('GRANT SELECT (cancellation_note_internal)');
+});
+
+test('admin e profissional registram nota interna pelo contrato v2', () => {
+  const admin = readSource('apps/web/src/components/screens/AdminDashboardExperience.tsx');
+  const professional = readSource('apps/web/src/components/screens/BarberDashboardExperience.tsx');
+  for (const source of [admin, professional]) {
+    expect(source).toContain("rpc('update_appointment_status_v2'");
+    expect(source).toContain('new_cancellation_note_internal');
+  }
 });
 
 test('preserva a sessão em recargas Web e desambigua as rotas fora das abas', () => {

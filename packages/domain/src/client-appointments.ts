@@ -1,3 +1,30 @@
+export const cancellationReasonLabels = {
+  client_work_conflict: 'Imprevisto de trabalho',
+  client_health: 'Questões de saúde',
+  client_transport: 'Problema de transporte',
+  client_reschedule: 'Vou reagendar',
+  client_other: 'Outro',
+  establishment_cancelled: 'Cancelado pelo estabelecimento',
+  professional_cancelled: 'Cancelado pelo profissional',
+} as const;
+
+export type CancellationReasonCode = keyof typeof cancellationReasonLabels;
+
+export const clientCancellationReasonCodes = [
+  'client_work_conflict',
+  'client_health',
+  'client_transport',
+  'client_reschedule',
+  'client_other',
+] as const satisfies readonly CancellationReasonCode[];
+
+export type ClientCancellationReasonCode = (typeof clientCancellationReasonCodes)[number];
+
+export const clientCancellationReasonOptions = clientCancellationReasonCodes.map((code) => ({
+  code,
+  label: cancellationReasonLabels[code],
+}));
+
 export const clientCancellationReasons = [
   'Imprevisto de trabalho',
   'Questões de saúde',
@@ -7,6 +34,31 @@ export const clientCancellationReasons = [
 ] as const;
 
 export type ClientCancellationReason = (typeof clientCancellationReasons)[number];
+
+const legacyCancellationReasonCodes: Record<string, CancellationReasonCode> = {
+  'Imprevisto de trabalho': 'client_work_conflict',
+  'Questões de saúde': 'client_health',
+  'Problema de transporte': 'client_transport',
+  'Vou reagendar': 'client_reschedule',
+  Outro: 'client_other',
+};
+
+export const getPublicCancellationReasonCode = (
+  code?: string | null,
+  legacyReason?: string | null,
+  cancelledByRole?: string | null,
+): CancellationReasonCode => {
+  if (code && code in cancellationReasonLabels) return code as CancellationReasonCode;
+  if (legacyReason && legacyCancellationReasonCodes[legacyReason]) return legacyCancellationReasonCodes[legacyReason];
+  if (cancelledByRole === 'professional') return 'professional_cancelled';
+  return 'establishment_cancelled';
+};
+
+export const getPublicCancellationReasonLabel = (
+  code?: string | null,
+  legacyReason?: string | null,
+  cancelledByRole?: string | null,
+) => cancellationReasonLabels[getPublicCancellationReasonCode(code, legacyReason, cancelledByRole)];
 export type ClientAppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 export type ClientAppointmentBlockReason =
   | 'appointment_status_immutable'
