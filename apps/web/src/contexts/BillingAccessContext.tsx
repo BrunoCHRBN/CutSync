@@ -14,6 +14,13 @@ export interface BusinessAccessContext {
   current_period_ends_at: string | null;
   cancel_at_period_end: boolean;
   entitlements: string[];
+  billing_scope: 'establishment' | 'organization';
+  billing_account_id: string;
+  subscription_id: string | null;
+  organization_id: string | null;
+  covered_establishment_ids: string[];
+  payer_role: 'owner' | 'finance' | 'billing_owner' | null;
+  pending_change_at: string | null;
 }
 
 interface BillingAccessValue {

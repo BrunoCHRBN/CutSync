@@ -9,6 +9,45 @@ export interface MyOrganization {
   establishmentCount: number;
 }
 
+export interface OrganizationBillingContext {
+  organization_id: string;
+  billing_account_id: string;
+  billing_owner_profile_id: string | null;
+  viewer_role: OrganizationRole | null;
+  subscription: {
+    id: string;
+    status: string;
+    enforcement_enabled: boolean;
+    current_period_start: string;
+    current_period_end: string;
+    grace_ends_at: string | null;
+    cancel_at_period_end: boolean;
+    provider: 'stripe' | 'google_play' | 'internal';
+    has_external_customer: boolean;
+    plan_code: string;
+    plan_name: string;
+  } | null;
+  tiers: {
+    unit_from: number;
+    unit_to: number | null;
+    unit_price_cents: number;
+  }[];
+  establishments: {
+    establishment_id: string;
+    name: string;
+    coverage_scope: 'establishment' | 'organization' | null;
+    coverage_status: 'active' | 'scheduled' | 'ended' | null;
+    effective_from: string | null;
+    effective_until: string | null;
+  }[];
+  cutover: {
+    id: string;
+    status: 'scheduled' | 'reconciling';
+    cutover_at: string;
+    establishment_ids: string[];
+  } | null;
+}
+
 const rpc = async (name: string, args?: Record<string, unknown>): Promise<{
   data: unknown;
   error: { message: string } | null;
@@ -45,6 +84,19 @@ export const organizationService = {
       target_organization_id: organizationId,
       range_start: rangeStart,
       range_end: rangeEnd,
+    }));
+  },
+
+  async getBillingContext(organizationId: string): Promise<OrganizationBillingContext> {
+    return assertRpc<OrganizationBillingContext>(await rpc('get_organization_billing_context', {
+      target_organization_id: organizationId,
+    }));
+  },
+
+  async scheduleBillingCutover(organizationId: string, establishmentIds: string[]): Promise<string> {
+    return assertRpc<string>(await rpc('schedule_organization_billing_cutover', {
+      target_organization_id: organizationId,
+      target_establishment_ids: establishmentIds,
     }));
   },
 

@@ -43,7 +43,7 @@ export const createServiceClient = () =>
 
 export const createStripe = () =>
   new Stripe(getRequiredEnv("STRIPE_SECRET_KEY"), {
-    apiVersion: "2025-06-30.basil",
+    apiVersion: "2025-08-27.basil",
     httpClient: Stripe.createFetchHttpClient(),
   });
 
@@ -83,6 +83,120 @@ export const requireBillingOwner = async (
     .single();
   if (error || !data) throw new Error("billing_owner_required");
   return { user, account: data };
+};
+
+export type EffectiveBillingOwner = {
+  user: Awaited<ReturnType<typeof requireUser>>;
+  billingScope: "establishment" | "organization";
+  account: {
+    id: string;
+    billing_email: string | null;
+    billing_owner_profile_id: string | null;
+    establishment_id?: string;
+    organization_id?: string;
+  };
+  subscriptionId: string | null;
+  coveredEstablishmentIds: string[];
+  cutoverAt: string | null;
+};
+
+export const requireEffectiveBillingOwner = async (
+  request: Request,
+  client: ServiceClient,
+  establishmentId: string,
+): Promise<EffectiveBillingOwner> => {
+  const user = await requireUser(request, client);
+  const { data, error } = await client.rpc("resolve_business_billing_context", {
+    target_establishment_id: establishmentId,
+  });
+  const rawContext = Array.isArray(data) ? data[0] : data;
+  const context = rawContext as Record<string, unknown> | null;
+  if (
+    error ||
+    !context ||
+    context.billing_owner_profile_id !== user.id ||
+    !["establishment", "organization"].includes(String(context.billing_scope))
+  ) {
+    throw new Error("billing_owner_required");
+  }
+
+  const billingScope = context.billing_scope as "establishment" | "organization";
+  const table = billingScope === "organization"
+    ? "organization_billing_accounts"
+    : "billing_accounts";
+  const columns = billingScope === "organization"
+    ? "id, organization_id, billing_owner_profile_id, billing_email"
+    : "id, establishment_id, billing_owner_profile_id, billing_email";
+  const { data: account, error: accountError } = await client
+    .from(table)
+    .select(columns)
+    .eq("id", String(context.billing_account_id))
+    .single();
+  if (accountError || !account) throw new Error("billing_owner_required");
+
+  return {
+    user,
+    billingScope,
+    account: account as EffectiveBillingOwner["account"],
+    subscriptionId: context.subscription_id ? String(context.subscription_id) : null,
+    coveredEstablishmentIds: Array.isArray(context.covered_establishment_ids)
+      ? context.covered_establishment_ids.map(String)
+      : [establishmentId],
+    cutoverAt: context.pending_change_at ? String(context.pending_change_at) : null,
+  };
+};
+
+export const requireOrganizationBillingOwner = async (
+  request: Request,
+  client: ServiceClient,
+  organizationId: string,
+): Promise<EffectiveBillingOwner> => {
+  const user = await requireUser(request, client);
+  const { data: account, error: accountError } = await client
+    .from("organization_billing_accounts")
+    .select("id, organization_id, billing_owner_profile_id, billing_email")
+    .eq("organization_id", organizationId)
+    .eq("billing_owner_profile_id", user.id)
+    .single();
+  if (accountError || !account) throw new Error("billing_owner_required");
+  const { data: subscription, error: subscriptionError } = await client
+    .from("organization_subscriptions")
+    .select("id")
+    .eq("billing_account_id", account.id)
+    .neq("status", "canceled")
+    .maybeSingle();
+  if (subscriptionError || !subscription) {
+    throw new Error("organization_subscription_required");
+  }
+  const { data: cutover, error: cutoverError } = await client
+    .from("billing_cutover_requests")
+    .select("establishment_ids, cutover_at")
+    .eq("organization_subscription_id", subscription.id)
+    .in("status", ["scheduled", "reconciling"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (cutoverError) throw cutoverError;
+  let coveredEstablishmentIds = cutover?.establishment_ids?.map(String) ?? [];
+  if (!coveredEstablishmentIds.length) {
+    const { data: coverage, error: coverageError } = await client
+      .from("billing_coverage_assignments")
+      .select("establishment_id")
+      .eq("organization_subscription_id", subscription.id)
+      .eq("status", "active");
+    if (coverageError) throw coverageError;
+    coveredEstablishmentIds = (coverage ?? []).map((item) => String(item.establishment_id));
+  }
+  if (!coveredEstablishmentIds.length) throw new Error("organization_cutover_required");
+
+  return {
+    user,
+    billingScope: "organization",
+    account: account as EffectiveBillingOwner["account"],
+    subscriptionId: subscription.id,
+    coveredEstablishmentIds,
+    cutoverAt: cutover?.cutover_at ? String(cutover.cutover_at) : null,
+  };
 };
 
 export const safeEquals = (left: string, right: string) => {

@@ -7,14 +7,33 @@ import {
 } from "../_shared/billing.ts";
 
 type StripeObject = Record<string, any>;
+type BillingTarget = {
+  scope: "establishment" | "organization";
+  accountId: string;
+  organizationSubscriptionId?: string;
+};
 
 const accountForObject = async (client: ReturnType<typeof createServiceClient>, object: StripeObject) => {
+  const subscriptionMetadata = object.subscription_details?.metadata
+    ?? object.parent?.subscription_details?.metadata;
   const metadataAccount = object.metadata?.billing_account_id
-    ?? object.subscription_details?.metadata?.billing_account_id;
-  if (metadataAccount) return String(metadataAccount);
+    ?? subscriptionMetadata?.billing_account_id;
+  const metadataScope = object.metadata?.billing_scope
+    ?? subscriptionMetadata?.billing_scope;
+  const metadataOrganizationSubscription = object.metadata?.organization_subscription_id
+    ?? subscriptionMetadata?.organization_subscription_id;
+  if (metadataAccount && ["establishment", "organization"].includes(metadataScope)) {
+    return {
+      scope: metadataScope,
+      accountId: String(metadataAccount),
+      organizationSubscriptionId: metadataOrganizationSubscription
+        ? String(metadataOrganizationSubscription)
+        : undefined,
+    } as BillingTarget;
+  }
   const customerId = typeof object.customer === "string" ? object.customer : object.customer?.id;
   if (!customerId) return null;
-  const { data } = await client
+  const { data: individual } = await client
     .from("billing_subscriptions")
     .select("billing_account_id")
     .eq("provider", "stripe")
@@ -22,7 +41,27 @@ const accountForObject = async (client: ReturnType<typeof createServiceClient>, 
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data?.billing_account_id ?? null;
+  if (individual?.billing_account_id) {
+    return {
+      scope: "establishment",
+      accountId: individual.billing_account_id,
+    } as BillingTarget;
+  }
+  const { data: organization } = await client
+    .from("organization_subscriptions")
+    .select("id, billing_account_id")
+    .eq("provider", "stripe")
+    .eq("external_customer_id", customerId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return organization?.billing_account_id
+    ? {
+        scope: "organization",
+        accountId: organization.billing_account_id,
+        organizationSubscriptionId: organization.id,
+      } as BillingTarget
+    : null;
 };
 
 const subscriptionId = (object: StripeObject) => {
@@ -37,6 +76,307 @@ const mapSubscriptionStatus = (status: string, cancelAtPeriodEnd: boolean) => {
   if (status === "canceled" && cancelAtPeriodEnd) return "cancelled";
   if (status === "canceled" || status === "incomplete_expired") return "expired";
   return "checkout_pending";
+};
+
+const toDate = (unixSeconds: number | null | undefined) =>
+  unixSeconds ? new Date(unixSeconds * 1000).toISOString().slice(0, 10) : null;
+
+const mapOrganizationSubscriptionStatus = (
+  status: string,
+  currentPeriodEnd: number | null | undefined,
+) => {
+  if (status === "past_due" || status === "unpaid") return "past_due";
+  if (status === "canceled" || status === "incomplete_expired") {
+    return currentPeriodEnd && currentPeriodEnd * 1000 > Date.now()
+      ? "canceled"
+      : "expired";
+  }
+  if (status === "active") return "active";
+  return "checkout_pending";
+};
+
+const upsertOrganizationSubscription = async (
+  client: ReturnType<typeof createServiceClient>,
+  target: BillingTarget,
+  object: StripeObject,
+  eventCreatedAt: string,
+  allowActivation = false,
+) => {
+  const externalId = subscriptionId(object);
+  if (!externalId) return target.organizationSubscriptionId ?? null;
+  let query = client
+    .from("organization_subscriptions")
+    .select("id, provider, status, provider_event_created_at, grace_ends_at")
+    .eq("billing_account_id", target.accountId);
+  query = target.organizationSubscriptionId
+    ? query.eq("id", target.organizationSubscriptionId)
+    : query.eq("provider", "stripe").eq("external_subscription_id", externalId);
+  const { data: current, error: currentError } = await query.maybeSingle();
+  if (currentError) throw currentError;
+  if (!current) throw new Error("organization_subscription_not_resolved");
+  if (
+    current.provider_event_created_at &&
+    new Date(current.provider_event_created_at) > new Date(eventCreatedAt)
+  ) {
+    if (allowActivation && ["checkout_pending", "past_due"].includes(current.status)) {
+      const { error } = await client.from("organization_subscriptions").update({
+        status: "active",
+        grace_ends_at: null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", current.id);
+      if (error) throw error;
+    }
+    return current.id as string;
+  }
+
+  let mappedStatus = mapOrganizationSubscriptionStatus(
+    object.status,
+    object.current_period_end,
+  );
+  if (
+    mappedStatus === "active" &&
+    !allowActivation &&
+    (
+      current.provider !== "stripe" ||
+      !["active", "canceled"].includes(current.status)
+    )
+  ) {
+    mappedStatus = "checkout_pending";
+  }
+  const { error } = await client.from("organization_subscriptions").update({
+    provider: "stripe",
+    external_customer_id: typeof object.customer === "string"
+      ? object.customer
+      : object.customer?.id,
+    external_subscription_id: externalId,
+    status: mappedStatus,
+    provider_event_created_at: eventCreatedAt,
+    current_period_start: toDate(object.current_period_start) ?? undefined,
+    current_period_end: toDate(object.current_period_end) ?? undefined,
+    cancel_at_period_end: Boolean(object.cancel_at_period_end),
+    grace_ends_at: mappedStatus === "active" ? null : undefined,
+    canceled_at: toIso(object.canceled_at),
+    updated_at: new Date().toISOString(),
+  }).eq("id", current.id);
+  if (error) throw error;
+  return current.id as string;
+};
+
+const upsertOrganizationInvoice = async (
+  client: ReturnType<typeof createServiceClient>,
+  subscriptionRecordId: string,
+  object: StripeObject,
+  eventCreatedAt: string,
+) => {
+  const { data: current, error: currentError } = await client
+    .from("organization_billing_invoices")
+    .select("id, provider_event_created_at")
+    .eq("provider", "stripe")
+    .eq("external_invoice_id", object.id)
+    .maybeSingle();
+  if (currentError) throw currentError;
+  if (
+    current?.provider_event_created_at &&
+    new Date(current.provider_event_created_at) > new Date(eventCreatedAt)
+  ) return current.id as string;
+
+  const subtotal = object.subtotal ?? 0;
+  const total = object.total ?? 0;
+  const { data: coverage, error: coverageError } = await client
+    .from("billing_coverage_assignments")
+    .select("establishment_id, status")
+    .eq("organization_subscription_id", subscriptionRecordId)
+    .in("status", ["active", "scheduled"]);
+  if (coverageError) throw coverageError;
+  const uniqueEstablishments = [
+    ...new Set((coverage ?? []).map((item) => String(item.establishment_id))),
+  ];
+  const { data: subscriptionPlan, error: planError } = await client
+    .from("organization_subscriptions")
+    .select("plan_id, organization_billing_plans(code, name, base_price_cents)")
+    .eq("id", subscriptionRecordId)
+    .single();
+  if (planError) throw planError;
+  const values = {
+    subscription_id: subscriptionRecordId,
+    period_start: toDate(object.period_start) ?? new Date().toISOString().slice(0, 10),
+    period_end: toDate(object.period_end) ?? new Date().toISOString().slice(0, 10),
+    due_date: toDate(object.due_date ?? object.period_end)
+      ?? new Date().toISOString().slice(0, 10),
+    status: "paid",
+    currency: String(object.currency ?? "brl").toUpperCase(),
+    subtotal_cents: subtotal,
+    discount_cents: Math.max(0, subtotal - total),
+    total_cents: total,
+    paid_cents: object.amount_paid ?? total,
+    refunded_cents: 0,
+    unit_snapshot: uniqueEstablishments.map((establishmentId, index) => ({
+      establishment_id: establishmentId,
+      position: index + 1,
+    })),
+    plan_snapshot: {
+      provider: "stripe",
+      plan_id: subscriptionPlan.plan_id,
+      plan: subscriptionPlan.organization_billing_plans,
+      stripe_line_count: object.lines?.data?.length ?? 0,
+    },
+    provider: "stripe",
+    external_invoice_id: object.id,
+    number: object.number,
+    paid_at: toIso(object.status_transitions?.paid_at) ?? eventCreatedAt,
+    hosted_invoice_url: object.hosted_invoice_url,
+    invoice_pdf_url: object.invoice_pdf,
+    provider_event_created_at: eventCreatedAt,
+  };
+  if (current) {
+    const { error } = await client
+      .from("organization_billing_invoices")
+      .update({ ...values, updated_at: new Date().toISOString() })
+      .eq("id", current.id);
+    if (error) throw error;
+    return current.id as string;
+  }
+  const { data: inserted, error } = await client
+    .from("organization_billing_invoices")
+    .insert(values)
+    .select("id")
+    .single();
+  if (error) throw error;
+  return inserted.id as string;
+};
+
+const ensureOrganizationFiscalDocument = async (
+  client: ReturnType<typeof createServiceClient>,
+  invoiceId: string,
+) => {
+  const { data, error } = await client
+    .from("fiscal_documents")
+    .select("id")
+    .eq("organization_billing_invoice_id", invoiceId)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) return;
+  const { error: insertError } = await client.from("fiscal_documents").insert({
+    organization_billing_invoice_id: invoiceId,
+    billing_invoice_id: null,
+    external_reference: String(invoiceId).replaceAll("-", ""),
+    status: "pending",
+  });
+  if (insertError && insertError.code !== "23505") throw insertError;
+};
+
+const processOrganizationEvent = async (
+  client: ReturnType<typeof createServiceClient>,
+  target: BillingTarget,
+  event: StripeObject,
+  object: StripeObject,
+  providerCreatedAt: string,
+) => {
+  if (event.type === "invoice.paid") {
+    const recordId = await upsertOrganizationSubscription(
+      client,
+      target,
+      {
+        ...object,
+        object: "subscription",
+        id: subscriptionId(object),
+        status: "active",
+        current_period_start: object.period_start,
+        current_period_end: object.period_end,
+      },
+      providerCreatedAt,
+      true,
+    );
+    if (!recordId) throw new Error("organization_subscription_not_resolved");
+    const invoiceId = await upsertOrganizationInvoice(
+      client,
+      recordId,
+      object,
+      providerCreatedAt,
+    );
+    await ensureOrganizationFiscalDocument(client, invoiceId);
+    return;
+  }
+
+  if (event.type === "invoice.payment_failed") {
+    const externalId = subscriptionId(object);
+    if (!externalId) throw new Error("subscription_not_resolved");
+    let query = client
+      .from("organization_subscriptions")
+      .select("id, grace_ends_at, provider_event_created_at")
+      .eq("billing_account_id", target.accountId);
+    query = target.organizationSubscriptionId
+      ? query.eq("id", target.organizationSubscriptionId)
+      : query.eq("provider", "stripe").eq("external_subscription_id", externalId);
+    const { data: current, error } = await query.maybeSingle();
+    if (error || !current) throw error ?? new Error("organization_subscription_not_resolved");
+    if (
+      current.provider_event_created_at &&
+      new Date(current.provider_event_created_at) > new Date(providerCreatedAt)
+    ) return;
+    const failedAt = new Date(providerCreatedAt);
+    const { error: updateError } = await client
+      .from("organization_subscriptions")
+      .update({
+        status: "past_due",
+        grace_ends_at: current.grace_ends_at
+          ?? new Date(failedAt.getTime() + 7 * 86_400_000).toISOString(),
+        provider_event_created_at: providerCreatedAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", current.id);
+    if (updateError) throw updateError;
+    return;
+  }
+
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    await upsertOrganizationSubscription(client, target, object, providerCreatedAt);
+    return;
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    await upsertOrganizationSubscription(client, target, object, providerCreatedAt);
+    return;
+  }
+
+  if (event.type === "charge.refunded") {
+    const externalInvoiceId = typeof object.invoice === "string"
+      ? object.invoice
+      : object.invoice?.id;
+    if (!externalInvoiceId) return;
+    const { data: invoice, error } = await client
+      .from("organization_billing_invoices")
+      .select("id, paid_cents")
+      .eq("provider", "stripe")
+      .eq("external_invoice_id", externalInvoiceId)
+      .maybeSingle();
+    if (error || !invoice) {
+      if (error) throw error;
+      return;
+    }
+    const refunded = object.amount_refunded ?? 0;
+    const full = refunded >= invoice.paid_cents;
+    const { error: invoiceError } = await client
+      .from("organization_billing_invoices")
+      .update({
+        refunded_cents: refunded,
+        status: full ? "refunded" : "partially_refunded",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", invoice.id);
+    if (invoiceError) throw invoiceError;
+    await client.from("fiscal_documents").update(full
+      ? { status: "cancellation_requested", updated_at: new Date().toISOString() }
+      : {
+          status: "manual_review",
+          manual_review_reason: "partial_refund",
+          updated_at: new Date().toISOString(),
+        })
+      .eq("organization_billing_invoice_id", invoice.id);
+  }
 };
 
 const upsertSubscription = async (
@@ -139,8 +479,19 @@ const processEvent = async (
   if (!supportedEvents.has(event.type)) return;
   const object = event.data?.object as StripeObject;
   if (!object) throw new Error("invalid_event_payload");
-  const accountId = await accountForObject(client, object);
-  if (!accountId) throw new Error("billing_account_not_resolved");
+  const target = await accountForObject(client, object);
+  if (!target) throw new Error("billing_account_not_resolved");
+  if (target.scope === "organization") {
+    await processOrganizationEvent(
+      client,
+      target,
+      event,
+      object,
+      providerCreatedAt,
+    );
+    return;
+  }
+  const accountId = target.accountId;
 
   if (event.type === "invoice.paid") {
     const subscription = await upsertSubscription(

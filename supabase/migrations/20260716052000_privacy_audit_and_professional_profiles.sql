@@ -234,8 +234,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_appointment_participant_names(target_appointment_ids uuid[])
-RETURNS TABLE (appointment_id uuid, client_name text, professional_name text)
+CREATE OR REPLACE FUNCTION public.get_appointment_participant_names(target_appointment_ids text[])
+RETURNS TABLE (appointment_id text, client_name text, professional_name text)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
@@ -247,7 +247,7 @@ AS $$
   FROM public.appointments appointment
   LEFT JOIN public.profiles client_profile ON client_profile.id = appointment.client_id
   JOIN public.profiles professional_profile ON professional_profile.id = appointment.professional_id
-  WHERE appointment.id = ANY(COALESCE(target_appointment_ids, ARRAY[]::uuid[]))
+  WHERE appointment.id = ANY(COALESCE(target_appointment_ids, ARRAY[]::text[]))
     AND (
       public.is_superadmin()
       OR appointment.client_id = (SELECT auth.uid())
@@ -458,7 +458,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.can_view_private_profile(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_establishment_client_contacts(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_appointment_participant_names(uuid[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_appointment_participant_names(text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_public_team(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_public_professional_profile(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_my_professional_profile() FROM PUBLIC;
@@ -473,7 +473,7 @@ REVOKE ALL ON FUNCTION public.link_professional_profile_to_membership() FROM PUB
 
 GRANT EXECUTE ON FUNCTION public.can_view_private_profile(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_establishment_client_contacts(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_appointment_participant_names(uuid[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_appointment_participant_names(text[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_team(uuid) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_professional_profile(text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_my_professional_profile() TO authenticated;

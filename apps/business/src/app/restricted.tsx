@@ -12,7 +12,11 @@ export default function RestrictedRoute() {
       <Text style={styles.eyebrow}>MODO LEITURA</Text>
       <Text style={styles.title}>A operação está temporariamente restrita.</Text>
       <Text style={styles.body}>Os agendamentos existentes continuam preservados. Nenhuma nova reserva ou alteração operacional pode ser feita agora.</Text>
-      <Text style={styles.note}>{access?.billing_owner ? 'Administre a assinatura pela versão web do CutSync.' : 'O responsável financeiro do estabelecimento precisa verificar a conta.'}</Text>
+      <Text style={styles.note}>{access?.billing_owner
+        ? access.billing_scope === 'organization'
+          ? 'A assinatura consolidada deve ser administrada pela versão web do CutSync.'
+          : 'Administre a assinatura pela versão web do CutSync.'
+        : 'O responsável financeiro do estabelecimento precisa verificar a conta.'}</Text>
       {connectionError ? <Text style={styles.error}>Sem conexão para confirmar uma atualização.</Text> : null}
       <Pressable style={styles.button} disabled={checking} onPress={() => void verifyAgain()}><Text style={styles.buttonText}>{checking ? 'Verificando…' : 'Verificar novamente'}</Text></Pressable>
       <Pressable onPress={() => void signOut()}><Text style={styles.exit}>Sair</Text></Pressable>

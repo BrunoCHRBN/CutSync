@@ -12,6 +12,13 @@ export interface BusinessAccess {
   trial_ends_at: string | null;
   grace_ends_at: string | null;
   current_period_ends_at: string | null;
+  billing_scope: 'establishment' | 'organization';
+  billing_account_id: string;
+  subscription_id: string | null;
+  organization_id: string | null;
+  covered_establishment_ids: string[];
+  payer_role: 'owner' | 'finance' | 'billing_owner' | null;
+  pending_change_at: string | null;
 }
 
 interface Value {

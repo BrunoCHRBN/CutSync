@@ -8,7 +8,7 @@ import { AppButton } from '../ui/AppButton';
 
 export function RestrictedBusinessExperience() {
   const router = useRouter();
-  const { profile, signOut } = useAuth();
+  const { signOut } = useAuth();
   const { access, connectionError, loading, refresh } = useBillingAccess();
   return (
     <View style={styles.screen}>
@@ -17,10 +17,17 @@ export function RestrictedBusinessExperience() {
         <Text style={styles.eyebrow}>OPERAÇÃO EM MODO LEITURA</Text>
         <Text style={styles.title}>Os dados continuam preservados.</Text>
         <Text style={styles.body}>Novas reservas e alterações administrativas estão indisponíveis. Compromissos existentes permanecem e clientes ainda podem consultá-los e cancelá-los.</Text>
-        <Text style={styles.note}>{access?.billing_owner ? 'Regularize a assinatura no ambiente web para restaurar a operação.' : 'O responsável financeiro do estabelecimento precisa regularizar a conta.'}</Text>
+        <Text style={styles.note}>{access?.billing_owner
+          ? access.billing_scope === 'organization'
+            ? 'Regularize a assinatura consolidada no ambiente web para restaurar todos os locais cobertos.'
+            : 'Regularize a assinatura no ambiente web para restaurar a operação.'
+          : 'O responsável financeiro do estabelecimento precisa regularizar a conta.'}</Text>
         {connectionError ? <Text style={styles.error}>Sem conexão para confirmar a situação agora.</Text> : null}
         <View style={styles.actions}>
-          {access?.billing_owner && access.membership_role === 'admin' ? <AppButton label="Ver cobrança" onPress={() => router.push('/(admin)/billing')} /> : null}
+          {(access?.billing_owner || ['owner', 'finance'].includes(access?.payer_role ?? ''))
+            && access.membership_role === 'admin'
+            ? <AppButton label="Ver cobrança" onPress={() => router.push('/(admin)/billing')} />
+            : null}
           <AppButton label="Verificar novamente" variant="secondary" loading={loading} onPress={() => void refresh()} />
           <AppButton label="Sair" variant="ghost" onPress={() => void signOut()} />
         </View>

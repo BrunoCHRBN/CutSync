@@ -12,18 +12,30 @@ Deno.serve(async (request) => {
     requireJobSecret(request);
     const client = createServiceClient();
     const stripe = createStripe();
-    const { data: subscriptions, error } = await client
+    const { data: establishmentSubscriptions, error } = await client
       .from("billing_subscriptions")
       .select("external_subscription_id")
       .eq("provider", "stripe")
       .not("external_subscription_id", "is", null)
       .limit(100);
     if (error) throw error;
+    const { data: organizationSubscriptions, error: organizationError } = await client
+      .from("organization_subscriptions")
+      .select("external_subscription_id")
+      .eq("provider", "stripe")
+      .not("external_subscription_id", "is", null)
+      .limit(100);
+    if (organizationError) throw organizationError;
+    const subscriptions = [
+      ...(establishmentSubscriptions ?? []),
+      ...(organizationSubscriptions ?? []),
+    ];
 
     let queued = 0;
     for (const row of subscriptions ?? []) {
       const subscription = await stripe.subscriptions.retrieve(row.external_subscription_id);
-      const version = subscription.current_period_end ?? Math.floor(Date.now() / 1000);
+      const version = (subscription as unknown as { current_period_end?: number })
+        .current_period_end ?? Math.floor(Date.now() / 1000);
       const { error: enqueueError } = await client.from("billing_events").insert({
         provider: "stripe",
         external_event_id: `reconcile-subscription-${subscription.id}-${version}`,
@@ -62,7 +74,7 @@ Deno.serve(async (request) => {
         else if (invoiceError.code !== "23505") throw invoiceError;
       }
     }
-    return json({ inspected: subscriptions?.length ?? 0, queued });
+    return json({ inspected: subscriptions.length, queued });
   } catch (error) {
     const code = sanitizeErrorCode(error);
     return json({ error: code }, code === "unauthorized" ? 401 : 500);

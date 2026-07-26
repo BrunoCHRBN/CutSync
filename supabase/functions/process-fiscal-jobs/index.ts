@@ -59,13 +59,43 @@ const issueDocument = async (
   client: ReturnType<typeof createServiceClient>,
   document: Record<string, any>,
 ) => {
-  const { data: invoice, error } = await client.from("billing_invoices")
-    .select("id, total_cents, currency, paid_at, billing_accounts(*)")
-    .eq("id", document.billing_invoice_id)
-    .single();
-  if (error) throw error;
-  const account = Array.isArray(invoice.billing_accounts)
-    ? invoice.billing_accounts[0] : invoice.billing_accounts;
+  let invoice: Record<string, any>;
+  let account: Record<string, any>;
+  let consolidated = false;
+  if (document.organization_billing_invoice_id) {
+    consolidated = true;
+    const { data: organizationInvoice, error: invoiceError } = await client
+      .from("organization_billing_invoices")
+      .select("id, subscription_id, total_cents, currency, paid_at")
+      .eq("id", document.organization_billing_invoice_id)
+      .single();
+    if (invoiceError || !organizationInvoice) throw invoiceError;
+    const { data: subscription, error: subscriptionError } = await client
+      .from("organization_subscriptions")
+      .select("billing_account_id")
+      .eq("id", organizationInvoice.subscription_id)
+      .single();
+    if (subscriptionError || !subscription) throw subscriptionError;
+    const { data: organizationAccount, error: accountError } = await client
+      .from("organization_billing_accounts")
+      .select("id, display_name, taxpayer_name, billing_email, fiscal_address, legal_entity_id")
+      .eq("id", subscription.billing_account_id)
+      .single();
+    if (accountError || !organizationAccount) throw accountError;
+    invoice = organizationInvoice;
+    account = organizationAccount;
+  } else {
+    const { data: establishmentInvoice, error } = await client
+      .from("billing_invoices")
+      .select("id, total_cents, currency, paid_at, billing_accounts(*)")
+      .eq("id", document.billing_invoice_id)
+      .single();
+    if (error || !establishmentInvoice) throw error;
+    invoice = establishmentInvoice;
+    account = Array.isArray(establishmentInvoice.billing_accounts)
+      ? establishmentInvoice.billing_accounts[0]
+      : establishmentInvoice.billing_accounts;
+  }
   let taxpayerDocument = account?.taxpayer_document ?? null;
   if (account?.legal_entity_id) {
     const { data: legalEntity, error: legalEntityError } = await client
@@ -110,7 +140,7 @@ const issueDocument = async (
       codigo_municipio: settings.retention_rules?.municipality_code,
     },
     tomador: {
-      razao_social: account.taxpayer_name,
+      razao_social: account.taxpayer_name ?? account.display_name,
       email: account.billing_email,
       cnpj: taxpayerDocument.length === 14 ? taxpayerDocument : undefined,
       cpf: taxpayerDocument.length === 11 ? taxpayerDocument : undefined,
@@ -118,7 +148,9 @@ const issueDocument = async (
     },
     servico: {
       aliquota: settings.tax_rate,
-      discriminacao: "Assinatura mensal da plataforma CutSync",
+      discriminacao: consolidated
+        ? "Assinatura mensal consolidada da plataforma CutSync"
+        : "Assinatura mensal da plataforma CutSync",
       iss_retido: false,
       item_lista_servico: settings.service_code,
       codigo_cnae: settings.cnae,

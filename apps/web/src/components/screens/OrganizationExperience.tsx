@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Building2, Download, Plus, Trash2, UserPlus } from 'lucide-react-native';
+import { Building2, CreditCard, Download, Plus, Trash2, UserPlus } from 'lucide-react-native';
 import { OrganizationContext, OrganizationReport, OrganizationRole } from '@cutsync/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOperationalContext } from '../../contexts/operational-context';
-import { organizationService, MyOrganization } from '../../services/organizations';
+import { organizationService, MyOrganization, OrganizationBillingContext } from '../../services/organizations';
+import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -44,6 +45,8 @@ export const OrganizationExperience = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [context, setContext] = useState<OrganizationContext | null>(null);
   const [report, setReport] = useState<OrganizationReport | null>(null);
+  const [billing, setBilling] = useState<OrganizationBillingContext | null>(null);
+  const [billingSelection, setBillingSelection] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Exclude<OrganizationRole, 'owner'>>('manager');
@@ -51,6 +54,7 @@ export const OrganizationExperience = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger' | 'info'; message: string } | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   const load = useCallback(async (preferredId?: string) => {
     setLoading(true);
@@ -73,6 +77,14 @@ export const OrganizationExperience = () => {
       ]);
       setContext(nextContext);
       setReport(nextReport);
+      if (['owner', 'finance'].includes(nextContext.role)) {
+        const nextBilling = await organizationService.getBillingContext(targetId);
+        setBilling(nextBilling);
+        setBillingSelection(nextBilling.establishments.map((item) => item.establishment_id));
+      } else {
+        setBilling(null);
+        setBillingSelection([]);
+      }
       setNotice(null);
     } catch (cause) {
       setNotice({ tone: 'danger', message: cause instanceof Error ? cause.message : 'Não foi possível carregar o grupo.' });
@@ -83,12 +95,64 @@ export const OrganizationExperience = () => {
 
   useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const params = new URLSearchParams(window.location.search);
+    const organizationId = params.get('organization_id');
+    if (params.get('checkout') !== 'success' || !organizationId) return undefined;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = Date.now() + 60_000;
+    setSelectedId(organizationId);
+    setCheckoutNotice('Pagamento configurado. Aguardando confirmação segura da Stripe.');
+
+    const verify = async () => {
+      try {
+        const nextBilling = await organizationService.getBillingContext(organizationId);
+        if (cancelled) return;
+        setBilling(nextBilling);
+        setBillingSelection(nextBilling.establishments.map((item) => item.establishment_id));
+        if (nextBilling.subscription?.has_external_customer) {
+          setCheckoutNotice('Meio de pagamento confirmado. A mudança de cobertura ocorrerá somente na data agendada.');
+          return;
+        }
+      } catch {
+        // A return URL is never a source of billing rights.
+      }
+      if (!cancelled && Date.now() < deadline) {
+        timer = setTimeout(() => { void verify(); }, 2_000);
+      } else if (!cancelled) {
+        setCheckoutNotice('A confirmação ainda está sendo processada. Use “Verificar novamente” antes de tentar outra assinatura.');
+      }
+    };
+
+    void verify();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
   const availableToAdd = useMemo(
     () => contexts.filter((item) => !context?.establishments.some((unit) => unit.id === item.establishmentId)),
     [context, contexts],
   );
   const isOwner = context?.role === 'owner';
   const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: report?.units[0]?.currency ?? 'BRL' });
+  const billingCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const selectedBillingTotal = billingSelection.reduce((total, _id, index) => {
+    const position = index + 1;
+    const tier = [...(billing?.tiers ?? [])]
+      .reverse()
+      .find((item) => position >= item.unit_from && (item.unit_to == null || position <= item.unit_to));
+    return total + (tier?.unit_price_cents ?? 4990);
+  }, 0);
+  const requiresNetworkPlan = billingSelection.length >= 5
+    && billing?.subscription?.plan_code !== 'network';
+  const hasActiveConsolidatedCoverage = billing?.establishments.some(
+    (unit) => unit.coverage_scope === 'organization' && unit.coverage_status === 'active',
+  ) ?? false;
 
   const createOrganization = async () => {
     if (!activeEstablishmentId || name.trim().length < 2) {
@@ -174,10 +238,55 @@ export const OrganizationExperience = () => {
     }
   };
 
+  const toggleBillingUnit = (establishmentId: string) => {
+    setBillingSelection((current) => current.includes(establishmentId)
+      ? current.filter((id) => id !== establishmentId)
+      : [...current, establishmentId]);
+  };
+
+  const scheduleConsolidation = async () => {
+    if (!selectedId || billingSelection.length === 0) {
+      setNotice({ tone: 'danger', message: 'Selecione ao menos uma unidade para consolidar.' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await organizationService.scheduleBillingCutover(selectedId, billingSelection);
+      await load(selectedId);
+      setNotice({ tone: 'success', message: 'Migração agendada para depois do último período individual pago. A ativação depende de reconciliação.' });
+    } catch (cause) {
+      setNotice({ tone: 'danger', message: cause instanceof Error ? cause.message : 'Não foi possível agendar a consolidação.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openOrganizationBilling = async () => {
+    if (!selectedId || !activeEstablishmentId || Platform.OS !== 'web') return;
+    setSubmitting(true);
+    const functionName = billing?.subscription?.has_external_customer
+      ? 'create-stripe-portal'
+      : 'create-stripe-checkout';
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      body: {
+        establishment_id: activeEstablishmentId,
+        organization_id: selectedId,
+      },
+    });
+    setSubmitting(false);
+    const target = data?.checkout_url ?? data?.portal_url;
+    if (error || !target) {
+      setNotice({ tone: 'danger', message: 'Não foi possível abrir o ambiente seguro de cobrança consolidada.' });
+      return;
+    }
+    window.location.assign(target);
+  };
+
   return (
     <AdminShell activeRoute="organization" shopName={activeContext?.establishmentName ?? 'Selecione uma unidade'} userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.content}>
         <PageHeader testID="organization-page-header" eyebrow="Gestão corporativa" title="Meu grupo" description="Administre unidades sem misturar operação, equipe ou dados financeiros." />
+        {checkoutNotice ? <InlineNotice tone="info" message={checkoutNotice} /> : null}
         {notice ? <InlineNotice tone={notice.tone} message={notice.message} /> : null}
 
         {!loading && organizations.length === 0 ? (
@@ -222,6 +331,79 @@ export const OrganizationExperience = () => {
                 </View>
               ) : null}
             </AppCard>
+
+            {billing ? (
+              <AppCard>
+                <View style={styles.headingRow}>
+                  <View>
+                    <Text style={styles.cardTitle}>Cobrança do grupo</Text>
+                    <Text style={styles.muted}>{billing.subscription?.plan_name ?? 'Plano ainda não configurado'} · {billing.subscription?.status ?? 'sem assinatura'}</Text>
+                  </View>
+                  <CreditCard color={colors.brandPrimary} size={22} />
+                </View>
+                <Text style={styles.muted}>O desconto multiunidade vale somente para unidades na mesma cobrança. Assinaturas separadas permanecem em R$ 49,90 por local.</Text>
+                <View style={styles.section}>
+                  {billing.establishments.map((unit) => {
+                    const selected = billingSelection.includes(unit.establishment_id);
+                    return (
+                      <Pressable
+                        key={unit.establishment_id}
+                        disabled={!isOwner || Boolean(billing.cutover)}
+                        onPress={() => toggleBillingUnit(unit.establishment_id)}
+                        style={[styles.billingUnit, selected && styles.choiceActive]}
+                      >
+                        <View style={styles.grow}>
+                          <Text style={styles.itemTitle}>{unit.name}</Text>
+                          <Text style={styles.muted}>
+                            {unit.coverage_scope === 'organization' ? 'cobrança consolidada' : 'cobrança individual'}
+                            {unit.coverage_status === 'scheduled' ? ' · mudança agendada' : ''}
+                          </Text>
+                        </View>
+                        <Text style={styles.itemTitle}>{selected ? 'Incluída' : 'Separada'}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.billingTotal}>
+                  {requiresNetworkPlan
+                    ? 'Plano Rede: proposta necessária'
+                    : `Estimativa consolidada: ${billingCurrency.format(selectedBillingTotal / 100)} / mês`}
+                </Text>
+                {billing.cutover ? (
+                  <>
+                    <InlineNotice
+                      tone="info"
+                      message={`Corte agendado para ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(billing.cutover.cutover_at))}. Até a reconciliação, as cobranças atuais continuam valendo.`}
+                    />
+                    {isOwner ? (
+                      <AppButton
+                        label={billing.subscription?.has_external_customer ? 'Administrar cobrança consolidada' : 'Configurar pagamento consolidado'}
+                        variant="secondary"
+                        onPress={() => { void openOrganizationBilling(); }}
+                        loading={submitting}
+                      />
+                    ) : null}
+                  </>
+                ) : isOwner && hasActiveConsolidatedCoverage ? (
+                  <AppButton
+                    label={billing.subscription?.has_external_customer ? 'Administrar cobrança consolidada' : 'Configurar pagamento consolidado'}
+                    variant="secondary"
+                    onPress={() => { void openOrganizationBilling(); }}
+                    loading={submitting}
+                  />
+                ) : isOwner && billing.subscription ? (
+                  <AppButton
+                    label="Agendar cobrança consolidada"
+                    onPress={() => { void scheduleConsolidation(); }}
+                    loading={submitting}
+                    disabled={requiresNetworkPlan}
+                  />
+                ) : (
+                  <Text style={styles.muted}>A equipe CutSync precisa configurar o plano antes da consolidação.</Text>
+                )}
+                <InlineNotice tone="info" message="Após os sete dias de tolerância, a inadimplência consolidada coloca todas as unidades cobertas em modo leitura." />
+              </AppCard>
+            ) : null}
 
             {report ? (
               <AppCard>
@@ -287,4 +469,6 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   metric: { flex: 1, minWidth: 160, padding: 14, borderRadius: radii.md, backgroundColor: colors.canvasSoft },
   metricValue: { ...typeScale.sectionTitle, color: colors.text },
+  billingUnit: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  billingTotal: { ...typeScale.sectionTitle, color: colors.text, marginTop: 12 },
 });

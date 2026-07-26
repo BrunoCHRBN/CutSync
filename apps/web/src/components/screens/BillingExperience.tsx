@@ -12,12 +12,24 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 
 interface BillingOverview {
-  plan: { name: string; price_cents: number; currency: string };
+  billing_scope: 'establishment' | 'organization';
+  plan: {
+    name: string;
+    price_cents: number;
+    base_price_cents: number;
+    currency: string;
+    unit_count: number;
+    unit_prices: { position: number; unit_price_cents: number }[];
+  };
+  account: {
+    covered_establishment_ids: string[];
+    pending_change_at: string | null;
+  };
   subscription: { status?: string };
-  invoices: Array<{
+  invoices: {
     id: string; number: string | null; status: string; total_cents: number; currency: string;
     paid_at: string | null; fiscal_status: string | null; fiscal_number: string | null;
-  }>;
+  }[];
 }
 
 const date = (value?: string | null) =>
@@ -35,11 +47,16 @@ export function BillingExperience() {
   const [action, setAction] = useState<'checkout' | 'portal' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(checkout === 'success');
+  const canViewBilling = access?.billing_owner
+    || (
+      access?.billing_scope === 'organization'
+      && ['owner', 'finance'].includes(access.payer_role ?? '')
+    );
   const canSubscribe = ['none', 'trialing', 'expired'].includes(access?.billing_status ?? 'none');
-  const canManage = ['active', 'past_due', 'cancelled'].includes(access?.billing_status ?? '');
+  const canManage = ['active', 'past_due', 'cancelled', 'canceled'].includes(access?.billing_status ?? '');
 
   const load = useCallback(async () => {
-    if (!activeEstablishmentId || !access?.billing_owner) {
+    if (!activeEstablishmentId || !canViewBilling) {
       setLoading(false);
       return;
     }
@@ -52,7 +69,7 @@ export function BillingExperience() {
       setError(null);
     }
     setLoading(false);
-  }, [access?.billing_owner, activeEstablishmentId]);
+  }, [activeEstablishmentId, canViewBilling]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -105,7 +122,7 @@ export function BillingExperience() {
           </AppCard>
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {!access?.billing_owner ? (
+        {!canViewBilling ? (
           <AppCard>
             <Text style={styles.cardTitle}>Ação do responsável financeiro</Text>
             <Text style={styles.body}>Somente ele pode consultar valores, faturas e administrar a assinatura.</Text>
@@ -116,14 +133,27 @@ export function BillingExperience() {
               <View style={styles.row}><CreditCard color={colors.accent} /><Text style={styles.cardTitle}>{overview?.plan.name ?? 'CutSync para estabelecimentos'}</Text></View>
               <Text style={styles.price}>{money(overview?.plan.price_cents ?? 4990, overview?.plan.currency)}<Text style={styles.priceSuffix}> / mês</Text></Text>
               <View style={styles.copy}>
+                <Text style={styles.body}>Modalidade: {access.billing_scope === 'organization' ? 'grupo consolidado' : 'por estabelecimento'}</Text>
+                {access.billing_scope === 'organization' ? (
+                  <>
+                    <Text style={styles.body}>Locais cobertos: {overview?.plan.unit_count ?? access.covered_establishment_ids.length}</Text>
+                    {(overview?.plan.unit_prices ?? []).map((unit) => (
+                      <Text key={unit.position} style={styles.body}>
+                        {unit.position}º local: {money(unit.unit_price_cents, overview?.plan.currency)}
+                      </Text>
+                    ))}
+                    <Text style={styles.warning}>Se a tolerância terminar, todos os locais desta cobrança entram juntos em modo leitura.</Text>
+                  </>
+                ) : null}
                 <Text style={styles.body}>Situação: {access.billing_status}</Text>
                 <Text style={styles.body}>Trial até: {date(access.trial_ends_at)}</Text>
                 <Text style={styles.body}>Tolerância até: {date(access.grace_ends_at)}</Text>
                 <Text style={styles.body}>Período pago até: {date(access.current_period_ends_at)}</Text>
+                <Text style={styles.body}>Próxima alteração de cobertura: {date(access.pending_change_at)}</Text>
               </View>
               <View style={styles.actions}>
-                {canSubscribe ? <AppButton label="Assinar agora" loading={action === 'checkout'} onPress={() => void open('create-stripe-checkout')} /> : null}
-                {canManage ? <AppButton label="Administrar assinatura" variant="secondary" loading={action === 'portal'} onPress={() => void open('create-stripe-portal')} /> : null}
+                {access.billing_owner && canSubscribe ? <AppButton label="Assinar agora" loading={action === 'checkout'} onPress={() => void open('create-stripe-checkout')} /> : null}
+                {access.billing_owner && canManage ? <AppButton label="Administrar assinatura" variant="secondary" loading={action === 'portal'} onPress={() => void open('create-stripe-portal')} /> : null}
                 <AppButton label="Verificar novamente" variant="ghost" leadingIcon={<RefreshCw size={16} />} onPress={() => void refresh().then(() => load())} />
               </View>
             </AppCard>
@@ -162,4 +192,5 @@ const styles = StyleSheet.create({
   actions: { gap: 9, marginTop: 20, alignItems: 'flex-start' },
   section: { color: colors.text, fontFamily: typography.display, fontSize: 21 },
   error: { color: colors.danger, fontFamily: typography.bodyStrong },
+  warning: { color: colors.warning, fontFamily: typography.bodyStrong, fontSize: 13, lineHeight: 19, marginTop: 8 },
 });
