@@ -1,3 +1,8 @@
+import {
+  getTotpEnrollmentErrorMessage,
+  getTotpFactorState,
+  normalizeTotpQrCode,
+} from '@cutsync/domain';
 import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../../services/supabase';
@@ -33,15 +38,39 @@ export const TotpSecuritySetup = ({ onVerified }: Props) => {
   const startEnrollment = async () => {
     setLoading(true);
     setMessage(null);
+    const factors = await supabase.auth.mfa.listFactors();
+    if (factors.error) {
+      setMessage('Não foi possível consultar os autenticadores cadastrados.');
+      setLoading(false);
+      return;
+    }
+
+    const factorState = getTotpFactorState(factors.data?.all, 'CutSync');
+    if (factorState.verifiedFactorId) {
+      setVerifiedFactorId(factorState.verifiedFactorId);
+      setMessage('Este usuário já possui um autenticador. Informe o código atual.');
+      setLoading(false);
+      return;
+    }
+
+    for (const factorId of factorState.unverifiedFactorIds) {
+      const removal = await supabase.auth.mfa.unenroll({ factorId });
+      if (removal.error) {
+        setMessage('Existe um cadastro incompleto e não foi possível reiniciá-lo.');
+        setLoading(false);
+        return;
+      }
+    }
+
     const result = await supabase.auth.mfa.enroll({
       factorType: 'totp',
       friendlyName: 'CutSync',
     });
-    if (result.error) setMessage('Não foi possível iniciar o cadastro do autenticador.');
+    if (result.error) setMessage(getTotpEnrollmentErrorMessage(result.error));
     else {
       setEnrollment({
         factorId: result.data.id,
-        qrCode: result.data.totp.qr_code,
+        qrCode: normalizeTotpQrCode(result.data.totp.qr_code),
         secret: result.data.totp.secret,
       });
     }

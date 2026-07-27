@@ -35,10 +35,12 @@ test('consolidated UI labels production without claiming received revenue', () =
 
 test('control remains a separate web-only workspace with MFA gate', () => {
   const packageJson = JSON.parse(read('apps/control/package.json'));
-  const control = read('apps/control/src/app/index.tsx');
+  const auth = read('apps/control/src/contexts/control-auth-context.tsx');
+  const billing = read('apps/control/src/components/billing-operations.tsx');
 
   expect(packageJson.name).toBe('@cutsync/control');
   expect(packageJson.scripts.start).toContain('--web');
-  expect(control).toContain("currentLevel !== 'aal2'");
-  expect(control).toContain('list_control_billing_accounts');
+  expect(auth).toContain("currentLevel !== 'aal2'");
+  expect(auth).not.toContain('123456');
+  expect(billing).toContain('list_control_billing_accounts');
 });

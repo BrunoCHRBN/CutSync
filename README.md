@@ -1,6 +1,6 @@
 # CutSync
 
-Monorepo dos três produtos CutSync, construídos com Expo SDK 57 e um backend Supabase compartilhado.
+Monorepo dos quatro produtos CutSync, construídos com Expo SDK 57 e um backend Supabase compartilhado.
 
 ## Estrutura
 
@@ -9,6 +9,7 @@ apps/
   web/        CutSync Web: aquisição, booking público e operação web completa
   client/     CutSync: aplicativo mobile do cliente
   business/   CutSync Business: aplicativo mobile operacional
+  control/    CutSync Control: ambiente web privado de operação e governança
 packages/
   brand/      identidade básica e metadados dos produtos
   database/   tipos gerados do Supabase e modelos compartilhados
@@ -34,6 +35,7 @@ npm install
 npm run start:web
 npm run start:client
 npm run start:business
+npm run start:control
 ```
 
 Atalhos mobile:
@@ -52,6 +54,8 @@ Copy-Item apps/client/.env.example apps/client/.env
 ```
 
 O arquivo local é ignorado pelo Git. Nunca adicione uma chave `service_role` ou credenciais de usuários ao aplicativo.
+
+O Control usa sessão volátil, TOTP/AAL2 e somente a URL e a chave pública do Supabase no bundle. Consulte `docs/control-rollout.md` antes de conectar uma homologação.
 
 ## Validação
 
@@ -90,3 +94,4 @@ Tokens e credenciais permanecem apenas em variáveis de ambiente e nunca devem s
 - `docs/architecture/MULTI_APP_BACKEND_READINESS.md`: contratos e validações do backend compartilhado.
 - `docs/architecture/MONOREPO_FOUNDATION.md`: estrutura, validações e pendências da Fase 2.
 - `docs/architecture/CLIENT_MVP_PROGRESS.md`: andamento, limites e próximas fatias da Fase 3.
+- `docs/control-rollout.md`: implantação segura e validação do Control.

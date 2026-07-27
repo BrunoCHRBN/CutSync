@@ -5,3 +5,5 @@ export * from './client-appointments';
 export * from './client-notifications';
 export * from './date-time';
 export * from './schedule';
+export * from './totp-enrollment';
+export * from './totp-qr-code';

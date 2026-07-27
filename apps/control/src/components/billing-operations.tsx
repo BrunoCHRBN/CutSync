@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
+import {
+  getTotpEnrollmentErrorMessage,
+  getTotpFactorState,
+  normalizeTotpQrCode,
+} from '@cutsync/domain';
+import { supabase } from '@/services/supabase';
 
 type BillingRow = {
   billing_account_id: string;
@@ -23,22 +28,32 @@ type IdentityConflict = {
   status: string;
   created_at: string;
 };
+type BillingCutover = {
+  cutover_request_id: string;
+  organization_id: string;
+  organization_name: string;
+  organization_subscription_id: string;
+  status: 'scheduled' | 'reconciling';
+  cutover_at: string;
+  unit_count: number;
+};
 
 const rpc = async (name: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> => {
   const result = await (supabase.rpc as any)(name, args);
   return { data: result.data, error: result.error };
 };
 
-export default function ControlHome() {
+export function BillingOperations() {
   const [session, setSession] = useState<Session | null>(null);
   const [authorized, setAuthorized] = useState(false);
   const [needsMfa, setNeedsMfa] = useState(false);
   const [rows, setRows] = useState<BillingRow[]>([]);
   const [conflicts, setConflicts] = useState<IdentityConflict[]>([]);
+  const [cutovers, setCutovers] = useState<BillingCutover[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [reason, setReason] = useState('');
-  const [planCode, setPlanCode] = useState('multi_unit_standard');
+  const [planCode, setPlanCode] = useState('network');
   const [basePrice, setBasePrice] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
@@ -75,6 +90,8 @@ export default function ControlHome() {
     else setRows((result.data ?? []) as BillingRow[]);
     const conflictResult = await rpc('list_identity_migration_conflicts');
     if (!conflictResult.error) setConflicts((conflictResult.data ?? []) as IdentityConflict[]);
+    const cutoverResult = await rpc('list_control_billing_cutovers');
+    if (!cutoverResult.error) setCutovers((cutoverResult.data ?? []) as BillingCutover[]);
     setLoading(false);
   }, []);
 
@@ -186,6 +203,22 @@ export default function ControlHome() {
     setLoading(false);
   };
 
+  const finalizeCutover = async (cutoverRequestId: string) => {
+    setLoading(true);
+    const result = await rpc('finalize_organization_billing_cutover', {
+      target_cutover_request_id: cutoverRequestId,
+    });
+    if (result.error) {
+      setMessage(result.error.message === 'individual_subscription_still_live'
+        ? 'Ainda existe assinatura individual vigente. Reconcilie o Stripe antes de aplicar o corte.'
+        : result.error.message);
+    } else {
+      setMessage('Cobertura consolidada aplicada após reconciliação.');
+      await load();
+    }
+    setLoading(false);
+  };
+
   const verifyMfa = async () => {
     setLoading(true);
     const factors = await supabase.auth.mfa.listFactors();
@@ -219,14 +252,35 @@ export default function ControlHome() {
   const enrollMfa = async () => {
     setLoading(true);
     setMessage('');
+    const factors = await supabase.auth.mfa.listFactors();
+    if (factors.error) {
+      setMessage('Não foi possível consultar os autenticadores cadastrados.');
+      setLoading(false);
+      return;
+    }
+    const factorState = getTotpFactorState(factors.data?.all, 'CutSync Control');
+    if (factorState.verifiedFactorId) {
+      setMfaFactorId(factorState.verifiedFactorId);
+      setMessage('Este usuário já possui um autenticador. Informe o código atual.');
+      setLoading(false);
+      return;
+    }
+    for (const factorId of factorState.unverifiedFactorIds) {
+      const removal = await supabase.auth.mfa.unenroll({ factorId });
+      if (removal.error) {
+        setMessage('Existe um cadastro incompleto e não foi possível reiniciá-lo.');
+        setLoading(false);
+        return;
+      }
+    }
     const enrollment = await supabase.auth.mfa.enroll({
       factorType: 'totp',
       friendlyName: 'CutSync Control',
     });
-    if (enrollment.error) setMessage('Não foi possível cadastrar o autenticador.');
+    if (enrollment.error) setMessage(getTotpEnrollmentErrorMessage(enrollment.error));
     else {
       setMfaFactorId(enrollment.data.id);
-      setMfaQrCode(enrollment.data.totp.qr_code);
+      setMfaQrCode(normalizeTotpQrCode(enrollment.data.totp.qr_code));
       setMfaSecret(enrollment.data.totp.secret);
     }
     setLoading(false);
@@ -262,7 +316,8 @@ export default function ControlHome() {
       <View style={styles.header}><View><Text style={styles.title}>Cobrança multiunidade</Text><Text style={styles.muted}>Operação manual, auditada e isolada dos bundles públicos.</Text></View><Pressable style={styles.secondary} onPress={() => supabase.auth.signOut()}><Text>Sair</Text></Pressable></View>
       {message ? <Text style={styles.message}>{message}</Text> : null}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Configuração do plano</Text>
+        <Text style={styles.cardTitle}>Configuração do plano Rede</Text>
+        <Text style={styles.muted}>O plano padrão é fixo em R$ 49,90, R$ 44,90 e R$ 39,90. Somente contratos com cinco ou mais unidades usam preço negociado.</Text>
         <TextInput style={styles.input} value={planCode} onChangeText={setPlanCode} placeholder="multi_unit_standard ou network" autoCapitalize="none" />
         <TextInput style={styles.input} value={basePrice} onChangeText={setBasePrice} placeholder="Preço-base em reais" keyboardType="decimal-pad" />
         <Pressable style={styles.primary} onPress={() => { void configurePlan(); }}><Text style={styles.primaryText}>Salvar preço-base</Text></Pressable>
@@ -283,6 +338,18 @@ export default function ControlHome() {
           </View>
         ))}
         {conflicts.filter((item) => item.status === 'pending').length === 0 && <Text style={styles.muted}>Nenhum conflito pendente.</Text>}
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Cortes de cobrança pendentes</Text>
+        <Text style={styles.muted}>A aplicação só é aceita depois da data comum e quando nenhuma assinatura individual continuar vigente.</Text>
+        {cutovers.map((cutover) => (
+          <View key={cutover.cutover_request_id} style={styles.conflict}>
+            <Text style={styles.cardTitle}>{cutover.organization_name}</Text>
+            <Text style={styles.muted}>{cutover.unit_count} unidade(s) · {cutover.status} · {new Date(cutover.cutover_at).toLocaleDateString('pt-BR')}</Text>
+            <Pressable style={styles.secondary} onPress={() => { void finalizeCutover(cutover.cutover_request_id); }}><Text>Reconciliar e aplicar</Text></Pressable>
+          </View>
+        ))}
+        {cutovers.length === 0 ? <Text style={styles.muted}>Nenhum corte pendente.</Text> : null}
       </View>
       {rows.map((row) => (
         <View key={row.billing_account_id} style={styles.card}>
