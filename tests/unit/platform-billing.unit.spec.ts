@@ -10,8 +10,9 @@ const migration = read('supabase/migrations/20260725010000_platform_billing_web_
 const billingWorker = read('supabase/functions/process-billing-jobs/index.ts');
 const stripeWebhook = read('supabase/functions/stripe-webhook/index.ts');
 const businessSource = [
-  'apps/business/src/app/restricted.tsx',
-  'apps/business/src/contexts/business-session.tsx',
+  'apps/business/src/contexts/business-operational-context.tsx',
+  'apps/business/src/screens/blocked.tsx',
+  'apps/business/src/services/business-api.ts',
 ].map(read).join('\n');
 
 test('mantém assinatura da plataforma separada do financeiro operacional', () => {
@@ -41,8 +42,9 @@ test('webhook é idempotente e somente processamento confirmado altera direitos'
 });
 
 test('app business só consome direitos e não possui superfície de compra', () => {
-  expect(businessSource).toContain('get_my_business_access_context');
-  expect(businessSource).toContain('Keep the last server-confirmed rights');
+  expect(businessSource).toContain('get_my_business_operational_contexts');
+  expect(businessSource).toContain('return contexts');
+  expect(businessSource).toContain('exclusivamente na versão Web do CutSync');
   expect(businessSource).not.toContain('create-stripe-checkout');
   expect(businessSource).not.toContain('checkout_url');
   expect(businessSource.toLowerCase()).not.toContain('webview');
