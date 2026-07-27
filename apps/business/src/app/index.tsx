@@ -35,6 +35,6 @@ export default function BusinessIndexRoute() {
     case 'blocked':
       return <Redirect href="/blocked" />;
     case 'operational':
-      return <Redirect href="/establishments" />;
+      return <Redirect href="/today" />;
   }
 }

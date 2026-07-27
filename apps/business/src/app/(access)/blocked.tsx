@@ -7,7 +7,7 @@ export default function BlockedRoute() {
   const { activeContext } = useBusinessOperational();
 
   if (!activeContext) return <Redirect href="/establishments" />;
-  if (activeContext.accessMode !== 'blocked') return <Redirect href="/establishments" />;
+  if (activeContext.accessMode !== 'blocked') return <Redirect href="/today" />;
 
   return <BusinessBlockedScreen />;
 }
