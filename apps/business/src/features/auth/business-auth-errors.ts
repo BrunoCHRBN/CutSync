@@ -1,0 +1,15 @@
+export const BUSINESS_AUTH_MESSAGES = {
+  notConfigured: 'O aplicativo ainda não está conectado ao ambiente CutSync.',
+  connection: 'Não foi possível conectar agora. Verifique sua internet e tente novamente.',
+  invalidCredentials: 'E-mail ou senha inválidos.',
+  signUp: 'Não foi possível criar sua conta com este convite. Confira os dados ou entre se já tiver cadastro.',
+  passwordResetRequest: 'Não foi possível enviar a recuperação agora. Tente novamente em alguns instantes.',
+  passwordUpdate: 'O link expirou ou não pôde ser usado. Solicite uma nova recuperação.',
+  signOut: 'Não foi possível sair agora. Tente novamente.',
+  invalidInvitation: 'Este convite é inválido ou não está mais disponível.',
+  invitationMismatch: 'Este convite não corresponde ao e-mail desta conta. Entre com o e-mail que recebeu o convite.',
+  expiredInvitation: 'Este convite expirou. Solicite um novo link ao responsável pela unidade.',
+  usedInvitation: 'Este convite já foi utilizado ou cancelado.',
+  invitationInspect: 'Não foi possível verificar este convite agora. Tente novamente.',
+  invitationAccept: 'Não foi possível aceitar este convite agora. Tente novamente.',
+} as const;

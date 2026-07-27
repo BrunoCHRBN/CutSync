@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "cutsync-business",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.cutsync.business",
       "supportsTablet": true,
@@ -14,7 +14,8 @@
       }
     },
     "android": {
-      "package": "com.cutsync.business"
+      "package": "com.cutsync.business",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": ["expo-router", "expo-secure-store"],
     "experiments": {
