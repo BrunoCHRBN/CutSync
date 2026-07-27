@@ -19,7 +19,7 @@ import {
 import { useBusinessSession } from '@/contexts/business-session';
 import { resolveActiveEstablishmentId } from '@/features/access/business-access';
 import { activeEstablishmentStorage } from '@/lib/active-establishment-storage';
-import { businessApi } from '@/services/business-api';
+import { businessApi, BusinessApiError } from '@/services/business-api';
 
 interface BusinessOperationalValue {
   contexts: BusinessOperationalContext[];
@@ -83,10 +83,14 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
       if (nextActiveId) await activeEstablishmentStorage.set(user.id, nextActiveId);
       else if (stored) await activeEstablishmentStorage.remove(user.id);
       return next;
-    } catch {
+    } catch (refreshError) {
       if (version === requestVersion.current) {
         setConnectionError(true);
-        setError('Não foi possível confirmar seus estabelecimentos. Verifique sua conexão e tente novamente.');
+        setError(
+          refreshError instanceof BusinessApiError
+            ? refreshError.message
+            : 'Não foi possível confirmar seus estabelecimentos. Verifique sua conexão e tente novamente.',
+        );
       }
       return contexts;
     } finally {
