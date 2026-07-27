@@ -25,6 +25,23 @@ const businessSession = fs.readFileSync(
   path.join(root, 'apps/business/src/contexts/business-session.tsx'),
   'utf8',
 ).replace(/\r\n/g, '\n');
+const businessOperationalContext = fs.readFileSync(
+  path.join(root, 'apps/business/src/contexts/business-operational-context.tsx'),
+  'utf8',
+).replace(/\r\n/g, '\n');
+const businessApi = fs.readFileSync(
+  path.join(root, 'apps/business/src/services/business-api.ts'),
+  'utf8',
+).replace(/\r\n/g, '\n');
+const businessContracts = fs.readFileSync(
+  path.join(root, 'packages/database/src/business.ts'),
+  'utf8',
+).replace(/\r\n/g, '\n');
+const businessPurchaseSurface = [
+  businessSession,
+  businessOperationalContext,
+  businessApi,
+].join('\n').toLowerCase();
 
 test('uses one effective billing coverage without overlapping sources', () => {
   expect(migration).toContain('CREATE TABLE public.billing_coverage_assignments');
@@ -79,7 +96,11 @@ test('shows consolidated pricing on web and keeps Business purchase-free', () =>
   expect(organizationScreen).toContain('sete dias de tolerância');
   expect(organizationScreen).toContain('Date.now() + 60_000');
   expect(organizationScreen).toContain('Aguardando confirmação segura da Stripe');
-  expect(businessSession).toContain("billing_scope: 'establishment' | 'organization'");
-  expect(businessSession).not.toContain('create-stripe-checkout');
-  expect(businessSession.toLowerCase()).not.toContain('webview');
+  expect(businessContracts).toContain(
+    "export type BusinessBillingScope = 'establishment' | 'organization'",
+  );
+  expect(businessContracts).toContain('billingScope: BusinessBillingScope | null');
+  expect(businessApi).toContain("'get_my_business_operational_contexts'");
+  expect(businessPurchaseSurface).not.toContain('create-stripe-checkout');
+  expect(businessPurchaseSurface).not.toContain('webview');
 });
