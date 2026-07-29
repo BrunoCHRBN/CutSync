@@ -4257,6 +4257,7 @@ export type Database = {
         Returns: string
       }
       bootstrap_superadmins_from_config: { Args: never; Returns: number }
+      can_read_control_live: { Args: never; Returns: boolean }
       can_use_establishment_feature: {
         Args: { target_establishment_id: string; target_feature: string }
         Returns: boolean
@@ -4863,6 +4864,7 @@ export type Database = {
       }
       get_control_context: { Args: never; Returns: Json }
       get_control_dashboard: { Args: never; Returns: Json }
+      get_control_live_snapshot: { Args: never; Returns: Json }
       get_control_support_overview: {
         Args: {
           target_before?: string

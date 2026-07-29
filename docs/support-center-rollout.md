@@ -44,13 +44,17 @@ No projeto já existente:
    - prioridade CutSync.
 4. Mantenha o campo `ID CutSync` pesquisável. Ele é usado para reduzir duplicação
    durante retentativas.
-5. Configure as filas: novos, aguardando suporte, aguardando usuário, risco de
+5. Mantenha o request type como preset oculto do endpoint de portal. A
+   integração não envia o campo interno de tipo da solicitação e não usa o
+   antigo secret `JSM_FIELD_REQUEST_KIND`, pois o JSM rejeita esse campo quando
+   o request type já o define.
+6. Configure as filas: novos, aguardando suporte, aguardando usuário, risco de
    SLA, críticos e incidentes.
-6. Crie uma automação que mapeie a prioridade CutSync (`critical`, `high`,
+7. Crie uma automação que mapeie a prioridade CutSync (`critical`, `high`,
    `normal`, `low`) para a prioridade Jira usada pelo calendário/SLA. A
    homologação deve provar as quatro metas; não presuma o valor padrão do Jira.
-7. Atribua chamados com equipe `SUPORTE_GERAL` ao único agente ativo.
-8. Faça comentários do agente como públicos quando a resposta precisar aparecer
+8. Atribua chamados com equipe `SUPORTE_GERAL` ao único agente ativo.
+9. Faça comentários do agente como públicos quando a resposta precisar aparecer
    no CutSync. Comentários internos nunca são importados.
 
 SLA de primeira resposta:
@@ -177,6 +181,11 @@ A migration cria o módulo desligado. No Control:
 
 O runtime switch permite suspender abertura e sincronização sem publicar nova
 versão do aplicativo. Registre sempre uma justificativa operacional.
+
+Na homologação atual, o inventário de campos do JSM foi validado pelo
+`npm run support:verify-jsm`. Isso confirma configuração e acesso à API, mas não
+substitui o teste real de criação, resposta pública e reconciliação. Mantenha
+`allow_new_tickets=false` até esse ciclo terminar.
 
 ## Critérios de homologação
 

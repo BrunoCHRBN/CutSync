@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@cutsync/database';
 
 function sanitizeEnvironmentValue(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
@@ -12,7 +13,7 @@ if (!url || !anonKey) {
   throw new Error('Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.');
 }
 
-export const supabase = createClient(url, anonKey, {
+export const supabase = createClient<Database>(url, anonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: true,

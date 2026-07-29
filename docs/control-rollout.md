@@ -9,11 +9,21 @@ A base web privada está em `apps/control` e contém:
 - cadastro e validação TOTP com exigência de AAL2;
 - contexto de acesso por `SaaS_Viewer`, `SaaS_Editor` e `SaaS_Owner`;
 - visão executiva com indicadores operacionais reais;
+- painel `Ao vivo` com agenda do dia, saúde da plataforma e fila de suporte;
+- invalidação por Broadcast privado `control:live`, polling de segurança e
+  indicação de snapshot desatualizado;
 - diretório de acessos disponível somente para `SaaS_Owner`;
 - módulo de cobrança multiunidade preservado e isolado por permissão;
-- rotas preparadas para tempo real, suporte, governança e conhecimento, sem dados simulados.
+- operação da central de suporte no Control, sem expor credenciais do Jira ao
+  aplicativo;
+- rotas de governança e conhecimento ainda preparadas, sem dados simulados.
 
-As migrations do Control foram aplicadas no projeto separado `CutSync Homolog`.
+As migrations do Control, incluindo
+`20260804001000_control_live_operations.sql`, foram aplicadas no projeto
+separado `CutSync Homolog`. O histórico local/remoto está alinhado até essa
+migration. O teste `control_live_operations.sql` passou localmente e no SQL
+Editor da homologação; ambos terminaram em `ROLLBACK`, e a consulta de
+confirmação remota encontrou zero fixtures restantes.
 Elas ainda não devem ser aplicadas diretamente em produção.
 
 Durante a homologação remota, foi identificado que o restore schema-only não
@@ -57,12 +67,13 @@ O resultado válido termina em `ROLLBACK`. Nenhum dado de teste deve permanecer.
 2. Confirmar que a história de migrations desse ambiente está reconciliada com o repositório.
 3. Aplicar as migrations pendentes em ordem, sem repetir migrations já presentes no remoto.
 4. Executar `supabase/tests/control_access_foundation.sql`.
-5. Gerar novamente os tipos em `packages/database/src/supabase.generated.ts`.
-6. Configurar uma conta de teste `SaaS_Owner` sem dados pessoais reais.
-7. Ativar TOTP no projeto e elevar a sessão para AAL2.
-8. Validar os fluxos de Owner, Editor, Viewer, usuário expirado e usuário sem acesso.
-9. Executar os advisors de segurança e desempenho e registrar qualquer alerta novo.
-10. Somente após a homologação, promover a migration para produção.
+5. Executar `supabase/tests/control_live_operations.sql`.
+6. Gerar novamente os tipos em `packages/database/src/supabase.generated.ts`.
+7. Configurar uma conta de teste `SaaS_Owner` sem dados pessoais reais.
+8. Ativar TOTP no projeto e elevar a sessão para AAL2.
+9. Validar os fluxos de Owner, Editor, Viewer, usuário expirado e usuário sem acesso.
+10. Executar os advisors de segurança e desempenho e registrar qualquer alerta novo.
+11. Somente após a homologação, promover a migration para produção.
 
 Se Supabase Branch não estiver disponível, use um projeto separado. Não use o projeto produtivo como substituto silencioso.
 
@@ -126,10 +137,12 @@ npm --workspace @cutsync/control run build:web
 O teste SQL exige uma instância Supabase local ou a homologação preparada:
 
 ```powershell
-psql $env:CONTROL_TEST_DATABASE_URL -f supabase/tests/control_access_foundation.sql
+Get-Content -Raw -LiteralPath 'supabase/tests/control_live_operations.sql' |
+  docker exec -i supabase_db_CutSync psql -U postgres -d postgres -v ON_ERROR_STOP=1
 ```
 
-Use somente uma URL de homologação descartável para esse teste transacional.
+O resultado válido termina em `ROLLBACK`. Se usar conexão remota, use somente
+uma URL de homologação descartável para esse teste transacional.
 
 ## Projeto Vercel separado
 
@@ -145,8 +158,10 @@ Até existir domínio próprio, mantenha a URL temporária do projeto. O Control
 
 ## Próximo incremento
 
-1. Canal privado `control:live` para invalidar e recarregar snapshots.
-2. Projeção server-side da fila do Jira Service Management.
+1. Homologar o ciclo real CutSync → Jira → resposta pública → CutSync, mantendo
+   `allow_new_tickets=false` até a evidência ponta a ponta.
+2. Validar o painel `Ao vivo` com Owner, Editor, Viewer, AAL1 e AAL2 em sessão
+   remota, incluindo reconexão e polling de contingência.
 3. Sentry nos quatro aplicativos, com projetos/releases separados e sem PII.
 4. Convite e mutação de acessos pelo Control, após homologar as RPCs de concessão e revogação.
 5. Migração gradual das rotas de governança e conhecimento, mantendo o Web até a paridade funcional.

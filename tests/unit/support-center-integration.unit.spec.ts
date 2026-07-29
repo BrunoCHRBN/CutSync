@@ -19,6 +19,7 @@ const createTicket = read('supabase/functions/create-jsm-ticket/index.ts');
 const replyTicket = read('supabase/functions/reply-jsm-ticket/index.ts');
 const worker = read('supabase/functions/reconcile-jsm-support/index.ts');
 const verifier = read('scripts/verify-jsm-support.mjs');
+const functionEnvironment = read('supabase/functions/.env.example');
 const clientService = read('apps/client/src/features/support/client-support-service.ts');
 const controlService = read('apps/control/src/services/control-support.ts');
 
@@ -127,6 +128,8 @@ test('exige identidades separadas e todos os campos de roteamento/SLA do JSM', (
     'JSM_FIELD_PRIORITY',
   ]) expect(jsm).toContain(`requiredEnvironment("${field}")`);
   expect(jsm).not.toContain('requiredEnvironment("JSM_FIELD_REQUEST_KIND")');
+  expect(verifier).not.toContain("'JSM_FIELD_REQUEST_KIND'");
+  expect(functionEnvironment).not.toContain('JSM_FIELD_REQUEST_KIND=');
   expect(jsm).toContain(
     'comment.authorAccountId === this.config.requesterAccountId',
   );

@@ -10,6 +10,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@cutsync/database": "*",
     "@cutsync/domain": "*",
     "@supabase/supabase-js": "^2.110.3",
     "expo": "~57.0.8",

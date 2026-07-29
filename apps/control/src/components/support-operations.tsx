@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { subscribeToControlLive } from '@/services/control-live';
 import {
   configureSupportTeamMember,
   ControlSupportError,
@@ -322,6 +323,7 @@ export function SupportOperations() {
   const [membershipBusy, setMembershipBusy] = useState(false);
   const overviewRequest = useRef(0);
   const detailRequest = useRef(0);
+  const liveRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadOverview = useCallback(async (before: string | null = null) => {
     const requestId = ++overviewRequest.current;
@@ -397,6 +399,40 @@ export function SupportOperations() {
   const refresh = useCallback(async () => {
     await Promise.all([loadOverview(), loadDetail()]);
   }, [loadDetail, loadOverview]);
+
+  useEffect(() => {
+    if (!canRead) return undefined;
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    void subscribeToControlLive({
+      onInvalidate: (scope) => {
+        if (!active || (scope && scope !== 'support')) return;
+        if (liveRefreshTimer.current) clearTimeout(liveRefreshTimer.current);
+        liveRefreshTimer.current = setTimeout(() => {
+          liveRefreshTimer.current = null;
+          void refresh();
+        }, 350);
+      },
+    }).then((cleanup) => {
+      if (!active) {
+        cleanup();
+        return;
+      }
+      unsubscribe = cleanup;
+    }).catch(() => {
+      // Manual refresh and route focus remain available if Realtime is offline.
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+      if (liveRefreshTimer.current) {
+        clearTimeout(liveRefreshTimer.current);
+        liveRefreshTimer.current = null;
+      }
+    };
+  }, [canRead, refresh]);
 
   const runTicketAction = useCallback(async (
     action: 'reprocess' | 'escalate',
