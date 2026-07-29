@@ -4,12 +4,14 @@ import {
   isSupportImpact,
   isSupportMessageAuthor,
   isSupportPriority,
+  isSupportRequestKind,
   isSupportSyncStatus,
   isSupportTicketStatus,
   type SupportCategory,
   type SupportImpact,
   type SupportMessageAuthor,
   type SupportPriority,
+  type SupportRequestKind,
   type SupportSyncStatus,
   type SupportTicketStatus,
 } from '@cutsync/domain';
@@ -37,6 +39,7 @@ export interface ClientSupportTicket {
   id: string;
   protocol: string;
   subject: string;
+  requestKind: SupportRequestKind;
   category: SupportCategory;
   impact: SupportImpact;
   priority: SupportPriority;
@@ -110,6 +113,7 @@ const mapTicket = (value: unknown): ClientSupportTicket | null => {
   if (!id || !subject || !createdAt) return null;
 
   const categoryValue = asString(readValue(record, 'category', 'area')) ?? '';
+  const requestKindValue = asString(readValue(record, 'request_kind', 'requestKind')) ?? '';
   const impactValue = asString(record.impact) ?? '';
   const priorityValue = asString(record.priority) ?? '';
   const statusValue = asString(readValue(record, 'status', 'ticket_status')) ?? '';
@@ -124,6 +128,7 @@ const mapTicket = (value: unknown): ClientSupportTicket | null => {
       readValue(record, 'protocol', 'public_protocol', 'ticket_number'),
     ) ?? externalKey ?? id,
     subject,
+    requestKind: isSupportRequestKind(requestKindValue) ? requestKindValue : 'incident',
     category: isSupportCategory(categoryValue) ? categoryValue : 'other',
     impact: isSupportImpact(impactValue) ? impactValue : 'normal',
     priority: isSupportPriority(priorityValue) ? priorityValue : 'normal',
@@ -318,6 +323,7 @@ export const createClientSupportTicket = async (
 ) => {
   const { data, error } = await supabase.functions.invoke<unknown>('create-jsm-ticket', {
     body: {
+      requestKind: 'incident',
       category: input.category,
       impact: input.impact,
       subject: input.subject,

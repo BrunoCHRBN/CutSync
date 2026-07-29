@@ -8,11 +8,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       appointments: {
@@ -81,22 +76,22 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barber_id_fkey"
-            columns: ["professional_id"]
+            foreignKeyName: "appointments_client_id_fkey"
+            columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "appointments_barbershop_id_fkey"
+            foreignKeyName: "appointments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "appointments_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -171,6 +166,7 @@ export type Database = {
           establishment_id: string
           fiscal_address: Json
           id: string
+          legal_entity_id: string | null
           municipal_registration: string | null
           operationally_activated_at: string | null
           owner_resolution_status: string
@@ -190,6 +186,7 @@ export type Database = {
           establishment_id: string
           fiscal_address?: Json
           id?: string
+          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -209,6 +206,7 @@ export type Database = {
           establishment_id?: string
           fiscal_address?: Json
           id?: string
+          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -233,6 +231,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: true
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_accounts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
@@ -1003,7 +1008,7 @@ export type Database = {
           professional_pix_allowed: boolean
           published_at: string | null
           review_count: number
-          share_agendas: boolean | null
+          share_agendas: boolean
           slogan: string | null
           slug: string
           timezone: string
@@ -1044,7 +1049,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean | null
+          share_agendas?: boolean
           slogan?: string | null
           slug: string
           timezone?: string
@@ -1085,7 +1090,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean | null
+          share_agendas?: boolean
           slogan?: string | null
           slug?: string
           timezone?: string
@@ -2844,21 +2849,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "barber_services_barber_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "barber_services_barbershop_id_fkey"
+            foreignKeyName: "professional_services_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "barber_services_service_id_fkey"
+            foreignKeyName: "professional_services_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_services_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
@@ -2890,14 +2895,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profile_barbershops_barbershop_id_fkey"
+            foreignKeyName: "profile_establishments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profile_barbershops_profile_id_fkey"
+            foreignKeyName: "profile_establishments_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2963,7 +2968,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          commission_rate: number | null
+          commission_rate: number
           created_at: string
           deleted_at: string | null
           email: string
@@ -2986,7 +2991,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          commission_rate?: number | null
+          commission_rate?: number
           created_at?: string
           deleted_at?: string | null
           email: string
@@ -3009,7 +3014,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          commission_rate?: number | null
+          commission_rate?: number
           created_at?: string
           deleted_at?: string | null
           email?: string
@@ -3032,7 +3037,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_barbershop_id_fkey"
+            foreignKeyName: "profiles_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -3228,7 +3233,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "services_barbershop_id_fkey"
+            foreignKeyName: "services_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -3307,6 +3312,709 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_business_holidays: {
+        Row: {
+          active: boolean
+          created_at: string
+          holiday_date: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          holiday_date: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          holiday_date?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          author_display_name: string
+          author_kind: string
+          author_profile_id: string | null
+          body: string
+          content_purged_at: string | null
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          is_public: boolean
+          jsm_comment_id: string | null
+          last_sync_error_code: string | null
+          sync_status: string
+          synced_at: string | null
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_display_name: string
+          author_kind: string
+          author_profile_id?: string | null
+          body: string
+          content_purged_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          is_public?: boolean
+          jsm_comment_id?: string | null
+          last_sync_error_code?: string | null
+          sync_status?: string
+          synced_at?: string | null
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_display_name?: string
+          author_kind?: string
+          author_profile_id?: string | null
+          body?: string
+          content_purged_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          is_public?: boolean
+          jsm_comment_id?: string | null
+          last_sync_error_code?: string | null
+          sync_status?: string
+          synced_at?: string | null
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_push_deliveries: {
+        Row: {
+          attempts: number
+          available_at: string
+          body: string
+          created_at: string
+          event_key: string
+          event_type: string
+          expo_ticket_id: string | null
+          id: string
+          last_error_code: string | null
+          locked_at: string | null
+          message_id: string | null
+          payload: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at: string | null
+          sent_at: string | null
+          status: string
+          ticket_id: string
+          ticketed_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          available_at?: string
+          body: string
+          created_at?: string
+          event_key: string
+          event_type: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          message_id?: string | null
+          payload?: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticket_id: string
+          ticketed_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          available_at?: string
+          body?: string
+          created_at?: string
+          event_key?: string
+          event_type?: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          message_id?: string | null
+          payload?: Json
+          profile_id?: string
+          push_device_id?: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticket_id?: string
+          ticketed_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_push_deliveries_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "support_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_push_deliveries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_push_deliveries_push_device_id_fkey"
+            columns: ["push_device_id"]
+            isOneToOne: false
+            referencedRelation: "push_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_push_deliveries_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_routing_rules: {
+        Row: {
+          active: boolean
+          category: string | null
+          city: string | null
+          created_at: string
+          default_escalation_level: number
+          establishment_id: string | null
+          id: string
+          organization_id: string | null
+          priority_order: number
+          product: string | null
+          region: string | null
+          requester_role: string | null
+          rule_version: number
+          state: string | null
+          target_team_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          default_escalation_level?: number
+          establishment_id?: string | null
+          id?: string
+          organization_id?: string | null
+          priority_order: number
+          product?: string | null
+          region?: string | null
+          requester_role?: string | null
+          rule_version?: number
+          state?: string | null
+          target_team_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          default_escalation_level?: number
+          establishment_id?: string | null
+          id?: string
+          organization_id?: string | null
+          priority_order?: number
+          product?: string | null
+          region?: string | null
+          requester_role?: string | null
+          rule_version?: number
+          state?: string | null
+          target_team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_routing_rules_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_routing_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_routing_rules_target_team_id_fkey"
+            columns: ["target_team_id"]
+            isOneToOne: false
+            referencedRelation: "support_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_runtime_settings: {
+        Row: {
+          allow_new_tickets: boolean
+          enabled: boolean
+          id: boolean
+          maintenance_message: string | null
+          sync_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allow_new_tickets?: boolean
+          enabled?: boolean
+          id?: boolean
+          maintenance_message?: string | null
+          sync_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allow_new_tickets?: boolean
+          enabled?: boolean
+          id?: boolean
+          maintenance_message?: string | null
+          sync_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_runtime_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_sync_operations: {
+        Row: {
+          attempts: number
+          available_at: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          locked_at: string | null
+          locked_by: string | null
+          message_id: string | null
+          operation_type: string
+          payload: Json
+          status: string
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          available_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          message_id?: string | null
+          operation_type: string
+          payload?: Json
+          status?: string
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          available_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          message_id?: string | null
+          operation_type?: string
+          payload?: Json
+          status?: string
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_sync_operations_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "support_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_sync_operations_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_team_members: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          is_active: boolean
+          jira_account_id: string | null
+          member_role: string
+          profile_id: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          is_active?: boolean
+          jira_account_id?: string | null
+          member_role: string
+          profile_id: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          is_active?: boolean
+          jira_account_id?: string | null
+          member_role?: string
+          profile_id?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_team_members_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_team_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "support_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_teams: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          is_default: boolean
+          level: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          level?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          level?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      support_ticket_events: {
+        Row: {
+          actor_display_name: string | null
+          actor_profile_id: string | null
+          created_at: string
+          event_type: string
+          from_value: string | null
+          id: string
+          reason: string | null
+          ticket_id: string
+          to_value: string | null
+        }
+        Insert: {
+          actor_display_name?: string | null
+          actor_profile_id?: string | null
+          created_at?: string
+          event_type: string
+          from_value?: string | null
+          id?: string
+          reason?: string | null
+          ticket_id: string
+          to_value?: string | null
+        }
+        Update: {
+          actor_display_name?: string | null
+          actor_profile_id?: string | null
+          created_at?: string
+          event_type?: string
+          from_value?: string | null
+          id?: string
+          reason?: string | null
+          ticket_id?: string
+          to_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_events_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_events_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          appointment_id: string | null
+          assignee_display_name: string | null
+          assignee_profile_id: string | null
+          category: string
+          closed_at: string | null
+          content_purged_at: string | null
+          create_idempotency_key: string | null
+          created_at: string
+          escalation_level: number
+          establishment_id: string | null
+          first_responded_at: string | null
+          first_response_due_at: string | null
+          id: string
+          impact: string
+          jsm_issue_id: string | null
+          jsm_issue_key: string | null
+          jsm_issue_url: string | null
+          last_message_at: string
+          last_reconciled_at: string | null
+          last_sync_error_code: string | null
+          location_address: string | null
+          location_city: string | null
+          location_label: string | null
+          location_region: string | null
+          location_source: string
+          location_state: string | null
+          next_reconcile_at: string
+          organization_id: string | null
+          priority: string
+          product: string
+          protocol: string
+          provider_updated_at: string | null
+          requester_id: string | null
+          requester_role: string
+          request_kind: string
+          resolved_at: string | null
+          routing_version: number
+          sla_breached: boolean
+          status: string
+          subcategory: string | null
+          subject: string
+          sync_status: string
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          assignee_display_name?: string | null
+          assignee_profile_id?: string | null
+          category: string
+          closed_at?: string | null
+          content_purged_at?: string | null
+          create_idempotency_key?: string | null
+          created_at?: string
+          escalation_level?: number
+          establishment_id?: string | null
+          first_responded_at?: string | null
+          first_response_due_at?: string | null
+          id?: string
+          impact: string
+          jsm_issue_id?: string | null
+          jsm_issue_key?: string | null
+          jsm_issue_url?: string | null
+          last_message_at?: string
+          last_reconciled_at?: string | null
+          last_sync_error_code?: string | null
+          location_address?: string | null
+          location_city?: string | null
+          location_label?: string | null
+          location_region?: string | null
+          location_source?: string
+          location_state?: string | null
+          next_reconcile_at?: string
+          organization_id?: string | null
+          priority: string
+          product: string
+          protocol?: string
+          provider_updated_at?: string | null
+          requester_id?: string | null
+          requester_role: string
+          request_kind?: string
+          resolved_at?: string | null
+          routing_version?: number
+          sla_breached?: boolean
+          status?: string
+          subcategory?: string | null
+          subject: string
+          sync_status?: string
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          assignee_display_name?: string | null
+          assignee_profile_id?: string | null
+          category?: string
+          closed_at?: string | null
+          content_purged_at?: string | null
+          create_idempotency_key?: string | null
+          created_at?: string
+          escalation_level?: number
+          establishment_id?: string | null
+          first_responded_at?: string | null
+          first_response_due_at?: string | null
+          id?: string
+          impact?: string
+          jsm_issue_id?: string | null
+          jsm_issue_key?: string | null
+          jsm_issue_url?: string | null
+          last_message_at?: string
+          last_reconciled_at?: string | null
+          last_sync_error_code?: string | null
+          location_address?: string | null
+          location_city?: string | null
+          location_label?: string | null
+          location_region?: string | null
+          location_source?: string
+          location_state?: string | null
+          next_reconcile_at?: string
+          organization_id?: string | null
+          priority?: string
+          product?: string
+          protocol?: string
+          provider_updated_at?: string | null
+          requester_id?: string | null
+          requester_role?: string
+          request_kind?: string
+          resolved_at?: string | null
+          routing_version?: number
+          sla_breached?: boolean
+          status?: string
+          subcategory?: string | null
+          subject?: string
+          sync_status?: string
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_assignee_profile_id_fkey"
+            columns: ["assignee_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "support_teams"
             referencedColumns: ["id"]
           },
         ]
@@ -3467,6 +4175,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      add_support_message_internal: {
+        Args: {
+          actor_profile_id: string
+          message_body: string
+          target_idempotency_key: string
+          target_ticket_id: string
+        }
+        Returns: Json
+      }
       admin_report_available_minutes: {
         Args: {
           target_establishment_id: string
@@ -3491,6 +4208,19 @@ export type Database = {
       anonymize_user_profile: {
         Args: { target_user_id: string }
         Returns: undefined
+      }
+      apply_support_reconciliation: {
+        Args: {
+          target_assignee_jira_account_id: string
+          target_assignee_name: string
+          target_first_responded_at: string
+          target_first_response_due_at: string
+          target_jsm_updated_at: string
+          target_sla_breached: boolean
+          target_status: string
+          target_ticket_id: string
+        }
+        Returns: Json
       }
       approve_establishment_request: {
         Args: { target_request_id: string }
@@ -3527,18 +4257,6 @@ export type Database = {
         Returns: string
       }
       bootstrap_superadmins_from_config: { Args: never; Returns: number }
-      can_manage_business_invitation: {
-        Args: { target_establishment_id: string; target_role: string }
-        Returns: boolean
-      }
-      can_operate_business_appointment: {
-        Args: {
-          target_establishment_id: string
-          target_professional_id: string
-        }
-        Returns: boolean
-      }
-      can_upload_professional_gallery_image: { Args: never; Returns: boolean }
       can_use_establishment_feature: {
         Args: { target_establishment_id: string; target_feature: string }
         Returns: boolean
@@ -3550,10 +4268,6 @@ export type Database = {
       can_view_profile: {
         Args: { target_profile_id: string }
         Returns: boolean
-      }
-      cancel_appointment: {
-        Args: { reason: string; target_appointment_id: string }
-        Returns: undefined
       }
       claim_client_push_deliveries: {
         Args: { target_limit?: number }
@@ -3572,9 +4286,36 @@ export type Database = {
           expo_ticket_id: string
         }[]
       }
-      complete_appointment: {
-        Args: { target_appointment_id: string }
-        Returns: undefined
+      claim_support_push_deliveries: {
+        Args: { target_limit?: number }
+        Returns: {
+          delivery_id: string
+          expo_push_token: string
+          notification_body: string
+          notification_payload: Json
+          notification_title: string
+        }[]
+      }
+      claim_support_push_receipts: {
+        Args: { target_limit?: number }
+        Returns: {
+          delivery_id: string
+          expo_ticket_id: string
+        }[]
+      }
+      claim_support_sync_operation: {
+        Args: { target_operation_id: string }
+        Returns: boolean
+      }
+      claim_support_sync_operations: {
+        Args: { target_limit?: number }
+        Returns: {
+          message_id: string
+          operation_id: string
+          operation_type: string
+          payload: Json
+          ticket_id: string
+        }[]
       }
       complete_client_account_deletion: {
         Args: { target_request_id: string }
@@ -3597,6 +4338,42 @@ export type Database = {
           target_success: boolean
         }
         Returns: boolean
+      }
+      complete_support_message_sync: {
+        Args: {
+          target_jsm_comment_id: string
+          target_message_id: string
+          target_operation_id: string
+        }
+        Returns: Json
+      }
+      complete_support_push_delivery: {
+        Args: {
+          target_delivery_id: string
+          target_error_code?: string
+          target_retryable?: boolean
+          target_success: boolean
+          target_ticket_id?: string
+        }
+        Returns: boolean
+      }
+      complete_support_push_receipt: {
+        Args: {
+          target_delivery_id: string
+          target_error_code?: string
+          target_success: boolean
+        }
+        Returns: boolean
+      }
+      complete_support_ticket_creation: {
+        Args: {
+          target_jsm_issue_id: string
+          target_jsm_issue_key: string
+          target_jsm_issue_url: string
+          target_operation_id: string
+          target_ticket_id: string
+        }
+        Returns: Json
       }
       compute_available_slots: {
         Args: {
@@ -3638,9 +4415,15 @@ export type Database = {
         }
         Returns: string
       }
-      confirm_appointment: {
-        Args: { target_appointment_id: string }
-        Returns: undefined
+      configure_support_team_member: {
+        Args: {
+          reason: string
+          target_active: boolean
+          target_jira_account_id: string
+          target_profile_id: string
+          target_role: string
+        }
+        Returns: Json
       }
       create_appointment: {
         Args: {
@@ -3739,10 +4522,44 @@ export type Database = {
         }
         Returns: string
       }
+      create_support_ticket_internal: {
+        Args: {
+          actor_profile_id: string
+          initial_message: string
+          target_appointment_id: string
+          target_category: string
+          target_idempotency_key: string
+          target_impact: string
+          target_subject: string
+        }
+        Returns: Json
+      }
+      create_support_ticket_internal_v2: {
+        Args: {
+          actor_profile_id: string
+          initial_message: string
+          target_appointment_id: string
+          target_category: string
+          target_idempotency_key: string
+          target_impact: string
+          target_request_kind: string
+          target_subject: string
+        }
+        Returns: Json
+      }
       current_session_is_aal2: { Args: never; Returns: boolean }
       delete_schedule_block: {
         Args: { target_block_id: string }
         Returns: string
+      }
+      enqueue_support_push: {
+        Args: {
+          target_event_key: string
+          target_event_type: string
+          target_message_id?: string
+          target_ticket_id: string
+        }
+        Returns: number
       }
       ensure_billing_account_for_establishment: {
         Args: {
@@ -3750,6 +4567,10 @@ export type Database = {
           target_transition_days?: number
         }
         Returns: string
+      }
+      escalate_support_ticket: {
+        Args: { reason: string; target_level: number; target_ticket_id: string }
+        Returns: Json
       }
       establishment_discovery_requirements: {
         Args: { target_establishment_id: string }
@@ -3762,6 +4583,14 @@ export type Database = {
       fail_client_account_deletion: {
         Args: { target_error_code: string; target_request_id: string }
         Returns: undefined
+      }
+      fail_support_sync_operation: {
+        Args: {
+          target_error_code: string
+          target_operation_id: string
+          target_retry_after_seconds?: number
+        }
+        Returns: Json
       }
       finalize_establishment_onboarding: {
         Args: { opening_hours: string; target_establishment_id: string }
@@ -3776,14 +4605,6 @@ export type Database = {
         Returns: undefined
       }
       get_admin_report: {
-        Args: {
-          target_establishment_id: string
-          target_range_end: string
-          target_range_start: string
-        }
-        Returns: Json
-      }
-      get_admin_report_before_business_access: {
         Args: {
           target_establishment_id: string
           target_range_end: string
@@ -3808,35 +4629,7 @@ export type Database = {
         }
         Returns: Json
       }
-      get_admin_report_details_before_business_access: {
-        Args: {
-          target_cursor?: string
-          target_day?: string
-          target_day_of_week?: number
-          target_dimension: string
-          target_establishment_id: string
-          target_hour?: number
-          target_limit?: number
-          target_professional_id?: string
-          target_range_end: string
-          target_range_start: string
-          target_service_id?: string
-          target_status?: string
-        }
-        Returns: Json
-      }
       get_admin_report_v2: {
-        Args: {
-          target_establishment_id: string
-          target_professional_id?: string
-          target_range_end: string
-          target_range_start: string
-          target_service_id?: string
-          target_status?: string
-        }
-        Returns: Json
-      }
-      get_admin_report_v2_before_business_access: {
         Args: {
           target_establishment_id: string
           target_professional_id?: string
@@ -3885,25 +4678,6 @@ export type Database = {
           local_time: string
           starts_at: string
           unavailable_reason: string
-        }[]
-      }
-      get_business_agenda_day: {
-        Args: {
-          target_establishment_id: string
-          target_local_date: string
-          target_scope: string
-        }
-        Returns: {
-          appointment_id: string
-          appointment_status: string
-          client_display_name: string
-          ends_at: string
-          establishment_id: string
-          professional_id: string
-          professional_name: string
-          service_id: string
-          service_name: string
-          starts_at: string
         }[]
       }
       get_client_account_deletion_request: {
@@ -4089,6 +4863,20 @@ export type Database = {
       }
       get_control_context: { Args: never; Returns: Json }
       get_control_dashboard: { Args: never; Returns: Json }
+      get_control_support_overview: {
+        Args: {
+          target_before?: string
+          target_category?: string
+          target_limit?: number
+          target_priority?: string
+          target_status?: string
+        }
+        Returns: Json
+      }
+      get_control_support_ticket: {
+        Args: { target_ticket_id: string }
+        Returns: Json
+      }
       get_establishment_client_contacts: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -4158,33 +4946,6 @@ export type Database = {
           payer_role: string
           pending_change_at: string
           subscription_id: string
-          trial_ends_at: string
-        }[]
-      }
-      get_my_business_operational_contexts: {
-        Args: never
-        Returns: {
-          access_mode: string
-          billing_account_id: string
-          billing_owner: boolean
-          billing_scope: string
-          billing_status: string
-          capabilities: string[]
-          covered_establishment_ids: string[]
-          current_period_ends_at: string
-          establishment_id: string
-          establishment_name: string
-          establishment_slug: string
-          grace_ends_at: string
-          membership_id: string
-          membership_role: string
-          membership_status: string
-          operational_role: string
-          organization_id: string
-          payer_role: string
-          pending_change_at: string
-          subscription_id: string
-          timezone: string
           trial_ends_at: string
         }[]
       }
@@ -4267,6 +5028,10 @@ export type Database = {
           work_hours: string
         }[]
       }
+      get_my_support_ticket: {
+        Args: { target_ticket_id: string }
+        Returns: Json
+      }
       get_organization_billing_context: {
         Args: { target_organization_id: string }
         Returns: Json
@@ -4344,6 +5109,7 @@ export type Database = {
         Args: { target_establishment_id: string }
         Returns: Json
       }
+      get_support_capabilities: { Args: never; Returns: Json }
       grant_governance_role: {
         Args: {
           reason: string
@@ -4372,10 +5138,6 @@ export type Database = {
         Args: { allowed_roles?: string[]; target_establishment_id: string }
         Returns: boolean
       }
-      has_business_capability: {
-        Args: { target_capability: string; target_establishment_id: string }
-        Returns: boolean
-      }
       has_organization_role: {
         Args: { allowed_roles?: string[]; target_organization_id: string }
         Returns: boolean
@@ -4383,6 +5145,17 @@ export type Database = {
       immutable_array_to_string: {
         Args: { arr: string[]; sep: string }
         Returns: string
+      }
+      import_support_public_message: {
+        Args: {
+          message_body: string
+          target_author_jira_account_id: string
+          target_author_name: string
+          target_created_at: string
+          target_jsm_comment_id: string
+          target_ticket_id: string
+        }
+        Returns: Json
       }
       inspect_invitation: {
         Args: { invitation_token: string }
@@ -4415,18 +5188,6 @@ export type Database = {
           invitation_id: string
           invitation_token: string
         }[]
-      }
-      is_active_establishment_professional: {
-        Args: { target_establishment_id: string; target_profile_id: string }
-        Returns: boolean
-      }
-      is_active_establishment_service: {
-        Args: { target_establishment_id: string; target_service_id: string }
-        Returns: boolean
-      }
-      is_business_administrator: {
-        Args: { require_full_access?: boolean; target_establishment_id: string }
-        Returns: boolean
       }
       is_establishment_active: {
         Args: { target_establishment_id: string }
@@ -4692,6 +5453,7 @@ export type Database = {
           status: string
         }[]
       }
+      list_my_support_tickets: { Args: never; Returns: Json }
       list_public_discovery_establishments: {
         Args: { result_limit?: number }
         Returns: {
@@ -4712,6 +5474,16 @@ export type Database = {
           timezone: string
         }[]
       }
+      list_support_tickets_for_reconciliation: {
+        Args: { target_limit?: number }
+        Returns: {
+          jsm_issue_id: string
+          jsm_issue_key: string
+          last_reconciled_at: string
+          provider_updated_at: string
+          ticket_id: string
+        }[]
+      }
       moderate_governance_kb_topic: {
         Args: { requested_action: string; target_topic_id: string }
         Returns: undefined
@@ -4728,11 +5500,21 @@ export type Database = {
           requirements: Json
         }[]
       }
-      pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
-      push_changes: { Args: { changes: Json }; Returns: undefined }
+      purge_expired_support_content: {
+        Args: { target_limit?: number; target_now?: string }
+        Returns: number
+      }
+      purge_support_profile_content: {
+        Args: { target_profile_id: string }
+        Returns: number
+      }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
+      }
+      queue_support_ticket_sync_internal: {
+        Args: { actor_profile_id: string; target_ticket_id: string }
+        Returns: Json
       }
       register_business_identity_atomic: {
         Args: {
@@ -4798,6 +5580,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      reprocess_support_sync: {
+        Args: { reason: string; target_ticket_id: string }
+        Returns: Json
+      }
       request_establishment: {
         Args: {
           requested_address?: string
@@ -4861,23 +5647,6 @@ export type Database = {
           pending_change_at: string
           subscription_id: string
           trial_ends_at: string
-        }[]
-      }
-      resolve_business_operational_capabilities: {
-        Args: {
-          target_access_mode: string
-          target_establishment_id: string
-          target_profile_id: string
-        }
-        Returns: string[]
-      }
-      resolve_business_operational_identity: {
-        Args: { target_establishment_id: string; target_profile_id: string }
-        Returns: {
-          membership_id: string
-          membership_role: string
-          operational_role: string
-          organization_id: string
         }[]
       }
       resolve_identity_migration_conflict: {
@@ -4980,6 +5749,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_control_support_runtime: {
+        Args: {
+          reason: string
+          target_allow_new_tickets: boolean
+          target_enabled: boolean
+          target_maintenance_message: string
+          target_sync_enabled: boolean
+        }
+        Returns: Json
+      }
       set_control_user_access: {
         Args: {
           reason: string
@@ -5033,6 +5812,38 @@ export type Database = {
         }
         Returns: Json
       }
+      support_add_business_minutes: {
+        Args: { target_at: string; target_minutes: number }
+        Returns: string
+      }
+      support_control_operator_context: {
+        Args: { allow_owner_without_membership?: boolean }
+        Returns: Json
+      }
+      support_first_response_due_at: {
+        Args: { target_created_at: string; target_priority: string }
+        Returns: string
+      }
+      support_is_business_day: {
+        Args: { target_date: string }
+        Returns: boolean
+      }
+      support_message_payload: {
+        Args: { target_message_id: string }
+        Returns: Json
+      }
+      support_public_message_payload: {
+        Args: { target_message_id: string }
+        Returns: Json
+      }
+      support_public_ticket_payload: {
+        Args: { target_ticket_id: string }
+        Returns: Json
+      }
+      support_ticket_payload: {
+        Args: { target_ticket_id: string }
+        Returns: Json
+      }
       switch_active_establishment: {
         Args: { target_establishment_id: string }
         Returns: string
@@ -5083,7 +5894,7 @@ export type Database = {
         Returns: Json
       }
       update_my_client_avatar: {
-        Args: { target_avatar_url: string }
+        Args: { target_avatar_url: string | null }
         Returns: {
           avatar_url: string
           email: string

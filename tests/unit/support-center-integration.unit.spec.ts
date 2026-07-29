@@ -10,11 +10,15 @@ const read = (relativePath: string) => fs
   .replace(/\r\n/g, '\n');
 
 const migration = read('supabase/migrations/20260802000000_support_center_foundation.sql');
+const requestKindMigration = read(
+  'supabase/migrations/20260803000000_support_request_kind_wizard.sql',
+);
 const jsm = read('supabase/functions/_shared/jsm.ts');
 const shared = read('supabase/functions/_shared/support.ts');
 const createTicket = read('supabase/functions/create-jsm-ticket/index.ts');
 const replyTicket = read('supabase/functions/reply-jsm-ticket/index.ts');
 const worker = read('supabase/functions/reconcile-jsm-support/index.ts');
+const verifier = read('scripts/verify-jsm-support.mjs');
 const clientService = read('apps/client/src/features/support/client-support-service.ts');
 const controlService = read('apps/control/src/services/control-support.ts');
 
@@ -55,6 +59,19 @@ test('mantém outbox, reconciliação, retenção e filas de push independentes'
   expect(migration).toContain('CREATE OR REPLACE FUNCTION public.claim_support_push_receipts');
   expect(worker).toContain('x-cutsync-support-secret');
   expect(worker).toContain('healthy: false');
+});
+
+test('aceita sincronização imediata por issue key sem consumir a fila do cron', () => {
+  expect(worker).toContain('Object.hasOwn(input, "issueKey")');
+  expect(worker).toContain('.eq("jsm_issue_key", issueKey)');
+  expect(worker).toContain('mode: "event"');
+  expect(worker).toContain('SUPPORT_JSM_WEBHOOK_SECRET');
+  expect(worker).toContain('x-cutsync-support-event-secret');
+  expect(worker.indexOf('if (issueKey)')).toBeLessThan(
+    worker.indexOf('"claim_support_sync_operations"'),
+  );
+  expect(worker).toContain('support_invalid_issue_key');
+  expect(verifier).toContain('jobSecret === webhookSecret');
 });
 
 test('isola chamados por requester e reserva operações internas à service role', () => {
@@ -108,11 +125,39 @@ test('exige identidades separadas e todos os campos de roteamento/SLA do JSM', (
     'JSM_FIELD_ESCALATION_LEVEL',
     'JSM_FIELD_IMPACT',
     'JSM_FIELD_PRIORITY',
+    'JSM_FIELD_REQUEST_KIND',
   ]) expect(jsm).toContain(`requiredEnvironment("${field}")`);
   expect(jsm).toContain(
     'comment.authorAccountId === this.config.requesterAccountId',
   );
   expect(jsm).toContain('|^pending$|^pendente$');
+});
+
+test('adiciona tipo da solicitação sem interromper a RPC publicada', () => {
+  expect(requestKindMigration).toContain('ADD COLUMN IF NOT EXISTS request_kind text');
+  expect(requestKindMigration).toContain(
+    'CREATE OR REPLACE FUNCTION public.create_support_ticket_internal_v2',
+  );
+  expect(requestKindMigration).toContain(
+    'public.create_support_ticket_internal(',
+  );
+  expect(requestKindMigration).toContain(
+    "WHEN category = 'product_feedback' THEN 'request'",
+  );
+  expect(requestKindMigration).toContain("WHEN impact = 'low' THEN 'question'");
+  expect(requestKindMigration).toContain('priority = normalized_impact');
+  expect(requestKindMigration).toContain(
+    'CREATE TRIGGER support_tickets_assign_request_kind',
+  );
+  expect(createTicket).toContain('"create_support_ticket_internal_v2"');
+  expect(createTicket).toContain('requestKind !== "incident"');
+  expect(createTicket).toContain('"support_incident_required"');
+  expect(createTicket).toContain('requestKind');
+  expect(jsm).toContain('requestKind: input.requestKind');
+  expect(jsm).toContain('requestFieldValues[fieldId] = values[name]');
+  expect(worker).toContain(
+    'requestKind: asString(ticket.request_kind) ?? "incident"',
+  );
 });
 
 test('mantém appointment textual no Client e no Control', () => {

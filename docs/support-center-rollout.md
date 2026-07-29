@@ -104,6 +104,58 @@ https://<project-ref>.supabase.co/functions/v1/reconcile-jsm-support
 Envie `x-cutsync-support-secret: <SUPPORT_JOB_SECRET>`. O segredo de suporte deve
 ser diferente do segredo dos workers de billing e notificações.
 
+## Sincronização imediata Jira → CutSync
+
+O cron continua obrigatório como mecanismo de reconciliação. Para refletir
+comentários públicos e mudanças de status normalmente em segundos, configure
+duas regras de automação no projeto de suporte:
+
+1. `CutSync | Sincronizar transição`
+   - acionador: ticket transicionado;
+   - condição: projeto `SUP` e tipo de solicitação
+     `Falar com o Suporte CutSync`;
+   - ação: enviar solicitação web.
+2. `CutSync | Sincronizar comentário público`
+   - acionador: comentário adicionado;
+   - condições: projeto `SUP`, mesmo tipo de solicitação e
+     `{{comment.internal}}` igual a `false`;
+   - ação: enviar solicitação web.
+
+Use a mesma chamada nas duas ações:
+
+```text
+POST https://<project-ref>.supabase.co/functions/v1/reconcile-jsm-support
+Content-Type: application/json
+x-cutsync-support-event-secret: <SUPPORT_JSM_WEBHOOK_SECRET>
+```
+
+Corpo:
+
+```json
+{
+  "issueKey": "{{issue.key}}"
+}
+```
+
+Não marque a ação para aguardar a resposta HTTP. A função valida a chave,
+localiza somente o chamado CutSync correspondente e consulta o estado
+autoritativo diretamente no JSM; status, comentários ou responsáveis enviados
+no corpo da automação não são aceitos como fonte de verdade.
+
+Use um `SUPPORT_JSM_WEBHOOK_SECRET` aleatório com pelo menos 32 caracteres,
+diferente de `SUPPORT_JOB_SECRET`. Depois de adicioná-lo ao arquivo local,
+execute novamente:
+
+```powershell
+npm run support:verify-jsm
+npx supabase secrets set --env-file .\supabase\functions\.env.support.local
+npx supabase functions deploy reconcile-jsm-support --no-verify-jwt
+```
+
+Uma resposta `reconciled: true` confirma a atualização. `ignored: true`
+significa que a chave não pertence a um chamado CutSync ativo; revise as
+condições da automação se isso ocorrer.
+
 ## Ativação segura
 
 A migration cria o módulo desligado. No Control:
@@ -142,3 +194,5 @@ versão do aplicativo. Registre sempre uma justificativa operacional.
 - Conteúdo local resolvido há mais de 12 meses é expurgado; protocolo e
   metadados mínimos permanecem.
 - Logs técnicos não contêm assunto, mensagem, e-mail, endereço ou token.
+- Transição ou comentário público do Jira chega ao Client normalmente em até
+  um minuto; se a automação falhar, o cron preserva o limite de três minutos.

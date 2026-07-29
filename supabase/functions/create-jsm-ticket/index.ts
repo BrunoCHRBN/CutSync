@@ -22,10 +22,9 @@ const categories = new Set([
   "booking",
   "marketplace",
   "security_privacy",
-  "product_feedback",
   "other",
 ]);
-const impacts = new Set(["low", "normal", "high", "critical"]);
+const incidentImpacts = new Set(["normal", "high", "critical"]);
 
 const asObject = (value: unknown): Record<string, unknown> => (
   value && typeof value === "object" && !Array.isArray(value)
@@ -68,17 +67,22 @@ Deno.serve(async (request) => {
   }
 
   const category = asString(rawInput.category);
+  const requestKind = asString(rawInput.requestKind);
   const impact = asString(rawInput.impact);
   const subject = normalizeSubject(rawInput.subject);
   const message = normalizeMessage(rawInput.message);
   const appointmentId = parseOptionalText(rawInput.appointmentId, 128);
   const idempotencyKey = asString(rawInput.idempotencyKey);
 
+  if (requestKind !== "incident") {
+    return supportJsonResponse({ error: "support_incident_required" }, 400);
+  }
+
   if (
     !category
     || !categories.has(category)
     || !impact
-    || !impacts.has(impact)
+    || !incidentImpacts.has(impact)
     || subject.length < 5
     || subject.length > 120
     || message.length < 20
@@ -91,8 +95,9 @@ Deno.serve(async (request) => {
     return supportJsonResponse({ error: "support_invalid_request" }, 400);
   }
 
-  const { data, error } = await adminClient.rpc("create_support_ticket_internal", {
+  const { data, error } = await adminClient.rpc("create_support_ticket_internal_v2", {
     actor_profile_id: user.id,
+    target_request_kind: requestKind,
     target_category: category,
     target_impact: impact,
     target_subject: subject,
@@ -166,6 +171,7 @@ Deno.serve(async (request) => {
     protocol,
     subject: asString(ticket.subject) ?? subject,
     message: persistedInitialMessage,
+    requestKind: asString(ticket.request_kind) ?? requestKind,
     product: asString(ticket.product) ?? "client",
     category: asString(ticket.category) ?? category,
     requesterRole: asString(ticket.requester_role) ?? "client",

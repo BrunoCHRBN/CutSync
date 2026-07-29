@@ -3,6 +3,7 @@ export interface JsmTicketInput {
   protocol: string;
   subject: string;
   message: string;
+  requestKind: string;
   product: string;
   category: string;
   requesterRole: string;
@@ -82,6 +83,7 @@ const loadConfig = (): JsmConfig => ({
   fieldTicketId: requiredEnvironment("JSM_FIELD_CUTSYNC_TICKET_ID"),
   customFields: {
     product: requiredEnvironment("JSM_FIELD_PRODUCT"),
+    requestKind: requiredEnvironment("JSM_FIELD_REQUEST_KIND"),
     category: requiredEnvironment("JSM_FIELD_AREA"),
     requesterRole: requiredEnvironment("JSM_FIELD_REQUESTER_ROLE"),
     teamCode: requiredEnvironment("JSM_FIELD_CUTSYNC_TEAM"),
@@ -234,6 +236,7 @@ export class JsmClient {
     };
     const values: Record<string, string | number | null> = {
       product: input.product,
+      requestKind: input.requestKind,
       category: input.category,
       requesterRole: input.requesterRole,
       teamCode: input.teamCode,

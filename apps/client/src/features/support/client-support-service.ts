@@ -4,12 +4,14 @@ import {
   isSupportImpact,
   isSupportMessageAuthor,
   isSupportPriority,
+  isSupportRequestKind,
   isSupportSyncStatus,
   isSupportTicketStatus,
   type SupportCategory,
   type SupportImpact,
   type SupportMessageAuthor,
   type SupportPriority,
+  type SupportRequestKind,
   type SupportSyncStatus,
   type SupportTicketStatus,
 } from '@cutsync/domain';
@@ -37,6 +39,7 @@ export interface ClientSupportTicket {
   id: string;
   protocol: string;
   subject: string;
+  requestKind: SupportRequestKind;
   category: SupportCategory;
   impact: SupportImpact;
   priority: SupportPriority;
@@ -115,6 +118,17 @@ const asImpact = (value: unknown): SupportImpact => {
   return isSupportImpact(impact) ? impact : 'normal';
 };
 
+const asRequestKind = (
+  value: unknown,
+  category: SupportCategory,
+  impact: SupportImpact,
+): SupportRequestKind => {
+  const requestKind = asString(value) ?? '';
+  if (isSupportRequestKind(requestKind)) return requestKind;
+  if (category === 'product_feedback') return 'request';
+  return impact === 'low' ? 'question' : 'incident';
+};
+
 const asPriority = (value: unknown): SupportPriority => {
   const priority = asString(value) ?? '';
   return isSupportPriority(priority) ? priority : 'normal';
@@ -160,14 +174,21 @@ const mapTicket = (value: unknown): ClientSupportTicket | null => {
     readValue(record, 'last_message_at', 'lastMessageAt'),
   ) ?? updatedAt;
 
+  const category = asCategory(readValue(record, 'category', 'area'));
+  const impact = asImpact(record.impact);
   return {
     id,
     protocol: asString(
       readValue(record, 'protocol', 'public_protocol', 'ticket_number'),
     ) ?? externalKey ?? id,
     subject,
-    category: asCategory(readValue(record, 'category', 'area')),
-    impact: asImpact(record.impact),
+    requestKind: asRequestKind(
+      readValue(record, 'request_kind', 'requestKind'),
+      category,
+      impact,
+    ),
+    category,
+    impact,
     priority: asPriority(record.priority),
     status,
     syncStatus: asSyncStatus(
@@ -366,6 +387,7 @@ export const createClientSupportTicket = async (
   const client = requireClient();
   const { data, error } = await client.functions.invoke<unknown>('create-jsm-ticket', {
     body: {
+      requestKind: 'incident',
       category: input.category,
       impact: input.impact,
       subject: input.subject,

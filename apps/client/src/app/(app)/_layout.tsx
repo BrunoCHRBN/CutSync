@@ -34,7 +34,10 @@ export default function ClientAppLayout() {
           <Stack.Screen name="preferences" options={{ title: 'Preferências' }} />
           <Stack.Screen name="security" options={{ title: 'Segurança' }} />
           <Stack.Screen name="support/index" options={{ title: 'Suporte' }} />
-          <Stack.Screen name="support/new" options={{ title: 'Novo chamado' }} />
+          <Stack.Screen
+            name="support/new"
+            options={{ title: 'Novo chamado', presentation: 'fullScreenModal' }}
+          />
           <Stack.Screen name="support/[id]" options={{ title: 'Chamado' }} />
           <Stack.Screen name="introduction" options={{ headerShown: false }} />
         </Stack>

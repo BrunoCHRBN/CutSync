@@ -34,6 +34,14 @@ const asNumber = (value: unknown, fallback = 0) => (
   typeof value === "number" && Number.isFinite(value) ? value : fallback
 );
 
+const asIssueKey = (value: unknown) => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  return /^[A-Z][A-Z0-9_]{0,49}-[1-9][0-9]*$/.test(normalized)
+    ? normalized
+    : null;
+};
+
 const clampLimit = (value: unknown, fallback: number, maximum: number) => {
   const parsed = typeof value === "number" ? Math.trunc(value) : fallback;
   return Math.min(Math.max(parsed || fallback, 1), maximum);
@@ -117,6 +125,7 @@ const processCreateOperation = async (
     protocol: asString(ticket.protocol) ?? operation.ticket_id,
     subject: asString(ticket.subject) ?? "Solicitação CutSync",
     message: initialMessage,
+    requestKind: asString(ticket.request_kind) ?? "incident",
     product: asString(ticket.product) ?? "client",
     category: asString(ticket.category) ?? "other",
     requesterRole: asString(ticket.requester_role) ?? "client",
@@ -289,13 +298,49 @@ const reconcileTicket = async (
   return true;
 };
 
+const reconcileIssueKey = async (
+  admin: SupabaseClient,
+  jsm: JsmClient,
+  issueKey: string,
+) => {
+  const { data, error } = await admin
+    .from("support_tickets")
+    .select("id, jsm_issue_key")
+    .eq("jsm_issue_key", issueKey)
+    .is("content_purged_at", null)
+    .maybeSingle();
+  if (error) throw new Error("support_reconciliation_lookup_failed");
+  if (!data) return false;
+
+  return reconcileTicket(admin, jsm, {
+    ticket_id: data.id,
+    jsm_issue_key: data.jsm_issue_key,
+  });
+};
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return supportJsonResponse({ error: "method_not_allowed" }, 405);
   }
 
-  const expectedSecret = Deno.env.get("SUPPORT_JOB_SECRET") ?? "";
-  const suppliedSecret = request.headers.get("x-cutsync-support-secret") ?? "";
+  let input: Record<string, unknown> = {};
+  try {
+    input = asObject(await request.json());
+  } catch {
+    // Scheduled calls may omit a body.
+  }
+  const hasIssueKey = Object.hasOwn(input, "issueKey");
+  const issueKey = asIssueKey(input.issueKey);
+  if (hasIssueKey && !issueKey) {
+    return supportJsonResponse({ error: "support_invalid_issue_key" }, 400);
+  }
+
+  const expectedSecret = issueKey
+    ? Deno.env.get("SUPPORT_JSM_WEBHOOK_SECRET") ?? ""
+    : Deno.env.get("SUPPORT_JOB_SECRET") ?? "";
+  const suppliedSecret = issueKey
+    ? request.headers.get("x-cutsync-support-event-secret") ?? ""
+    : request.headers.get("x-cutsync-support-secret") ?? "";
   if (!expectedSecret || !safeEquals(expectedSecret, suppliedSecret)) {
     return supportJsonResponse({ error: "unauthorized" }, 401);
   }
@@ -306,12 +351,6 @@ Deno.serve(async (request) => {
     return supportJsonResponse({ error: "service_not_configured" }, 500);
   }
 
-  let input: Record<string, unknown> = {};
-  try {
-    input = asObject(await request.json());
-  } catch {
-    // Scheduled calls may omit a body.
-  }
   const operationLimit = clampLimit(input.operationLimit, 25, 100);
   const ticketLimit = clampLimit(input.ticketLimit, 50, 100);
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -337,6 +376,42 @@ Deno.serve(async (request) => {
       paused: true,
       purgedTickets: Number(purgeResult.data ?? 0),
     });
+  }
+
+  if (issueKey) {
+    let jsm: JsmClient;
+    try {
+      jsm = new JsmClient();
+    } catch {
+      return supportJsonResponse({
+        error: "support_sync_not_configured",
+        mode: "event",
+      }, 503);
+    }
+
+    try {
+      const reconciled = await reconcileIssueKey(admin, jsm, issueKey);
+      return supportJsonResponse({
+        healthy: true,
+        mode: "event",
+        issueKey,
+        reconciled,
+        ignored: !reconciled,
+      });
+    } catch (error) {
+      const errorCode = error instanceof Error
+        && error.message === "support_reconciliation_lookup_failed"
+        ? error.message
+        : getJsmSafeErrorCode(error);
+      const retryAfterSeconds = getJsmRetryDelaySeconds(error);
+      return supportJsonResponse({
+        error: errorCode,
+        healthy: false,
+        mode: "event",
+        issueKey,
+        retryAfterSeconds,
+      }, errorCode === "support_external_rate_limited" ? 429 : 502);
+    }
   }
 
   const { data: claimedData, error: claimError } = await admin.rpc(

@@ -8,6 +8,7 @@ import {
   CLIENT_SUPPORT_CATEGORIES,
   createSupportIdempotencyKey,
   formatSupportDateTime,
+  SUPPORT_REQUEST_KINDS,
   SUPPORT_SYNC_STATUSES,
   SUPPORT_TICKET_STATUSES,
   supportCategoryLabels,
@@ -29,9 +30,9 @@ test('mantém categorias, estados e labels fechados para o Client', () => {
     'booking',
     'marketplace',
     'security_privacy',
-    'product_feedback',
     'other',
   ]);
+  expect(SUPPORT_REQUEST_KINDS).toEqual(['question', 'request', 'incident']);
   expect(SUPPORT_TICKET_STATUSES).toContain('waiting_user');
   expect(SUPPORT_TICKET_STATUSES).toContain('sync_failed');
   expect(SUPPORT_SYNC_STATUSES).toEqual(['pending', 'processing', 'synced', 'failed']);
@@ -50,6 +51,7 @@ test('gera chaves idempotentes UUID v4 aceitas pelo backend', () => {
 
 test('normaliza chamado e aceita appointment id textual seguro', () => {
   expect(validateClientSupportTicket({
+    requestKind: 'incident',
     category: 'booking',
     impact: 'normal',
     subject: '  Falha   ao reagendar ',
@@ -57,6 +59,7 @@ test('normaliza chamado e aceita appointment id textual seguro', () => {
     appointmentId: 'appointment-legacy_2026:07',
   })).toEqual({
     ok: true,
+    requestKind: 'incident',
     category: 'booking',
     impact: 'normal',
     subject: 'Falha ao reagendar',
@@ -67,6 +70,7 @@ test('normaliza chamado e aceita appointment id textual seguro', () => {
 
 test('rejeita campos fora do contrato e conteúdo inseguro', () => {
   expect(validateClientSupportTicket({
+    requestKind: 'incident',
     category: 'billing',
     impact: 'normal',
     subject: 'Cobrança',
@@ -74,6 +78,7 @@ test('rejeita campos fora do contrato e conteúdo inseguro', () => {
   })).toMatchObject({ ok: false, field: 'category' });
 
   expect(validateClientSupportTicket({
+    requestKind: 'incident',
     category: 'other',
     impact: 'normal',
     subject: '<svg>Ajuda</svg>',
@@ -86,12 +91,42 @@ test('rejeita campos fora do contrato e conteúdo inseguro', () => {
   expect(validateClientSupportReply('x'.repeat(CLIENT_SUPPORT_MESSAGE_MAX_LENGTH + 1)))
     .toMatchObject({ ok: false, field: 'message' });
   expect(validateClientSupportTicket({
+    requestKind: 'incident',
     category: 'other',
     impact: 'normal',
     subject: 'Ajuda com o aplicativo',
     message: 'Preciso de ajuda para concluir uma ação no aplicativo.',
     appointmentId: 'x'.repeat(129),
   })).toMatchObject({ ok: false, field: 'appointmentId' });
+});
+
+test('valida as combinações de motivo e impacto', () => {
+  const base = {
+    category: 'other',
+    subject: 'Ajuda com o CutSync',
+    message: 'Preciso de ajuda para concluir uma ação no aplicativo.',
+  };
+
+  expect(validateClientSupportTicket({
+    ...base,
+    requestKind: 'question',
+    impact: 'low',
+  })).toMatchObject({ ok: true, requestKind: 'question', impact: 'low' });
+  expect(validateClientSupportTicket({
+    ...base,
+    requestKind: 'request',
+    impact: 'high',
+  })).toMatchObject({ ok: false, field: 'impact' });
+  expect(validateClientSupportTicket({
+    ...base,
+    requestKind: 'incident',
+    impact: 'low',
+  })).toMatchObject({ ok: false, field: 'impact' });
+  expect(validateClientSupportTicket({
+    ...base,
+    requestKind: 'invalid',
+    impact: 'normal',
+  })).toMatchObject({ ok: false, field: 'requestKind' });
 });
 
 test('usa RPCs para leitura e Edge Functions autenticadas para escrita', () => {
@@ -120,10 +155,29 @@ test('expõe suporte fora das tabs e com wrappers de rota finos', () => {
 
   expect(appLayout).toContain('name="support/index"');
   expect(appLayout).toContain('name="support/new"');
+  expect(appLayout).toContain("presentation: 'fullScreenModal'");
   expect(appLayout).toContain('name="support/[id]"');
   expect(tabsLayout).not.toContain('name="support"');
   expect(home).toContain('client-open-support');
   expect(home).toContain("router.push('/support'");
+});
+
+test('abre novos chamados somente como incidente e separa sugestões por e-mail', () => {
+  const screen = readSource('apps/client/src/screens/client-support-new.tsx');
+  const list = readSource('apps/client/src/screens/client-support.tsx');
+  const feedback = readSource(
+    'apps/client/src/features/support/client-support-feedback.ts',
+  );
+  const service = readSource('apps/client/src/features/support/client-support-service.ts');
+  const edgeFunction = readSource('supabase/functions/create-jsm-ticket/index.ts');
+
+  expect(screen).not.toContain('client-support-kind');
+  expect(screen).not.toContain('Qual o motivo da solicitação?');
+  expect(screen).toContain("requestKind: 'incident'");
+  expect(service).toContain("requestKind: 'incident'");
+  expect(edgeFunction).toContain('requestKind !== "incident"');
+  expect(list).toContain('client-support-feedback-email');
+  expect(feedback).toContain('EXPO_PUBLIC_SUPPORT_FEEDBACK_EMAIL');
 });
 
 test('mantém Realtime como gatilho de refetch e estados explícitos de tela', () => {

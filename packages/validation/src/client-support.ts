@@ -11,11 +11,18 @@ export const CLIENT_SUPPORT_CATEGORY_VALUES = [
   'booking',
   'marketplace',
   'security_privacy',
-  'product_feedback',
   'other',
 ] as const;
 
 export type ValidClientSupportCategory = typeof CLIENT_SUPPORT_CATEGORY_VALUES[number];
+
+export const CLIENT_SUPPORT_REQUEST_KIND_VALUES = [
+  'question',
+  'request',
+  'incident',
+] as const;
+export type ValidClientSupportRequestKind =
+  typeof CLIENT_SUPPORT_REQUEST_KIND_VALUES[number];
 
 export const CLIENT_SUPPORT_IMPACT_VALUES = ['low', 'normal', 'high', 'critical'] as const;
 export type ValidClientSupportImpact = typeof CLIENT_SUPPORT_IMPACT_VALUES[number];
@@ -31,6 +38,7 @@ export const normalizeClientSupportMessage = (value: string) => (
 type ClientSupportTicketValidationResult =
   | {
       ok: true;
+      requestKind: ValidClientSupportRequestKind;
       category: ValidClientSupportCategory;
       impact: ValidClientSupportImpact;
       subject: string;
@@ -39,7 +47,7 @@ type ClientSupportTicketValidationResult =
     }
   | {
       ok: false;
-      field: 'category' | 'impact' | 'subject' | 'message' | 'appointmentId';
+      field: 'requestKind' | 'category' | 'impact' | 'subject' | 'message' | 'appointmentId';
       message: string;
     };
 
@@ -68,23 +76,48 @@ const validateMessage = (
 };
 
 export const validateClientSupportTicket = ({
+  requestKind,
   category,
   impact,
   subject: rawSubject,
   message: rawMessage,
   appointmentId: rawAppointmentId,
 }: {
+  requestKind: string;
   category: string;
   impact: string;
   subject: string;
   message: string;
   appointmentId?: string | null;
 }): ClientSupportTicketValidationResult => {
+  if (!CLIENT_SUPPORT_REQUEST_KIND_VALUES.includes(
+    requestKind as ValidClientSupportRequestKind,
+  )) {
+    return {
+      ok: false,
+      field: 'requestKind',
+      message: 'Escolha um motivo válido para o chamado.',
+    };
+  }
   if (!CLIENT_SUPPORT_CATEGORY_VALUES.includes(category as ValidClientSupportCategory)) {
     return { ok: false, field: 'category', message: 'Escolha uma área válida para o chamado.' };
   }
   if (!CLIENT_SUPPORT_IMPACT_VALUES.includes(impact as ValidClientSupportImpact)) {
     return { ok: false, field: 'impact', message: 'Escolha um impacto válido.' };
+  }
+  if (requestKind !== 'incident' && impact !== 'low') {
+    return {
+      ok: false,
+      field: 'impact',
+      message: 'Dúvidas e melhorias devem usar impacto baixo.',
+    };
+  }
+  if (requestKind === 'incident' && impact === 'low') {
+    return {
+      ok: false,
+      field: 'impact',
+      message: 'Escolha como o incidente está afetando a utilização.',
+    };
   }
 
   const subject = normalizeClientSupportSubject(rawSubject);
@@ -118,6 +151,7 @@ export const validateClientSupportTicket = ({
 
   return {
     ok: true,
+    requestKind: requestKind as ValidClientSupportRequestKind,
     category: category as ValidClientSupportCategory,
     impact: impact as ValidClientSupportImpact,
     subject,

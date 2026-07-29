@@ -1,7 +1,9 @@
 import { type Href, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -21,6 +23,10 @@ import {
 } from '@/components/ui/client-ui';
 import { useSession } from '@/contexts/session-context';
 import {
+  buildClientSupportFeedbackMailto,
+  getClientSupportFeedbackEmail,
+} from '@/features/support/client-support-feedback';
+import {
   useClientSupportCapabilities,
   useClientSupportTickets,
 } from '@/features/support/use-client-support';
@@ -31,13 +37,43 @@ export function ClientSupportScreen() {
   const { user } = useSession();
   const capabilitiesQuery = useClientSupportCapabilities();
   const ticketsQuery = useClientSupportTickets(user?.id ?? null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const capabilities = capabilitiesQuery.capabilities;
+  const feedbackEmail = getClientSupportFeedbackEmail();
+  const { activeTickets, completedTickets } = useMemo(() => ({
+    activeTickets: ticketsQuery.tickets.filter(
+      (ticket) => ticket.status !== 'resolved' && ticket.status !== 'closed',
+    ),
+    completedTickets: ticketsQuery.tickets.filter(
+      (ticket) => ticket.status === 'resolved' || ticket.status === 'closed',
+    ),
+  }), [ticketsQuery.tickets]);
 
   const refresh = () => {
     void Promise.all([
       capabilitiesQuery.refresh(),
       ticketsQuery.refresh(true),
     ]);
+  };
+
+  const openFeedbackEmail = async () => {
+    setFeedbackError(null);
+    const url = feedbackEmail
+      ? buildClientSupportFeedbackMailto(feedbackEmail)
+      : null;
+    if (!url) {
+      setFeedbackError(
+        'O e-mail para sugestões ainda não foi configurado neste aplicativo.',
+      );
+      return;
+    }
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setFeedbackError(
+        'Não foi possível abrir seu aplicativo de e-mail. Tente novamente mais tarde.',
+      );
+    }
   };
 
   return (
@@ -109,24 +145,42 @@ export function ClientSupportScreen() {
 
       <ClientSurface style={styles.newTicketCard}>
         <View style={styles.newTicketCopy}>
-          <Text style={styles.newTicketTitle}>Precisa falar com o CutSync?</Text>
+          <Text style={styles.newTicketTitle}>Encontrou um problema no CutSync?</Text>
           <Text style={styles.newTicketDescription}>
-            Conte o que aconteceu e acompanhe cada resposta pelo aplicativo.
+            Relate o incidente e acompanhe cada resposta pelo aplicativo.
           </Text>
         </View>
         <ClientButton
           testID="client-support-new"
-          label="Abrir novo chamado"
+          label="Relatar um problema"
           disabled={!capabilities?.enabled || !capabilities.allowNewTickets}
           haptic="selection"
           onPress={() => router.push('/support/new' as Href)}
         />
       </ClientSurface>
 
-      <View style={styles.listHeader}>
-        <Text style={styles.listTitle}>Seus chamados</Text>
-        <Text style={styles.listCount}>{ticketsQuery.tickets.length}</Text>
-      </View>
+      <ClientSurface testID="client-support-feedback-card" style={styles.feedbackCard}>
+        <View style={styles.newTicketCopy}>
+          <Text style={styles.newTicketTitle}>Quer sugerir uma melhoria?</Text>
+          <Text style={styles.newTicketDescription}>
+            Envie sua ideia por e-mail. Dúvidas e procedimentos serão reunidos em uma futura
+            central de ajuda.
+          </Text>
+        </View>
+        <ClientButton
+          testID="client-support-feedback-email"
+          label="Enviar sugestão por e-mail"
+          tone="secondary"
+          onPress={() => { void openFeedbackEmail(); }}
+        />
+        {feedbackError ? (
+          <ClientFeedback
+            testID="client-support-feedback-error"
+            description={feedbackError}
+            tone="danger"
+          />
+        ) : null}
+      </ClientSurface>
 
       {ticketsQuery.error ? (
         <ClientFeedback
@@ -157,20 +211,60 @@ export function ClientSupportScreen() {
           </Text>
         </ClientSurface>
       ) : (
-        <View testID="client-support-list" style={styles.list}>
-          {ticketsQuery.tickets.map((ticket) => (
-            <SupportTicketCard
-              key={ticket.id}
-              ticket={ticket}
-              onPress={() => router.push({
+        <>
+          <TicketSection
+            testID="client-support-active-list"
+            title="Em andamento"
+            tickets={activeTickets}
+            onOpen={(id) => router.push({
+              pathname: '/support/[id]',
+              params: { id },
+            } as unknown as Href)}
+          />
+          {completedTickets.length > 0 ? (
+            <TicketSection
+              testID="client-support-completed-list"
+              title="Concluídos"
+              tickets={completedTickets}
+              onOpen={(id) => router.push({
                 pathname: '/support/[id]',
-                params: { id: ticket.id },
+                params: { id },
               } as unknown as Href)}
             />
-          ))}
-        </View>
+          ) : null}
+        </>
       )}
     </ScrollView>
+  );
+}
+
+function TicketSection({
+  testID,
+  title,
+  tickets,
+  onOpen,
+}: {
+  testID: string;
+  title: string;
+  tickets: ReturnType<typeof useClientSupportTickets>['tickets'];
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <View testID={testID} style={styles.list}>
+      <View style={styles.listHeader}>
+        <Text style={styles.listTitle}>{title}</Text>
+        <Text style={styles.listCount}>{tickets.length}</Text>
+      </View>
+      {tickets.length === 0 ? (
+        <Text style={styles.sectionEmpty}>Nenhum chamado nesta seção.</Text>
+      ) : tickets.map((ticket) => (
+        <SupportTicketCard
+          key={ticket.id}
+          ticket={ticket}
+          onPress={() => onOpen(ticket.id)}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -188,6 +282,7 @@ const styles = StyleSheet.create({
   loadingCard: { minHeight: 132, alignItems: 'center', justifyContent: 'center' },
   loadingText: { color: supportColors.secondary, fontSize: 12 },
   newTicketCard: { backgroundColor: supportColors.accentSoft },
+  feedbackCard: { gap: clientTheme.spacing.md },
   newTicketCopy: { gap: clientTheme.spacing.xs },
   newTicketTitle: { color: supportColors.text, fontSize: 18, fontWeight: '800' },
   newTicketDescription: { color: supportColors.secondary, fontSize: 13, lineHeight: 20 },
@@ -206,6 +301,7 @@ const styles = StyleSheet.create({
     backgroundColor: supportColors.accent,
   },
   list: { gap: clientTheme.spacing.sm },
+  sectionEmpty: { color: supportColors.muted, fontSize: 12, lineHeight: 18 },
   emptyCard: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { color: supportColors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   emptyDescription: {

@@ -10,6 +10,7 @@ const requiredNames = [
   'JSM_REQUEST_TYPE_ID',
   'JSM_FIELD_CUTSYNC_TICKET_ID',
   'JSM_FIELD_PRODUCT',
+  'JSM_FIELD_REQUEST_KIND',
   'JSM_FIELD_AREA',
   'JSM_FIELD_REQUESTER_ROLE',
   'JSM_FIELD_CUTSYNC_TEAM',
@@ -18,6 +19,8 @@ const requiredNames = [
   'JSM_FIELD_ROUTING_VERSION',
   'JSM_FIELD_IMPACT',
   'JSM_FIELD_PRIORITY',
+  'SUPPORT_JOB_SECRET',
+  'SUPPORT_JSM_WEBHOOK_SECRET',
 ];
 
 const missing = requiredNames.filter((name) => !process.env[name]?.trim());
@@ -43,6 +46,19 @@ if (missing.length > 0) {
   ) {
     process.stderr.write(
       'JSM_REQUESTER_EMAIL e JSM_AGENT_EMAIL devem identificar contas diferentes.\n',
+    );
+    process.exit(1);
+  }
+
+  const jobSecret = process.env.SUPPORT_JOB_SECRET.trim();
+  const webhookSecret = process.env.SUPPORT_JSM_WEBHOOK_SECRET.trim();
+  if (
+    jobSecret.length < 32
+    || webhookSecret.length < 32
+    || jobSecret === webhookSecret
+  ) {
+    process.stderr.write(
+      'Os segredos do cron e da automação JSM devem ser diferentes e ter ao menos 32 caracteres.\n',
     );
     process.exit(1);
   }

@@ -1,7 +1,6 @@
 import {
   formatSupportDateTime,
   supportCategoryLabels,
-  supportPriorityLabels,
   supportSyncStatusLabels,
   supportTicketStatusLabels,
   type SupportMessageAuthor,
@@ -82,17 +81,25 @@ export function SupportTicketCard({
       accessibilityRole="button"
       accessibilityLabel={`Abrir chamado ${ticket.protocol}: ${ticket.subject}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.ticketCard, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.ticketCard,
+        ticket.status === 'waiting_user' && styles.ticketCardWaiting,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.ticketTopRow}>
         <Text style={styles.category}>{supportCategoryLabels[ticket.category]}</Text>
         <SupportStatusBadge status={ticket.status} />
       </View>
       <Text selectable style={styles.ticketSubject}>{ticket.subject}</Text>
+      {ticket.status === 'waiting_user' ? (
+        <Text style={styles.ticketNextAction}>Aguardando sua resposta</Text>
+      ) : null}
       <Text selectable style={styles.ticketProtocol}>Protocolo {ticket.protocol}</Text>
       <View style={styles.ticketFooter}>
-        <Text style={styles.ticketDate}>{formatSupportDateTime(ticket.lastMessageAt)}</Text>
-        <Text style={styles.ticketPriority}>{supportPriorityLabels[ticket.priority]}</Text>
+        <Text style={styles.ticketDate}>
+          Atualizado em {formatSupportDateTime(ticket.lastMessageAt)}
+        </Text>
       </View>
     </Pressable>
   );
@@ -297,6 +304,10 @@ const styles = StyleSheet.create({
     backgroundColor: supportColors.card,
     boxShadow: clientTheme.shadows.card,
   },
+  ticketCardWaiting: {
+    borderColor: clientTheme.colors.warning,
+    backgroundColor: supportColors.warningSoft,
+  },
   ticketTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,6 +324,7 @@ const styles = StyleSheet.create({
   },
   ticketSubject: { color: supportColors.text, fontSize: 17, lineHeight: 23, fontWeight: '800' },
   ticketProtocol: { color: supportColors.secondary, fontSize: 11, lineHeight: 16 },
+  ticketNextAction: { color: supportColors.warning, fontSize: 12, fontWeight: '900' },
   ticketFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -320,7 +332,6 @@ const styles = StyleSheet.create({
     gap: clientTheme.spacing.sm,
   },
   ticketDate: { flex: 1, color: supportColors.muted, fontSize: 11 },
-  ticketPriority: { color: supportColors.secondary, fontSize: 11, fontWeight: '800' },
   fieldGroup: { gap: clientTheme.spacing.sm },
   fieldLabel: { color: supportColors.text, fontSize: 13, fontWeight: '800' },
   choiceList: { gap: clientTheme.spacing.xs },

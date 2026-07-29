@@ -128,6 +128,7 @@ export const publicSupportTicketPayload = (value: unknown) => pickPayload(value,
   "id",
   "protocol",
   "subject",
+  "request_kind",
   "category",
   "impact",
   "priority",
@@ -167,5 +168,13 @@ export const safeSupportErrorCode = (value: unknown) => {
     "support_external_rejected",
     "support_external_unavailable",
   ];
+  if (
+    raw.includes("invalid_support_request_kind")
+    || raw.includes("invalid_support_request_kind_impact")
+    || raw.includes("invalid_support_category")
+    || raw.includes("invalid_support_impact")
+  ) {
+    return "support_invalid_request";
+  }
   return knownCodes.find((code) => raw.includes(code)) ?? "support_operation_failed";
 };

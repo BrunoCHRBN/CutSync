@@ -3,7 +3,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   CLIENT_SUPPORT_CATEGORIES,
-  SUPPORT_IMPACTS,
   supportCategoryDescriptions,
   supportCategoryLabels,
   supportImpactDescriptions,
@@ -28,10 +27,12 @@ import {
   SupportChoice,
 } from '../support/client-support-ui';
 
+const incidentImpacts: SupportImpact[] = ['normal', 'high', 'critical'];
+
 export const ClientSupportNewExperience = () => {
   const router = useRouter();
   const { capabilities, isLoading } = useClientSupportCapabilities();
-  const [category, setCategory] = useState<ClientSupportCategory>('product_feedback');
+  const [category, setCategory] = useState<ClientSupportCategory>('other');
   const [impact, setImpact] = useState<SupportImpact>('normal');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -41,6 +42,7 @@ export const ClientSupportNewExperience = () => {
 
   const submit = async () => {
     const validation = validateClientSupportTicket({
+      requestKind: 'incident',
       category,
       impact,
       subject,
@@ -85,7 +87,7 @@ export const ClientSupportNewExperience = () => {
 
       <AppCard style={styles.form}>
         <View>
-          <Text style={styles.sectionTitle}>Qual área pode ajudar?</Text>
+          <Text style={styles.sectionTitle}>Em qual área o problema aconteceu?</Text>
           <View style={styles.choices}>
             {CLIENT_SUPPORT_CATEGORIES.map((value) => (
               <SupportChoice
@@ -101,9 +103,9 @@ export const ClientSupportNewExperience = () => {
         </View>
 
         <View>
-          <Text style={styles.sectionTitle}>Qual é o impacto?</Text>
+          <Text style={styles.sectionTitle}>Quanto o problema impede o seu uso?</Text>
           <View style={styles.choices}>
-            {SUPPORT_IMPACTS.map((value) => (
+            {incidentImpacts.map((value) => (
               <SupportChoice
                 key={value}
                 testID={`client-web-support-impact-${value}`}

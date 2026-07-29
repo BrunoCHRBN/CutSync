@@ -18,6 +18,7 @@ import { getClientAuthRedirectUrl } from '@/lib/auth-deep-link';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { disableClientPushNotifications } from '@/features/notifications/client-push-service';
 import { clientObservability } from '@/features/observability/client-observability';
+import { removeClientSupportDraft } from '@/features/support/client-support-draft';
 
 type AuthActionResult = { ok: true } | { ok: false; message: string };
 type SignUpActionResult =
@@ -54,7 +55,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
 
     let active = true;
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, nextSession) => {
+    let authenticatedUserId: string | null = null;
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, nextSession) => {
+      const previousUserId = authenticatedUserId;
+      authenticatedUserId = nextSession?.user.id ?? null;
+      if (event === 'SIGNED_OUT' && previousUserId) {
+        void removeClientSupportDraft(previousUserId);
+      }
       if (active) setSession(nextSession);
     });
 
@@ -65,6 +72,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
           setBootstrapError('Não foi possível restaurar sua sessão. Entre novamente.');
           setSession(null);
         } else {
+          authenticatedUserId = data.session?.user.id ?? null;
           setSession(data.session);
         }
       })
@@ -184,6 +192,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         const { error } = await supabase.auth.updateUser({ password });
         if (error) return { ok: false, message: 'O link expirou ou não pôde ser usado. Solicite uma nova recuperação.' };
         await supabase.auth.signOut();
+        if (session?.user.id) await removeClientSupportDraft(session.user.id);
         setSession(null);
         return { ok: true };
       } catch (error) {
@@ -197,6 +206,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         await disableClientPushNotifications();
         const { error } = await supabase.auth.signOut();
         if (error) return { ok: false, message: 'Não foi possível sair agora. Tente novamente.' };
+        if (session?.user.id) await removeClientSupportDraft(session.user.id);
         setSession(null);
         return { ok: true };
       } catch (error) {

@@ -1,13 +1,14 @@
 import {
   supportCategoryLabels,
   supportImpactLabels,
-  supportPriorityLabels,
+  supportRequestKindLabels,
+  type SupportTicketStatus,
 } from '@cutsync/domain';
 import {
   CLIENT_SUPPORT_MESSAGE_MAX_LENGTH,
   validateClientSupportReply,
 } from '@cutsync/validation';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import {
@@ -44,6 +45,16 @@ import {
 } from '@/features/support/use-client-support';
 import { clientTheme } from '@/theme/client-theme';
 
+const nextActionByStatus: Record<SupportTicketStatus, string> = {
+  queued: 'Recebemos seu chamado e iniciaremos a triagem.',
+  open: 'A equipe CutSync fará a próxima atualização.',
+  in_progress: 'A equipe CutSync está analisando sua solicitação.',
+  waiting_user: 'Responda à equipe para que a análise possa continuar.',
+  resolved: 'A conversa foi concluída pela equipe CutSync.',
+  closed: 'A conversa está encerrada.',
+  sync_failed: 'A sincronização será tentada novamente em segundo plano.',
+};
+
 export function ClientSupportDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const ticketId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -57,6 +68,7 @@ export function ClientSupportDetailScreen() {
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const handleReply = async () => {
     if (!ticketId) return;
@@ -133,7 +145,6 @@ export function ClientSupportDetailScreen() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
-      onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
       refreshControl={(
         <RefreshControl
           refreshing={query.isRefreshing}
@@ -145,16 +156,25 @@ export function ClientSupportDetailScreen() {
       style={styles.page}
     >
       <StatusBar style="dark" />
+
       <View style={styles.statusRow}>
         <SupportStatusBadge status={ticket.status} />
         <SupportSyncBadge status={ticket.syncStatus} />
       </View>
-
       <ClientSectionHeader
-        eyebrow={supportCategoryLabels[ticket.category]}
+        eyebrow={`PROTOCOLO ${ticket.protocol}`}
         title={ticket.subject}
-        description={`Protocolo ${ticket.protocol}`}
+        description={nextActionByStatus[ticket.status]}
       />
+
+      {ticket.status === 'waiting_user' ? (
+        <ClientFeedback
+          testID="client-support-waiting-user"
+          title="Aguardando sua resposta"
+          description="A equipe precisa de uma informação sua para continuar o atendimento."
+          tone="info"
+        />
+      ) : null}
 
       {ticket.syncStatus === 'failed' || ticket.status === 'sync_failed' ? (
         <ClientFeedback
@@ -174,17 +194,6 @@ export function ClientSupportDetailScreen() {
           tone="info"
         />
       ) : null}
-
-      <ClientSurface>
-        <SupportMetadataRow label="Categoria" value={supportCategoryLabels[ticket.category]} />
-        <SupportMetadataRow label="Impacto informado" value={supportImpactLabels[ticket.impact]} />
-        <SupportMetadataRow label="Prioridade" value={supportPriorityLabels[ticket.priority]} />
-        <SupportMetadataRow
-          label="Atendimento relacionado"
-          value={ticket.appointmentId || 'Nenhum'}
-          last
-        />
-      </ClientSurface>
 
       <View style={styles.conversationHeader}>
         <Text style={styles.conversationTitle}>Conversa</Text>
@@ -206,12 +215,18 @@ export function ClientSupportDetailScreen() {
       )}
 
       {closed ? (
-        <ClientFeedback
-          testID="client-support-closed"
-          title="Conversa encerrada"
-          description="Se precisar de uma nova análise, abra outro chamado para manter o histórico organizado."
-          tone="success"
-        />
+        <ClientSurface testID="client-support-closed" style={styles.closedCard}>
+          <ClientFeedback
+            title="Conversa encerrada"
+            description="Se precisar de uma nova análise, abra outro chamado para manter o histórico organizado."
+            tone="success"
+          />
+          <ClientButton
+            testID="client-support-open-another"
+            label="Abrir novo chamado"
+            onPress={() => router.push('/support/new' as Href)}
+          />
+        </ClientSurface>
       ) : supportEnabled ? (
         <ClientSurface testID="client-support-reply-composer">
           <SupportTextField
@@ -261,6 +276,35 @@ export function ClientSupportDetailScreen() {
           tone="info"
         />
       )}
+
+      <ClientButton
+        testID="client-support-toggle-details"
+        label={showDetails ? 'Ocultar detalhes do chamado' : 'Detalhes do chamado'}
+        tone="secondary"
+        onPress={() => setShowDetails((current) => !current)}
+      />
+      {showDetails ? (
+        <ClientSurface testID="client-support-details">
+          {ticket.requestKind !== 'incident' ? (
+            <SupportMetadataRow
+              label="Tipo histórico"
+              value={supportRequestKindLabels[ticket.requestKind]}
+            />
+          ) : null}
+          <SupportMetadataRow label="Área" value={supportCategoryLabels[ticket.category]} />
+          {ticket.requestKind === 'incident' ? (
+            <SupportMetadataRow
+              label="Impacto informado"
+              value={supportImpactLabels[ticket.impact]}
+            />
+          ) : null}
+          <SupportMetadataRow
+            label="Atendimento relacionado"
+            value={ticket.appointmentId || 'Nenhum'}
+            last
+          />
+        </ClientSurface>
+      ) : null}
     </ScrollView>
   );
 }
@@ -310,4 +354,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
+  closedCard: { gap: clientTheme.spacing.md },
 });

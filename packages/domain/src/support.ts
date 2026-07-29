@@ -12,12 +12,26 @@ export const SUPPORT_CATEGORIES = [
 
 export type SupportCategory = typeof SUPPORT_CATEGORIES[number];
 
+export const SUPPORT_REQUEST_KINDS = ['question', 'request', 'incident'] as const;
+export type SupportRequestKind = typeof SUPPORT_REQUEST_KINDS[number];
+
+export const supportRequestKindLabels: Record<SupportRequestKind, string> = {
+  question: 'Dúvida',
+  request: 'Melhoria',
+  incident: 'Incidente',
+};
+
+export const supportRequestKindDescriptions: Record<SupportRequestKind, string> = {
+  question: 'Preciso de orientação para usar o CutSync.',
+  request: 'Quero sugerir uma melhoria ou nova funcionalidade.',
+  incident: 'Algo não funciona ou impede a utilização do sistema.',
+};
+
 export const CLIENT_SUPPORT_CATEGORIES = [
   'access_identity',
   'booking',
   'marketplace',
   'security_privacy',
-  'product_feedback',
   'other',
 ] as const satisfies readonly SupportCategory[];
 
@@ -37,10 +51,9 @@ export const supportCategoryLabels: Record<SupportCategory, string> = {
 
 export const supportCategoryDescriptions: Record<ClientSupportCategory, string> = {
   access_identity: 'Login, cadastro, perfil ou recuperação de acesso.',
-  booking: 'Dúvidas ou problemas relacionados a um atendimento.',
+  booking: 'Problemas relacionados a um atendimento.',
   marketplace: 'Busca, estabelecimentos, serviços ou profissionais.',
   security_privacy: 'Proteção da conta, dados pessoais ou privacidade.',
-  product_feedback: 'Ideias e melhorias para o CutSync.',
   other: 'Assuntos que não se encaixam nas opções anteriores.',
 };
 
@@ -118,6 +131,10 @@ export const supportEscalationLabels: Record<SupportEscalationLevel, string> = {
 
 export const isSupportCategory = (value: string): value is SupportCategory => (
   SUPPORT_CATEGORIES.includes(value as SupportCategory)
+);
+
+export const isSupportRequestKind = (value: string): value is SupportRequestKind => (
+  SUPPORT_REQUEST_KINDS.includes(value as SupportRequestKind)
 );
 
 export const isSupportImpact = (value: string): value is SupportImpact => (
