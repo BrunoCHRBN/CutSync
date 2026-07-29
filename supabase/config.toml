@@ -424,6 +424,24 @@ entrypoint = "./functions/create-jsm-ticket/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/create-jsm-ticket/*.html" ]
 
+[functions.reply-jsm-ticket]
+enabled = true
+verify_jwt = false
+import_map = "./functions/reply-jsm-ticket/deno.json"
+entrypoint = "./functions/reply-jsm-ticket/index.ts"
+
+[functions.reconcile-jsm-support]
+enabled = true
+verify_jwt = false
+import_map = "./functions/reconcile-jsm-support/deno.json"
+entrypoint = "./functions/reconcile-jsm-support/index.ts"
+
+[functions.sync-jsm-ticket]
+enabled = true
+verify_jwt = false
+import_map = "./functions/sync-jsm-ticket/deno.json"
+entrypoint = "./functions/sync-jsm-ticket/index.ts"
+
 [functions.dispatch-client-notifications]
 enabled = true
 verify_jwt = false

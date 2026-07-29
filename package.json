@@ -39,6 +39,7 @@
     "lint:control": "npm --workspace @cutsync/control run lint",
     "types:supabase": "bash scripts/generate-supabase-types.sh",
     "check:supabase-schema": "bash scripts/check-supabase-schema.sh",
+    "support:verify-jsm": "node --env-file=supabase/functions/.env.support.local scripts/verify-jsm-support.mjs",
     "tauri:dev": "npm --workspace @cutsync/web run tauri:dev",
     "tauri:build": "npm --workspace @cutsync/web run tauri:build"
   },
