@@ -1,6 +1,6 @@
-import { getClientAppointmentNotificationRoute } from '@cutsync/domain';
+import { getClientNotificationRoute } from '@cutsync/domain';
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -33,14 +33,14 @@ export function ClientNotificationsProvider({ children }: PropsWithChildren) {
     const notificationId = response.notification.request.identifier;
     if (handledResponseId.current === notificationId) return;
 
-    const route = getClientAppointmentNotificationRoute(
+    const route = getClientNotificationRoute(
       response.notification.request.content.data,
     );
     if (!route) return;
 
     handledResponseId.current = notificationId;
     Notifications.clearLastNotificationResponse();
-    router.push(route);
+    router.push(route as unknown as Href);
   }, [router]);
 
   useEffect(() => {

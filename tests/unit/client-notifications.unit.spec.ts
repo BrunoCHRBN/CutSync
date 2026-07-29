@@ -4,7 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
-import { getClientAppointmentNotificationRoute } from '../../packages/domain/src/client-notifications';
+import {
+  getClientAppointmentNotificationRoute,
+  getClientNotificationRoute,
+  getClientSupportNotificationRoute,
+} from '../../packages/domain/src/client-notifications';
 
 const root = process.cwd();
 const readSource = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -41,9 +45,11 @@ test('configura o canal Android antes de solicitar o token', () => {
   };
 
   expect(service).toContain('setNotificationChannelAsync(APPOINTMENTS_CHANNEL_ID');
-  expect(service.indexOf('await ensureAndroidChannel()')).toBeLessThan(
+  expect(service.indexOf('await ensureAndroidChannels()')).toBeLessThan(
     service.indexOf('getExpoPushTokenAsync({ projectId })'),
   );
+  expect(service).toContain('setNotificationChannelAsync(SUPPORT_CHANNEL_ID');
+  expect(service).toContain("name: 'Suporte'");
   expect(JSON.stringify(appConfig.expo.plugins)).toContain('expo-notifications');
 });
 
@@ -98,12 +104,49 @@ test('aceita somente deep links de eventos conhecidos e IDs válidos', () => {
   })).toBeNull();
 });
 
+test('abre somente eventos conhecidos de suporte e preserva agendamentos', () => {
+  const ticketId = '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7';
+  const appointmentId = '9cabb0db-fe1a-4467-847c-9afa5be33239';
+
+  expect(getClientSupportNotificationRoute({
+    ticketId,
+    eventType: 'support_reply_received',
+    url: '/security',
+  })).toEqual({
+    pathname: '/support/[id]',
+    params: { id: ticketId },
+  });
+  expect(getClientNotificationRoute({
+    ticketId,
+    eventType: 'support_resolved',
+  })).toEqual({
+    pathname: '/support/[id]',
+    params: { id: ticketId },
+  });
+  expect(getClientNotificationRoute({
+    appointmentId,
+    eventType: 'appointment_confirmed',
+  })).toEqual({
+    pathname: '/appointments/[id]',
+    params: { id: appointmentId },
+  });
+  expect(getClientNotificationRoute({
+    ticketId: '../security',
+    eventType: 'support_reply_received',
+  })).toBeNull();
+  expect(getClientNotificationRoute({
+    ticketId,
+    eventType: 'arbitrary_route',
+  })).toBeNull();
+});
+
 test('processa toque em foreground, background e abertura a frio uma única vez', () => {
   const provider = readSource('apps/client/src/contexts/client-notifications-context.tsx');
 
+  expect(provider).toContain('getClientNotificationRoute');
   expect(provider).toContain('addNotificationResponseReceivedListener');
   expect(provider).toContain('getLastNotificationResponseAsync');
   expect(provider).toContain('clearLastNotificationResponse');
   expect(provider).toContain('handledResponseId.current === notificationId');
-  expect(provider).toContain('router.push(route)');
+  expect(provider).toContain('router.push(route');
 });

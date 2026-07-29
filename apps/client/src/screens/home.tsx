@@ -80,6 +80,16 @@ export function ClientHomeScreen() {
           </View>
         </Pressable>
 
+        <SettingsSectionLabel>SUPORTE</SettingsSectionLabel>
+        <SettingsCard>
+          <SettingsMenuRow
+            testID="client-open-support"
+            title="Falar com o CutSync"
+            subtitle="Abra e acompanhe chamados oficiais de suporte."
+            onPress={() => router.push('/support' as Href)}
+          />
+        </SettingsCard>
+
         {isLoading && (
           <View testID="client-profile-loading" style={styles.loadingRow}>
             <ActivityIndicator color={settingsColors.accent} size="small" />

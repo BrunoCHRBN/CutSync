@@ -111,7 +111,7 @@ export function ClientPreferencesScreen() {
           subtitle={
             pushStatus === 'denied'
               ? 'Permissão bloqueada no aparelho. Libere-a nas configurações do sistema.'
-              : 'Confirmações, alterações e lembretes deste dispositivo.'
+              : 'Agendamentos e respostas da equipe de suporte neste dispositivo.'
           }
           value={channels.includes('push')}
           disabled={disabled || isChangingPush}

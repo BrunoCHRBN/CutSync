@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 
 const CLIENT_PUSH_TOKEN_KEY = 'cutsync.client.expo-push-token';
 const APPOINTMENTS_CHANNEL_ID = 'appointments';
+const SUPPORT_CHANNEL_ID = 'support';
 
 export type ClientPushStatus = 'enabled' | 'denied' | 'not_determined' | 'unsupported';
 
@@ -35,16 +36,26 @@ const getPermissionStatus = async (): Promise<ClientPushStatus> => {
   return 'not_determined';
 };
 
-const ensureAndroidChannel = async () => {
+const ensureAndroidChannels = async () => {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(APPOINTMENTS_CHANNEL_ID, {
-    name: 'Agendamentos',
-    description: 'Confirmações, alterações e lembretes dos seus atendimentos.',
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 180, 250],
-    lightColor: '#294D3A',
-    sound: 'default',
-  });
+  await Promise.all([
+    Notifications.setNotificationChannelAsync(APPOINTMENTS_CHANNEL_ID, {
+      name: 'Agendamentos',
+      description: 'Confirmações, alterações e lembretes dos seus atendimentos.',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 180, 250],
+      lightColor: '#294D3A',
+      sound: 'default',
+    }),
+    Notifications.setNotificationChannelAsync(SUPPORT_CHANNEL_ID, {
+      name: 'Suporte',
+      description: 'Respostas e atualizações dos seus chamados com o CutSync.',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 180, 250],
+      lightColor: '#294D3A',
+      sound: 'default',
+    }),
+  ]);
 };
 
 const registerToken = async (token: string) => {
@@ -85,7 +96,7 @@ export const enableClientPushNotifications = async (): Promise<ClientPushActionR
   }
 
   try {
-    await ensureAndroidChannel();
+    await ensureAndroidChannels();
     const currentPermission = await Notifications.getPermissionsAsync();
     const permission = currentPermission.granted
       ? currentPermission
@@ -123,6 +134,7 @@ export const enableClientPushNotifications = async (): Promise<ClientPushActionR
 export const syncClientPushNotifications = async () => {
   if (Platform.OS === 'web') return;
 
+  await ensureAndroidChannels();
   const storedToken = await getStoredClientPushToken();
   if (!storedToken || await getPermissionStatus() !== 'enabled') return;
 
@@ -165,6 +177,7 @@ export const registerRotatedClientPushToken = async (token: Notifications.Device
   const storedToken = await getStoredClientPushToken();
   if (!storedToken || typeof token.data !== 'string') return;
 
+  await ensureAndroidChannels();
   const projectId = getProjectId();
   if (!projectId) return;
 
@@ -182,3 +195,7 @@ export const registerRotatedClientPushToken = async (token: Notifications.Device
 };
 
 export const clientNotificationsChannelId = APPOINTMENTS_CHANNEL_ID;
+export const clientNotificationChannelIds = {
+  appointments: APPOINTMENTS_CHANNEL_ID,
+  support: SUPPORT_CHANNEL_ID,
+} as const;
