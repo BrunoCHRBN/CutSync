@@ -90,7 +90,6 @@ export const ProfessionalProfileEditorExperience = () => {
   };
 
   const formatPhoneWithDdi = (val: string) => {
-    if (val.length < 3) return '';
     const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, ''); // Rejects HTML/XML tags and non-digits
     if (clean.length === 0) return '';
     

@@ -70,7 +70,6 @@ export const ClientSettingsExperience = () => {
   }, [profile, profileNotificationChannels]);
 
   const formatPhoneWithDdi = (val: string) => {
-    if (val.length < 3) return '';
     const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, ''); // Strips XML/HTML tags and non-digits
     if (clean.length === 0) return '';
     

@@ -30,7 +30,6 @@ export const RegisterExperience = () => {
   const [error, setError] = useState('');
 
   const formatPhoneWithDdi = (val: string) => {
-    if (val.length < 3) return '';
     const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, '');
     if (clean.length === 0) return '';
     

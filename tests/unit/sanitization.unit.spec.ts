@@ -19,7 +19,6 @@ const formatCnpj = (val: string) => {
 };
 
 const formatPhoneWithDdi = (val: string) => {
-  if (val.length < 3) return '';
   const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, ''); // Strips XML/HTML tags first
   if (clean.length === 0) return '';
   
@@ -70,9 +69,9 @@ test('Sanitização Telefone: Formata com +55 DDI e rejeita letras, emojis e SVG
   // Test input with DDI already present
   expect(formatPhoneWithDdi('5511999999999')).toBe('+55 (11) 99999-9999');
 
-  // Test deletion behaviors
-  expect(formatPhoneWithDdi('1')).toBe(''); // clear if less than 3 characters input
-  expect(formatPhoneWithDdi('+5')).toBe('');
+  // Test progressive typing behavior
+  expect(formatPhoneWithDdi('1')).toBe('+55 (1');
+  expect(formatPhoneWithDdi('+5')).toBe('+55');
 
   // Test removing emojis
   expect(formatPhoneWithDdi('1199999💈9999')).toBe('+55 (11) 99999-9999');
