@@ -29,13 +29,21 @@ function RootLayoutNavigation() {
   const router = useRouter();
   const { access } = useBillingAccess();
   const firstSegment = segments[0] as string | undefined;
+  const secondSegment = (segments as readonly string[])[1];
+  const isClientEstablishmentRequest = firstSegment === '(client)' && secondSegment === 'request-establishment';
   const isPublicCompliance = firstSegment === 'privacy' || firstSegment === 'account-deletion';
   const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos' || isPublicCompliance;
+  const shouldBlockForOperationalContext = Boolean(
+    user &&
+    operationalLoading &&
+    contexts.length === 0 &&
+    !activeContext &&
+    !isClientEstablishmentRequest,
+  );
 
   useEffect(() => {
-    if (loading || (user && operationalLoading)) return;
+    if (loading || shouldBlockForOperationalContext) return;
 
-    const secondSegment = (segments as readonly string[])[1];
     const inAuthGroup = firstSegment === '(auth)';
     const isDynamicSlug = firstSegment === '[slug]';
     const isPublicSalon = firstSegment === 'salon';
@@ -108,6 +116,7 @@ function RootLayoutNavigation() {
         if (!isSuperadmin) router.replace('/(client)');
         return;
       }
+      if (isClientEstablishmentRequest) return;
 
       const effectiveRole = activeContext?.membershipRole
         ?? (contexts.some((context) => context.membershipRole === 'admin')
@@ -129,9 +138,9 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [activeContext, buildTarget, contexts, user, profile, loading, operationalLoading, isSuperadmin, governanceRole, segments, router, firstSegment, access, isPublicCompliance]);
+  }, [activeContext, buildTarget, contexts, user, profile, loading, shouldBlockForOperationalContext, isSuperadmin, governanceRole, segments, router, firstSegment, secondSegment, access, isPublicCompliance, isClientEstablishmentRequest]);
 
-  if ((loading || (user && operationalLoading)) && !isPublicMarketing) {
+  if ((loading || shouldBlockForOperationalContext) && !isPublicMarketing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#D4AF37" />

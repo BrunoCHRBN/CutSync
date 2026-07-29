@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { User, Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
@@ -38,6 +38,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [governanceRole, setGovernanceRole] = useState<'SaaS_Viewer' | 'SaaS_Editor' | 'SaaS_Owner' | null>(null);
+  const profileRef = useRef<Profile | null>(null);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -51,11 +56,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await supabase.auth.signOut();
           setUser(null);
           setProfile(null);
+          profileRef.current = null;
           setSession(null);
         }
       } else {
-        const role = data.role === 'professional' || data.role === 'admin' ? data.role : 'client';
-        setProfile({ ...data, role });
+        const role: Profile['role'] = data.role === 'professional' || data.role === 'admin' ? data.role : 'client';
+        const nextProfile = { ...data, role };
+        setProfile(nextProfile);
+        profileRef.current = nextProfile;
         const { data: superadminMarker } = await supabase
           .from('superadmins')
           .select('profile_id')
@@ -101,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    profileRef.current = null;
     setSession(null);
     setIsSuperadmin(false);
     setGovernanceRole(null);
@@ -124,11 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setLoading(true);
+        const shouldBlockNavigation = !profileRef.current;
+        if (shouldBlockNavigation) setLoading(true);
         await fetchProfile(session.user.id);
         setLoading(false);
       } else {
         setProfile(null);
+        profileRef.current = null;
         setIsSuperadmin(false);
         setGovernanceRole(null);
         setLoading(false);

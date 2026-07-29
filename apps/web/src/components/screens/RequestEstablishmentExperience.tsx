@@ -119,6 +119,14 @@ export const RequestEstablishmentExperience = () => {
 
   useEffect(() => { void loadRequest(); }, [loadRequest]);
 
+  const confirmAal2 = useCallback(() => {
+    setHasAal2(true);
+    setNotice({
+      tone: 'success',
+      message: 'Autenticador confirmado. Continue o cadastro nesta tela.',
+    });
+  }, []);
+
   // Step 1 Submit: Create Establishment & Promo Owner
   const submitRequest = async () => {
     setNotice(null);
@@ -397,7 +405,17 @@ export const RequestEstablishmentExperience = () => {
                   <AppInput label="Telefone comercial" testID="request-establishment-phone-input" icon={<Phone color={colors.textMuted} size={17} />} value={phone} onChangeText={(val) => setPhone(formatPhoneWithDdi(val))} keyboardType="phone-pad" placeholder="+55 (11) 99999-9999" />
                   
                   <Text style={styles.securityText}>Telefone é somente contato comercial, pode ser compartilhado e não funciona como login.</Text>
-                  {!hasAal2 && <TotpSecuritySetup onVerified={() => setHasAal2(true)} />}
+                  {!hasAal2 ? (
+                    <TotpSecuritySetup onVerified={confirmAal2} />
+                  ) : (
+                    <View testID="request-establishment-totp-verified" style={styles.totpVerified}>
+                      <ShieldCheck color={colors.success} size={18} />
+                      <View style={styles.totpVerifiedText}>
+                        <Text style={styles.totpVerifiedTitle}>Autenticador confirmado</Text>
+                        <Text style={styles.totpVerifiedDescription}>A verificação foi concluída. O cadastro permanece nesta tela para você continuar.</Text>
+                      </View>
+                    </View>
+                  )}
 
                   <AppInput label="Cor principal" testID="request-establishment-color-input" value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" placeholder="#F5A524" />
 
@@ -499,6 +517,10 @@ const styles = StyleSheet.create({
   statusDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: 12 },
   securityRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22, paddingTop: 18, borderTopWidth: 1, borderTopColor: colors.border },
   securityText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  totpVerified: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderColor: colors.success, backgroundColor: colors.successSoft, borderRadius: radii.md, padding: 14 },
+  totpVerifiedText: { flex: 1, gap: 3 },
+  totpVerifiedTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  totpVerifiedDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
   // Wizard Indicators
   indicatorContainer: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 16, marginBottom: 12 },
   indicatorWrapper: { alignItems: 'center', flex: 1 },

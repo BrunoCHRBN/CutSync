@@ -58,3 +58,26 @@ test('routes business registration through the private AAL2 endpoint', () => {
   expect(migration).toContain("RAISE EXCEPTION 'aal2_required'");
   expect(migration).toContain('identity_migration_conflicts');
 });
+
+test('keeps establishment onboarding route mounted during authenticated refreshes', () => {
+  const root = process.cwd();
+  const onboarding = fs.readFileSync(
+    path.join(root, 'apps/web/src/components/screens/RequestEstablishmentExperience.tsx'),
+    'utf8',
+  );
+  const authContext = fs.readFileSync(
+    path.join(root, 'apps/web/src/contexts/AuthContext.tsx'),
+    'utf8',
+  );
+  const rootLayout = fs.readFileSync(
+    path.join(root, 'apps/web/src/app/_layout.tsx'),
+    'utf8',
+  );
+
+  expect(onboarding).toContain('onVerified={confirmAal2}');
+  expect(onboarding).toContain('request-establishment-totp-verified');
+  expect(authContext).toContain('const shouldBlockNavigation = !profileRef.current');
+  expect(rootLayout).toContain('const shouldBlockForOperationalContext = Boolean(');
+  expect(rootLayout).toContain("const isClientEstablishmentRequest = firstSegment === '(client)' && secondSegment === 'request-establishment'");
+  expect(rootLayout).toContain('if (isClientEstablishmentRequest) return;');
+});
