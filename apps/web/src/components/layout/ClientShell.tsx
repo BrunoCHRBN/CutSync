@@ -1,13 +1,13 @@
 import React, { ReactNode, useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CalendarDays, Compass, LogOut, Settings2 } from 'lucide-react-native';
+import { CalendarDays, Compass, Headphones, LogOut, Settings2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '../ui/BrandMark';
 import { colors, glassHeader, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { tapLight } from '../../utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type ClientRoute = 'explore' | 'appointments' | 'settings';
+type ClientRoute = 'explore' | 'appointments' | 'support' | 'settings';
 
 interface ClientShellProps {
   children: ReactNode;
@@ -20,7 +20,8 @@ interface ClientShellProps {
 const navItems = [
   { key: 'explore', label: 'Explorar', shortcut: '1', path: '/(client)', Icon: Compass },
   { key: 'appointments', label: 'Agendamentos', shortcut: '2', path: '/(client)/appointments', Icon: CalendarDays },
-  { key: 'settings', label: 'Configurações', shortcut: '3', path: '/(client)/preferences', Icon: Settings2 },
+  { key: 'support', label: 'Suporte', shortcut: '3', path: '/(client)/support', Icon: Headphones },
+  { key: 'settings', label: 'Configurações', shortcut: '4', path: '/(client)/preferences', Icon: Settings2 },
 ] as const;
 
 export const ClientShell = ({ children, activeRoute, userName, onSignOut, testID }: ClientShellProps) => {
@@ -56,6 +57,8 @@ export const ClientShell = ({ children, activeRoute, userName, onSignOut, testID
       } else if (e.key === '2') {
         router.replace('/(client)/appointments');
       } else if (e.key === '3') {
+        router.replace('/(client)/support');
+      } else if (e.key === '4') {
         router.replace('/(client)/preferences');
       }
     };

@@ -62,6 +62,7 @@ export const CommandPaletteProvider = ({ children }: { children: ReactNode }) =>
     { id: 'professional-profile', label: 'Abrir Meu perfil', keywords: ['perfil'], roles: ['professional'], run: () => router.push('/(professional)/profile') },
     { id: 'client-explore', label: 'Explorar estabelecimentos', keywords: ['buscar', 'salao'], roles: ['client'], run: () => router.push('/(client)') },
     { id: 'client-appointments', label: 'Abrir Meus agendamentos', keywords: ['agenda', 'historico'], roles: ['client'], run: () => router.push('/(client)/appointments') },
+    { id: 'client-support', label: 'Abrir Suporte', keywords: ['ajuda', 'chamado', 'atendimento'], roles: ['client'], run: () => router.push('/(client)/support') },
     { id: 'client-settings', label: 'Abrir Configurações', keywords: ['conta', 'perfil', 'telefone', 'negocio'], roles: ['client'], run: () => router.push('/(client)/preferences') },
     { id: 'account-security', label: 'Abrir Segurança da conta', keywords: ['senha', 'conta'], roles: ['admin', 'professional'], run: () => router.push('/security') },
   ], [router]);

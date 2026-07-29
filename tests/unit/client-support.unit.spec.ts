@@ -142,3 +142,24 @@ test('mantém Realtime como gatilho de refetch e estados explícitos de tela', (
   expect(detail).toContain('validateClientSupportReply');
   expect(detail).toContain('client-support-sync-failed');
 });
+
+test('expõe o fluxo completo no Client web atualmente publicado', () => {
+  const shell = readSource('apps/web/src/components/layout/ClientShell.tsx');
+  const service = readSource('apps/web/src/services/client-support.ts');
+  const hook = readSource('apps/web/src/hooks/use-client-support.ts');
+
+  for (const route of [
+    'apps/web/src/app/(client)/support/index.tsx',
+    'apps/web/src/app/(client)/support/new.tsx',
+    'apps/web/src/app/(client)/support/[id].tsx',
+  ]) expect(fs.existsSync(path.join(root, route))).toBe(true);
+
+  expect(shell).toContain("key: 'support'");
+  expect(shell).toContain("path: '/(client)/support'");
+  expect(service).toContain("invokeRpc('list_my_support_tickets')");
+  expect(service).toContain("supabase.functions.invoke<unknown>('create-jsm-ticket'");
+  expect(service).toContain("supabase.functions.invoke<unknown>('reply-jsm-ticket'");
+  expect(service).not.toMatch(/JSM_API_TOKEN|JSM_AGENT_API_TOKEN|ATLASSIAN_API_TOKEN/);
+  expect(hook).toContain("table: 'support_tickets'");
+  expect(hook).toContain("table: 'support_messages'");
+});
