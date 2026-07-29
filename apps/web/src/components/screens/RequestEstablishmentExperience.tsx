@@ -161,6 +161,8 @@ export const RequestEstablishmentExperience = () => {
           ? 'O endereço digital solicitado já está em uso.'
           : code?.includes('aal2_required')
           ? 'Confirme novamente o autenticador TOTP.'
+          : code?.includes('identity_service_not_configured')
+          ? 'O ambiente CutSync ainda não está pronto para proteger documentos. Tente novamente em alguns instantes.'
           : code?.includes('invalid_phone')
           ? 'Informe um telefone brasileiro válido com DDD ou deixe o campo vazio.'
           : 'Não foi possível validar esses dados. O cadastro poderá exigir análise.';

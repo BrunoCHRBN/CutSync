@@ -29,7 +29,7 @@ const decodeClaims = (token: string) => {
 const safeCode = (message: string) => {
   for (const code of [
     "invalid_document", "invalid_phone", "slug_unavailable", "invalid_registration",
-    "aal2_required",
+    "aal2_required", "identity_service_not_configured",
   ]) if (message.includes(code)) return code;
   return "registration_failed";
 };
