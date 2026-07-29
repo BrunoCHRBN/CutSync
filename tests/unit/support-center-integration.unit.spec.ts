@@ -125,8 +125,8 @@ test('exige identidades separadas e todos os campos de roteamento/SLA do JSM', (
     'JSM_FIELD_ESCALATION_LEVEL',
     'JSM_FIELD_IMPACT',
     'JSM_FIELD_PRIORITY',
-    'JSM_FIELD_REQUEST_KIND',
   ]) expect(jsm).toContain(`requiredEnvironment("${field}")`);
+  expect(jsm).not.toContain('requiredEnvironment("JSM_FIELD_REQUEST_KIND")');
   expect(jsm).toContain(
     'comment.authorAccountId === this.config.requesterAccountId',
   );
@@ -153,7 +153,10 @@ test('adiciona tipo da solicitação sem interromper a RPC publicada', () => {
   expect(createTicket).toContain('requestKind !== "incident"');
   expect(createTicket).toContain('"support_incident_required"');
   expect(createTicket).toContain('requestKind');
-  expect(jsm).toContain('requestKind: input.requestKind');
+  expect(jsm).not.toContain('requestKind: input.requestKind');
+  expect(jsm).toContain(
+    "JSM applies the hidden request-kind preset configured on the request type.",
+  );
   expect(jsm).toContain('requestFieldValues[fieldId] = values[name]');
   expect(worker).toContain(
     'requestKind: asString(ticket.request_kind) ?? "incident"',

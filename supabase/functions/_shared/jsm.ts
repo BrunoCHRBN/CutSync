@@ -83,7 +83,6 @@ const loadConfig = (): JsmConfig => ({
   fieldTicketId: requiredEnvironment("JSM_FIELD_CUTSYNC_TICKET_ID"),
   customFields: {
     product: requiredEnvironment("JSM_FIELD_PRODUCT"),
-    requestKind: requiredEnvironment("JSM_FIELD_REQUEST_KIND"),
     category: requiredEnvironment("JSM_FIELD_AREA"),
     requesterRole: requiredEnvironment("JSM_FIELD_REQUESTER_ROLE"),
     teamCode: requiredEnvironment("JSM_FIELD_CUTSYNC_TEAM"),
@@ -236,7 +235,6 @@ export class JsmClient {
     };
     const values: Record<string, string | number | null> = {
       product: input.product,
-      requestKind: input.requestKind,
       category: input.category,
       requesterRole: input.requesterRole,
       teamCode: input.teamCode,
@@ -246,6 +244,8 @@ export class JsmClient {
       impact: input.impact,
       priority: input.priority,
     };
+    // JSM applies the hidden request-kind preset configured on the request type.
+    // Sending a hidden field explicitly makes the customer request API reject it.
     for (const [name, fieldId] of Object.entries(this.config.customFields)) {
       if (values[name] !== null && values[name] !== undefined) {
         requestFieldValues[fieldId] = values[name];
