@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   getTotpEnrollmentErrorMessage,
@@ -37,4 +39,15 @@ test('explains known enrollment failures without exposing internal error details
   expect(getTotpEnrollmentErrorMessage({ message: 'internal server details' })).toBe(
     'Não foi possível cadastrar o autenticador.',
   );
+});
+
+test('establishment TOTP setup generates QR automatically when no factor is verified', () => {
+  const setup = fs.readFileSync(
+    path.join(process.cwd(), 'apps/web/src/components/security/TotpSecuritySetup.tsx'),
+    'utf8',
+  );
+
+  expect(setup).toContain('await enrollWithFactorState(getTotpFactorState(data?.all, \'CutSync\'))');
+  expect(setup).toContain('qrCode: normalizeTotpQrCode(result.data.totp.qr_code)');
+  expect(setup).toContain('Esta conta já possui um autenticador TOTP cadastrado');
 });

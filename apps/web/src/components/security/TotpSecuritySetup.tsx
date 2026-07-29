@@ -1,9 +1,10 @@
 import {
   getTotpEnrollmentErrorMessage,
+  type TotpFactorState,
   getTotpFactorState,
   normalizeTotpQrCode,
 } from '@cutsync/domain';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../../services/supabase';
 import { colors, radii, typography } from '../../theme/tokens';
@@ -28,28 +29,9 @@ export const TotpSecuritySetup = ({ onVerified }: Props) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    void supabase.auth.mfa.listFactors().then(({ data }) => {
-      const factor = data?.totp.find((item) => item.status === 'verified');
-      setVerifiedFactorId(factor?.id ?? null);
-    });
-  }, []);
-
-  const startEnrollment = async () => {
-    setLoading(true);
-    setMessage(null);
-    const factors = await supabase.auth.mfa.listFactors();
-    if (factors.error) {
-      setMessage('Não foi possível consultar os autenticadores cadastrados.');
-      setLoading(false);
-      return;
-    }
-
-    const factorState = getTotpFactorState(factors.data?.all, 'CutSync');
+  const enrollWithFactorState = useCallback(async (factorState: TotpFactorState) => {
     if (factorState.verifiedFactorId) {
       setVerifiedFactorId(factorState.verifiedFactorId);
-      setMessage('Este usuário já possui um autenticador. Informe o código atual.');
-      setLoading(false);
       return;
     }
 
@@ -74,8 +56,43 @@ export const TotpSecuritySetup = ({ onVerified }: Props) => {
         secret: result.data.totp.secret,
       });
     }
+  }, []);
+
+  const startEnrollment = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    const factors = await supabase.auth.mfa.listFactors();
+    if (factors.error) {
+      setMessage('Não foi possível consultar os autenticadores cadastrados.');
+      setLoading(false);
+      return;
+    }
+
+    await enrollWithFactorState(getTotpFactorState(factors.data?.all, 'CutSync'));
     setLoading(false);
-  };
+  }, [enrollWithFactorState]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setMessage(null);
+
+    void supabase.auth.mfa.listFactors().then(async ({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        setMessage('Não foi possível consultar os autenticadores cadastrados.');
+        setLoading(false);
+        return;
+      }
+
+      await enrollWithFactorState(getTotpFactorState(data?.all, 'CutSync'));
+      if (active) setLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [enrollWithFactorState]);
 
   const verify = async () => {
     const factorId = enrollment?.factorId ?? verifiedFactorId;
@@ -112,6 +129,11 @@ export const TotpSecuritySetup = ({ onVerified }: Props) => {
       </Text>
       {!verifiedFactorId && !enrollment && (
         <AppButton label="Cadastrar autenticador" onPress={() => void startEnrollment()} loading={loading} />
+      )}
+      {!!verifiedFactorId && !enrollment && (
+        <Text style={styles.existingFactor}>
+          Esta conta já possui um autenticador TOTP cadastrado. Use o código atual do aplicativo para proteger esta ação.
+        </Text>
       )}
       {!!enrollment && (
         <View style={styles.enrollment}>
@@ -152,6 +174,7 @@ const styles = StyleSheet.create({
   },
   title: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 15 },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18 },
+  existingFactor: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 18 },
   enrollment: { alignItems: 'center', gap: 8 },
   qrCode: { backgroundColor: '#fff', height: 180, width: 180 },
   secretLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },

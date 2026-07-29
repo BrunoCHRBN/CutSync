@@ -1,4 +1,4 @@
-type TotpFactorLike = {
+export type TotpFactorLike = {
   id: string;
   factor_type: string;
   friendly_name?: string;
