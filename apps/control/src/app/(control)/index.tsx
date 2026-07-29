@@ -93,7 +93,7 @@ export default function DashboardRoute() {
         <Link href="/support" asChild>
           <Pressable style={styles.quickLink}>
             <Text style={styles.quickTitle}>Central de suporte</Text>
-            <Text style={styles.quickDescription}>Abrir a fila que será sincronizada com o Jira.</Text>
+            <Text style={styles.quickDescription}>Acompanhar a projeção operacional sincronizada com o Jira.</Text>
           </Pressable>
         </Link>
       </View>
