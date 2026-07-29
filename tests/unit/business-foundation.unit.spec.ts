@@ -143,3 +143,16 @@ test('Business não troca perfil legado nem oferece compra de assinatura', () =>
   expect(sourceFiles).not.toContain('createCheckout');
   expect(sourceFiles).not.toContain('stripe.checkout');
 });
+
+test('falha de persistência local não bloqueia contexto operacional confirmado', () => {
+  const provider = read('apps/business/src/contexts/business-operational-context.tsx');
+
+  expect(provider).toContain('const getStoredActiveEstablishmentId');
+  expect(provider).toContain('const persistActiveEstablishmentId');
+  expect(provider).toContain('Persistence is best-effort');
+  expect(provider).toContain('setError(getOperationalContextErrorMessage(refreshError))');
+  expect(provider).toContain('BUS_CTX_');
+  expect(provider).toContain("throw new BusinessContextRefreshError('rpc', error)");
+  expect(provider).toContain("throw new BusinessContextRefreshError('storage_read', error)");
+  expect(provider).toContain("throw new BusinessContextRefreshError('storage_write', error)");
+});

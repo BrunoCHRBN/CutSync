@@ -37,6 +37,82 @@ interface BusinessOperationalValue {
 
 const BusinessOperationalContextValue = createContext<BusinessOperationalValue | null>(null);
 
+type BusinessContextFailureStep =
+  | 'rpc'
+  | 'storage_read'
+  | 'storage_write'
+  | 'unknown';
+
+class BusinessContextRefreshError extends Error {
+  readonly step: BusinessContextFailureStep;
+  readonly originalError: unknown;
+
+  constructor(step: BusinessContextFailureStep, originalError: unknown) {
+    super('business_context_refresh_failed');
+    this.name = 'BusinessContextRefreshError';
+    this.step = step;
+    this.originalError = originalError;
+  }
+}
+
+const operationalContextFallbackError =
+  'Não foi possível confirmar seus estabelecimentos. Código: BUS_CTX_UNKNOWN.';
+
+const diagnosticMessage = (message: string, code: string) => `${message} Código: ${code}.`;
+
+const getOperationalContextErrorMessage = (error: unknown): string => {
+  const targetError = error instanceof BusinessContextRefreshError
+    ? error.originalError
+    : error;
+  const step = error instanceof BusinessContextRefreshError ? error.step : 'unknown';
+
+  if (targetError instanceof BusinessApiError) {
+    return diagnosticMessage(targetError.message, `BUS_CTX_${targetError.code.toUpperCase()}`);
+  }
+  if (
+    targetError
+    && typeof targetError === 'object'
+    && (targetError as { name?: unknown }).name === 'BusinessApiError'
+    && typeof (targetError as { message?: unknown }).message === 'string'
+  ) {
+    const code = typeof (targetError as { code?: unknown }).code === 'string'
+      ? (targetError as { code: string }).code.toUpperCase()
+      : step.toUpperCase();
+    return diagnosticMessage((targetError as { message: string }).message, `BUS_CTX_${code}`);
+  }
+  if (error instanceof BusinessContextRefreshError) {
+    return diagnosticMessage(
+      'Não foi possível finalizar o contexto operacional neste aparelho.',
+      `BUS_CTX_${step.toUpperCase()}`,
+    );
+  }
+  return operationalContextFallbackError;
+};
+
+const getStoredActiveEstablishmentId = async (userId: string) => {
+  try {
+    return await activeEstablishmentStorage.get(userId);
+  } catch (error) {
+    throw new BusinessContextRefreshError('storage_read', error);
+  }
+};
+
+const persistActiveEstablishmentId = async (
+  userId: string,
+  establishmentId: string | null,
+  shouldRemoveStoredId: boolean,
+) => {
+  try {
+    if (establishmentId) {
+      await activeEstablishmentStorage.set(userId, establishmentId);
+    } else if (shouldRemoveStoredId) {
+      await activeEstablishmentStorage.remove(userId);
+    }
+  } catch (error) {
+    throw new BusinessContextRefreshError('storage_write', error);
+  }
+};
+
 export function BusinessOperationalProvider({ children }: PropsWithChildren) {
   const { user } = useBusinessSession();
   const [contexts, setContexts] = useState<BusinessOperationalContext[]>([]);
@@ -66,10 +142,20 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
     else setIsLoading(true);
 
     try {
-      const next = await businessApi.getOperationalContexts();
+      let next: BusinessOperationalContext[];
+      try {
+        next = await businessApi.getOperationalContexts();
+      } catch (error) {
+        throw new BusinessContextRefreshError('rpc', error);
+      }
       if (version !== requestVersion.current) return next;
 
-      const stored = await activeEstablishmentStorage.get(user.id);
+      let stored: string | null = null;
+      try {
+        stored = await getStoredActiveEstablishmentId(user.id);
+      } catch {
+        stored = null;
+      }
       const nextActiveId = resolveActiveEstablishmentId(next, [
         preferredEstablishmentId,
         activeEstablishmentId,
@@ -80,17 +166,17 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
       setActiveEstablishmentId(nextActiveId);
       setConnectionError(false);
       setError(null);
-      if (nextActiveId) await activeEstablishmentStorage.set(user.id, nextActiveId);
-      else if (stored) await activeEstablishmentStorage.remove(user.id);
+      try {
+        await persistActiveEstablishmentId(user.id, nextActiveId, Boolean(stored));
+      } catch {
+        // Persistence is best-effort. Backend-confirmed contexts still control
+        // access for the active session.
+      }
       return next;
     } catch (refreshError) {
       if (version === requestVersion.current) {
         setConnectionError(true);
-        setError(
-          refreshError instanceof BusinessApiError
-            ? refreshError.message
-            : 'Não foi possível confirmar seus estabelecimentos. Verifique sua conexão e tente novamente.',
-        );
+        setError(getOperationalContextErrorMessage(refreshError));
       }
       return contexts;
     } finally {
@@ -137,7 +223,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
     }
     setActiveEstablishmentId(establishmentId);
     setError(null);
-    await activeEstablishmentStorage.set(user.id, establishmentId);
+    await persistActiveEstablishmentId(user.id, establishmentId, false);
     return true;
   }, [contexts, user]);
 
