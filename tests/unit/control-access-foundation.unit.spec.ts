@@ -25,6 +25,14 @@ const controlRpcGrantFix = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260801002000_harden_control_rpc_execute_grants.sql'),
   'utf8',
 ).replace(/\r\n/g, '\n');
+const governanceAal2Guard = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260804002000_restore_governance_aal2_guard.sql'),
+  'utf8',
+).replace(/\r\n/g, '\n');
+const governanceAal2SqlTest = fs.readFileSync(
+  path.join(root, 'supabase/tests/governance_aal2_guard.sql'),
+  'utf8',
+).replace(/\r\n/g, '\n');
 const controlSqlTest = fs.readFileSync(
   path.join(root, 'supabase/tests/control_access_foundation.sql'),
   'utf8',
@@ -60,6 +68,17 @@ test('keeps the Control session volatile and requires real AAL2', () => {
   expect(authContext).not.toContain('123456');
   expect(authContext).toContain('IDLE_TIMEOUT_MS = 30 * 60 * 1000');
   expect(authContext).toContain('ABSOLUTE_TIMEOUT_MS = 8 * 60 * 60 * 1000');
+  expect(authContext).toContain('ACCESS_REVALIDATION_MS = 60 * 1000');
+  expect(authContext).toContain("('get_control_context')");
+  expect(authContext).toContain(
+    "setStatus(needsMfa ? 'mfa_required' : denied ? 'unauthorized' : 'error')",
+  );
+  expect(authContext).toContain(
+    "window.addEventListener('focus', revalidateWhenVisible)",
+  );
+  expect(authContext).toContain(
+    "document.addEventListener('visibilitychange', revalidateWhenVisible)",
+  );
 });
 
 test('defines explicit, private Control RPC grants', () => {
@@ -69,6 +88,32 @@ test('defines explicit, private Control RPC grants', () => {
   expect(migration).toContain('REVOKE ALL ON FUNCTION public.get_control_context() FROM PUBLIC, anon');
   expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.get_control_context() TO authenticated');
   expect(migration).toContain("'control.access.manage'");
+});
+
+test('requires an active AAL2 session in the shared governance guard', () => {
+  expect(governanceAal2Guard).toContain('SELECT public.current_session_is_aal2()');
+  expect(governanceAal2Guard).toContain('AND is_active');
+  expect(governanceAal2Guard).toContain('AND revoked_at IS NULL');
+  expect(governanceAal2Guard).toContain('AND (expires_at IS NULL OR expires_at > now())');
+  expect(governanceAal2Guard).toContain(
+    'REVOKE ALL ON FUNCTION public.is_governance_user(',
+  );
+  expect(governanceAal2Guard).toContain(
+    ') TO authenticated, service_role;',
+  );
+  expect(governanceAal2SqlTest).toContain('FAIL: AAL1 session passed the governance guard');
+  expect(governanceAal2SqlTest).toContain(
+    "'SELECT * FROM public.list_control_billing_accounts()'",
+  );
+  expect(governanceAal2SqlTest).toContain(
+    "SELECT public.configure_control_plan('network', 4990, 'BRL')",
+  );
+  expect(governanceAal2SqlTest).toContain(
+    "PERFORM public.configure_control_plan('network', 4990, 'BRL');",
+  );
+  expect(governanceAal2SqlTest).toContain(
+    'FAIL: active AAL2 viewer failed the governance guard',
+  );
 });
 
 test('supports expiring and revocable delegated access without removing the final owner', () => {

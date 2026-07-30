@@ -12,6 +12,7 @@ import type { ControlContext, ControlPermission } from '@/types/control';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ABSOLUTE_TIMEOUT_MS = 8 * 60 * 60 * 1000;
+const ACCESS_REVALIDATION_MS = 60 * 1000;
 
 type AuthStatus = 'loading' | 'signed_out' | 'mfa_required' | 'unauthorized' | 'ready' | 'error';
 
@@ -84,11 +85,16 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
 
     const result = await (supabase.rpc as any)('get_control_context');
     if (result.error) {
+      const needsMfa = result.error.message?.includes('aal2');
       const denied = result.error.message?.includes('forbidden');
-      setMessage(denied
-        ? 'Esta conta não possui acesso ativo ao CutSync Control.'
-        : 'Não foi possível carregar o contexto de acesso.');
-      setStatus(denied ? 'unauthorized' : 'error');
+      setMessage(
+        needsMfa
+          ? 'Confirme o autenticador para continuar.'
+          : denied
+            ? 'Esta conta não possui acesso ativo ao CutSync Control.'
+            : 'Não foi possível carregar o contexto de acesso.',
+      );
+      setStatus(needsMfa ? 'mfa_required' : denied ? 'unauthorized' : 'error');
       return;
     }
 
@@ -101,6 +107,30 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
       setStatus('error');
     }
   }, []);
+
+  const revalidateAccess = useCallback(async () => {
+    if (!sessionRef.current) return;
+
+    const result = await (supabase.rpc as any)('get_control_context');
+    if (result.error) {
+      const denied = result.error.message?.includes('forbidden')
+        || result.error.message?.includes('aal2');
+      if (denied) {
+        // Re-evaluate the assurance level as well: a denied context can mean
+        // either a remote access revocation or an AAL2 session downgrade.
+        await evaluateSession(sessionRef.current);
+      }
+      return;
+    }
+
+    try {
+      setContext(parseControlContext(result.data));
+    } catch {
+      setContext(null);
+      setMessage('O servidor retornou um contexto de acesso inválido.');
+      setStatus('error');
+    }
+  }, [evaluateSession]);
 
   useEffect(() => {
     let active = true;
@@ -156,6 +186,24 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
       activityEvents.forEach((eventName) => document.removeEventListener(eventName, markActivity));
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== 'ready' || typeof document === 'undefined') return undefined;
+
+    const revalidateWhenVisible = () => {
+      if (document.visibilityState === 'visible') void revalidateAccess();
+    };
+    const timer = window.setInterval(revalidateWhenVisible, ACCESS_REVALIDATION_MS);
+
+    window.addEventListener('focus', revalidateWhenVisible);
+    document.addEventListener('visibilitychange', revalidateWhenVisible);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', revalidateWhenVisible);
+      document.removeEventListener('visibilitychange', revalidateWhenVisible);
+    };
+  }, [revalidateAccess, status]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setMessage('');
