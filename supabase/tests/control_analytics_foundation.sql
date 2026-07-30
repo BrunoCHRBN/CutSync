@@ -535,6 +535,13 @@ VALUES
     pg_temp.analytics_time(-4, 10)
   );
 
+UPDATE analytics_private.control_metric_source_coverage
+SET
+  available_from = pg_temp.analytics_day(-12),
+  status = 'available',
+  assessment_method = 'operator_reviewed',
+  assessed_at = now();
+
 SELECT analytics_private.refresh_control_daily_metrics(
   pg_temp.analytics_day(-6)
 );
