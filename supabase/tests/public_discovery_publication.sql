@@ -1,5 +1,5 @@
--- Execute after 20260731000000_public_discovery_publication.sql.
-\set ON_ERROR_STOP on
+-- Execute after 20260731000000_public_discovery_publication.sql and
+-- 20260730040412_fix_discovery_eligibility_trigger.sql.
 
 BEGIN;
 
@@ -47,14 +47,19 @@ SELECT pg_temp.set_actor('85000000-0000-0000-0000-000000000001');
 
 SELECT * FROM public.publish_establishment_discovery('85000000-0000-0000-0000-000000000010');
 
+UPDATE public.establishments
+SET name = 'Studio Publicável Atualizado'
+WHERE id = '85000000-0000-0000-0000-000000000010';
+
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.list_public_discovery_establishments(50)
     WHERE slug = 'studio-publicavel'
+      AND name = 'Studio Publicável Atualizado'
       AND jsonb_array_length(services) = 1
   ) THEN
-    RAISE EXCEPTION 'FAIL: eligible published establishment was not returned';
+    RAISE EXCEPTION 'FAIL: eligible published establishment update was not returned';
   END IF;
 END $$;
 

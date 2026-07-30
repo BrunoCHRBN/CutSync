@@ -190,6 +190,11 @@ export const SettingsExperience = () => {
   };
 
   const handleImageUpload = async (uri: string): Promise<string | null> => {
+    if (!activeEstablishmentId) {
+      setNotice({ tone: 'danger', message: 'Selecione uma unidade antes de enviar imagens.' });
+      return null;
+    }
+
     try {
       setSaving(true);
       setNotice(null);
@@ -198,7 +203,7 @@ export const SettingsExperience = () => {
       const blob = await response.blob();
 
       const fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
-      const fileName = `${activeEstablishmentId || 'public'}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileName = `${activeEstablishmentId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const bucketName = 'banners';
 
       const { error: uploadError } = await supabase.storage
@@ -387,7 +392,7 @@ export const SettingsExperience = () => {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from('establishments').update({
+      const { data: updatedEstablishment, error } = await supabase.from('establishments').update({
         name: name.trim(), slug: cleanSlug, address: address.trim(), phone: phone.trim(),
         slogan: slogan.trim() || null, banner_url: bannerUrl.trim() || null,
         instagram: instagram.trim() || null, opening_hours: JSON.stringify(schedule),
@@ -399,8 +404,11 @@ export const SettingsExperience = () => {
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
         professional_pix_allowed: professionalPixAllowed,
-      }).eq('id', barbershop.id);
+      }).eq('id', barbershop.id)
+        .select('id')
+        .maybeSingle();
       if (error) throw error;
+      if (!updatedEstablishment) throw new Error('establishment_update_not_authorized');
       setSlug(cleanSlug);
       setSavedSnapshot(JSON.stringify({
         ...JSON.parse(currentSnapshot),
@@ -416,8 +424,16 @@ export const SettingsExperience = () => {
       }));
       setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
       await loadDiscoveryPublication();
-    } catch {
-      setNotice({ tone: 'danger', message: 'Não foi possível salvar todas as alterações.' });
+    } catch (error) {
+      const detail = getErrorMessage(error, '');
+      setNotice({
+        tone: 'danger',
+        message: detail.includes('billing_read_only')
+          ? 'Esta unidade está em modo somente leitura. Atualize o acesso da assinatura antes de alterar a operação.'
+          : detail.includes('establishment_update_not_authorized')
+            ? 'Sua sessão não tem permissão para alterar esta unidade. Atualize a página e confirme o estabelecimento ativo.'
+            : 'Não foi possível salvar todas as alterações.',
+      });
     } finally {
       setSaving(false);
     }
