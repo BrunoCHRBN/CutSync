@@ -1,148 +1,128 @@
-import { Link, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { ControlNotice } from '@/components/control-ui';
+import { ExecutiveDashboard } from '@/components/executive-dashboard';
+import { RequireControlPermission } from '@/components/require-control-permission';
 import { SectionPage } from '@/components/section-page';
-import { parseControlDashboard, type ControlDashboardSnapshot } from '@/services/control-dashboard';
-import { supabase } from '@/services/supabase';
+import {
+  ControlExecutiveApiError,
+  createControlMetricRange,
+  listControlMetricScopes,
+  loadControlExecutiveDashboard,
+  type ControlExecutiveDashboard,
+  type ControlMetricRangeDays,
+  type ControlMetricScopeOption,
+} from '@/services/control-executive';
+import { colors } from '@/theme/tokens';
 
-interface MetricCardProps {
-  label: string;
-  value: number;
-  detail: string;
-}
+const globalScope: ControlMetricScopeOption = {
+  type: 'global',
+  id: null,
+  parentId: null,
+  label: 'Toda a plataforma',
+};
 
-function MetricCard({ label, value, detail }: MetricCardProps) {
-  return (
-    <View style={styles.metricCard}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value.toLocaleString('pt-BR')}</Text>
-      <Text style={styles.metricDetail}>{detail}</Text>
-    </View>
-  );
+function sameScope(left: ControlMetricScopeOption, right: ControlMetricScopeOption) {
+  return left.type === right.type && left.id === right.id;
 }
 
 export default function DashboardRoute() {
-  const [snapshot, setSnapshot] = useState<ControlDashboardSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<ControlExecutiveDashboard | null>(null);
+  const [scopes, setScopes] = useState<ControlMetricScopeOption[]>([globalScope]);
+  const [selectedScope, setSelectedScope] = useState<ControlMetricScopeOption>(globalScope);
+  const [rangeDays, setRangeDays] = useState<ControlMetricRangeDays>(28);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const requestIdRef = useRef(0);
 
   const loadDashboard = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setLoading(true);
     setError('');
-    const result = await (supabase.rpc as any)('get_control_dashboard');
-    if (result.error) {
-      setError('Não foi possível carregar os indicadores agora.');
-      setLoading(false);
-      return;
-    }
+    setSnapshot(null);
 
     try {
-      setSnapshot(parseControlDashboard(result.data));
-    } catch {
-      setError('Os indicadores retornaram em um formato inesperado.');
+      const availableScopes = await listControlMetricScopes();
+      const requestedScope = availableScopes.find((scope) => sameScope(scope, selectedScope))
+        ?? availableScopes.find((scope) => scope.type === 'global')
+        ?? globalScope;
+      const range = createControlMetricRange(rangeDays);
+      const nextSnapshot = await loadControlExecutiveDashboard({
+        start: range.start,
+        end: range.end,
+        scopeType: requestedScope.type,
+        scopeId: requestedScope.id,
+      });
+
+      if (requestId !== requestIdRef.current) return;
+      setScopes(availableScopes.length ? availableScopes : [globalScope]);
+      if (!sameScope(requestedScope, selectedScope)) {
+        setSelectedScope(requestedScope);
+      }
+      setSnapshot(nextSnapshot);
+    } catch (loadError) {
+      if (requestId !== requestIdRef.current) return;
+      setError(
+        loadError instanceof ControlExecutiveApiError
+          ? loadError.message
+          : 'Não foi possível carregar os indicadores agora.',
+      );
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-    setLoading(false);
-  }, []);
+  }, [rangeDays, selectedScope]);
 
   useFocusEffect(useCallback(() => {
     void loadDashboard();
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [loadDashboard]));
 
   return (
-    <SectionPage
-      eyebrow="VISÃO EXECUTIVA"
-      title="Operação CutSync"
-      description="Indicadores operacionais consolidados. Valores monetários permanecerão fora desta visão até existirem snapshots históricos auditáveis."
-    >
-      {loading ? (
-        <View style={styles.loading}><ActivityIndicator color="#173d2b" /><Text style={styles.metricDetail}>Atualizando indicadores...</Text></View>
-      ) : null}
-
-      {error ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => { void loadDashboard(); }} style={styles.retry}>
-            <Text style={styles.retryText}>Tentar novamente</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {snapshot ? (
-        <>
-          <View style={styles.metrics}>
-            <MetricCard label="Agendamentos hoje" value={snapshot.appointmentsToday} detail="Agenda global no dia corrente" />
-            <MetricCard label="Atendimentos concluídos" value={snapshot.completedLast28Days} detail="Últimos 28 dias" />
-            <MetricCard label="Cancelamentos" value={snapshot.cancelledLast28Days} detail="Últimos 28 dias" />
-            <MetricCard label="Estabelecimentos ativos" value={snapshot.activeEstablishments} detail="Status operacional ativo" />
-            <MetricCard label="Solicitações pendentes" value={snapshot.pendingEstablishmentRequests} detail="Fila de novos estabelecimentos" />
+    <RequireControlPermission permission="control.dashboard.read">
+      <SectionPage
+        eyebrow="VISÃO EXECUTIVA"
+        title="Cockpit da operação"
+        description="Resultados, motores e riscos consolidados por plataforma, organização ou estabelecimento. Valores monetários permanecem fora desta visão."
+      >
+        {loading ? (
+          <View style={styles.loading}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={styles.loadingText}>Reconciliando indicadores...</Text>
           </View>
-          <Text style={styles.timestamp}>
-            Atualizado em {new Date(snapshot.generatedAt).toLocaleString('pt-BR')} · {snapshot.timezone}
-          </Text>
-        </>
-      ) : null}
+        ) : null}
 
-      <View style={styles.quickLinks}>
-        <Link href="/live" asChild>
-          <Pressable style={styles.quickLink}>
-            <Text style={styles.quickTitle}>Acompanhar operação</Text>
-            <Text style={styles.quickDescription}>Abrir a preparação do painel em tempo real.</Text>
-          </Pressable>
-        </Link>
-        <Link href="/support" asChild>
-          <Pressable style={styles.quickLink}>
-            <Text style={styles.quickTitle}>Central de suporte</Text>
-            <Text style={styles.quickDescription}>Acompanhar a projeção operacional sincronizada com o Jira.</Text>
-          </Pressable>
-        </Link>
-      </View>
-    </SectionPage>
+        {error ? (
+          <ControlNotice
+            action={{ label: 'Tentar novamente', onPress: () => { void loadDashboard(); } }}
+            message={error}
+            title="Indicadores indisponíveis"
+            tone="danger"
+          />
+        ) : null}
+
+        {snapshot ? (
+          <ExecutiveDashboard
+            onRangeChange={setRangeDays}
+            onScopeChange={setSelectedScope}
+            rangeDays={rangeDays}
+            scopes={scopes}
+            selectedScope={selectedScope}
+            snapshot={snapshot}
+          />
+        ) : null}
+      </SectionPage>
+    </RequireControlPermission>
   );
 }
 
 const styles = StyleSheet.create({
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  metricCard: {
-    width: 220,
-    minHeight: 138,
-    gap: 8,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 15,
-    backgroundColor: '#ffffff',
-  },
-  metricLabel: { color: '#526158', fontSize: 13, fontWeight: '700' },
-  metricValue: { color: '#173d2b', fontSize: 32, fontWeight: '800' },
-  metricDetail: { color: '#78827b', fontSize: 12, lineHeight: 17 },
-  timestamp: { color: '#7b857e', fontSize: 12 },
-  errorCard: {
-    maxWidth: 620,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e6c8c4',
-    borderRadius: 12,
-    backgroundColor: '#fff7f6',
-  },
-  errorText: { flex: 1, color: '#8d3831' },
-  retry: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#173d2b' },
-  retryText: { color: '#ffffff', fontWeight: '700' },
-  quickLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 4 },
-  quickLink: {
-    width: 300,
-    gap: 5,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 13,
-    backgroundColor: '#f9faf8',
-  },
-  quickTitle: { color: '#17231c', fontWeight: '700' },
-  quickDescription: { color: '#667269', fontSize: 12, lineHeight: 18 },
+  loadingText: { color: '#78827b', fontSize: 12, lineHeight: 17 },
 });
