@@ -70,3 +70,17 @@ test('expõe as quatro rotas do fórum sob o layout compartilhado', () => {
   expect(layout).toContain('GovernanceAuthProvider');
   expect(layout).toContain('GovernanceShell');
 });
+
+test('exige TOTP real e AAL2 antes de liberar a governança', () => {
+  const auth = read('apps/web/src/contexts/governance-auth-context.tsx');
+  const login = read('apps/web/src/components/governance/governance-login.tsx');
+
+  expect(auth).toContain("currentLevel !== 'aal2'");
+  expect(auth).toContain("factorType: 'totp'");
+  expect(auth).toContain('challengeAndVerify');
+  expect(auth).toContain('await loadGovernanceProfile(session.user)');
+  expect(auth).not.toContain('123456');
+  expect(login).toContain('sessão AAL2');
+  expect(login).toContain('Cadastrar autenticador');
+  expect(login).not.toContain('código fixo');
+});

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, StyleSheet, Text, View } from 'react-native';
 import { ShieldAlert } from 'lucide-react-native';
 import { useGovernanceAuth } from '../../contexts/governance-auth-context';
 import { AppButton } from '../ui/AppButton';
@@ -10,7 +10,19 @@ import { ScreenBackground } from '../ui/ScreenBackground';
 import { colors, typography } from '../../theme/tokens';
 
 export function GovernanceLogin() {
-  const { loading, notice, mfaRequired, mfaError, signIn, confirmMfa } = useGovernanceAuth();
+  const {
+    loading,
+    notice,
+    mfaRequired,
+    mfaError,
+    mfaBusy,
+    hasVerifiedTotp,
+    enrollment,
+    signIn,
+    enrollMfa,
+    confirmMfa,
+    signOut,
+  } = useGovernanceAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mfaCode, setMfaCode] = useState('');
@@ -77,13 +89,34 @@ export function GovernanceLogin() {
           <AppCard testID="governance-mfa-card" style={styles.modalCard} elevated>
             <Text style={styles.modalTitle}>Verificação de duas etapas</Text>
             <Text style={styles.description}>
-              Digite o código OTP enviado ao telefone administrativo. O código fixo continua limitado ao ambiente de teste.
+              O acesso à Governança exige uma sessão AAL2. Use o código atual do seu aplicativo autenticador.
             </Text>
+            {!!enrollment && (
+              <View style={styles.enrollment}>
+                <Image
+                  accessibilityLabel="QR Code para cadastrar o autenticador"
+                  source={{ uri: enrollment.qrCode }}
+                  style={styles.qrCode}
+                />
+                <Text style={styles.description}>Se necessário, use a chave manual:</Text>
+                <Text selectable style={styles.secret}>{enrollment.secret}</Text>
+              </View>
+            )}
+            {!hasVerifiedTotp && !enrollment && (
+              <AppButton
+                testID="governance-mfa-enroll-button"
+                label="Cadastrar autenticador"
+                onPress={() => void enrollMfa()}
+                loading={mfaBusy}
+                variant="secondary"
+                fullWidth
+              />
+            )}
             <AppInput
               testID="governance-mfa-input"
               label="Código de 6 dígitos"
               value={mfaCode}
-              onChangeText={setMfaCode}
+              onChangeText={(value) => setMfaCode(value.replace(/\D/g, '').slice(0, 6))}
               keyboardType="number-pad"
               maxLength={6}
               placeholder="000000"
@@ -92,7 +125,16 @@ export function GovernanceLogin() {
             <AppButton
               testID="governance-mfa-button"
               label="Verificar acesso"
-              onPress={() => confirmMfa(mfaCode)}
+              onPress={() => void confirmMfa(mfaCode)}
+              loading={mfaBusy}
+              disabled={mfaCode.length !== 6 || (!hasVerifiedTotp && !enrollment)}
+              fullWidth
+            />
+            <AppButton
+              label="Entrar com outra conta"
+              onPress={() => void signOut()}
+              disabled={mfaBusy}
+              variant="ghost"
               fullWidth
             />
           </AppCard>
@@ -112,4 +154,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 420, padding: 24, gap: 16 },
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 19 },
+  enrollment: { alignItems: 'center', gap: 8 },
+  qrCode: { width: 190, height: 190, backgroundColor: '#fff' },
+  secret: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, letterSpacing: 1, textAlign: 'center' },
 });
