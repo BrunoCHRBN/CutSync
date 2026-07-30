@@ -11,14 +11,13 @@ import {
   NotebookPen,
   Scissors,
   Sparkles,
-  Store,
   Tags,
   UsersRound,
 } from 'lucide-react-native';
 import { landingColors, landingLayout, landingRadii, landingShadows, landingTypography } from '../../theme/landing-tokens';
 import { LANDING_CAPABILITIES, LandingCapabilityId } from './landing-capabilities';
 import { trackLandingEvent } from './landing-analytics';
-import { EditorialBand, ProductStory } from './landing-primitives';
+import { ProductStory } from './landing-primitives';
 import { AnimatedTabContent, CustomCursor, GlassSurface, MagneticButton, MaskedReveal, RevealOnScroll, SectionReveal, SpotlightSection, StaggerGroup, StaggerItem } from './motion/landing-effects';
 import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
 import { StickyProductStory, StickyProductStoryHandle } from './motion/sticky-product-story';
@@ -26,6 +25,23 @@ import { ProductPreview } from './product-preview';
 import { AgendaSandbox } from './sandbox/AgendaSandbox';
 import { ServicesSandbox } from './sandbox/services-sandbox';
 import { TeamSandbox } from './sandbox/team-sandbox';
+import { LandingSectionId } from './landing-content';
+import { ConnectedEcosystem } from './sections/connected-ecosystem';
+import { ContactSection } from './sections/contact-section';
+import { DeviceShowcase } from './sections/device-showcase';
+import { EditorialScene } from './sections/editorial-scene';
+import { FaqSection } from './sections/faq-section';
+import { FutureVision } from './sections/future-vision';
+import { HowToStart } from './sections/how-to-start';
+import { LandingFooter } from './sections/landing-footer';
+import { LandingNav } from './sections/landing-nav';
+import { ProductTransparency } from './sections/product-transparency';
+import { ProposalValues } from './sections/proposal-values';
+import { ResourcesHub } from './sections/resources-hub';
+import { SecurityPrivacy } from './sections/security-privacy';
+import { ServicesCapabilities } from './sections/services-capabilities';
+import { TestimonialsSection } from './sections/testimonials-section';
+import { useSectionAnchors } from './sections/use-section-anchors';
 
 const capabilityComponents: Record<LandingCapabilityId, React.ComponentType> = {
   agenda: AgendaSandbox,
@@ -69,6 +85,12 @@ const BusinessLandingContent = () => {
   const [trackWidth, setTrackWidth] = useState(0);
   const [preview, setPreview] = useState<'owner' | 'professional'>('owner');
   const thumbPosition = useSharedValue(0);
+  const { setBaseline, registerSection, scrollToSection } = useSectionAnchors(scrollRef, reducedMotion);
+
+  const navigateToSection = useCallback((section: LandingSectionId) => {
+    trackLandingEvent({ name: 'section_navigated', page: 'business', section });
+    scrollToSection(section);
+  }, [scrollToSection]);
 
   const activeIndex = LANDING_CAPABILITIES.findIndex((capability) => capability.id === activeTab);
   const ActiveSandbox = capabilityComponents[activeTab];
@@ -145,6 +167,7 @@ const BusinessLandingContent = () => {
             <View><Text style={styles.brand}>CutSync</Text><Text style={styles.brandCaption}>PARA NEGÓCIOS</Text></View>
           </Pressable>
           <View style={styles.headerActions}>
+            {isDesktop && <LandingNav audience="business" onNavigate={navigateToSection} />}
             {isDesktop && <Pressable testID="business-header-client-link" accessibilityRole="link" onPress={() => router.push('/' as never)} style={styles.headerLink}><Text style={styles.headerLinkText}>Encontrar um serviço</Text></Pressable>}
             <Pressable testID="business-login-button" accessibilityRole="button" onPress={() => router.push({ pathname: '/(auth)/login', params: { audience: 'business' } } as never)} style={styles.accountButton}>
               <LogIn size={16} color={landingColors.brand} /><Text style={styles.accountButtonText}>Acessar painel</Text>
@@ -175,131 +198,12 @@ const BusinessLandingContent = () => {
           </SpotlightSection>
         </View>
 
-        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
-          <RevealOnScroll style={styles.connectionSection}>
-            <SectionHeading
-              eyebrow="UM CAMINHO CONTÍNUO"
-              title="A presença pública alimenta a rotina do negócio."
-              description="O cliente encontra a vitrine; o estabelecimento recebe a decisão dentro da agenda que já organiza."
-            />
-            <StaggerGroup style={styles.connectionFlow}>
-              {[
-                ['01', 'Cadastre os serviços', 'Defina nome, duração e preço.'],
-                ['02', 'Publique a vitrine', 'Apresente as informações do estabelecimento.'],
-                ['03', 'Receba agendamentos', 'O cliente consulta a agenda da unidade.'],
-                ['04', 'Organize a operação', 'Acompanhe agenda, serviços e equipe.'],
-              ].map(([step, title, description], index) => (
-                <StaggerItem key={step} index={index} style={styles.connectionItem}>
-                  <View style={styles.connectionTop}><Text style={styles.connectionIndex}>{step}</Text>{index < 3 && <ArrowRight size={16} color={landingColors.borderStrong} />}</View>
-                  <Text style={styles.connectionTitle}>{title}</Text>
-                  <Text style={styles.connectionText}>{description}</Text>
-                </StaggerItem>
-              ))}
-            </StaggerGroup>
-          </RevealOnScroll>
-
-          <RevealOnScroll
-            onLayout={(event) => { sandboxSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
-            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'demo' })}
-            style={[styles.sandboxSection, landingShadows.soft]}
-          >
-            <SectionHeading
-              eyebrow="PRODUTO DISPONÍVEL"
-              title="Veja como cada parte sustenta a operação."
-              description="Demonstração baseada em funcionalidades disponíveis, com dados fictícios."
-            />
-            <GlassSurface variant="control" style={styles.tabsFrame}>
-              <View accessibilityRole="tablist" onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)} style={styles.tabs}>
-                {LANDING_CAPABILITIES.map((capability, index) => {
-                  const selected = capability.id === activeTab;
-                  return (
-                    <Pressable
-                      key={capability.id}
-                      testID={`business-sandbox-tab-${capability.id}`}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected }}
-                      onPress={() => selectTab(capability.id, isDesktop)}
-                      {...({ 'aria-selected': selected, onKeyDown: (event: unknown) => handleTabKey(event, index) } as any)}
-                      style={styles.tab}
-                    >
-                      <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{capability.label}</Text>
-                    </Pressable>
-                  );
-                })}
-                <View style={styles.track}>
-                  <Animated.View style={[styles.trackThumb, { width: `${100 / LANDING_CAPABILITIES.length}%` }, thumbStyle]} />
-                </View>
-              </View>
-            </GlassSurface>
-
-            {isDesktop ? (
-              <StickyProductStory
-                ref={stickyStoryRef}
-                chapters={LANDING_CAPABILITIES.map((capability, index) => ({
-                  id: capability.id,
-                  index: `0${index + 1}`,
-                  title: capability.title,
-                  description: capability.description,
-                  testID: `business-story-${capability.id}`,
-                }))}
-                activeId={activeTab}
-                direction={tabDirection}
-                onActiveChange={(id) => selectTab(id as LandingCapabilityId)}
-                renderPreview={(id) => {
-                  const Sandbox = capabilityComponents[id as LandingCapabilityId];
-                  return <CustomCursor style={[styles.sandboxFrame, landingShadows.raised]}><Sandbox /></CustomCursor>;
-                }}
-              />
-            ) : (
-              <View style={styles.sandboxStoryLayoutStacked}>
-                <View style={styles.storyRailStacked}>
-                  {LANDING_CAPABILITIES.map((capability, index) => {
-                    const Icon = capabilityIcons[capability.id];
-                    return (
-                      <Pressable key={capability.id} testID={`business-story-${capability.id}`} accessibilityRole="button" onPress={() => selectTab(capability.id)} style={styles.storyButton}>
-                        <View style={[styles.storyIcon, activeTab === capability.id && styles.storyIconActive]}><Icon size={18} color={activeTab === capability.id ? landingColors.white : landingColors.brand} /></View>
-                        <ProductStory index={`0${index + 1}`} title={capability.title} description={capability.description} active={activeTab === capability.id} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <CustomCursor style={[styles.sandboxFrame, landingShadows.raised]}>
-                  <AnimatedTabContent contentKey={activeTab} direction={tabDirection}><ActiveSandbox /></AnimatedTabContent>
-                </CustomCursor>
-              </View>
-            )}
-          </RevealOnScroll>
-
-          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'roles' })} style={[styles.roleSection, !isDesktop && styles.roleSectionStacked]}>
-            <View style={[styles.roleCopy, !isDesktop && styles.fullWidth]}>
-              <Text style={styles.eyebrow}>DUAS ROTINAS, UMA OPERAÇÃO</Text>
-              <Text style={styles.sectionTitle}>Cada pessoa vê o que precisa para agir.</Text>
-              <Text style={styles.sectionDescription}>A visão do dono acompanha a unidade; a visão profissional mantém o foco na própria agenda e produção.</Text>
-              <View style={styles.roleToggle}>
-                {(['owner', 'professional'] as const).map((role) => {
-                  const selected = preview === role;
-                  return (
-                    <Pressable
-                      key={role}
-                      testID={`business-role-${role}`}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      onPress={() => {
-                        setPreview(role);
-                        trackLandingEvent({ name: 'business_preview_interacted', preview: role });
-                      }}
-                      style={[styles.roleButton, selected && styles.roleButtonSelected]}
-                    >
-                      <Text style={[styles.roleButtonText, selected && styles.roleButtonTextSelected]}>{role === 'owner' ? 'Visão do dono' : 'Visão profissional'}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-            <AnimatedTabContent contentKey={preview} direction={preview === 'owner' ? -1 : 1} style={[styles.rolePreview, !isDesktop && styles.fullWidth]}>
-              <ProductPreview variant={preview} accessibilityLabel={`Prévia ilustrativa da ${preview === 'owner' ? 'visão do dono' : 'visão profissional'}`} style={styles.fullWidth} />
-            </AnimatedTabContent>
-          </RevealOnScroll>
+        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; setBaseline(event); }}>
+          <ProposalValues
+            audience="business"
+            onLayout={registerSection('proposal_values') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'proposal_values' })}
+          />
 
           <RevealOnScroll testID="business-comparison" onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'comparison' })} style={styles.comparisonSection}>
             <SectionHeading
@@ -333,46 +237,155 @@ const BusinessLandingContent = () => {
             </StaggerGroup>
           </RevealOnScroll>
 
-          <RevealOnScroll>
-            <EditorialBand
-              eyebrow="CONFIGURAÇÃO COM PROPÓSITO"
-              title="Comece pelo que o cliente precisa ver. Organize o que a equipe precisa usar."
-              description="Uma jornada baseada nas configurações disponíveis hoje no CutSync."
-            >
-              <View style={styles.onboardingGrid}>
-                {[
-                  ['01', 'Serviços', 'Nome, duração e preço do catálogo.'],
-                  ['02', 'Vitrine', 'Informações públicas do estabelecimento.'],
-                  ['03', 'Agenda', 'Horários da unidade e atendimentos.'],
-                  ['04', 'Equipe', 'Convites, jornadas e responsabilidades.'],
-                ].map(([step, title, description]) => (
-                  <View key={step} style={styles.onboardingItem}>
-                    <View style={styles.onboardingStep}><Text style={styles.onboardingStepText}>{step}</Text><Check size={15} color={landingColors.onBrandMuted} /></View>
-                    <Text style={styles.onboardingTitle}>{title}</Text>
-                    <Text style={styles.onboardingText}>{description}</Text>
-                  </View>
-                ))}
+          <EditorialScene
+            source="business"
+            caption="Cena ilustrativa"
+            alternativeText="Cena ilustrativa de uma proprietária e um profissional brasileiros revisando juntos a agenda do estabelecimento."
+          />
+
+          <ConnectedEcosystem
+            audience="business"
+            onLayout={registerSection('ecosystem') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'ecosystem' })}
+          />
+
+          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'roles' })} style={[styles.roleSection, !isDesktop && styles.roleSectionStacked]}>
+            <View style={[styles.roleCopy, !isDesktop && styles.fullWidth]}>
+              <Text style={styles.eyebrow}>DUAS ROTINAS, UMA OPERAÇÃO</Text>
+              <Text style={styles.sectionTitle}>Cada pessoa vê o que precisa para agir.</Text>
+              <Text style={styles.sectionDescription}>A visão do dono acompanha a unidade; a visão profissional mantém o foco na própria agenda e produção.</Text>
+              <View style={styles.roleToggle}>
+                {(['owner', 'professional'] as const).map((role) => {
+                  const selected = preview === role;
+                  return (
+                    <Pressable
+                      key={role}
+                      testID={`business-role-${role}`}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      onPress={() => {
+                        setPreview(role);
+                        trackLandingEvent({ name: 'business_preview_interacted', preview: role });
+                      }}
+                      style={[styles.roleButton, selected && styles.roleButtonSelected]}
+                    >
+                      <Text style={[styles.roleButtonText, selected && styles.roleButtonTextSelected]}>{role === 'owner' ? 'Visão do dono' : 'Visão profissional'}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            </EditorialBand>
-          </RevealOnScroll>
-
-          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'faq' })} style={styles.faqSection}>
-            <SectionHeading eyebrow="PERGUNTAS FREQUENTES" title="Para avaliar com calma." description="Informações diretas sobre cadastro, demonstração e operação." />
-            <View style={styles.faqGrid}>
-              {[
-                ['A demonstração usa dados reais?', 'Não. Os dados são fictícios, mas as ações representam fluxos disponíveis no produto.'],
-                ['O que posso apresentar na vitrine?', 'As informações públicas incluem o perfil do estabelecimento e os serviços ativos publicados.'],
-                ['Posso começar com uma equipe pequena?', 'Sim. O cadastro contempla profissionais autônomos e estabelecimentos com equipe.'],
-              ].map(([question, answer]) => <View key={question} style={styles.faqItem}><Text style={styles.faqQuestion}>{question}</Text><Text style={styles.faqAnswer}>{answer}</Text></View>)}
             </View>
+            <AnimatedTabContent contentKey={preview} direction={preview === 'owner' ? -1 : 1} style={[styles.rolePreview, !isDesktop && styles.fullWidth]}>
+              <ProductPreview variant={preview} accessibilityLabel={`Prévia ilustrativa da ${preview === 'owner' ? 'visão do dono' : 'visão profissional'}`} style={styles.fullWidth} />
+            </AnimatedTabContent>
           </RevealOnScroll>
 
-          <RevealOnScroll style={styles.finalCta}>
-            <View style={styles.finalCtaIcon}><Store size={23} color={landingColors.brand} /></View>
-            <Text style={styles.finalCtaEyebrow}>SUA VITRINE, SUA OPERAÇÃO</Text>
-            <Text style={styles.finalCtaTitle}>Comece a organizar o negócio a partir do que você já oferece.</Text>
-            <Text style={styles.finalCtaText}>Crie seu acesso e siga para a configuração do estabelecimento.</Text>
-            <MagneticButton label="Criar meu estabelecimento" onPress={() => {
+          <ServicesCapabilities
+            audience="business"
+            onLayout={registerSection('services') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'services' })}
+          >
+            <RevealOnScroll
+              onLayout={(event) => { sandboxSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+              onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'demo' })}
+              style={[styles.sandboxSection, landingShadows.soft]}
+            >
+              <SectionHeading
+                eyebrow="PRODUTO DISPONÍVEL"
+                title="Veja como cada parte sustenta a operação."
+                description="Demonstração baseada em funcionalidades disponíveis, com dados fictícios."
+              />
+              <GlassSurface variant="control" style={styles.tabsFrame}>
+                <View accessibilityRole="tablist" onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)} style={styles.tabs}>
+                  {LANDING_CAPABILITIES.map((capability, index) => {
+                    const selected = capability.id === activeTab;
+                    return (
+                      <Pressable
+                        key={capability.id}
+                        testID={`business-sandbox-tab-${capability.id}`}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected }}
+                        onPress={() => selectTab(capability.id, isDesktop)}
+                        {...({ 'aria-selected': selected, onKeyDown: (event: unknown) => handleTabKey(event, index) } as any)}
+                        style={styles.tab}
+                      >
+                        <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{capability.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  <View style={styles.track}>
+                    <Animated.View style={[styles.trackThumb, { width: `${100 / LANDING_CAPABILITIES.length}%` }, thumbStyle]} />
+                  </View>
+                </View>
+              </GlassSurface>
+
+              {isDesktop ? (
+                <StickyProductStory
+                  ref={stickyStoryRef}
+                  chapters={LANDING_CAPABILITIES.map((capability, index) => ({
+                    id: capability.id,
+                    index: `0${index + 1}`,
+                    title: capability.title,
+                    description: capability.description,
+                    testID: `business-story-${capability.id}`,
+                  }))}
+                  activeId={activeTab}
+                  direction={tabDirection}
+                  onActiveChange={(id) => selectTab(id as LandingCapabilityId)}
+                  renderPreview={(id) => {
+                    const Sandbox = capabilityComponents[id as LandingCapabilityId];
+                    return <CustomCursor style={[styles.sandboxFrame, landingShadows.raised]}><Sandbox /></CustomCursor>;
+                  }}
+                />
+              ) : (
+                <View style={styles.sandboxStoryLayoutStacked}>
+                  <View style={styles.storyRailStacked}>
+                    {LANDING_CAPABILITIES.map((capability, index) => {
+                      const Icon = capabilityIcons[capability.id];
+                      return (
+                        <Pressable key={capability.id} testID={`business-story-${capability.id}`} accessibilityRole="button" onPress={() => selectTab(capability.id)} style={styles.storyButton}>
+                          <View style={[styles.storyIcon, activeTab === capability.id && styles.storyIconActive]}><Icon size={18} color={activeTab === capability.id ? landingColors.white : landingColors.brand} /></View>
+                          <ProductStory index={`0${index + 1}`} title={capability.title} description={capability.description} active={activeTab === capability.id} />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <CustomCursor style={[styles.sandboxFrame, landingShadows.raised]}>
+                    <AnimatedTabContent contentKey={activeTab} direction={tabDirection}><ActiveSandbox /></AnimatedTabContent>
+                  </CustomCursor>
+                </View>
+              )}
+            </RevealOnScroll>
+          </ServicesCapabilities>
+
+          <DeviceShowcase
+            audience="business"
+            onLayout={registerSection('devices') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'devices' })}
+          />
+
+          <ProductTransparency
+            audience="business"
+            onLayout={registerSection('transparency') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'transparency' })}
+          />
+
+          <SecurityPrivacy
+            audience="business"
+            onLayout={registerSection('security') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'security' })}
+          />
+
+          <HowToStart
+            audience="business"
+            onLayout={registerSection('how_to_start') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'how_to_start' })}
+          >
+            <MagneticButton label="Falar com a equipe" testID="business-contact-cta" onPress={() => {
+              trackLandingEvent({ name: 'cta_clicked', page: 'business', position: 'final', destination: 'demo' });
+              navigateToSection('contact');
+            }} />
+            <MagneticButton label="Criar meu estabelecimento" secondary testID="business-final-cta" onPress={() => {
               trackLandingEvent({ name: 'cta_clicked', page: 'business', position: 'final', destination: 'registration' });
               trackLandingEvent({ name: 'registration_started', source: 'business' });
               router.push({
@@ -380,26 +393,36 @@ const BusinessLandingContent = () => {
                 params: { intent: 'establishment', redirect: '/(client)/request-establishment' },
               } as never);
             }} />
-          </RevealOnScroll>
+          </HowToStart>
 
-          <View style={styles.footer}>
-            <View style={styles.footerIdentity}>
-              <Text style={styles.footerBrand}>CutSync</Text>
-              <Text style={styles.footerText}>© {new Date().getFullYear()} · Vitrine e operação conectadas.</Text>
-            </View>
-            <View style={styles.footerLinks}>
-              {[
-                ['Cliente', '/', 'business-footer-client-link'],
-                ['Entrar', '/(auth)/login?audience=business', 'business-footer-login-link'],
-                ['Privacidade', '/privacy', 'business-footer-privacy-link'],
-                ['Exclusão de conta', '/account-deletion', 'business-footer-account-deletion-link'],
-              ].map(([label, href, testID]) => (
-                <Pressable key={label} testID={testID} accessibilityRole="link" onPress={() => router.push(href as never)}>
-                  <Text style={styles.footerLink}>{label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+          <ResourcesHub
+            audience="business"
+            onNavigate={navigateToSection}
+            onLayout={registerSection('resources') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'resources' })}
+          />
+
+          <TestimonialsSection
+            audience="business"
+            onLayout={registerSection('testimonials') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'testimonials' })}
+          />
+
+          <FaqSection
+            audience="business"
+            onLayout={registerSection('faq') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'faq' })}
+          />
+
+          <ContactSection audience="business" onLayout={registerSection('contact') as never} />
+
+          <FutureVision
+            audience="business"
+            onLayout={registerSection('future') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'business', section: 'future' })}
+          />
+
+          <LandingFooter audience="business" onNavigate={navigateToSection} />
         </View>
       </ScrollView>
     </View>
