@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -95,4 +96,58 @@ test('Edge Functions não dependem de nomes legados nem enviam secret como Beare
   expect(sources).not.toContain('SUPABASE_ANON_KEY');
   expect(fiscalReconciliation).toContain('apikey: getSupabaseSecretKey()');
   expect(fiscalReconciliation).not.toContain('Authorization:');
+});
+
+test('cutover remoto mantém projeto restrito, saída sanitizada e rollback explícito', () => {
+  const manager = fs.readFileSync(
+    path.join(root, 'scripts/manage-supabase-legacy-api-keys.ps1'),
+    'utf8',
+  );
+  const publicSmoke = fs.readFileSync(
+    path.join(root, 'scripts/smoke-supabase-public-access.cjs'),
+    'utf8',
+  );
+
+  expect(manager).toContain('SupportsShouldProcess = $true');
+  expect(manager).toContain("'sphbbqdgcreowxzjgibj'");
+  expect(manager).toContain("'hxoenfnszrrgaqxplzmd'");
+  expect(manager).toContain("[ValidateSet('Status', 'Disable', 'Enable')]");
+  expect(manager).toContain('$PSCmdlet.ShouldProcess');
+  expect(manager).toMatch(/'Disable'\s*\{\s*\$false\s*\}/);
+  expect(manager).toMatch(/'Enable'\s*\{\s*\$true\s*\}/);
+  expect(manager).toContain('/api-keys/legacy');
+  expect(manager).toContain('[Net.Http.HttpMethod]::Get');
+  expect(manager).toContain('[Net.Http.HttpMethod]::Put');
+  expect(manager).toContain('LegacyEnabled = [bool]$state.enabled');
+  expect(manager).not.toMatch(/Write-(Host|Output|Verbose).*accessToken/i);
+
+  expect(publicSmoke).toContain('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  expect(publicSmoke).not.toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  expect(publicSmoke).toContain('/auth/v1/settings');
+  expect(publicSmoke).toContain('/rest/v1/establishments?select=id&limit=1');
+  expect(publicSmoke).toContain('/functions/v1/submit-business-registration');
+  expect(publicSmoke).toContain('PUBLIC_SMOKE_EDGE_SKIP_NOT_ALLOWED');
+  expect(publicSmoke).toContain("functionError !== 'authentication_required'");
+});
+
+test('smoke não permite ignorar Edge Functions em Homolog', () => {
+  const script = path.join(root, 'scripts/smoke-supabase-public-access.cjs');
+  const publishableKey = 'sb_publishable_unit-test-value';
+  const result = spawnSync(
+    process.execPath,
+    [script, 'sphbbqdgcreowxzjgibj', '--skip-edge'],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        EXPO_PUBLIC_SUPABASE_URL:
+          'https://sphbbqdgcreowxzjgibj.supabase.co',
+        EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+      },
+    },
+  );
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('PUBLIC_SMOKE_EDGE_SKIP_NOT_ALLOWED');
+  expect(result.stderr).not.toContain(publishableKey);
 });

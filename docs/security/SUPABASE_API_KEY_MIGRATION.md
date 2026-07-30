@@ -1,8 +1,9 @@
 # Migração para as chaves modernas do Supabase
 
-Status: código local migrado e Edge Functions existentes publicadas em
-Homolog; novos bundles, homologação por papel e desativação das chaves legadas
-pendentes
+Status: código e consumidores públicos migrados; chaves legadas desativadas e
+verificadas em Homolog e Production; homologação autenticada por papel
+permanece separada; incidente da secret moderna de Production aguarda
+inventário e rotação
 
 Data de referência: 2026-07-30
 
@@ -68,22 +69,26 @@ da chave.
 | Runtime público no repositório | implementado | Client, Business, Web e Control exigem a publishable key |
 | Edge Functions no repositório | implementado | billing, fiscal, suporte/Jira, notificações, cadastro Business, identidade e exclusão usam o resolvedor compartilhado |
 | Testes unitários focados | aprovados localmente | 45 testes afetados passaram sem expor valores |
-| EAS Client e Business | publishable key configurada | seis combinações Development/Preview/Production passaram no preflight; nenhum novo binário foi gerado nesta etapa |
-| Vercel Web e Control | publishable key configurada | as variáveis Production/Preview foram adicionadas; redeploy e smoke do novo bundle continuam pendentes |
-| Edge Functions em Homolog | 15 funções existentes publicadas | versões ficaram `ACTIVE`; smokes sem sessão retornaram `authentication_required`, não erro de configuração |
-| Edge Functions em Production | footprint vazio e promoção pendente | nenhuma função foi criada apenas para completar a migração |
+| EAS Client e Business | publishable key configurada | seis combinações Development/Preview/Production passaram no preflight; Client e Business repetiram o Preview depois do corte |
+| Vercel Web e Control | commit `05ba97c` em Production | Web separa `Production` de `Preview`; Control permanece em Homolog por decisão operacional; os bundles não contêm nome ou JWT legado |
+| Edge Functions em Homolog | 15 funções existentes publicadas | versões ficaram `ACTIVE`; smokes pós-corte retornaram `authentication_required`, não erro de configuração |
+| Edge Functions em Production | footprint vazio | nenhuma função foi criada apenas para completar a migração |
 | Banco remoto | inventário estrutural concluído | Homolog e Production não apresentaram marcadores de chave em triggers/funções; não há Database Webhooks; cron/Vault também não apresentaram candidatos |
-| Consumidores distribuídos | inventário pendente | retirar ou substituir bundles Web/Control e APKs/AABs antigos antes do corte |
-| Desenvolvimento local | ajuste pendente | `.env` ignorados de Client, Web e Control ainda precisam receber a publishable key |
-| Chaves JWT legadas | ativas | desativação conjunta ainda não executada |
+| Consumidores distribuídos | inventariados | Business Preview já era moderno; um APK Client Preview interno foi gerado localmente; não há builds EAS `production` Android ou iOS |
+| Desenvolvimento local | ajustado | `.env` ignorados de Client, Web e Control usam somente `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| Chaves JWT legadas | desativadas | `sphbbqdgcreowxzjgibj=false`; `hxoenfnszrrgaqxplzmd=false` em 2026-07-30 |
+| Secret moderna de Production | incidente aberto | valor apareceu sem redação em trace local da CLI; inventariar consumidores, substituir e revogar |
 
-Esse quadro não declara a migração remota concluída. Testes estáticos e
-variáveis presentes no painel não comprovam que o bundle ou a função implantada
-já consome a chave moderna.
+Esse quadro registra a conclusão do cutover técnico remoto, sustentada por
+inspeção dos bundles, preflights e smokes pós-corte. Ele não declara homologação
+funcional por papel nem substitui os fluxos autenticados do produto.
 
 O APK Preview mais recente do Business foi gerado depois da configuração da
-publishable key. O APK Preview disponível do Client é anterior à migração e
-deve ser substituído antes de desligar as chaves legadas em Homolog.
+publishable key. O APK Client Preview disponível no EAS é anterior à migração,
+foi retirado da matriz suportada e não deve ser redistribuído. Um substituto
+interno foi gerado localmente a partir de `05ba97c`, validado por assinatura e
+inspeção do bundle. A cota gratuita impediu publicar esse novo APK no EAS; ele
+não é evidência de distribuição em Production.
 
 ## Gate 1 — validação local
 
@@ -155,8 +160,8 @@ No Supabase, a desativação das chaves JWT legadas afeta `anon` e
 `service_role` em conjunto. Não é possível tratar a chave legada pública e a
 administrativa como duas desativações independentes.
 
-Somente execute a desativação quando os gates anteriores estiverem concluídos e
-registrados para o projeto correspondente:
+Para um rollout integral, execute a desativação quando os gates anteriores
+estiverem concluídos e registrados para o projeto correspondente:
 
 1. Capturar a lista de consumidores, versões e responsáveis sem capturar os
    valores das chaves.
@@ -170,6 +175,94 @@ registrados para o projeto correspondente:
 Primeiro conclua e observe Homolog. A desativação em Production exige uma
 decisão e uma evidência separadas; o sucesso em Homolog não autoriza
 automaticamente a mesma ação em Production.
+
+A execução de 2026-07-30 adotou uma exceção documentada: o cutover técnico foi
+autorizado depois dos inventários, bundles, preflights e smokes públicos, sem
+credenciais E2E ou dispositivo para concluir os fluxos autenticados por papel.
+Por isso, as chaves estão desativadas, mas o produto não é declarado homologado
+e o Gate 4 funcional permanece incompleto.
+
+O utilitário operacional versionado usa a credencial já autenticada da
+Supabase CLI no Windows Credential Manager sem imprimir o PAT ou valores de
+chaves:
+
+```powershell
+.\scripts\manage-supabase-legacy-api-keys.ps1 `
+  -ProjectRef sphbbqdgcreowxzjgibj `
+  -Mode Status
+
+.\scripts\manage-supabase-legacy-api-keys.ps1 `
+  -ProjectRef sphbbqdgcreowxzjgibj `
+  -Mode Disable `
+  -Confirm:$false
+```
+
+O modo `Enable` é reservado ao rollback emergencial. Não use
+`supabase projects api-keys` para esta auditoria: na versão observada da CLI,
+esse comando imprime os JWTs legados completos mesmo sem `--reveal`.
+
+## Execução em Homolog — 2026-07-30
+
+Às 12:07 BRT, a Management API confirmou
+`legacyEnabled=false` para `sphbbqdgcreowxzjgibj`. Production permaneceu em
+`legacyEnabled=true`.
+
+Depois do corte:
+
+- os preflights Preview de Client e Business passaram com
+  `keyType=publishable` e o ref de Homolog;
+- os dois projetos EAS executaram o smoke público com `auth=200`, `REST=200` e
+  Edge Function `401 authentication_required`;
+- `cutsync-control.vercel.app` respondeu `200` e seu bundle apontou para
+  Homolog com `sb_publishable_*`, sem nome de variável ou JWT legado;
+- `cut-sync.vercel.app` foi reconstruído separadamente para Production e passou
+  a apontar exclusivamente para `hxoenfnszrrgaqxplzmd`;
+- as variáveis `EXPO_PUBLIC_SUPABASE_ANON_KEY` foram removidas dos projetos
+  Vercel Web e Control;
+- uma nova consulta da Management API manteve Homolog desativada e Production
+  ativa.
+
+O smoke reproduzível usa somente a chave pública carregada pelo EAS e não
+registra seu valor:
+
+```powershell
+Set-Location apps/business
+npx eas-cli@21.4.0 env:exec preview `
+  "node ../../scripts/smoke-supabase-public-access.cjs sphbbqdgcreowxzjgibj" `
+  --non-interactive
+```
+
+Não havia credenciais E2E carregadas nem dispositivo ADB conectado para repetir
+os fluxos autenticados por papel. Por isso, este registro comprova o cutover
+técnico de Homolog, mas não declara a Fatia 1 homologada de ponta a ponta.
+
+## Execução em Production — 2026-07-30
+
+Antes do corte, o inventário EAS retornou uma lista vazia de builds Android e
+iOS com perfil `production` para Client e Business. A Web já estava no commit
+`05ba97c`, com variáveis separadas por ambiente e bundle contendo apenas o ref
+`hxoenfnszrrgaqxplzmd` e a publishable key. Production não possui Edge
+Functions, Database Webhooks ou candidatos em cron/Vault.
+
+Às 12:18 BRT, a Management API confirmou
+`legacyEnabled=false` para `hxoenfnszrrgaqxplzmd`. Depois do corte:
+
+- Client e Business repetiram o preflight Production com
+  `keyType=publishable`;
+- os dois ambientes EAS repetiram `auth=200` e `REST=200`;
+- o smoke da Web Production retornou `200` e a tela de login abriu sem erro de
+  configuração;
+- a consulta final confirmou `legacyEnabled=false` em Homolog e Production.
+
+O smoke de Production usa `--skip-edge` porque não existe Edge Function nesse
+projeto:
+
+```powershell
+Set-Location apps/business
+npx eas-cli@21.4.0 env:exec production `
+  "node ../../scripts/smoke-supabase-public-access.cjs hxoenfnszrrgaqxplzmd --skip-edge" `
+  --non-interactive
+```
 
 ## Contingência
 
@@ -186,14 +279,41 @@ desconhecido falhar:
 Não restaure fallbacks legados no código público e não copie uma secret key para
 o cliente como solução de contingência.
 
+O rollback operacional é:
+
+```powershell
+.\scripts\manage-supabase-legacy-api-keys.ps1 `
+  -ProjectRef sphbbqdgcreowxzjgibj `
+  -Mode Enable `
+  -Confirm:$false
+```
+
+## Incidente pendente — secret moderna de Production
+
+Uma `sb_secret_*` de Production foi registrada sem redação em um trace local da
+Supabase CLI. O arquivo não pertence ao repositório, mas a chave deve ser
+tratada como exposta. Como uma secret possui acesso elevado e não depende de
+RLS, a mitigação obrigatória é:
+
+1. inventariar consumidores externos de servidor em Production;
+2. criar uma secret substituta sem registrá-la em terminal ou trace;
+3. migrar e validar cada consumidor identificado;
+4. revogar a secret exposta;
+5. remover o trace local com segurança somente depois da revogação.
+
+Production não possui Edge Functions e nenhum consumidor dessa secret foi
+encontrado no repositório. Ainda assim, exclusão ou rotação antes do inventário
+externo pode interromper um consumidor desconhecido. Apagar apenas o trace não
+encerra o risco.
+
 ## Registro da execução
 
 Preencher uma linha por ambiente quando houver evidência real:
 
 | Ambiente | Deploy novo | Fluxos por papel | Externos inventariados | Legadas desativadas | Evidência |
 | --- | --- | --- | --- | --- | --- |
-| Homolog | 15 Edge Functions existentes publicadas | pendente | banco auditado; bundles antigos pendentes | não | deploy `ACTIVE`, smokes públicos e preflight EAS em 2026-07-30 |
-| Production | nenhuma Edge Function no footprint | pendente | banco auditado; bundles antigos pendentes | não | publishable key configurada nos ambientes públicos, sem redeploy |
+| Homolog | 15 Edge Functions, Control e ambientes Preview modernos | pendente | banco auditado; APKs internos inspecionados | sim | `legacyEnabled=false`, preflights e smokes públicos pós-corte em 2026-07-30 |
+| Production | Web `05ba97c`; nenhuma Edge Function ou build móvel Production | pendente | parcial: banco/EAS auditados; externos de servidor pendentes | sim | Web aponta somente para Production; `legacyEnabled=false`; smokes pós-corte aprovados |
 
 Referências:
 
