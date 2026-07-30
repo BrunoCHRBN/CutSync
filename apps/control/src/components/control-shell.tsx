@@ -13,7 +13,15 @@ import {
 import type { ControlPermission } from '@/types/control';
 
 interface NavigationItem {
-  href: '/' | '/live' | '/support' | '/billing' | '/governance' | '/knowledge' | '/access';
+  href:
+    | '/'
+    | '/live'
+    | '/data-quality'
+    | '/support'
+    | '/billing'
+    | '/governance'
+    | '/knowledge'
+    | '/access';
   label: string;
   permission: ControlPermission;
 }
@@ -29,6 +37,11 @@ const navigationGroups: NavigationGroup[] = [
     items: [
       { href: '/', label: 'Visão geral', permission: 'control.dashboard.read' },
       { href: '/live', label: 'Tempo real', permission: 'control.live.read' },
+      {
+        href: '/data-quality',
+        label: 'Saúde dos dados',
+        permission: 'control.dashboard.read',
+      },
     ],
   },
   {

@@ -58,6 +58,7 @@ function resolveDelta(metric: MetricComparison, inverse = false): {
     const labels = {
       current_incomplete: 'PERÍODO INCOMPLETO',
       comparison_unavailable: 'SEM BASE COMPARÁVEL',
+      source_unavailable: 'FONTE AINDA SEM COBERTURA',
       no_denominator: 'SEM DENOMINADOR',
       previous_zero: 'BASE ANTERIOR ZERO',
     } as const;
@@ -351,12 +352,19 @@ export function ExecutiveDashboard({
         message={
           snapshot.dataQuality.missingDays > 0
             ? `${snapshot.dataQuality.missingDays} dia(s) do período ainda não possuem snapshot finalizado. Comparações incompletas são sinalizadas como sem base.`
+            : !snapshot.dataQuality.comparisonAvailable
+              ? `O período atual está reconciliado, mas uma ou mais fontes ainda não cobrem toda a comparação. Consulte Saúde dos dados para ver a data de disponibilidade.`
             : `Dados reconciliados até ${snapshot.dataQuality.latestCompleteDate
               ? snapshot.dataQuality.latestCompleteDate.split('-').reverse().join('/')
               : 'o dia corrente'}.`
         }
         title="Qualidade dos dados"
-        tone={snapshot.dataQuality.missingDays > 0 ? 'warning' : 'success'}
+        tone={
+          snapshot.dataQuality.missingDays > 0
+            || !snapshot.dataQuality.comparisonAvailable
+            ? 'warning'
+            : 'success'
+        }
       />
       <Text style={styles.freshness}>
         Gerado em {new Date(snapshot.generatedAt).toLocaleString('pt-BR')} · {snapshot.timezone}

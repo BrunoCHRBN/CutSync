@@ -70,6 +70,7 @@ test('accepts explicit comparison and missing-snapshot states from the RPC', asy
       | 'available'
       | 'current_incomplete'
       | 'comparison_unavailable'
+      | 'source_unavailable'
       | 'no_denominator'
       | 'previous_zero' = 'available',
   ) => ({
@@ -121,8 +122,31 @@ test('accepts explicit comparison and missing-snapshot states from the RPC', asy
     data_quality: {
       freshness_at: null,
       latest_complete_date: null,
+      coverage_start_date: '2026-07-20',
+      coverage_end_date: null,
       missing_days: 7,
+      missing_dates: [
+        '2026-07-22',
+        '2026-07-23',
+        '2026-07-24',
+        '2026-07-25',
+        '2026-07-26',
+        '2026-07-27',
+        '2026-07-28',
+      ],
       comparison_available: false,
+      comparison_available_on: {
+        '7': '2026-08-03',
+        '28': '2026-09-14',
+        '90': '2027-01-16',
+      },
+      source_coverage: [{
+        family: 'operations',
+        label: 'Operação e agenda',
+        available_from: '2026-07-20',
+        status: 'available',
+        assessed_at: '2026-07-30T06:00:00.000Z',
+      }],
     },
   };
 
@@ -132,6 +156,8 @@ test('accepts explicit comparison and missing-snapshot states from the RPC', asy
   );
   expect(parsed.series[0].completedAppointments).toBeNull();
   expect(parsed.dataQuality.freshnessAt).toBeNull();
+  expect(parsed.dataQuality.missingDates).toHaveLength(7);
+  expect(parsed.dataQuality.comparisonAvailableOn['7']).toBe('2026-08-03');
   expect(parseControlMetricScopes([
     {
       scope_type: 'establishment',

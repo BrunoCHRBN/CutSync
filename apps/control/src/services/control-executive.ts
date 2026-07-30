@@ -13,6 +13,7 @@ export type MetricComparisonStatus =
   | 'available'
   | 'current_incomplete'
   | 'comparison_unavailable'
+  | 'source_unavailable'
   | 'no_denominator'
   | 'previous_zero';
 
@@ -79,8 +80,19 @@ export interface ControlExecutiveDashboard {
   dataQuality: {
     freshnessAt: string | null;
     latestCompleteDate: string | null;
+    coverageStartDate: string | null;
+    coverageEndDate: string | null;
     missingDays: number;
+    missingDates: string[];
     comparisonAvailable: boolean;
+    comparisonAvailableOn: Record<'7' | '28' | '90', string | null>;
+    sourceCoverage: {
+      family: 'operations' | 'people' | 'activation' | 'support';
+      label: string;
+      availableFrom: string;
+      status: 'available' | 'partial' | 'unavailable';
+      assessedAt: string;
+    }[];
   };
 }
 
@@ -155,6 +167,7 @@ function parseMetricComparison(value: unknown, field: string): MetricComparison 
     comparisonStatus !== 'available'
     && comparisonStatus !== 'current_incomplete'
     && comparisonStatus !== 'comparison_unavailable'
+    && comparisonStatus !== 'source_unavailable'
     && comparisonStatus !== 'no_denominator'
     && comparisonStatus !== 'previous_zero'
   ) {
@@ -215,6 +228,56 @@ export function parseControlExecutiveDashboard(value: unknown): ControlExecutive
   if (typeof dataQuality.comparison_available !== 'boolean') {
     throw new ControlExecutiveApiError('invalid_payload', 'Disponibilidade da comparação inválida.');
   }
+  if (
+    !Array.isArray(dataQuality.missing_dates)
+    || !Array.isArray(dataQuality.source_coverage)
+    || !isRecord(dataQuality.comparison_available_on)
+  ) {
+    throw new ControlExecutiveApiError(
+      'invalid_payload',
+      'Detalhes de cobertura analítica inválidos.',
+    );
+  }
+
+  const comparisonAvailableOn = dataQuality.comparison_available_on;
+  const parseSourceFamily = (
+    source: unknown,
+    index: number,
+  ): ControlExecutiveDashboard['dataQuality']['sourceCoverage'][number] => {
+    if (
+      !isRecord(source)
+      || (
+        source.family !== 'operations'
+        && source.family !== 'people'
+        && source.family !== 'activation'
+        && source.family !== 'support'
+      )
+      || typeof source.label !== 'string'
+      || (
+        source.status !== 'available'
+        && source.status !== 'partial'
+        && source.status !== 'unavailable'
+      )
+    ) {
+      throw new ControlExecutiveApiError(
+        'invalid_payload',
+        `Fonte analítica inválida em ${index}.`,
+      );
+    }
+    return {
+      family: source.family,
+      label: source.label,
+      availableFrom: parseDate(
+        source.available_from,
+        `data_quality.source_coverage.${index}.available_from`,
+      ),
+      status: source.status,
+      assessedAt: parseTimestamp(
+        source.assessed_at,
+        `data_quality.source_coverage.${index}.assessed_at`,
+      ),
+    };
+  };
 
   return {
     generatedAt: parseTimestamp(value.generated_at, 'generated_at'),
@@ -277,8 +340,29 @@ export function parseControlExecutiveDashboard(value: unknown): ControlExecutive
       latestCompleteDate: dataQuality.latest_complete_date === null
         ? null
         : parseDate(dataQuality.latest_complete_date, 'data_quality.latest_complete_date'),
+      coverageStartDate: dataQuality.coverage_start_date === null
+        ? null
+        : parseDate(dataQuality.coverage_start_date, 'data_quality.coverage_start_date'),
+      coverageEndDate: dataQuality.coverage_end_date === null
+        ? null
+        : parseDate(dataQuality.coverage_end_date, 'data_quality.coverage_end_date'),
       missingDays: parseInteger(dataQuality.missing_days, 'data_quality.missing_days'),
+      missingDates: dataQuality.missing_dates.map((date, index) => (
+        parseDate(date, `data_quality.missing_dates.${index}`)
+      )),
       comparisonAvailable: dataQuality.comparison_available,
+      comparisonAvailableOn: {
+        '7': comparisonAvailableOn['7'] === null
+          ? null
+          : parseDate(comparisonAvailableOn['7'], 'data_quality.comparison_available_on.7'),
+        '28': comparisonAvailableOn['28'] === null
+          ? null
+          : parseDate(comparisonAvailableOn['28'], 'data_quality.comparison_available_on.28'),
+        '90': comparisonAvailableOn['90'] === null
+          ? null
+          : parseDate(comparisonAvailableOn['90'], 'data_quality.comparison_available_on.90'),
+      },
+      sourceCoverage: dataQuality.source_coverage.map(parseSourceFamily),
     },
   };
 }

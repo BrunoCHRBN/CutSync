@@ -454,7 +454,10 @@ export default function AccessRoute() {
                 helper="Deixe vazio para acesso sem expiração. O acesso permanece válido até 23:59 da data informada."
                 label="Expiração opcional"
                 maxLength={10}
-                onChangeText={setExpiryInput}
+                onChangeText={(value) => {
+                  setExpiryInput(value);
+                  setFormError('');
+                }}
                 placeholder="AAAA-MM-DD"
                 testID="control-access-expiry"
                 value={expiryInput}
