@@ -1,5 +1,9 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getSupabasePublishableKey,
+  getSupabaseSecretKey,
+} from "../_shared/supabase-keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -48,9 +52,15 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const publicKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !publicKey || !serviceRoleKey) {
+  let publicKey: string;
+  let secretKey: string;
+  try {
+    publicKey = getSupabasePublishableKey();
+    secretKey = getSupabaseSecretKey();
+  } catch {
+    return respond({ error: "service_not_configured" }, 500);
+  }
+  if (!supabaseUrl) {
     return respond({ error: "service_not_configured" }, 500);
   }
 
@@ -64,7 +74,7 @@ Deno.serve(async (request) => {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  const adminClient = createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 

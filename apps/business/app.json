@@ -23,7 +23,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "e7525fdb-a629-40b7-b1e3-b2d043a88fea"
+      }
+    },
+    "owner": "chernobruno"
   }
 }

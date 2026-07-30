@@ -1,5 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseSecretKey } from "../_shared/supabase-keys.ts";
 
 const EXPO_SEND_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
@@ -207,8 +208,13 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
+  let secretKey: string;
+  try {
+    secretKey = getSupabaseSecretKey();
+  } catch {
+    return jsonResponse({ error: "service_not_configured" }, 500);
+  }
+  if (!supabaseUrl) {
     return jsonResponse({ error: "service_not_configured" }, 500);
   }
 
@@ -221,7 +227,7 @@ Deno.serve(async (request) => {
 
   const mode = input.mode ?? "all";
   const limit = clampLimit(input.limit);
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   let queuedReminders = 0;

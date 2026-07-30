@@ -59,7 +59,7 @@ test('parses every executive contract section before exposing it to the route', 
 
 test('accepts explicit comparison and missing-snapshot states from the RPC', async () => {
   process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test-key';
   const {
     parseControlExecutiveDashboard,
     parseControlMetricScopes,

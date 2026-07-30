@@ -5,8 +5,15 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "env:validate:development": "npx eas-cli@21.4.0 env:exec development \"node ../../scripts/validate-mobile-environment.cjs --app business --environment development\" --non-interactive",
+    "env:validate:preview": "npx eas-cli@21.4.0 env:exec preview \"node ../../scripts/validate-mobile-environment.cjs --app business --environment preview\" --non-interactive",
+    "env:validate:production": "npx eas-cli@21.4.0 env:exec production \"node ../../scripts/validate-mobile-environment.cjs --app business --environment production\" --non-interactive",
+    "eas:development": "npm run env:validate:development && npx eas-cli@21.4.0 build --platform android --profile development",
+    "eas:preview": "npm run env:validate:preview && npx eas-cli@21.4.0 build --platform android --profile preview",
+    "eas:production": "npm run env:validate:production && npx eas-cli@21.4.0 build --platform android --profile production",
+    "eas:builds": "npx eas-cli@21.4.0 build:list --platform android --limit 10",
     "lint": "expo lint"
   },
   "dependencies": {

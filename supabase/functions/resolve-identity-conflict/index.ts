@@ -1,5 +1,9 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getSupabasePublishableKey,
+  getSupabaseSecretKey,
+} from "../_shared/supabase-keys.ts";
 
 const headers = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -25,9 +29,15 @@ Deno.serve(async (request) => {
   const authorization = request.headers.get("Authorization") ?? "";
   const token = authorization.replace(/^Bearer\s+/i, "");
   const url = Deno.env.get("SUPABASE_URL");
-  const publicKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!token || token === authorization || !url || !publicKey || !serviceKey) {
+  let publicKey: string;
+  let secretKey: string;
+  try {
+    publicKey = getSupabasePublishableKey();
+    secretKey = getSupabaseSecretKey();
+  } catch {
+    return respond({ error: "service_not_configured" }, 500);
+  }
+  if (!token || token === authorization || !url) {
     return respond({ error: "authentication_required" }, 401);
   }
   const userClient = createClient(url, publicKey, {
@@ -47,7 +57,7 @@ Deno.serve(async (request) => {
     reason.length < 10 || reason.length > 500) {
     return respond({ error: "invalid_resolution" }, 400);
   }
-  const admin = createClient(url, serviceKey, {
+  const admin = createClient(url, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const result = await admin.rpc("resolve_identity_migration_conflict", {

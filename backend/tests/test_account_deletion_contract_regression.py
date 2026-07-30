@@ -27,7 +27,8 @@ def test_execution_requires_governance_aal2_and_server_only_admin_operations():
     assert "FROM PUBLIC, anon, authenticated" in sql
     assert 'claims?.aal !== "aal2"' in edge
     assert ".auth.admin.deleteUser(" in edge
-    assert "SUPABASE_SERVICE_ROLE_KEY" in edge
+    assert "getSupabaseSecretKey" in edge
+    assert "SUPABASE_SERVICE_ROLE_KEY" not in edge
     assert "console.log" not in edge
     assert "console.error" not in edge
 

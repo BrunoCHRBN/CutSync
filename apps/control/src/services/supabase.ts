@@ -7,13 +7,17 @@ function sanitizeEnvironmentValue(raw: string | undefined): string | undefined {
 }
 
 const url = sanitizeEnvironmentValue(process.env.EXPO_PUBLIC_SUPABASE_URL);
-const anonKey = sanitizeEnvironmentValue(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+const publishableKey = sanitizeEnvironmentValue(
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+);
 
-if (!url || !anonKey) {
-  throw new Error('Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+if (!url || !publishableKey) {
+  throw new Error(
+    'Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY.',
+  );
 }
 
-export const supabase = createClient<Database>(url, anonKey, {
+export const supabase = createClient<Database>(url, publishableKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: true,

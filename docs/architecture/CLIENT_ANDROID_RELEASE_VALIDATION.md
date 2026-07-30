@@ -21,7 +21,7 @@ Nenhum `eas update` ou `eas submit` foi executado.
   - `EXPO_PUBLIC_APP_ENV`;
   - `EXPO_PUBLIC_EAS_PROJECT_ID`;
   - `EXPO_PUBLIC_SUPABASE_URL`;
-  - `EXPO_PUBLIC_SUPABASE_ANON_KEY`;
+  - `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`;
   - `SENTRY_ORG`;
   - `SENTRY_PROJECT`.
 
@@ -82,9 +82,12 @@ O teste SQL transacional não foi executado porque o Docker/Postgres local não 
 
 ## Segurança operacional
 
-- keystore, service account FCM, service role, credenciais de usuário e token Sentry permanecem fora do repositório;
+- keystore, service account FCM, `sb_secret_*`, chaves legadas
+  `service_role`, credenciais de usuário e token Sentry permanecem fora do
+  repositório;
 - a Edge Function valida a sessão, o AAL2 e o papel de governança antes de iniciar a execução;
-- as operações administrativas usam service role somente no servidor;
+- as operações administrativas usam uma secret key somente no servidor; o
+  papel SQL efetivo continua sendo `service_role`;
 - falhas parciais são registradas por código sanitizado e podem ser retomadas;
 - as páginas públicas não recebem UUID nem justificativa livre do cliente;
 - nenhum OTA foi publicado nesta fatia.

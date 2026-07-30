@@ -291,7 +291,12 @@ Entregas:
 5. Publicar `dispatch-client-notifications`.
 6. Agendar uma chamada autenticada à função a cada 15 minutos, enviando o header `x-cutsync-dispatch-secret`.
 
-O `SUPABASE_URL` e o `SUPABASE_SERVICE_ROLE_KEY` são fornecidos ao ambiente da Edge Function e nunca pertencem ao bundle mobile. A função agendada enfileira lembretes, envia até 100 notificações por lote e consulta recibos depois da janela recomendada.
+O `SUPABASE_URL` e a secret key `sb_secret_*` são fornecidos ao ambiente da
+Edge Function e nunca pertencem ao bundle mobile. No ambiente hospedado, a
+função resolve a chave nomeada a partir de `SUPABASE_SECRET_KEYS`; o fallback
+singular `SUPABASE_SECRET_KEY` existe somente para execução local controlada.
+A função agendada enfileira lembretes, envia até 100 notificações por lote e
+consulta recibos depois da janela recomendada.
 
 O EAS Project ID e o FCM v1 foram configurados para `com.cutsync.client`. APNs permanece explicitamente fora do encerramento desta fatia porque ainda não há conta Apple Developer nem dispositivo iOS para uma validação real.
 

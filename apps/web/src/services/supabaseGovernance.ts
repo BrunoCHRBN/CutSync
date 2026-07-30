@@ -12,12 +12,14 @@ function sanitizeEnv(raw: string | undefined): string | undefined {
 }
 
 const supabaseUrl = sanitizeEnv(process.env.EXPO_PUBLIC_SUPABASE_URL);
-const supabaseAnonKey = sanitizeEnv(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+const supabasePublicKey = sanitizeEnv(
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+);
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublicKey);
 
 export const supabaseGovernance = isSupabaseConfigured
-  ? createClient<Database>(supabaseUrl as string, supabaseAnonKey as string, {
+  ? createClient<Database>(supabaseUrl as string, supabasePublicKey as string, {
       auth: {
         persistSession: false, // Sessão volátil mantida apenas em memória RAM
         autoRefreshToken: true,

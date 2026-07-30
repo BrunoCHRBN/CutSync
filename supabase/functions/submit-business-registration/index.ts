@@ -8,6 +8,10 @@ import {
   normalizeBrazilPhone,
   normalizeDocument,
 } from "../_shared/legal-identity.ts";
+import {
+  getSupabasePublishableKey,
+  getSupabaseSecretKey,
+} from "../_shared/supabase-keys.ts";
 
 const headers = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -41,9 +45,15 @@ Deno.serve(async (request) => {
   const authorization = request.headers.get("Authorization") ?? "";
   const token = authorization.replace(/^Bearer\s+/i, "");
   const url = Deno.env.get("SUPABASE_URL");
-  const publicKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!token || token === authorization || !url || !publicKey || !serviceKey) {
+  let publicKey: string;
+  let secretKey: string;
+  try {
+    publicKey = getSupabasePublishableKey();
+    secretKey = getSupabaseSecretKey();
+  } catch {
+    return respond({ error: "identity_service_not_configured" }, 500);
+  }
+  if (!token || token === authorization || !url) {
     return respond({ error: "authentication_required" }, 401);
   }
 
@@ -76,7 +86,7 @@ Deno.serve(async (request) => {
       fingerprintDocument(document),
       encryptDocument(document),
     ]);
-    const admin = createClient(url, serviceKey, {
+    const admin = createClient(url, secretKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const { data, error } = await admin.rpc("register_business_identity_atomic", {

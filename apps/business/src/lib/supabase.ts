@@ -6,7 +6,7 @@ import { secureSessionStorage } from './secure-storage';
 
 const clean = (value?: string) => value?.trim().split(/[\r\n\t]+/).find(Boolean);
 const url = clean(process.env.EXPO_PUBLIC_SUPABASE_URL);
-const key = clean(process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+const key = clean(process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
 export const isSupabaseConfigured = Boolean(url && key);
 export const supabase: SupabaseClient<Database> | null = isSupabaseConfigured

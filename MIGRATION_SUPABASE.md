@@ -45,6 +45,14 @@
 
 ## Observações operacionais
 
-- Variáveis necessárias: `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+- Consumidores públicos usam somente `EXPO_PUBLIC_SUPABASE_URL` e
+  `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Edge Functions e outros consumidores confiáveis usam `sb_secret_*` somente
+  no servidor. Chaves secretas nunca pertencem a variáveis `EXPO_PUBLIC_*`, ao
+  bundle ou ao repositório.
+- Os nomes SQL `anon` e `service_role` continuam válidos como papéis do banco;
+  eles não significam que as chaves JWT legadas precisam continuar em uso.
 - O script `supabase/realtime_publication.sql` é idempotente e pode ser auditado no SQL Editor.
 - A senha do banco não deve ser armazenada no repositório.
+- O estado, os gates e a evidência da migração de chaves estão registrados em
+  `docs/security/SUPABASE_API_KEY_MIGRATION.md`.

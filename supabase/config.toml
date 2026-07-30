@@ -454,6 +454,18 @@ verify_jwt = false
 import_map = "./functions/execute-client-account-deletion/deno.json"
 entrypoint = "./functions/execute-client-account-deletion/index.ts"
 
+[functions.submit-business-registration]
+enabled = true
+verify_jwt = false
+import_map = "./functions/submit-business-registration/deno.json"
+entrypoint = "./functions/submit-business-registration/index.ts"
+
+[functions.resolve-identity-conflict]
+enabled = true
+verify_jwt = false
+import_map = "./functions/resolve-identity-conflict/deno.json"
+entrypoint = "./functions/resolve-identity-conflict/index.ts"
+
 [functions.create-stripe-checkout]
 enabled = true
 verify_jwt = false

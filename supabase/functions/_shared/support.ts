@@ -1,4 +1,8 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import {
+  getSupabasePublishableKey,
+  getSupabaseSecretKey,
+} from "./supabase-keys.ts";
 
 export const supportCorsHeaders = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -38,16 +42,22 @@ export const authenticateSupportRequest = async (
   const authorization = request.headers.get("Authorization") ?? "";
   const accessToken = authorization.replace(/^Bearer\s+/i, "");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const publicKey = Deno.env.get("SUPABASE_ANON_KEY")
-    ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  let publicKey: string;
+  let secretKey: string;
+  try {
+    publicKey = getSupabasePublishableKey();
+    secretKey = getSupabaseSecretKey();
+  } catch {
+    return {
+      ok: false,
+      response: supportJsonResponse({ error: "service_not_configured" }, 500),
+    };
+  }
 
   if (
     !accessToken
     || accessToken === authorization
     || !supabaseUrl
-    || !publicKey
-    || !serviceRoleKey
   ) {
     return {
       ok: false,
@@ -59,7 +69,7 @@ export const authenticateSupportRequest = async (
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  const adminClient = createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await userClient.auth.getUser(accessToken);

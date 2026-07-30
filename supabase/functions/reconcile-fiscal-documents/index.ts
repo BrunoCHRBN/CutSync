@@ -4,6 +4,7 @@ import {
   requireJobSecret,
   sanitizeErrorCode,
 } from "../_shared/billing.ts";
+import { getSupabaseSecretKey } from "../_shared/supabase-keys.ts";
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -15,7 +16,7 @@ Deno.serve(async (request) => {
         method: "POST",
         headers: {
           "x-cutsync-job-secret": getRequiredEnv("BILLING_JOB_SECRET"),
-          Authorization: `Bearer ${getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY")}`,
+          apikey: getSupabaseSecretKey(),
         },
       },
     );

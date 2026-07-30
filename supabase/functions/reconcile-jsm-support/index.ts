@@ -11,6 +11,7 @@ import {
   safeEquals,
   supportJsonResponse,
 } from "../_shared/support.ts";
+import { getSupabaseSecretKey } from "../_shared/supabase-keys.ts";
 
 interface ClaimedOperation {
   operation_id: string;
@@ -346,14 +347,19 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
+  let secretKey: string;
+  try {
+    secretKey = getSupabaseSecretKey();
+  } catch {
+    return supportJsonResponse({ error: "service_not_configured" }, 500);
+  }
+  if (!supabaseUrl) {
     return supportJsonResponse({ error: "service_not_configured" }, 500);
   }
 
   const operationLimit = clampLimit(input.operationLimit, 25, 100);
   const ticketLimit = clampLimit(input.ticketLimit, 50, 100);
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+  const admin = createClient(supabaseUrl, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 

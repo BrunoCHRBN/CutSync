@@ -36,8 +36,11 @@ Configurar no ambiente web/mobile:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://hxoenfnszrrgaqxplzmd.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<chave pública do projeto>
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_substitua_aqui
 EXPO_PUBLIC_APP_URL=https://cut-sync.vercel.app
 ```
 
-O arquivo `.env` local permanece ignorado pelo Git. Nunca usar a senha PostgreSQL ou uma chave `service_role` no aplicativo.
+O arquivo `.env` local permanece ignorado pelo Git. Nunca use senha PostgreSQL,
+chave legada `service_role`, chave `sb_secret_*` ou outro segredo no
+aplicativo. A publishable key é pública por definição, mas ainda deve apontar
+para o mesmo projeto da URL em cada ambiente.

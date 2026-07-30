@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.110.3";
 import Stripe from "npm:stripe@18.5.0";
+import { getSupabaseSecretKey } from "./supabase-keys.ts";
 
 export type ServiceClient = SupabaseClient;
 
@@ -37,7 +38,7 @@ export const getRequiredEnv = (name: string) => {
 export const createServiceClient = () =>
   createClient(
     getRequiredEnv("SUPABASE_URL"),
-    getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    getSupabaseSecretKey(),
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 

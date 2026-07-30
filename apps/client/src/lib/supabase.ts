@@ -13,7 +13,7 @@ const sanitizePublicValue = (raw: string | undefined) => {
 
 const supabaseUrl = sanitizePublicValue(process.env.EXPO_PUBLIC_SUPABASE_URL);
 const supabasePublicKey = sanitizePublicValue(
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
 
 const memoryValues = new Map<string, string>();

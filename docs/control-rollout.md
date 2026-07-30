@@ -120,9 +120,12 @@ Copy-Item apps/control/.env.example apps/control/.env
 Preencha apenas:
 
 - `EXPO_PUBLIC_SUPABASE_URL`;
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
-Esses valores são públicos por definição. Nunca use `service_role`, token do Jira, token do Sentry ou senha no bundle.
+Esses valores são públicos por definição. Nunca use chave legada
+`service_role`, chave `sb_secret_*`, token do Jira, token do Sentry ou senha no
+bundle. Serviços confiáveis que precisem de privilégios elevados recebem a
+secret key apenas em seu ambiente de servidor.
 
 ## Validação local
 
