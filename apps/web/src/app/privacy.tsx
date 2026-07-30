@@ -28,6 +28,9 @@ export default function PrivacyPage() {
       <ComplianceSection title="Compartilhamento e segurança">
         Os dados são disponibilizados somente aos estabelecimentos envolvidos no atendimento e a fornecedores necessários à operação, sob controles de acesso, auditoria e retenção compatível com a finalidade.
       </ComplianceSection>
+      <ComplianceSection title="Solicitações comerciais e contato pelas páginas públicas">
+        Nos formulários de contato das páginas públicas coletamos nome, e-mail, mensagem e, no formulário de estabelecimentos, o nome do estabelecimento quando informado. Esses dados são usados apenas para responder à solicitação, não alimentam analytics e não incluem IP ou identificação do dispositivo. O consentimento é registrado junto da solicitação e o histórico é mantido pelo prazo necessário ao atendimento.
+      </ComplianceSection>
       <ComplianceSection title="Retenção">
         O perfil é anonimizado quando a exclusão é executada. Registros transacionais, antifraude, fiscais ou de auditoria podem ser preservados pelo prazo exigido por lei ou para exercício regular de direitos.
       </ComplianceSection>

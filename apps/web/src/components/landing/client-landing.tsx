@@ -14,15 +14,13 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowRight,
-  BriefcaseBusiness,
-  CalendarCheck,
   Clock3,
   LogIn,
   MapPin,
   Search,
-  ShieldCheck,
   Sparkles,
   Star,
+  BriefcaseBusiness,
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
@@ -30,11 +28,28 @@ import { landingColors, landingLayout, landingRadii, landingTypography } from '.
 import { Establishment } from '@cutsync/database';
 import { getOpeningStatus } from '@cutsync/domain';
 import { trackLandingEvent } from './landing-analytics';
-import { EditorialBand, EstablishmentMedia } from './landing-primitives';
+import { EstablishmentMedia } from './landing-primitives';
 import { GlassSurface, MagneticButton, MaskedReveal, RevealOnScroll, SectionReveal, SpotlightSection, StaggerGroup, StaggerItem } from './motion/landing-effects';
 import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
 import { ProductPreview } from './product-preview';
 import { AccessPath, AccessPathModal } from './access-path-modal';
+import { LandingSectionId } from './landing-content';
+import { ConnectedEcosystem } from './sections/connected-ecosystem';
+import { ContactSection } from './sections/contact-section';
+import { DeviceShowcase } from './sections/device-showcase';
+import { EditorialScene } from './sections/editorial-scene';
+import { FaqSection } from './sections/faq-section';
+import { FutureVision } from './sections/future-vision';
+import { HowToStart } from './sections/how-to-start';
+import { LandingFooter } from './sections/landing-footer';
+import { LandingNav } from './sections/landing-nav';
+import { ProductTransparency } from './sections/product-transparency';
+import { ProposalValues } from './sections/proposal-values';
+import { ResourcesHub } from './sections/resources-hub';
+import { SecurityPrivacy } from './sections/security-privacy';
+import { ServicesCapabilities } from './sections/services-capabilities';
+import { TestimonialsSection } from './sections/testimonials-section';
+import { useSectionAnchors } from './sections/use-section-anchors';
 
 interface PublicService {
   id: string;
@@ -76,8 +91,8 @@ const ClientLandingContent = () => {
   const searchInputRef = useRef<TextInput>(null);
   const contentY = useRef(0);
   const resultsSectionY = useRef(0);
-  const journeySectionY = useRef(0);
   const reportedDepths = useRef(new Set<50 | 100>());
+  const { setBaseline, registerSection, scrollToSection } = useSectionAnchors(scrollRef, reducedMotion);
   const searchReported = useRef(false);
   const [establishments, setEstablishments] = useState<PublicEstablishment[]>([]);
   const [hoveredEstablishment, setHoveredEstablishment] = useState<string | null>(null);
@@ -188,9 +203,14 @@ const ClientLandingContent = () => {
     trackLandingEvent({ name: 'search_started', source: 'hero', filterCount });
   };
 
+  const navigateToSection = useCallback((section: LandingSectionId) => {
+    trackLandingEvent({ name: 'section_navigated', page: 'client', section });
+    scrollToSection(section);
+  }, [scrollToSection]);
+
   const scrollToJourney = () => {
     trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_secondary', destination: 'journey' });
-    scrollRef.current?.scrollTo({ y: Math.max(0, journeySectionY.current - 84), animated: !reducedMotion });
+    navigateToSection('how_to_start');
   };
 
   const trackScrollDepth = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -259,6 +279,7 @@ const ClientLandingContent = () => {
             <View style={styles.brandMark}><Sparkles size={17} color={landingColors.white} /></View>
             <Text style={styles.brand}>CutSync</Text>
           </Pressable>
+          {isDesktop && <LandingNav audience="client" onNavigate={navigateToSection} />}
           <View style={styles.headerActions}>
             {isDesktop && (
               <Pressable testID="landing-business-link" accessibilityRole="link" onPress={() => router.push('/para-estabelecimentos' as never)} style={styles.headerLink}>
@@ -364,7 +385,7 @@ const ClientLandingContent = () => {
           ))}
         </View>
 
-        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
+        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; setBaseline(event); }}>
           <RevealOnScroll
             onLayout={(event) => { resultsSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'search' })}
@@ -439,75 +460,88 @@ const ClientLandingContent = () => {
             <Text style={styles.resultsNote}>A disponibilidade é consultada antes da confirmação do agendamento.</Text>
           </RevealOnScroll>
 
-          <RevealOnScroll
+          <ProposalValues
+            audience="client"
+            onLayout={registerSection('proposal_values') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'proposal_values' })}
+          />
+
+          <EditorialScene
+            source="client"
+            caption="Cena ilustrativa"
+            alternativeText="Cena ilustrativa de uma cliente escolhendo um horário pelo celular em um ambiente brasileiro de autocuidado."
+          />
+
+          <ConnectedEcosystem
+            audience="client"
+            onLayout={registerSection('ecosystem') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'ecosystem' })}
+          />
+
+          <ServicesCapabilities
+            audience="client"
+            onLayout={registerSection('services') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'services' })}
+          />
+
+          <DeviceShowcase
+            audience="client"
+            onLayout={registerSection('devices') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'devices' })}
+          />
+
+          <ProductTransparency
+            audience="client"
+            onLayout={registerSection('transparency') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'transparency' })}
+          />
+
+          <SecurityPrivacy
+            audience="client"
+            onLayout={registerSection('security') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'security' })}
+          />
+
+          <HowToStart
+            audience="client"
             testID="landing-client-journey"
-            onLayout={(event) => { journeySectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            onLayout={registerSection('how_to_start') as never}
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'journey' })}
-            style={styles.journeySection}
           >
-            <SectionHeading eyebrow="DO ENCONTRO À CONFIRMAÇÃO" title="Uma decisão de cada vez." description="Você pode explorar antes de entrar. A conta é necessária somente para concluir a reserva." />
-            <StaggerGroup style={styles.journeyGrid}>
-              {[
-                { step: '01', Icon: Search, title: 'Descubra', text: 'Busque por serviço, estabelecimento ou localização.' },
-                { step: '02', Icon: CalendarCheck, title: 'Escolha', text: 'Consulte o catálogo e os horários da unidade.' },
-                { step: '03', Icon: ShieldCheck, title: 'Confirme', text: 'Acesse sua conta apenas para finalizar o agendamento.' },
-              ].map(({ step, Icon, title, text }, index) => (
-                <StaggerItem key={title} index={index} style={styles.journeyItem}>
-                  <View style={styles.journeyTop}><Text style={styles.stepNumber}>{step}</Text><Icon size={20} color={landingColors.brand} /></View>
-                  <Text style={styles.journeyTitle}>{title}</Text>
-                  <Text style={styles.journeyText}>{text}</Text>
-                </StaggerItem>
-              ))}
-            </StaggerGroup>
-          </RevealOnScroll>
-
-          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'connected_platform' })}>
-            <EditorialBand
-              testID="landing-connected-platform"
-              eyebrow="UMA PLATAFORMA CONECTADA"
-              title="O que o cliente encontra acompanha o que o estabelecimento disponibiliza na agenda."
-              description="O CutSync conecta informações já publicadas pelo negócio ao caminho de descoberta e agendamento do cliente."
-            >
-              <View style={styles.platformFlow}>
-                {['Serviços publicados', 'Descoberta', 'Agendamento', 'Operação organizada'].map((label, index) => (
-                  <View key={label} style={styles.platformStep}>
-                    <Text style={styles.platformIndex}>0{index + 1}</Text>
-                    <Text style={styles.platformLabel}>{label}</Text>
-                    {index < 3 && <ArrowRight size={16} color={landingColors.onBrandSubtle} />}
-                  </View>
-                ))}
-              </View>
-            </EditorialBand>
-          </RevealOnScroll>
-
-          <RevealOnScroll onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'faq' })} style={styles.faqSection}>
-            <SectionHeading eyebrow="ANTES DE RESERVAR" title="O essencial, sem letras pequenas." description="Informações diretas para navegar com confiança." />
-            <View style={styles.faqGrid}>
-              {[
-                ['Preciso criar conta para pesquisar?', 'Não. Você pode explorar estabelecimentos e serviços sem cadastro.'],
-                ['Os horários mostrados são reais?', 'A disponibilidade é consultada no fluxo do estabelecimento antes da confirmação.'],
-                ['O CutSync recebe o pagamento?', 'Nesta fase, o CutSync organiza o agendamento. Pagamentos seguem as regras de cada estabelecimento.'],
-              ].map(([question, answer]) => (
-                <View key={question} style={styles.faqItem}><Text style={styles.faqQuestion}>{question}</Text><Text style={styles.faqAnswer}>{answer}</Text></View>
-              ))}
-            </View>
-          </RevealOnScroll>
-
-          <RevealOnScroll style={styles.finalCta}>
-            <Text style={styles.finalCtaEyebrow}>COMECE PELA BUSCA</Text>
-            <Text style={styles.finalCtaTitle}>Seu próximo horário começa com uma escolha clara.</Text>
-            <Text style={styles.finalCtaText}>Explore as vitrines publicadas e consulte os horários quando encontrar o serviço certo.</Text>
             <MagneticButton label="Ver estabelecimentos" onPress={() => {
               trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'final', destination: 'search' });
               scrollRef.current?.scrollTo({ y: Math.max(0, resultsSectionY.current - 84), animated: !reducedMotion });
-            }} />
-          </RevealOnScroll>
+            }} testID="landing-client-final-cta" />
+          </HowToStart>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerBrand}>CutSync</Text>
-            <Text style={styles.footerText}>© {new Date().getFullYear()} · Vitrine e operação conectadas.</Text>
-            <Pressable testID="client-footer-business-link" accessibilityRole="link" onPress={() => router.push('/para-estabelecimentos' as never)}><Text style={styles.footerLink}>Solução para estabelecimentos</Text></Pressable>
-          </View>
+          <ResourcesHub
+            audience="client"
+            onNavigate={navigateToSection}
+            onLayout={registerSection('resources') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'resources' })}
+          />
+
+          <TestimonialsSection
+            audience="client"
+            onLayout={registerSection('testimonials') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'testimonials' })}
+          />
+
+          <FaqSection
+            audience="client"
+            onLayout={registerSection('faq') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'faq' })}
+          />
+
+          <ContactSection audience="client" onLayout={registerSection('contact') as never} />
+
+          <FutureVision
+            audience="client"
+            onLayout={registerSection('future') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'future' })}
+          />
+
+          <LandingFooter audience="client" onNavigate={navigateToSection} />
         </View>
       </ScrollView>
     </View>

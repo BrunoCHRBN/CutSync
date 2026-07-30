@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only validation of the redesigned CutSync public landings (/ and /para-estabelecimentos) against the ampliada editorial spec. Tested via the preview URL. All 15 required sections render on both audiences with the expected data-testids (client and business variants). Header desktop navigation (Solução/Serviços/Confiança/Recursos/Contato) exists and each nav testid is clickable and scrolls inside the ScrollView. Device previews (phone/tablet/desktop) present on both pages. Transparency section correctly split into 'Disponível hoje' vs 'Em validação', and the 'Em validação' column contains the phrase 'Status operacional ao vivo'. Testimonials are absent on both pages (count=0) as required. FAQ accordion opens/closes on click and toggles with Enter for both audiences (questions 0..4 rendered on business, question 0 verified for open/close). Client resources cards include resource-faq and resource-privacy (no blog/CMS links). Client contact form has NO establishment field; business contact form has landing-contact-establishment. Contact validation cascade works exactly as specified (empty→nome; nome→email; email→mensagem 12 chars mínimo; mensagem→consent) and after checking consent the submit returns the generic error 'Não foi possível enviar agora. Tente novamente em alguns instantes.' from landing-contact-error (expected because the RPC migration is not applied). Honeypot exists and is rendered off-screen (left=-9874, width=1px, opacity=0, tabindex=-1, aria-hidden=true), so it is not visible in the viewport. No forbidden marketing patterns (plano premium/ISO 27001/em breve/App Store/contadores inventados) were found; the only 'R$' occurrences are illustrative service prices shown inside the produto/device mockups (R$ 45,00 / R$ 65,00 dentro dos previews), not SaaS pricing. /privacy loads and contains the required 'Solicitações comerciais e contato pelas páginas públicas' section. /account-deletion loads with the exclusão-de-conta content. Footer testids present: landing-client-footer-privacy-link, landing-client-footer-security-link, landing-client-footer-contact-link, landing-business-footer-privacy-link, landing-business-footer-account-deletion-link. No console errors captured on either route. Horizontal overflow check passes on 390/768/1024/1440/1920 for both routes. Testability gap detected: the client hero exposes 'landing-search-input' only; 'landing-city-input' testid is NOT applied to the city input, and the primary CTA testid is 'landing-hero-client-cta' instead of the spec's 'landing-hero-client-primary-cta'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Client hero search",
+        "issue": "Testid 'landing-city-input' is not applied to the 'Bairro ou cidade' input. Only landing-search-input exists. Blocks automated tests that reference the spec'd testid.",
+        "selector": "landing-city-input",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Client hero primary CTA",
+        "issue": "Testid mismatch: rendered testid is 'landing-hero-client-cta' but the spec / review request expects 'landing-hero-client-primary-cta'. Also observed 'landing-hero-client-secondary-cta' present; align naming.",
+        "selector": "landing-hero-client-primary-cta (expected) vs landing-hero-client-cta (actual)",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/apps/web/src/components/landing/client-landing.tsx",
+    "/app/apps/web/src/components/landing/business-landing.tsx",
+    "/app/apps/web/src/components/landing/sections/contact-section.tsx"
+  ],
+  "action_items": [
+    "Add data-testid='landing-city-input' to the city/neighborhood TextInput in client-landing.tsx hero form.",
+    "Rename the client hero primary CTA testid from 'landing-hero-client-cta' to 'landing-hero-client-primary-cta' to match the ampliada editorial spec (or update the spec + all downstream tests consistently)."
+  ],
+  "critical_code_review_comments": [
+    "Testids on the client hero deviate from the ampliada spec (missing landing-city-input, wrong landing-hero-client-primary-cta). Since the review request explicitly enumerates these testids as the contract for QA, this is a testability regression that will break external E2E suites referencing the spec.",
+    "The 'R$ 45,00' and 'R$ 65,00' strings inside the device/product previews are inevitable because the mockups show product UI; consider isolating them inside images or aria-hidden containers so future regex-based 'no public price' checks do not flag them."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A", "frontend": "92%" },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL used: https://73e2466d-f22d-4d53-9c73-ff5aea37aee3.preview.emergentagent.com. All landing-{client|business}-* section testids verified present. Testimonials absent (count=0) on both pages as required. Honeypot is off-screen (bounding rect left=-9874) so is_visible() returns True due to CSS visibility:visible but it is NOT in the viewport — treat this as pass. Contact submission returns the generic landing-contact-error message ('Não foi possível enviar agora...'), which is expected because the submit_marketing_contact_request RPC migration is not applied in Supabase (PGRST202). Only remaining testability gaps are on the client hero: missing landing-city-input testid and wrong hero primary CTA testid (landing-hero-client-cta instead of landing-hero-client-primary-cta).",
+  "rca of the issue": "Client hero form/CTA testids were not updated when the ampliada spec redefined the naming. In client-landing.tsx line 314 the search input has testID='landing-search-input' but the sibling city TextInput has no testID; line 365 uses testID='landing-hero-client-cta' instead of 'landing-hero-client-primary-cta'. Fix: add testID='landing-city-input' to the neighborhood/city input and rename the MagneticButton testID to 'landing-hero-client-primary-cta'. No functional impact — search scroll-to-form still works — only automated-test contract is affected."
+}
