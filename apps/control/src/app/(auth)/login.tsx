@@ -1,9 +1,16 @@
 import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import {
+  ControlButton,
+  ControlCard,
+  ControlField,
+  ControlNotice,
+} from '@/components/control-ui';
 import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { colors, spacing, typeScale } from '@/theme/tokens';
 
 export default function LoginRoute() {
   const { status, message, signIn, retry } = useControlAuth();
@@ -19,7 +26,7 @@ export default function LoginRoute() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.panel}>
+      <ControlCard style={styles.panel}>
         <Text style={styles.eyebrow}>AMBIENTE INTERNO</Text>
         <Text style={styles.title}>CutSync Control</Text>
         <Text style={styles.description}>
@@ -27,45 +34,36 @@ export default function LoginRoute() {
         </Text>
 
         <View style={styles.form}>
-          <Text style={styles.label}>E-mail</Text>
-          <TextInput
+          <ControlField
+            label="E-mail"
             autoCapitalize="none"
             autoComplete="email"
             inputMode="email"
             onChangeText={setEmail}
             placeholder="voce@empresa.com"
-            style={styles.input}
             value={email}
           />
-          <Text style={styles.label}>Senha</Text>
-          <TextInput
+          <ControlField
+            label="Senha"
             autoComplete="current-password"
             onChangeText={setPassword}
             onSubmitEditing={() => { void signIn(email, password); }}
             placeholder="Sua senha"
             secureTextEntry
-            style={styles.input}
             value={password}
           />
-          <Pressable
-            accessibilityRole="button"
+          <ControlButton
+            label="Entrar com segurança"
             disabled={!email.trim() || !password}
             onPress={() => { void signIn(email, password); }}
-            style={({ pressed }) => [
-              styles.primary,
-              (!email.trim() || !password) && styles.primaryDisabled,
-              pressed && styles.primaryPressed,
-            ]}
-          >
-            <Text style={styles.primaryText}>Entrar com segurança</Text>
-          </Pressable>
-          {message ? <Text accessibilityRole="alert" style={styles.error}>{message}</Text> : null}
+          />
+          {message ? <ControlNotice tone="danger" message={message} /> : null}
         </View>
 
         <Text style={styles.securityNote}>
           A sessão permanece somente nesta aba e exige autenticação em dois fatores.
         </Text>
-      </View>
+      </ControlCard>
     </View>
   );
 }
@@ -75,43 +73,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#eef2ed',
+    padding: spacing.xl,
+    backgroundColor: colors.canvasMuted,
   },
   panel: {
-    width: '100%',
     maxWidth: 460,
-    gap: 12,
-    padding: 34,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
+    gap: spacing.md,
+    padding: spacing.xxl,
   },
-  eyebrow: { color: '#347452', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
-  title: { color: '#17231c', fontSize: 31, fontWeight: '800' },
-  description: { color: '#667269', lineHeight: 22 },
-  form: { gap: 9, marginTop: 12 },
-  label: { color: '#344239', fontSize: 13, fontWeight: '700', marginTop: 3 },
-  input: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#cbd4cc',
-    borderRadius: 10,
-    backgroundColor: '#fbfcfb',
-  },
-  primary: {
-    minHeight: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    borderRadius: 10,
-    backgroundColor: '#173d2b',
-  },
-  primaryDisabled: { opacity: 0.45 },
-  primaryPressed: { opacity: 0.82 },
-  primaryText: { color: '#ffffff', fontWeight: '800' },
-  error: { color: '#a33a31', lineHeight: 20 },
-  securityNote: { color: '#78827b', fontSize: 12, lineHeight: 18, marginTop: 10 },
+  eyebrow: { ...typeScale.eyebrow, color: colors.accent },
+  title: { ...typeScale.pageTitle, color: colors.text },
+  description: { ...typeScale.body, color: colors.textSecondary },
+  form: { gap: spacing.sm, marginTop: spacing.sm },
+  securityNote: { ...typeScale.small, color: colors.textMuted, marginTop: spacing.xs },
 });

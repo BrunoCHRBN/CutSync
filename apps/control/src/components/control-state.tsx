@@ -1,5 +1,13 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+import { ControlButton, ControlCard } from '@/components/control-ui';
+import {
+  controlColors,
+  controlLayout,
+  controlSpacing,
+  controlType,
+} from '@/theme/tokens';
 
 interface ControlStateProps {
   title?: string;
@@ -16,18 +24,19 @@ export function ControlState({
   onAction,
   loading = false,
 }: ControlStateProps) {
+  const { width } = useWindowDimensions();
+  const mobile = width < controlLayout.mobileBreakpoint;
+
   return (
-    <View style={styles.page}>
-      <View style={styles.card}>
-        {loading ? <ActivityIndicator size="large" color="#173d2b" /> : null}
+    <View style={[styles.page, mobile && styles.pageMobile]}>
+      <ControlCard style={[styles.card, mobile && styles.cardMobile]}>
+        {loading ? <ActivityIndicator size="large" color={controlColors.brand} /> : null}
         <Text style={styles.title}>{title}</Text>
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+        {message ? <Text selectable style={styles.message}>{message}</Text> : null}
         {actionLabel && onAction ? (
-          <Pressable accessibilityRole="button" style={styles.button} onPress={onAction}>
-            <Text style={styles.buttonText}>{actionLabel}</Text>
-          </Pressable>
+          <ControlButton label={actionLabel} onPress={onAction} />
         ) : null}
-      </View>
+      </ControlCard>
     </View>
   );
 }
@@ -37,28 +46,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#f3f5f1',
+    padding: controlSpacing.xl,
+    backgroundColor: controlColors.canvas,
   },
+  pageMobile: { padding: controlSpacing.lg },
   card: {
-    width: '100%',
     maxWidth: 480,
-    gap: 14,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: '#dce2dc',
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
+    alignItems: 'stretch',
+    padding: controlSpacing.xl,
   },
-  title: { fontSize: 26, fontWeight: '700', color: '#17231c', textAlign: 'center' },
-  message: { color: '#667269', lineHeight: 21, textAlign: 'center' },
-  button: {
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    backgroundColor: '#173d2b',
-  },
-  buttonText: { color: '#ffffff', fontWeight: '700' },
+  cardMobile: { padding: controlSpacing.lg },
+  title: { ...controlType.pageTitleCompact, color: controlColors.text, textAlign: 'center' },
+  message: { ...controlType.body, color: controlColors.textSecondary, textAlign: 'center' },
 });

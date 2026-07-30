@@ -1,9 +1,16 @@
 import { Redirect } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
+import {
+  ControlButton,
+  ControlCard,
+  ControlField,
+  ControlNotice,
+} from '@/components/control-ui';
 import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { colors, spacing, typeScale } from '@/theme/tokens';
 
 export default function MfaRoute() {
   const {
@@ -25,7 +32,7 @@ export default function MfaRoute() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.card}>
+      <ControlCard style={styles.card}>
         <Text style={styles.eyebrow}>SEGUNDA ETAPA</Text>
         <Text style={styles.title}>Confirme seu autenticador</Text>
         <Text style={styles.description}>
@@ -43,22 +50,18 @@ export default function MfaRoute() {
             <Text selectable style={styles.secret}>{enrollment.secret}</Text>
           </View>
         ) : !hasVerifiedTotp ? (
-          <Pressable
-            accessibilityRole="button"
-            disabled={mfaBusy}
-            style={[styles.secondary, mfaBusy && styles.disabled]}
+          <ControlButton
+            label={mfaBusy ? 'Preparando QR Code...' : 'Cadastrar novo autenticador'}
+            variant="secondary"
+            busy={mfaBusy}
             onPress={() => { void enrollMfa(); }}
-          >
-            <Text style={styles.secondaryText}>
-              {mfaBusy ? 'Preparando QR Code...' : 'Cadastrar novo autenticador'}
-            </Text>
-          </Pressable>
+          />
         ) : (
           <Text style={styles.helper}>Abra seu aplicativo autenticador e informe o código atual.</Text>
         )}
 
-        <TextInput
-          accessibilityLabel="Código do autenticador"
+        <ControlField
+          label="Código do autenticador"
           inputMode="numeric"
           maxLength={6}
           editable={!mfaBusy}
@@ -68,19 +71,19 @@ export default function MfaRoute() {
           style={styles.input}
           value={code}
         />
-        <Pressable
-          accessibilityRole="button"
+        <ControlButton
+          label={mfaBusy ? 'Verificando...' : 'Verificar e continuar'}
           disabled={code.length !== 6 || mfaBusy}
+          busy={mfaBusy}
           onPress={() => { void verifyMfa(code); }}
-          style={[styles.primary, (code.length !== 6 || mfaBusy) && styles.disabled]}
-        >
-          <Text style={styles.primaryText}>{mfaBusy ? 'Verificando...' : 'Verificar e continuar'}</Text>
-        </Pressable>
-        {message ? <Text accessibilityRole="alert" style={styles.error}>{message}</Text> : null}
-        <Pressable accessibilityRole="button" onPress={() => { void signOut(); }} style={styles.exit}>
-          <Text style={styles.exitText}>Encerrar sessão</Text>
-        </Pressable>
-      </View>
+        />
+        {message ? <ControlNotice tone="danger" message={message} /> : null}
+        <ControlButton
+          label="Encerrar sessão"
+          variant="ghost"
+          onPress={() => { void signOut(); }}
+        />
+      </ControlCard>
     </View>
   );
 }
@@ -90,56 +93,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#eef2ed',
+    padding: spacing.xl,
+    backgroundColor: colors.canvasMuted,
   },
   card: {
-    width: '100%',
     maxWidth: 480,
-    gap: 13,
-    padding: 32,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
+    gap: spacing.md,
+    padding: spacing.xxl,
   },
-  eyebrow: { color: '#347452', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
-  title: { color: '#17231c', fontSize: 27, fontWeight: '800' },
-  description: { color: '#667269', lineHeight: 21 },
-  enrollment: { alignItems: 'center', gap: 8, paddingVertical: 6 },
-  qrCode: { width: 190, height: 190, backgroundColor: '#ffffff' },
-  helper: { color: '#667269', fontSize: 12 },
-  secret: { color: '#17231c', fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  eyebrow: { ...typeScale.eyebrow, color: colors.accent },
+  title: { ...typeScale.pageTitleCompact, color: colors.text },
+  description: { ...typeScale.body, color: colors.textSecondary },
+  enrollment: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
+  qrCode: { width: 190, height: 190, backgroundColor: colors.surface },
+  helper: { ...typeScale.small, color: colors.textSecondary },
+  secret: { ...typeScale.bodyStrong, color: colors.text, letterSpacing: 1, textAlign: 'center' },
   input: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#cbd4cc',
-    borderRadius: 10,
-    backgroundColor: '#fbfcfb',
     textAlign: 'center',
     fontSize: 18,
     letterSpacing: 3,
   },
-  primary: {
-    minHeight: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: '#173d2b',
-  },
-  disabled: { opacity: 0.45 },
-  primaryText: { color: '#ffffff', fontWeight: '800' },
-  secondary: {
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#bdc9bf',
-    borderRadius: 10,
-  },
-  secondaryText: { color: '#274936', fontWeight: '700' },
-  error: { color: '#a33a31', lineHeight: 20 },
-  exit: { minHeight: 36, alignItems: 'center', justifyContent: 'center' },
-  exitText: { color: '#667269', fontWeight: '600' },
 });

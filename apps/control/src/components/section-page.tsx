@@ -1,5 +1,13 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+import { ControlCard, ControlStatusBadge } from '@/components/control-ui';
+import {
+  controlColors,
+  controlLayout,
+  controlSpacing,
+  controlType,
+} from '@/theme/tokens';
 
 interface SectionPageProps {
   eyebrow: string;
@@ -9,11 +17,14 @@ interface SectionPageProps {
 }
 
 export function SectionPage({ eyebrow, title, description, children }: SectionPageProps) {
+  const { width } = useWindowDimensions();
+  const mobile = width < controlLayout.mobileBreakpoint;
+
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, mobile && styles.pageMobile]}>
       <View style={styles.heading}>
         <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, mobile && styles.titleMobile]}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
       </View>
       {children}
@@ -29,32 +40,35 @@ export function PendingIntegration({
   detail: string;
 }) {
   return (
-    <View style={styles.pendingCard}>
-      <Text style={styles.pendingLabel}>FONTE EM PREPARAÇÃO</Text>
+    <ControlCard style={styles.pendingCard}>
+      <ControlStatusBadge label="FONTE EM PREPARAÇÃO" tone="warning" />
       <Text style={styles.pendingTitle}>{source}</Text>
       <Text style={styles.pendingDetail}>{detail}</Text>
       <Text style={styles.noData}>Nenhum valor simulado é exibido.</Text>
-    </View>
+    </ControlCard>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { width: '100%', maxWidth: 1180, alignSelf: 'center', gap: 24, padding: 32 },
-  heading: { gap: 7 },
-  eyebrow: { color: '#347452', fontSize: 11, fontWeight: '800', letterSpacing: 1.6 },
-  title: { color: '#17231c', fontSize: 30, fontWeight: '800' },
-  description: { maxWidth: 720, color: '#667269', lineHeight: 22 },
-  pendingCard: {
-    maxWidth: 700,
-    gap: 8,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+  page: {
+    width: '100%',
+    maxWidth: controlLayout.contentMax,
+    alignSelf: 'center',
+    gap: controlSpacing.xl,
+    padding: controlSpacing.xxl,
   },
-  pendingLabel: { color: '#8b6a32', fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  pendingTitle: { color: '#17231c', fontSize: 19, fontWeight: '700' },
-  pendingDetail: { color: '#667269', lineHeight: 21 },
-  noData: { color: '#7b857e', fontSize: 12, fontWeight: '600' },
+  pageMobile: { paddingHorizontal: controlSpacing.lg, paddingVertical: controlSpacing.xl },
+  heading: { gap: controlSpacing.xs },
+  eyebrow: { ...controlType.eyebrow, color: controlColors.accent },
+  title: { ...controlType.pageTitle, color: controlColors.text },
+  titleMobile: { ...controlType.pageTitleCompact },
+  description: {
+    ...controlType.body,
+    maxWidth: controlLayout.formMax,
+    color: controlColors.textSecondary,
+  },
+  pendingCard: { maxWidth: 700, padding: controlSpacing.xl },
+  pendingTitle: { ...controlType.sectionTitle, color: controlColors.text },
+  pendingDetail: { ...controlType.body, color: controlColors.textSecondary },
+  noData: { ...controlType.smallStrong, color: controlColors.textMuted },
 });

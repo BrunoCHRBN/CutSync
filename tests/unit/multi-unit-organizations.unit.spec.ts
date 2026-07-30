@@ -37,10 +37,13 @@ test('control remains a separate web-only workspace with MFA gate', () => {
   const packageJson = JSON.parse(read('apps/control/package.json'));
   const auth = read('apps/control/src/contexts/control-auth-context.tsx');
   const billing = read('apps/control/src/components/billing-operations.tsx');
+  const billingService = read('apps/control/src/services/control-billing.ts');
 
   expect(packageJson.name).toBe('@cutsync/control');
   expect(packageJson.scripts.start).toContain('--web');
   expect(auth).toContain("currentLevel !== 'aal2'");
   expect(auth).not.toContain('123456');
-  expect(billing).toContain('list_control_billing_accounts');
+  expect(billingService).toContain("supabase.rpc('list_control_billing_accounts')");
+  expect(billing).not.toContain('signInWithPassword');
+  expect(billing).not.toContain('mfa.');
 });
