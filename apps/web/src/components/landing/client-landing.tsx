@@ -15,8 +15,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowRight,
   Clock3,
+  Flower2,
+  Hand,
+  LayoutGrid,
   LogIn,
   MapPin,
+  Scissors,
   Search,
   Sparkles,
   Star,
@@ -33,7 +37,7 @@ import { GlassSurface, MagneticButton, MaskedReveal, RevealOnScroll, SectionReve
 import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
 import { ProductPreview } from './product-preview';
 import { AccessPath, AccessPathModal } from './access-path-modal';
-import { LandingSectionId } from './landing-content';
+import { LANDING_CLIENT_DISCOVERY, LandingSectionId } from './landing-content';
 import { ConnectedEcosystem } from './sections/connected-ecosystem';
 import { ContactSection } from './sections/contact-section';
 import { DeviceShowcase } from './sections/device-showcase';
@@ -62,18 +66,24 @@ interface PublicEstablishment extends Establishment {
   services: PublicService[];
 }
 
+const { hero, trust, search: searchCopy } = LANDING_CLIENT_DISCOVERY;
+
 const serviceGroups = [
-  { id: 'all', label: 'Todos', terms: [] },
-  { id: 'hair', label: 'Cabelo', terms: ['corte', 'cabelo', 'escova', 'penteado'] },
-  { id: 'barber', label: 'Barba', terms: ['barba', 'barbearia', 'bigode'] },
-  { id: 'nails', label: 'Unhas', terms: ['unha', 'manicure', 'pedicure', 'nail'] },
-  { id: 'wellness', label: 'Bem-estar', terms: ['massagem', 'estética', 'spa', 'sobrancelha'] },
+  { id: 'all', label: 'Todos', icon: LayoutGrid, terms: [] },
+  { id: 'hair', label: 'Cabelo', icon: Scissors, terms: ['corte', 'cabelo', 'escova', 'penteado'] },
+  { id: 'barber', label: 'Barba', icon: Sparkles, terms: ['barba', 'barbearia', 'bigode'] },
+  { id: 'nails', label: 'Unhas', icon: Hand, terms: ['unha', 'manicure', 'pedicure', 'nail'] },
+  { id: 'wellness', label: 'Bem-estar', icon: Flower2, terms: ['massagem', 'estética', 'spa', 'sobrancelha'] },
 ] as const;
+
+/** Transições declarativas só existem na web; ficam fora do StyleSheet como os tokens de sombra. */
+const cardMotion = { transitionProperty: 'transform, box-shadow, border-color', transitionDuration: '260ms' } as never;
+const coverMotion = { transitionProperty: 'transform', transitionDuration: '420ms' } as never;
 
 const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => (
   <View style={styles.sectionHeading}>
     <Text style={styles.eyebrow}>{eyebrow}</Text>
-    <Text style={styles.sectionTitle}>{title}</Text>
+    <Text accessibilityRole="header" style={styles.sectionTitle}>{title}</Text>
     <Text style={styles.sectionDescription}>{description}</Text>
   </View>
 );
@@ -89,8 +99,6 @@ const ClientLandingContent = () => {
   const isMobile = width < landingLayout.mobileBreakpoint;
   const scrollRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
-  const contentY = useRef(0);
-  const resultsSectionY = useRef(0);
   const reportedDepths = useRef(new Set<50 | 100>());
   const { setBaseline, registerSection, scrollToSection } = useSectionAnchors(scrollRef, reducedMotion);
   const searchReported = useRef(false);
@@ -190,11 +198,16 @@ const ClientLandingContent = () => {
   const maximumResultColumns = width >= 1180 ? 3 : width >= landingLayout.mobileBreakpoint ? 2 : 1;
   const resultColumns = Math.min(maximumResultColumns, Math.max(filtered.length, 1));
   const resultGridWidth = Math.max(240, contentWidth - (isMobile ? 36 : 56));
-  const resultCardWidth = (resultGridWidth - (resultColumns - 1) * 16) / resultColumns;
+  const resultCardWidth = (resultGridWidth - (resultColumns - 1) * 18) / resultColumns;
 
-  const scrollToSearch = () => {
-    trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_primary', destination: 'search' });
-    scrollRef.current?.scrollTo({ y: Math.max(0, resultsSectionY.current - 84), animated: !reducedMotion });
+  const navigateToSection = useCallback((section: LandingSectionId) => {
+    trackLandingEvent({ name: 'section_navigated', page: 'client', section });
+    scrollToSection(section);
+  }, [scrollToSection]);
+
+  const scrollToResults = (position: 'hero_primary' | 'final') => {
+    trackLandingEvent({ name: 'cta_clicked', page: 'client', position, destination: 'search' });
+    scrollToSection('search');
   };
 
   const reportSearchStarted = (filterCount: number) => {
@@ -202,11 +215,6 @@ const ClientLandingContent = () => {
     searchReported.current = true;
     trackLandingEvent({ name: 'search_started', source: 'hero', filterCount });
   };
-
-  const navigateToSection = useCallback((section: LandingSectionId) => {
-    trackLandingEvent({ name: 'section_navigated', page: 'client', section });
-    scrollToSection(section);
-  }, [scrollToSection]);
 
   const scrollToJourney = () => {
     trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'hero_secondary', destination: 'journey' });
@@ -300,14 +308,18 @@ const ClientLandingContent = () => {
           <View style={styles.heroCopy}>
             <SectionReveal delay={0} style={styles.heroBadge}>
               <View style={styles.liveDot} />
-              <Text style={styles.heroBadgeText}>VITRINES E AGENDAS CONECTADAS</Text>
+              <Text style={styles.heroBadgeText}>{hero.badge}</Text>
             </SectionReveal>
-            <MaskedReveal delay={70}><Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>Encontre seu próximo horário{`\n`}sem depender de mensagens.</Text></MaskedReveal>
-            <SectionReveal delay={210}><Text style={styles.heroDescription}>Explore serviços, consulte a agenda de cada estabelecimento e escolha quando agendar.</Text></SectionReveal>
+            <MaskedReveal delay={70}>
+              <Text accessibilityRole="header" style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>
+                {hero.title[0]}{`\n`}{hero.title[1]}
+              </Text>
+            </MaskedReveal>
+            <SectionReveal delay={210}><Text style={styles.heroDescription}>{hero.description}</Text></SectionReveal>
             <SectionReveal delay={280}>
-              <GlassSurface variant="search" style={styles.heroSearchPanel}>
+              <GlassSurface variant="search" style={[styles.searchPanel, isDesktop && styles.searchPanelInline]}>
                 <View style={[styles.searchFields, !isDesktop && styles.searchFieldsStacked]}>
-                  <View style={styles.inputShell}>
+                  <View style={styles.searchField}>
                     <Search size={18} color={landingColors.inkMuted} />
                     <TextInput
                       ref={searchInputRef}
@@ -318,12 +330,15 @@ const ClientLandingContent = () => {
                         if (value) reportSearchStarted(locationQuery ? 2 : 1);
                         setQuery(value);
                       }}
-                      placeholder="Estabelecimento ou serviço"
+                      onSubmitEditing={() => scrollToSection('search')}
+                      returnKeyType="search"
+                      placeholder={hero.searchPlaceholder}
                       placeholderTextColor={landingColors.inkMuted}
                       style={styles.input}
                     />
                   </View>
-                  <View style={styles.inputShell}>
+                  <View style={[styles.searchDivider, !isDesktop && styles.searchDividerStacked]} />
+                  <View style={styles.searchField}>
                     <MapPin size={18} color={landingColors.inkMuted} />
                     <TextInput
                       testID="landing-location-input"
@@ -333,38 +348,54 @@ const ClientLandingContent = () => {
                         if (value) reportSearchStarted(query ? 2 : 1);
                         setLocationQuery(value);
                       }}
-                      placeholder="Bairro ou cidade"
+                      onSubmitEditing={() => scrollToSection('search')}
+                      returnKeyType="search"
+                      placeholder={hero.locationPlaceholder}
                       placeholderTextColor={landingColors.inkMuted}
                       style={styles.input}
                     />
                   </View>
+                  <Pressable
+                    testID="landing-search-submit"
+                    accessibilityRole="button"
+                    accessibilityLabel="Ver estabelecimentos encontrados"
+                    onPress={() => scrollToResults('hero_primary')}
+                    style={({ pressed }) => [styles.searchSubmit, !isDesktop && styles.searchSubmitStacked, pressed && styles.pressed]}
+                  >
+                    <Search size={17} color={landingColors.white} />
+                    <Text style={styles.searchSubmitText}>{hero.submitLabel}</Text>
+                  </Pressable>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                  {availableServiceGroups.map((group) => {
-                    const selected = group.id === serviceGroup;
-                    return (
-                      <Pressable
-                        key={group.id}
-                        testID={`landing-service-filter-${group.id}`}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected }}
-                        onPress={() => {
-                          if (group.id !== 'all') reportSearchStarted((query ? 1 : 0) + (locationQuery ? 1 : 0) + 1);
-                          setServiceGroup(group.id);
-                        }}
-                        style={[styles.chip, selected && styles.chipSelected]}
-                      >
-                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
               </GlassSurface>
             </SectionReveal>
+            <SectionReveal delay={340}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                {availableServiceGroups.map((group) => {
+                  const selected = group.id === serviceGroup;
+                  const Icon = group.icon;
+                  return (
+                    <Pressable
+                      key={group.id}
+                      testID={`landing-service-filter-${group.id}`}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      onPress={() => {
+                        if (group.id !== 'all') reportSearchStarted((query ? 1 : 0) + (locationQuery ? 1 : 0) + 1);
+                        setServiceGroup(group.id);
+                      }}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                    >
+                      <Icon size={15} color={selected ? landingColors.white : landingColors.inkSecondary} />
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </SectionReveal>
             <SectionReveal delay={390} style={styles.heroActions}>
-              <MagneticButton label="Explorar resultados" onPress={scrollToSearch} testID="landing-hero-client-cta" />
-              <MagneticButton label="Como funciona" secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
-              {!isDesktop && <MagneticButton label="Tenho um negócio" secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
+              <MagneticButton label={hero.primaryCta} onPress={() => scrollToResults('hero_primary')} testID="landing-hero-client-cta" />
+              <MagneticButton label={hero.secondaryCta} secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
+              {!isDesktop && <MagneticButton label={hero.businessCta} secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
             </SectionReveal>
           </View>
           {isDesktop && (
@@ -377,7 +408,7 @@ const ClientLandingContent = () => {
         </SpotlightSection>
 
         <View testID="landing-client-credibility" style={styles.credibilityBand}>
-          {['Explore sem cadastro', 'Consulte serviços e preços', 'Entre apenas para confirmar'].map((label, index) => (
+          {trust.map((label, index) => (
             <React.Fragment key={label}>
               {index > 0 && <Text style={styles.credibilityDivider}>·</Text>}
               <Text style={styles.credibilityText}>{label}</Text>
@@ -385,37 +416,33 @@ const ClientLandingContent = () => {
           ))}
         </View>
 
-        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; setBaseline(event); }}>
+        <View style={styles.content} onLayout={setBaseline}>
           <RevealOnScroll
-            onLayout={(event) => { resultsSectionY.current = contentY.current + event.nativeEvent.layout.y; }}
+            onLayout={registerSection('search')}
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'search' })}
             style={styles.resultsSection}
           >
             <View style={styles.resultsHeadingRow}>
-              <SectionHeading
-                eyebrow="VITRINES PUBLICADAS"
-                title="Escolha com informações reais."
-                description="Serviços, localização e situação informados a partir do perfil de cada estabelecimento."
-              />
+              <SectionHeading eyebrow={searchCopy.eyebrow} title={searchCopy.title} description={searchCopy.description} />
               <Text testID="landing-results-count" style={styles.resultsCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento' : 'estabelecimentos'}</Text>
             </View>
 
             {loading ? (
               <View testID="landing-results-loading" style={styles.stateCard}>
                 <ActivityIndicator color={landingColors.brand} />
-                <Text style={styles.stateText}>Buscando estabelecimentos…</Text>
+                <Text style={styles.stateText}>{searchCopy.loadingLabel}</Text>
               </View>
             ) : error ? (
               <View testID="landing-results-error" style={styles.stateCard}>
-                <Text style={styles.stateTitle}>Não foi possível atualizar a vitrine.</Text>
+                <Text style={styles.stateTitle}>{searchCopy.errorTitle}</Text>
                 <Text selectable style={styles.stateText}>{error}</Text>
-                <MagneticButton label="Tentar novamente" secondary onPress={() => void loadEstablishments()} />
+                <MagneticButton label={searchCopy.retryLabel} secondary onPress={() => void loadEstablishments()} />
               </View>
             ) : filtered.length === 0 ? (
               <View testID="landing-results-empty" style={styles.stateCard}>
                 <Search size={24} color={landingColors.inkMuted} />
-                <Text style={styles.stateTitle}>Nenhum resultado com esses filtros.</Text>
-                <Text style={styles.stateText}>Tente outro serviço, bairro ou cidade.</Text>
+                <Text style={styles.stateTitle}>{searchCopy.emptyTitle}</Text>
+                <Text style={styles.stateText}>{searchCopy.emptyDescription}</Text>
               </View>
             ) : (
               <StaggerGroup testID="landing-results-grid" style={styles.establishmentGrid}>
@@ -434,20 +461,26 @@ const ClientLandingContent = () => {
                       onPress={() => openEstablishment(establishment)}
                       onHoverIn={() => setHoveredEstablishment(establishment.id)}
                       onHoverOut={() => setHoveredEstablishment(null)}
-                      style={({ pressed }) => [styles.establishmentCard, hovered && styles.establishmentCardHovered, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.establishmentCard, cardMotion, hovered && styles.establishmentCardHovered, pressed && styles.pressed]}
                     >
-                      <EstablishmentMedia name={establishment.name} uri={establishment.bannerUrl || establishment.logoUrl} style={[styles.cover, hovered && styles.coverHovered]} />
+                      <View style={styles.coverShell}>
+                        <EstablishmentMedia name={establishment.name} uri={establishment.bannerUrl || establishment.logoUrl} style={[styles.cover, coverMotion, hovered && styles.coverHovered]} />
+                        {hasVerifiedRating && (
+                          <View style={styles.ratingBadge}>
+                            <Star size={12} color={landingColors.accent} fill={landingColors.accent} />
+                            <Text style={styles.ratingBadgeText}>{establishment.averageRating?.toFixed(1)}</Text>
+                            <Text style={styles.ratingBadgeCount}>({establishment.reviewCount})</Text>
+                          </View>
+                        )}
+                      </View>
                       <View style={styles.cardBody}>
                         <Text numberOfLines={1} style={styles.cardTitle}>{establishment.name}</Text>
                         {!!establishment.address && <View style={styles.metaRow}><MapPin size={14} color={landingColors.inkMuted} /><Text numberOfLines={2} style={styles.metaText}>{establishment.address}</Text></View>}
                         {!!opening.text && <View style={styles.metaRow}><Clock3 size={14} color={opening.isOpen ? landingColors.success : landingColors.inkMuted} /><Text style={[styles.metaText, opening.isOpen && styles.openText]}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text}</Text></View>}
-                        {hasVerifiedRating && (
-                          <View style={styles.metaRow}><Star size={14} color={landingColors.accent} fill={landingColors.accent} /><Text style={styles.metaText}>{establishment.averageRating?.toFixed(1)} · {establishment.reviewCount} avaliações</Text></View>
-                        )}
                         <View style={styles.cardFooter}>
-                          <Text style={styles.priceText}>{startingPrice ? `A partir de R$ ${startingPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Consulte os serviços'}</Text>
+                          <Text style={styles.priceText}>{startingPrice ? `A partir de R$ ${startingPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : searchCopy.noPriceLabel}</Text>
                           <Pressable testID={`landing-booking-${establishment.id}`} accessibilityRole="button" accessibilityLabel={`Ver horários de ${establishment.name}`} onPress={(event) => { event.stopPropagation?.(); openEstablishment(establishment, true); }} style={styles.bookingButton}>
-                            <Text style={styles.bookingButtonText}>Ver horários</Text><ArrowRight size={15} color={landingColors.white} />
+                            <Text style={styles.bookingButtonText}>{searchCopy.bookingLabel}</Text><ArrowRight size={15} color={landingColors.white} />
                           </Pressable>
                         </View>
                       </View>
@@ -457,13 +490,22 @@ const ClientLandingContent = () => {
                 })}
               </StaggerGroup>
             )}
-            <Text style={styles.resultsNote}>A disponibilidade é consultada antes da confirmação do agendamento.</Text>
+            <Text style={styles.resultsNote}>{searchCopy.note}</Text>
           </RevealOnScroll>
 
-          <ProposalValues
+          <HowToStart
             audience="client"
-            onLayout={registerSection('proposal_values') as never}
-            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'proposal_values' })}
+            testID="landing-client-journey"
+            onLayout={registerSection('how_to_start') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'journey' })}
+          >
+            <MagneticButton label={searchCopy.finalCta} onPress={() => scrollToResults('final')} testID="landing-client-final-cta" />
+          </HowToStart>
+
+          <ServicesCapabilities
+            audience="client"
+            onLayout={registerSection('services') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'services' })}
           />
 
           <EditorialScene
@@ -478,16 +520,16 @@ const ClientLandingContent = () => {
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'ecosystem' })}
           />
 
-          <ServicesCapabilities
-            audience="client"
-            onLayout={registerSection('services') as never}
-            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'services' })}
-          />
-
           <DeviceShowcase
             audience="client"
             onLayout={registerSection('devices') as never}
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'devices' })}
+          />
+
+          <ProposalValues
+            audience="client"
+            onLayout={registerSection('proposal_values') as never}
+            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'proposal_values' })}
           />
 
           <ProductTransparency
@@ -501,18 +543,6 @@ const ClientLandingContent = () => {
             onLayout={registerSection('security') as never}
             onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'security' })}
           />
-
-          <HowToStart
-            audience="client"
-            testID="landing-client-journey"
-            onLayout={registerSection('how_to_start') as never}
-            onReveal={() => trackLandingEvent({ name: 'section_viewed', page: 'client', section: 'journey' })}
-          >
-            <MagneticButton label="Ver estabelecimentos" onPress={() => {
-              trackLandingEvent({ name: 'cta_clicked', page: 'client', position: 'final', destination: 'search' });
-              scrollRef.current?.scrollTo({ y: Math.max(0, resultsSectionY.current - 84), animated: !reducedMotion });
-            }} testID="landing-client-final-cta" />
-          </HowToStart>
 
           <ResourcesHub
             audience="client"
@@ -579,7 +609,25 @@ const styles = StyleSheet.create({
   heroDescription: { maxWidth: 545, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { paddingTop: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   heroPreview: { width: '49%', maxWidth: 620 },
-  heroSearchPanel: { padding: 13, gap: 11, borderRadius: landingRadii.lg, backgroundColor: 'rgba(255,254,250,0.94)' },
+
+  // Busca unificada: um único controle no desktop, campos empilhados abaixo do breakpoint.
+  searchPanel: { padding: 8, gap: 8, borderRadius: landingRadii.lg, backgroundColor: 'rgba(255,254,250,0.94)' },
+  searchPanelInline: { borderRadius: landingRadii.pill },
+  searchFields: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  searchFieldsStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
+  searchField: { flex: 1, minWidth: 0, minHeight: 56, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  searchDivider: { width: 1, alignSelf: 'stretch', marginVertical: 12, backgroundColor: landingColors.border },
+  searchDividerStacked: { width: '100%', height: 1, alignSelf: 'auto', marginVertical: 0 },
+  input: { flex: 1, minWidth: 0, color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 14, outlineStyle: 'none' } as never,
+  searchSubmit: { minHeight: 52, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: landingRadii.pill, backgroundColor: landingColors.brand },
+  searchSubmitStacked: { minHeight: 54 },
+  searchSubmitText: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
+  chips: { gap: 8, paddingVertical: 2 },
+  chip: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, borderRadius: landingRadii.pill, backgroundColor: landingColors.surfaceSoft, borderWidth: 1, borderColor: landingColors.border },
+  chipSelected: { backgroundColor: landingColors.brand, borderColor: landingColors.brand },
+  chipText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 13 },
+  chipTextSelected: { color: landingColors.white },
+
   credibilityBand: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 68, marginTop: -42, marginBottom: 74, paddingHorizontal: 24, alignSelf: 'center', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, boxShadow: '0 16px 44px rgba(20,33,25,0.07)' },
   credibilityText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   credibilityDivider: { color: landingColors.accent, fontFamily: landingTypography.displayBold, fontSize: 18 },
@@ -588,24 +636,20 @@ const styles = StyleSheet.create({
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 44, lineHeight: 49, letterSpacing: -1.65 },
   sectionDescription: { maxWidth: 600, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
-  searchFields: { flexDirection: 'row', gap: 10 },
-  searchFieldsStacked: { flexDirection: 'column' },
-  inputShell: { flex: 1, minHeight: 58, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: 'rgba(41,75,58,0.12)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.86)' },
-  input: { flex: 1, color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 14, outlineStyle: 'none' } as never,
-  chips: { gap: 8 },
-  chip: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 16, borderRadius: landingRadii.pill, backgroundColor: landingColors.surfaceSoft, borderWidth: 1, borderColor: landingColors.border },
-  chipSelected: { backgroundColor: landingColors.brand, borderColor: landingColors.brand },
-  chipText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 13 },
-  chipTextSelected: { color: landingColors.white },
+
   resultsSection: { paddingVertical: 48, gap: 40 },
   resultsHeadingRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 18 },
   resultsCount: { color: landingColors.brand, fontFamily: landingTypography.mono, fontSize: 13, fontVariant: ['tabular-nums'] },
-  establishmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  establishmentCard: { width: '100%', overflow: 'hidden', borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, borderWidth: 1, borderColor: 'rgba(41,75,58,0.08)', boxShadow: '0 16px 50px rgba(20,33,25,0.08)', transitionProperty: 'transform, box-shadow, border-color' as never, transitionDuration: '260ms' as never },
+  establishmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
+  establishmentCard: { width: '100%', overflow: 'hidden', borderRadius: landingRadii.lg, backgroundColor: landingColors.surface, borderWidth: 1, borderColor: 'rgba(41,75,58,0.08)', boxShadow: '0 16px 50px rgba(20,33,25,0.08)' },
   establishmentCardHovered: { transform: [{ translateY: -4 }], borderColor: 'rgba(41,75,58,0.22)', boxShadow: '0 24px 62px rgba(20,33,25,0.15)' },
   pressed: { opacity: 0.78, transform: [{ scale: 0.995 }] },
-  cover: { height: 210, transitionProperty: 'transform' as never, transitionDuration: '420ms' as never },
+  coverShell: { position: 'relative', overflow: 'hidden' },
+  cover: { height: 210 },
   coverHovered: { transform: [{ scale: 1.035 }] },
+  ratingBadge: { position: 'absolute', top: 12, right: 12, minHeight: 30, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: landingRadii.pill, backgroundColor: 'rgba(255,254,250,0.94)' },
+  ratingBadgeText: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
+  ratingBadgeCount: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 11 },
   cardBody: { padding: 20, gap: 11 },
   cardTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 17 },
   metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
@@ -619,28 +663,4 @@ const styles = StyleSheet.create({
   stateCard: { minHeight: 190, padding: 30, alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: landingRadii.lg, backgroundColor: landingColors.surfaceSoft },
   stateTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 16, textAlign: 'center' },
   stateText: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 13, textAlign: 'center' },
-  journeySection: { paddingHorizontal: 8, gap: 38 },
-  journeyGrid: { flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: 1, borderBottomWidth: 1, borderColor: landingColors.border },
-  journeyItem: { flex: 1, minWidth: 240, minHeight: 200, paddingVertical: 36, paddingHorizontal: 24, gap: 14, borderRightWidth: 1, borderRightColor: landingColors.border },
-  journeyTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stepNumber: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 13 },
-  journeyTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 23 },
-  journeyText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  platformFlow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
-  platformStep: { flex: 1, minWidth: 180, minHeight: 68, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(220,232,224,0.22)' },
-  platformIndex: { color: landingColors.accent, fontFamily: landingTypography.mono, fontSize: 11 },
-  platformLabel: { flex: 1, color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
-  faqSection: { paddingHorizontal: 8, gap: 34 },
-  faqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 32 },
-  faqItem: { flex: 1, minWidth: 250, paddingTop: 24, gap: 12, borderTopWidth: 1, borderTopColor: landingColors.border },
-  faqQuestion: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
-  faqAnswer: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
-  finalCta: { alignItems: 'flex-start', paddingVertical: 88, paddingHorizontal: 56, gap: 18, borderRadius: landingRadii.xl, backgroundColor: landingColors.canvasWarm },
-  finalCtaEyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
-  finalCtaTitle: { maxWidth: 720, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 48, letterSpacing: -1.8 },
-  finalCtaText: { maxWidth: 590, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22 },
-  footer: { minHeight: 130, borderTopWidth: 1, borderTopColor: landingColors.border, flexDirection: 'row', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between' },
-  footerBrand: { color: landingColors.ink, fontFamily: landingTypography.displayBold, fontSize: 20 },
-  footerText: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12 },
-  footerLink: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
 });
