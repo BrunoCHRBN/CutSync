@@ -105,7 +105,6 @@ const ClientLandingContent = () => {
   // A busca só cabe em uma linha única a partir de 900px; abaixo disso os campos empilham.
   const inlineSearch = width >= 900;
   const scrollRef = useRef<ScrollView>(null);
-  const searchInputRef = useRef<TextInput>(null);
   const reportedDepths = useRef(new Set<50 | 100>());
   const { setBaseline, registerSection, scrollToSection } = useSectionAnchors(scrollRef, reducedMotion);
   const searchReported = useRef(false);
@@ -327,7 +326,6 @@ const ClientLandingContent = () => {
                   <View style={styles.searchField}>
                     <Search size={18} color={landingColors.inkMuted} />
                     <TextInput
-                      ref={searchInputRef}
                       testID="landing-search-input"
                       accessibilityLabel="Buscar por estabelecimento ou serviço"
                       value={query}
