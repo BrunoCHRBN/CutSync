@@ -4,7 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { MARKETING_CONTACT_LIMITS, validateMarketingContactRequest } from '../../packages/validation/src/marketing-contact';
-import { LANDING_CONTENT, LANDING_NAV_ITEMS, LANDING_SECTION_ORDER } from '../../apps/web/src/components/landing/landing-content';
+import {
+  LANDING_BUSINESS_EVALUATION,
+  LANDING_CLIENT_DISCOVERY,
+  LANDING_CONTENT,
+  LANDING_JOURNEY,
+  LANDING_NAV_ITEMS,
+  LANDING_SECTION_ORDER,
+} from '../../apps/web/src/components/landing/landing-content';
 import { LANDING_AVAILABILITY } from '../../apps/web/src/components/landing/landing-claims';
 import { LANDING_TESTIMONIALS, getApprovedTestimonials } from '../../apps/web/src/components/landing/landing-testimonials';
 import { configureLandingAnalytics, trackLandingEvent } from '../../apps/web/src/components/landing/landing-analytics';
@@ -22,9 +29,14 @@ const contactSection = read('apps/web/src/components/landing/sections/contact-se
 const testimonialsSection = read('apps/web/src/components/landing/sections/testimonials-section.tsx');
 const editorialScene = read('apps/web/src/components/landing/sections/editorial-scene.tsx');
 
+const AUDIENCES = ['client', 'business'] as const;
+
 const SECTION_MARKERS: Record<string, string> = {
+  search: "registerSection('search')",
   proposal_values: '<ProposalValues',
+  comparison: 'testID="business-comparison"',
   ecosystem: '<ConnectedEcosystem',
+  roles: "registerSection('roles')",
   services: '<ServicesCapabilities',
   devices: '<DeviceShowcase',
   transparency: '<ProductTransparency',
@@ -37,17 +49,49 @@ const SECTION_MARKERS: Record<string, string> = {
   future: '<FutureVision',
 };
 
-test('mantém a mesma sequência editorial nas duas landings', () => {
-  const ordered = LANDING_SECTION_ORDER.filter((section) => section !== 'hero');
-  for (const source of [clientLanding, businessLanding]) {
-    const positions = ordered.map((section) => source.indexOf(SECTION_MARKERS[section]));
+const SOURCES: Record<(typeof AUDIENCES)[number], string> = { client: clientLanding, business: businessLanding };
+
+test('renderiza cada landing na ordem declarada para a própria jornada', () => {
+  for (const audience of AUDIENCES) {
+    const ordered = LANDING_JOURNEY[audience].filter((section) => section !== 'hero');
+    const positions = ordered.map((section) => SOURCES[audience].indexOf(SECTION_MARKERS[section]));
     expect(positions.every((position) => position > 0)).toBe(true);
     expect([...positions].sort((left, right) => left - right)).toEqual(positions);
-    expect(source.indexOf('<LandingFooter')).toBeGreaterThan(positions[positions.length - 1]);
-    expect(source.indexOf('<LandingNav')).toBeLessThan(positions[0]);
+    expect(SOURCES[audience].indexOf('<LandingFooter')).toBeGreaterThan(positions[positions.length - 1]);
+    expect(SOURCES[audience].indexOf('<LandingNav')).toBeLessThan(positions[0]);
+    for (const section of LANDING_JOURNEY[audience]) expect(LANDING_SECTION_ORDER).toContain(section);
   }
-  expect(LANDING_NAV_ITEMS.map((item) => item.label)).toEqual(['Solução', 'Serviços', 'Confiança', 'Recursos', 'Contato']);
-  for (const item of LANDING_NAV_ITEMS) expect(LANDING_SECTION_ORDER).toContain(item.id);
+});
+
+test('separa a jornada de descoberta do cliente da jornada de avaliação do estabelecimento', () => {
+  expect(LANDING_JOURNEY.client).not.toEqual(LANDING_JOURNEY.business);
+
+  // O cliente chega para encontrar um horário: a busca vem primeiro e o "como funciona" logo depois.
+  expect(LANDING_JOURNEY.client[1]).toBe('search');
+  expect(LANDING_JOURNEY.client.indexOf('how_to_start')).toBeLessThan(LANDING_JOURNEY.client.indexOf('proposal_values'));
+  expect(LANDING_JOURNEY.client).not.toContain('comparison');
+  expect(LANDING_JOURNEY.client).not.toContain('roles');
+
+  // O estabelecimento chega para avaliar: proposta e problema primeiro, decisão só depois da demonstração.
+  expect(LANDING_JOURNEY.business[1]).toBe('proposal_values');
+  expect(LANDING_JOURNEY.business.indexOf('comparison')).toBeLessThan(LANDING_JOURNEY.business.indexOf('services'));
+  expect(LANDING_JOURNEY.business.indexOf('roles')).toBeLessThan(LANDING_JOURNEY.business.indexOf('services'));
+  expect(LANDING_JOURNEY.business.indexOf('services')).toBeLessThan(LANDING_JOURNEY.business.indexOf('how_to_start'));
+  expect(LANDING_JOURNEY.business).not.toContain('search');
+
+  // A navegação do header acompanha a jornada, mantendo os três destinos institucionais nas duas páginas.
+  expect(LANDING_NAV_ITEMS.client.map((item) => item.id)).not.toEqual(LANDING_NAV_ITEMS.business.map((item) => item.id));
+  for (const audience of AUDIENCES) {
+    const ids = LANDING_NAV_ITEMS[audience].map((item) => item.id);
+    for (const institutional of ['security', 'resources', 'contact']) expect(ids).toContain(institutional);
+    for (const item of LANDING_NAV_ITEMS[audience]) expect(LANDING_JOURNEY[audience]).toContain(item.id);
+  }
+
+  // Cada página tem a própria superfície de topo, sem componente compartilhado por condicional.
+  expect(clientLanding).toContain('LANDING_CLIENT_DISCOVERY');
+  expect(clientLanding).not.toContain('LANDING_BUSINESS_EVALUATION');
+  expect(businessLanding).toContain('LANDING_BUSINESS_EVALUATION');
+  expect(businessLanding).not.toContain('LANDING_CLIENT_DISCOVERY');
 });
 
 test('adapta o conteúdo por audiência sem duplicar a narrativa', () => {
@@ -56,12 +100,15 @@ test('adapta o conteúdo por audiência sem duplicar a narrativa', () => {
   expect(LANDING_CONTENT.business.ecosystem.steps[0].role).toBe('Estabelecimento');
   expect(LANDING_CONTENT.business.ecosystem.steps.map((step) => step.role)).toContain('Profissional');
   expect(LANDING_CONTENT.client.ecosystem.steps.map((step) => step.role)).toContain('Profissional');
-  for (const audience of ['client', 'business'] as const) {
+  for (const audience of AUDIENCES) {
     expect(LANDING_CONTENT[audience].proposal.values.map((value) => value.title))
       .toEqual(['Clareza', 'Autonomia', 'Confiança', 'Cuidado']);
     expect(LANDING_CONTENT[audience].howToStart.steps).toHaveLength(3);
     expect(LANDING_CONTENT[audience].faq.entries.length).toBeGreaterThanOrEqual(4);
   }
+  // Os princípios da marca são os mesmos, mas cada audiência lê o que eles significam para ela.
+  expect(LANDING_CONTENT.client.proposal.values.map((value) => value.description))
+    .not.toEqual(LANDING_CONTENT.business.proposal.values.map((value) => value.description));
   expect(LANDING_CONTENT.business.contact.title).not.toEqual(LANDING_CONTENT.client.contact.title);
   expect(contactSection).toContain("audience === 'business' && (");
 });
@@ -77,7 +124,14 @@ test('separa disponível hoje de em validação usando o registro de claims', ()
 });
 
 test('não publica preço do SaaS, certificações ou métricas inventadas', () => {
-  const source = [clientLanding, businessLanding, JSON.stringify(LANDING_CONTENT), JSON.stringify(LANDING_AVAILABILITY)].join('\n');
+  const source = [
+    clientLanding,
+    businessLanding,
+    JSON.stringify(LANDING_CONTENT),
+    JSON.stringify(LANDING_CLIENT_DISCOVERY),
+    JSON.stringify(LANDING_BUSINESS_EVALUATION),
+    JSON.stringify(LANDING_AVAILABILITY),
+  ].join('\n');
   for (const forbidden of [
     /R\$\s*\d+\s*\/\s*m[êe]s/i,
     /plano (b[áa]sico|pro|premium)/i,
@@ -91,7 +145,7 @@ test('não publica preço do SaaS, certificações ou métricas inventadas', () 
 });
 
 test('mantém recursos como central interna, sem blog nem CMS', () => {
-  for (const audience of ['client', 'business'] as const) {
+  for (const audience of AUDIENCES) {
     const cards = LANDING_CONTENT[audience].resources.cards;
     expect(cards.length).toBeGreaterThanOrEqual(5);
     for (const card of cards) {
