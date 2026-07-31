@@ -63,13 +63,18 @@ const comparisonIcons = {
 
 const { hero, comparison, roles, demo } = LANDING_BUSINESS_EVALUATION;
 
-const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => (
-  <View style={styles.sectionHeading}>
-    <Text style={styles.eyebrow}>{eyebrow}</Text>
-    <Text accessibilityRole="header" style={styles.sectionTitle}>{title}</Text>
-    <Text style={styles.sectionDescription}>{description}</Text>
-  </View>
-);
+const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => {
+  const { width } = useWindowDimensions();
+  const compact = width < landingLayout.mobileBreakpoint;
+
+  return (
+    <View style={styles.sectionHeading}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text>
+      <Text style={styles.sectionDescription}>{description}</Text>
+    </View>
+  );
+};
 
 const BusinessLandingContent = () => {
   const router = useRouter();
@@ -170,6 +175,7 @@ const BusinessLandingContent = () => {
           </Pressable>
           <View style={styles.headerActions}>
             {isDesktop && <LandingNav audience="business" onNavigate={navigateToSection} />}
+            {isDesktop && <View style={styles.headerSeparator} />}
             {isDesktop && <Pressable testID="business-header-client-link" accessibilityRole="link" onPress={() => router.push('/' as never)} style={styles.headerLink}><Text style={styles.headerLinkText}>Encontrar um serviço</Text></Pressable>}
             <Pressable testID="business-login-button" accessibilityRole="button" onPress={() => router.push({ pathname: '/(auth)/login', params: { audience: 'business' } } as never)} style={styles.accountButton}>
               <LogIn size={16} color={landingColors.brand} /><Text style={styles.accountButtonText}>Acessar painel</Text>
@@ -184,9 +190,7 @@ const BusinessLandingContent = () => {
             <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
               <SectionReveal delay={0}><View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>{hero.badge}</Text></View></SectionReveal>
               <MaskedReveal delay={70}>
-                <Text accessibilityRole="header" style={[styles.heroTitle, !isDesktop && styles.heroTitleCompact]}>
-                  {hero.title[0]}{`\n`}{hero.title[1]}
-                </Text>
+                <Text accessibilityRole="header" style={[styles.heroTitle, !isDesktop && styles.heroTitleCompact]}>{hero.title}</Text>
               </MaskedReveal>
               <SectionReveal delay={210}><Text style={styles.heroDescription}>{hero.description}</Text></SectionReveal>
               <SectionReveal delay={320} style={styles.heroActions}>
@@ -196,11 +200,8 @@ const BusinessLandingContent = () => {
                 </Pressable>
               </SectionReveal>
               <SectionReveal delay={410} testID="business-hero-capabilities" style={styles.heroCapabilities}>
-                {hero.capabilities.map((capability, index) => (
-                  <React.Fragment key={capability}>
-                    {index > 0 && <View style={styles.heroCapabilityDivider} />}
-                    <Text style={styles.heroCapabilityText}>{capability}</Text>
-                  </React.Fragment>
+                {hero.capabilities.map((capability) => (
+                  <Text key={capability} style={styles.heroCapabilityText}>{capability}</Text>
                 ))}
               </SectionReveal>
             </View>
@@ -447,6 +448,7 @@ const styles = StyleSheet.create({
   brand: { color: landingColors.ink, fontFamily: landingTypography.displayBold, fontSize: 20 },
   brandCaption: { color: landingColors.inkMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerSeparator: { width: 1, height: 20, backgroundColor: landingColors.border },
   headerLink: { minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   headerLinkText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 13 },
   accountButton: { minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(41,75,58,0.14)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.68)' },
@@ -464,16 +466,16 @@ const styles = StyleSheet.create({
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   heroSecondaryButton: { minHeight: 54, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: landingRadii.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(255,255,255,0.05)' },
   heroSecondaryLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
-  heroCapabilities: { marginTop: 12, paddingTop: 22, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, borderTopWidth: 1, borderTopColor: 'rgba(220,232,224,0.18)' },
-  heroCapabilityDivider: { width: 3, height: 3, borderRadius: 2, backgroundColor: landingColors.accent },
+  heroCapabilities: { marginTop: 12, paddingTop: 22, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 26, rowGap: 8, borderTopWidth: 1, borderTopColor: 'rgba(220,232,224,0.18)' },
   heroCapabilityText: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodyMedium, fontSize: 12.5, letterSpacing: 0.2 },
   heroPreviewFrame: { width: '47%', maxWidth: 570, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: landingRadii.lg, backgroundColor: 'rgba(247,246,242,0.06)' },
   heroPreview: { width: '100%' },
   fullWidth: { width: '100%', maxWidth: '100%' },
   content: { width: '100%', maxWidth: landingLayout.maxWidth, paddingHorizontal: 24, paddingTop: 140, alignSelf: 'center', gap: 148 },
-  sectionHeading: { maxWidth: landingLayout.copyWidth, gap: 12 },
+  sectionHeading: { flexShrink: 1, minWidth: 0, maxWidth: landingLayout.copyWidth, gap: 12 },
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 44, lineHeight: 49, letterSpacing: -1.65 },
+  sectionTitleCompact: { fontSize: 32, lineHeight: 38, letterSpacing: -1.1 },
   sectionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
   sandboxSection: { paddingVertical: 24, gap: 40 },
   tabsFrame: { borderRadius: landingRadii.md },
