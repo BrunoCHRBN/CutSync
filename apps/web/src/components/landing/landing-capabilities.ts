@@ -23,8 +23,8 @@ export const LANDING_CAPABILITIES: readonly LandingCapability[] = [
   {
     id: 'team',
     label: 'Equipe',
-    title: 'Equipe, jornadas e comissão',
-    description: 'Convites, horários de trabalho e percentuais organizados em um só lugar.',
+    title: 'Equipe, convites e escalas',
+    description: 'Convites, jornadas de trabalho e responsabilidades organizados em um só lugar.',
   },
 ] as const;
 

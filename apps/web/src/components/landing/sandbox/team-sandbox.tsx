@@ -1,23 +1,30 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { CalendarClock, Mail, Percent, UserRoundCheck, UsersRound } from 'lucide-react-native';
+import { CalendarClock, CalendarRange, Mail, UserRoundCheck, UsersRound } from 'lucide-react-native';
 import { landingColors as colors, landingRadii as radii, landingTypography as typography } from '../../../theme/landing-tokens';
 
-const productionExample = 1200;
+const WEEK_DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] as const;
 
 export const TeamSandbox = () => {
   const { width } = useWindowDimensions();
   const compact = width < 720;
-  const [commissionRate, setCommissionRate] = useState(50);
+  const [workingDays, setWorkingDays] = useState<readonly string[]>(['Ter', 'Qua', 'Qui', 'Sex', 'Sáb']);
   const [inviteAccepted, setInviteAccepted] = useState(false);
-  const projectedCommission = useMemo(() => productionExample * commissionRate / 100, [commissionRate]);
+  const scheduleSummary = useMemo(
+    () => (workingDays.length === 0 ? 'Nenhum dia selecionado' : `${workingDays.length} ${workingDays.length === 1 ? 'dia' : 'dias'} · 09:00–18:00`),
+    [workingDays],
+  );
+
+  const toggleDay = (day: string) => setWorkingDays((current) => (
+    current.includes(day) ? current.filter((item) => item !== day) : WEEK_DAYS.filter((item) => item === day || current.includes(item))
+  ));
 
   return (
     <View testID="business-team-demo" style={styles.card}>
       <View style={[styles.header, compact && styles.headerStacked]}>
         <View style={styles.headerCopy}>
           <View style={styles.titleRow}><UsersRound size={18} color={colors.brand} /><Text style={styles.title}>Equipe e escalas</Text></View>
-          <Text style={styles.subtitle}>Convites pendentes primeiro, jornada configurável e comissão tratada como projeção.</Text>
+          <Text style={styles.subtitle}>Convites pendentes primeiro, jornada configurável e escala da semana visível.</Text>
         </View>
         <View style={styles.availableBadge}><Text style={styles.availableBadgeText}>FUNÇÃO DISPONÍVEL</Text></View>
       </View>
@@ -45,20 +52,23 @@ export const TeamSandbox = () => {
           <Pressable style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar jornada e escala</Text></Pressable>
         </View>
 
-        <View style={styles.commissionCard}>
-          <View style={styles.commissionTitleRow}><Percent size={17} color={colors.brand} /><Text style={styles.commissionTitle}>Comissão configurada</Text></View>
-          <Text style={styles.memberMeta}>Escolha o percentual usado nas projeções de produção concluída.</Text>
-          <View style={styles.rateRow}>
-            {[30, 40, 50, 60].map((rate) => (
-              <Pressable key={rate} accessibilityRole="radio" accessibilityState={{ selected: commissionRate === rate }} onPress={() => setCommissionRate(rate)} style={[styles.rateButton, commissionRate === rate && styles.rateButtonSelected]}>
-                <Text style={[styles.rateText, commissionRate === rate && styles.rateTextSelected]}>{rate}%</Text>
-              </Pressable>
-            ))}
+        <View style={styles.scheduleCard}>
+          <View style={styles.scheduleTitleRow}><CalendarRange size={17} color={colors.brand} /><Text style={styles.scheduleCardTitle}>Escala da semana</Text></View>
+          <Text style={styles.memberMeta}>Marque os dias em que o profissional atende. A agenda pública segue essa escala.</Text>
+          <View style={styles.dayRow}>
+            {WEEK_DAYS.map((day) => {
+              const selected = workingDays.includes(day);
+              return (
+                <Pressable key={day} accessibilityRole="checkbox" accessibilityLabel={day} accessibilityState={{ checked: selected }} onPress={() => toggleDay(day)} style={[styles.dayButton, selected && styles.dayButtonSelected]}>
+                  <Text style={[styles.dayText, selected && styles.dayTextSelected]}>{day}</Text>
+                </Pressable>
+              );
+            })}
           </View>
-          <View style={styles.projection}>
-            <Text style={styles.projectionLabel}>REPASSE PROJETADO NO EXEMPLO</Text>
-            <Text selectable style={styles.projectionValue}>R$ {projectedCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.projectionNote}>Sobre R$ 1.200,00 de produção fictícia concluída. Não representa pagamento realizado.</Text>
+          <View style={styles.scheduleSummary}>
+            <Text style={styles.scheduleSummaryLabel}>JORNADA RESULTANTE NO EXEMPLO</Text>
+            <Text style={styles.scheduleSummaryValue}>{scheduleSummary}</Text>
+            <Text style={styles.scheduleSummaryNote}>Escala fictícia. Na unidade real, os horários vêm da jornada configurada para cada profissional.</Text>
           </View>
         </View>
       </View>
@@ -96,16 +106,16 @@ const styles = StyleSheet.create({
   scheduleTitle: { color: colors.ink, fontFamily: typography.bodySemiBold, fontSize: 12 },
   secondaryButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radii.sm, backgroundColor: colors.surface },
   secondaryText: { color: colors.brand, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  commissionCard: { flex: 1, minWidth: 0, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surfaceSoft },
-  commissionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  commissionTitle: { color: colors.ink, fontFamily: typography.bodySemiBold, fontSize: 14 },
-  rateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  rateButton: { minWidth: 52, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.sm, backgroundColor: colors.surface },
-  rateButtonSelected: { borderColor: colors.brand, backgroundColor: colors.brand },
-  rateText: { color: colors.inkSecondary, fontFamily: typography.bodySemiBold, fontSize: 12 },
-  rateTextSelected: { color: colors.white },
-  projection: { padding: 12, gap: 4, borderRadius: radii.sm, backgroundColor: colors.brandSoft },
-  projectionLabel: { color: colors.brand, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.6 },
-  projectionValue: { color: colors.brandStrong, fontFamily: typography.mono, fontSize: 22, fontVariant: ['tabular-nums'] },
-  projectionNote: { color: colors.inkSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
+  scheduleCard: { flex: 1, minWidth: 0, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surfaceSoft },
+  scheduleTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  scheduleCardTitle: { color: colors.ink, fontFamily: typography.bodySemiBold, fontSize: 14 },
+  dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  dayButton: { minWidth: 46, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.sm, backgroundColor: colors.surface },
+  dayButtonSelected: { borderColor: colors.brand, backgroundColor: colors.brand },
+  dayText: { color: colors.inkSecondary, fontFamily: typography.bodySemiBold, fontSize: 12 },
+  dayTextSelected: { color: colors.white },
+  scheduleSummary: { padding: 12, gap: 4, borderRadius: radii.sm, backgroundColor: colors.brandSoft },
+  scheduleSummaryLabel: { color: colors.brand, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.6 },
+  scheduleSummaryValue: { color: colors.brandStrong, fontFamily: typography.mono, fontSize: 18, fontVariant: ['tabular-nums'] },
+  scheduleSummaryNote: { color: colors.inkSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
 });
