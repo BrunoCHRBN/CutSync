@@ -433,7 +433,7 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
 export interface LandingClientDiscovery {
   hero: {
     badge: string;
-    title: readonly [string, string];
+    title: string;
     description: string;
     primaryCta: string;
     secondaryCta: string;
@@ -460,7 +460,7 @@ export interface LandingClientDiscovery {
 export const LANDING_CLIENT_DISCOVERY: LandingClientDiscovery = {
   hero: {
     badge: 'VITRINES E AGENDAS CONECTADAS',
-    title: ['Encontre seu próximo horário', 'sem depender de mensagens.'],
+    title: 'Encontre seu próximo horário sem depender de mensagens.',
     description: 'Pesquise por serviço ou por bairro, veja o que cada estabelecimento publicou e escolha quando agendar.',
     primaryCta: 'Explorar resultados',
     secondaryCta: 'Como funciona',
@@ -489,7 +489,7 @@ export const LANDING_CLIENT_DISCOVERY: LandingClientDiscovery = {
 export interface LandingBusinessEvaluation {
   hero: {
     badge: string;
-    title: readonly [string, string];
+    title: string;
     description: string;
     primaryCta: string;
     secondaryCta: string;
@@ -508,7 +508,7 @@ export interface LandingBusinessEvaluation {
 export const LANDING_BUSINESS_EVALUATION: LandingBusinessEvaluation = {
   hero: {
     badge: 'VITRINE E OPERAÇÃO CONECTADAS',
-    title: ['Sua vitrine e sua agenda', 'trabalhando juntas.'],
+    title: 'Sua vitrine e sua agenda trabalhando juntas.',
     description: 'Publique serviços com preço e duração, receba agendamentos na agenda da unidade e organize a rotina da equipe em um só fluxo.',
     primaryCta: 'Criar meu estabelecimento',
     secondaryCta: 'Explorar demonstração',

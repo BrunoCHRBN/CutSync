@@ -80,13 +80,18 @@ const serviceGroups = [
 const cardMotion = { transitionProperty: 'transform, box-shadow, border-color', transitionDuration: '260ms' } as never;
 const coverMotion = { transitionProperty: 'transform', transitionDuration: '420ms' } as never;
 
-const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => (
-  <View style={styles.sectionHeading}>
-    <Text style={styles.eyebrow}>{eyebrow}</Text>
-    <Text accessibilityRole="header" style={styles.sectionTitle}>{title}</Text>
-    <Text style={styles.sectionDescription}>{description}</Text>
-  </View>
-);
+const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => {
+  const { width } = useWindowDimensions();
+  const compact = width < landingLayout.mobileBreakpoint;
+
+  return (
+    <View style={styles.sectionHeading}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text>
+      <Text style={styles.sectionDescription}>{description}</Text>
+    </View>
+  );
+};
 
 const ClientLandingContent = () => {
   const router = useRouter();
@@ -97,6 +102,8 @@ const ClientLandingContent = () => {
   const { quality } = useLandingMotion();
   const isDesktop = width >= landingLayout.desktopBreakpoint;
   const isMobile = width < landingLayout.mobileBreakpoint;
+  // A busca só cabe em uma linha única a partir de 900px; abaixo disso os campos empilham.
+  const inlineSearch = width >= 900;
   const scrollRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
   const reportedDepths = useRef(new Set<50 | 100>());
@@ -311,14 +318,12 @@ const ClientLandingContent = () => {
               <Text style={styles.heroBadgeText}>{hero.badge}</Text>
             </SectionReveal>
             <MaskedReveal delay={70}>
-              <Text accessibilityRole="header" style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>
-                {hero.title[0]}{`\n`}{hero.title[1]}
-              </Text>
+              <Text accessibilityRole="header" style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>{hero.title}</Text>
             </MaskedReveal>
             <SectionReveal delay={210}><Text style={styles.heroDescription}>{hero.description}</Text></SectionReveal>
             <SectionReveal delay={280}>
-              <GlassSurface variant="search" style={[styles.searchPanel, isDesktop && styles.searchPanelInline]}>
-                <View style={[styles.searchFields, !isDesktop && styles.searchFieldsStacked]}>
+              <GlassSurface variant="search" style={[styles.searchPanel, inlineSearch && styles.searchPanelInline, !isDesktop && styles.searchPanelConstrained]}>
+                <View style={[styles.searchFields, !inlineSearch && styles.searchFieldsStacked]}>
                   <View style={styles.searchField}>
                     <Search size={18} color={landingColors.inkMuted} />
                     <TextInput
@@ -337,7 +342,7 @@ const ClientLandingContent = () => {
                       style={styles.input}
                     />
                   </View>
-                  <View style={[styles.searchDivider, !isDesktop && styles.searchDividerStacked]} />
+                  <View style={[styles.searchDivider, !inlineSearch && styles.searchDividerStacked]} />
                   <View style={styles.searchField}>
                     <MapPin size={18} color={landingColors.inkMuted} />
                     <TextInput
@@ -360,7 +365,7 @@ const ClientLandingContent = () => {
                     accessibilityRole="button"
                     accessibilityLabel="Ver estabelecimentos encontrados"
                     onPress={() => scrollToResults('hero_primary')}
-                    style={({ pressed }) => [styles.searchSubmit, !isDesktop && styles.searchSubmitStacked, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.searchSubmit, !inlineSearch && styles.searchSubmitStacked, pressed && styles.pressed]}
                   >
                     <Search size={17} color={landingColors.white} />
                     <Text style={styles.searchSubmitText}>{hero.submitLabel}</Text>
@@ -613,6 +618,7 @@ const styles = StyleSheet.create({
   // Busca unificada: um único controle no desktop, campos empilhados abaixo do breakpoint.
   searchPanel: { padding: 8, gap: 8, borderRadius: landingRadii.lg, backgroundColor: 'rgba(255,254,250,0.94)' },
   searchPanelInline: { borderRadius: landingRadii.pill },
+  searchPanelConstrained: { maxWidth: 720 },
   searchFields: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   searchFieldsStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
   searchField: { flex: 1, minWidth: 0, minHeight: 56, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 11 },
@@ -632,9 +638,10 @@ const styles = StyleSheet.create({
   credibilityText: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   credibilityDivider: { color: landingColors.accent, fontFamily: landingTypography.displayBold, fontSize: 18 },
   content: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', paddingHorizontal: 24, gap: 148 },
-  sectionHeading: { maxWidth: landingLayout.copyWidth, gap: 12 },
+  sectionHeading: { flexShrink: 1, minWidth: 0, maxWidth: landingLayout.copyWidth, gap: 12 },
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
   sectionTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 44, lineHeight: 49, letterSpacing: -1.65 },
+  sectionTitleCompact: { fontSize: 32, lineHeight: 38, letterSpacing: -1.1 },
   sectionDescription: { maxWidth: 600, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
 
   resultsSection: { paddingVertical: 48, gap: 40 },
