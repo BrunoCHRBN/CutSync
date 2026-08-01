@@ -32,7 +32,10 @@ import { supabase } from '../../services/supabase';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar';
 import { tapLight, tapSuccess } from '../../utils/haptics';
+import { buildEstablishmentTheme } from '@cutsync/brand';
 import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
+import { EstablishmentThemeProvider } from '../../contexts/establishment-theme-context';
+import { EstablishmentThemeScope } from '../theme/establishment-theme-scope';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
 import { getBookingDateOptions, getTodayInTimeZone } from '@cutsync/domain';
 import { InlineNotice } from '../ui/InlineNotice';
@@ -241,7 +244,9 @@ export const BookingExperience = () => {
     return { morning, afternoon, evening };
   }, [availableSlots]);
 
-  const primaryColor = barbershop?.primaryColor || '#113939';
+  const theme = useMemo(() => buildEstablishmentTheme(barbershop?.primaryColor), [barbershop?.primaryColor]);
+  const primaryColor = theme.primary;
+  const primaryForeground = theme.onPrimary;
 
   // Booking Execution
   const executeBooking = async (userId: string) => {
@@ -362,15 +367,18 @@ export const BookingExperience = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#113939" />
-        <Text style={styles.loadingText}>Carregando informações do agendamento...</Text>
-      </View>
+      <EstablishmentThemeProvider primaryColor={barbershop?.primaryColor} establishmentId={barbershop?.id} establishmentName={barbershop?.name}>
+        <View style={styles.loadingScreen}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={styles.loadingText}>Carregando informações do agendamento...</Text>
+        </View>
+      </EstablishmentThemeProvider>
     );
   }
 
   return (
-    <View style={styles.root}>
+    <EstablishmentThemeProvider primaryColor={barbershop?.primaryColor} establishmentId={barbershop?.id} establishmentName={barbershop?.name}>
+      <EstablishmentThemeScope style={styles.root}>
       {/* ─── TOPBAR NAV ─────────────────────────────────────────────── */}
       <View style={styles.topbar}>
         <View style={styles.topbarInner}>
@@ -427,6 +435,8 @@ export const BookingExperience = () => {
           {/* ─── INTERACTIVE 4-STEP WIZARD TRACKER ──────────────────── */}
           <BookingStepper
             currentStep={wizardStep}
+            accentColor={theme.primary}
+            accentSoft={theme.soft}
             items={[
               { step: 1, label: 'Serviço', done: Boolean(selectedService) },
               { step: 2, label: 'Profissional', done: Boolean(selectedBarber) },
@@ -863,7 +873,7 @@ export const BookingExperience = () => {
         password={authPassword}
         passwordConfirmation={authPasswordConfirmation}
         primaryColor={primaryColor}
-        foregroundColor="#FFFFFF"
+        foregroundColor={primaryForeground}
         onEmailChange={setAuthEmail}
         onNameChange={setAuthName}
         onPasswordChange={setAuthPassword}
@@ -877,7 +887,8 @@ export const BookingExperience = () => {
         onAuthSubmit={handleAuthSubmit}
         onClose={() => setIsAuthModalVisible(false)}
       />
-    </View>
+      </EstablishmentThemeScope>
+    </EstablishmentThemeProvider>
   );
 };
 
