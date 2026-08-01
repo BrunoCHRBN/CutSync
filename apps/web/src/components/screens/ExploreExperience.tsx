@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowUpRight, Clock3, Search, Store } from 'lucide-react-native';
+import { ArrowUpRight, Clock3, Heart, Search, Store } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useClientFavorites } from '../../hooks/useClientFavorites';
 import { supabase } from '../../services/supabase';
 import { Establishment, mapEstablishment } from '@cutsync/database';
 import { ClientShell } from '../layout/ClientShell';
@@ -53,9 +54,11 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
-const ShopCard = ({ shop, onOpen }: {
+const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
   shop: Establishment;
   onOpen: (id: string) => void;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
 }) => {
   const accent = shop.primaryColor || colors.accent;
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
@@ -74,6 +77,25 @@ const ShopCard = ({ shop, onOpen }: {
       <View style={styles.visual}>
         <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
         <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
+        <Pressable
+          testID={`client-shop-card-${shop.id}-favorite`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isFavorite }}
+          accessibilityLabel={isFavorite ? `Remover ${displayName} dos salvos` : `Salvar ${displayName}`}
+          onPress={(event) => {
+            event?.stopPropagation?.();
+            tapLight();
+            onToggleFavorite(shop.id);
+          }}
+          style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}
+        >
+          <Heart
+            color={isFavorite ? colors.danger : colors.text}
+            fill={isFavorite ? colors.danger : 'transparent'}
+            size={16}
+            strokeWidth={1.8}
+          />
+        </Pressable>
       </View>
       <View style={styles.shopBody}>
         <View style={styles.shopHeaderRow}>
@@ -109,9 +131,13 @@ const ShopCard = ({ shop, onOpen }: {
 function ShopCarousel({
   shops,
   onOpen,
+  isFavorite,
+  onToggleFavorite,
 }: {
   shops: Establishment[];
   onOpen: (id: string) => void;
+  isFavorite: (id: string) => boolean;
+  onToggleFavorite: (id: string) => void;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -183,7 +209,12 @@ function ShopCarousel({
       >
         {shops.map((shop) => (
           <View key={shop.id} style={{ width: cardWidth }}>
-            <ShopCard shop={shop} onOpen={onOpen} />
+            <ShopCard
+              shop={shop}
+              onOpen={onOpen}
+              isFavorite={isFavorite(shop.id)}
+              onToggleFavorite={onToggleFavorite}
+            />
           </View>
         ))}
       </ScrollView>
@@ -213,6 +244,12 @@ export const ExploreExperience = () => {
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const {
+    favoriteIds,
+    isFavorite,
+    toggleFavorite,
+    error: favoritesError,
+  } = useClientFavorites(Boolean(profile?.id));
 
   useEffect(() => {
     if (searchParam) {
@@ -220,6 +257,7 @@ export const ExploreExperience = () => {
     }
   }, [searchParam]);
   const [openOnly, setOpenOnly] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const [selectedEstado, setSelectedEstado] = useState('Todos');
   const [selectedCidade, setSelectedCidade] = useState('Todos');
@@ -301,11 +339,14 @@ export const ExploreExperience = () => {
     return () => { void supabase.removeChannel(channel); };
   }, [refresh]);
 
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return barbershops.filter((shop) => {
       const matchesTerm = !term || [shop.name, shop.address, shop.slug].some((value) => value?.toLowerCase().includes(term));
       const matchesOpen = !openOnly || getOpeningStatus(shop.openingHours, shop.timezone).isOpen;
+      const matchesFavorite = !favoritesOnly || favoriteIdSet.has(shop.id);
       
       const { estado, cidade, bairro } = parseAddress(shop.address);
       const matchesEstado = selectedEstado === 'Todos' || estado === selectedEstado;
@@ -315,18 +356,23 @@ export const ExploreExperience = () => {
       const matchesPrice = !selectedPriceLevel || shop.priceLevel === selectedPriceLevel;
       const matchesRating = !minRating || (shop.averageRating || 0) >= minRating;
 
-      return matchesTerm && matchesOpen && matchesEstado && matchesCidade && matchesBairro && matchesPrice && matchesRating;
+      return matchesTerm && matchesOpen && matchesFavorite && matchesEstado && matchesCidade && matchesBairro && matchesPrice && matchesRating;
     });
-  }, [barbershops, openOnly, search, selectedEstado, selectedCidade, selectedBairro, selectedPriceLevel, minRating]);
+  }, [barbershops, favoriteIdSet, favoritesOnly, openOnly, search, selectedEstado, selectedCidade, selectedBairro, selectedPriceLevel, minRating]);
 
   const openShop = (id: string) => {
     tapLight();
     router.push({ pathname: '/(client)/barbershop', params: { barbershopId: id } });
   };
 
-  const hasActiveFilters = openOnly || selectedEstado !== 'Todos' || selectedPriceLevel !== null || minRating !== null;
+  const handleToggleFavorite = useCallback((establishmentId: string) => {
+    void toggleFavorite(establishmentId);
+  }, [toggleFavorite]);
+
+  const hasActiveFilters = openOnly || favoritesOnly || selectedEstado !== 'Todos' || selectedPriceLevel !== null || minRating !== null;
   const clearFilters = () => {
     setOpenOnly(false);
+    setFavoritesOnly(false);
     setSelectedEstado('Todos');
     setSelectedCidade('Todos');
     setSelectedBairro('Todos');
@@ -370,6 +416,24 @@ export const ExploreExperience = () => {
               </Pressable>
 
               <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: favoritesOnly }}
+                onPress={() => setFavoritesOnly((current) => !current)}
+                style={[styles.filterChip, favoritesOnly && styles.filterChipSelected]}
+                testID="client-filter-favorites"
+              >
+                <Heart
+                  color={favoritesOnly ? colors.brandPrimary : colors.textSecondary}
+                  fill={favoritesOnly ? colors.brandPrimary : 'transparent'}
+                  size={13}
+                  strokeWidth={1.8}
+                />
+                <Text style={[styles.filterText, favoritesOnly && styles.filterTextSelected]}>
+                  Salvos{favoriteIds.length > 0 ? ` (${favoriteIds.length})` : ''}
+                </Text>
+              </Pressable>
+
+              <Pressable
                 onPress={() => { setFilterStep('estado'); setBairroModalVisible(true); }}
                 style={[styles.filterChip, selectedEstado !== 'Todos' && styles.filterChipSelected]}
                 testID="client-filter-bairro"
@@ -410,6 +474,7 @@ export const ExploreExperience = () => {
             {hasActiveFilters ? (
               <View testID="client-active-filters" style={styles.activeFilters}>
                 {openOnly ? <ClientFilterChip label="Aberto agora" active removable onPress={() => setOpenOnly(false)} /> : null}
+                {favoritesOnly ? <ClientFilterChip label="Salvos" active removable onPress={() => setFavoritesOnly(false)} testID="client-active-filter-favorites" /> : null}
                 {selectedEstado !== 'Todos' ? <ClientFilterChip label={locationLabel} active removable onPress={() => { setSelectedEstado('Todos'); setSelectedCidade('Todos'); setSelectedBairro('Todos'); }} /> : null}
                 {selectedPriceLevel !== null ? <ClientFilterChip label={`Preço: ${'$'.repeat(selectedPriceLevel)}`} active removable onPress={() => setSelectedPriceLevel(null)} /> : null}
                 {minRating !== null ? <ClientFilterChip label={`★ ${minRating.toFixed(1)}+`} active removable onPress={() => setMinRating(null)} /> : null}
@@ -420,9 +485,13 @@ export const ExploreExperience = () => {
 
         <View testID="client-shops-heading" style={styles.listHeading}>
           <Text testID="client-search-result-count" style={styles.listHeadingTitle}>
-            {filtered.length} {filtered.length === 1 ? 'lugar' : 'lugares'}
+            {favoritesOnly
+              ? `${filtered.length} ${filtered.length === 1 ? 'salvo' : 'salvos'}`
+              : `${filtered.length} ${filtered.length === 1 ? 'lugar' : 'lugares'}`}
           </Text>
-          <Text style={styles.listHeadingHint}>{listHeadingHint}</Text>
+          <Text style={styles.listHeadingHint}>
+            {favoritesOnly ? 'Seus lugares salvos para remarcar mais rápido.' : listHeadingHint}
+          </Text>
         </View>
 
         {!!error && <InlineNotice
@@ -432,6 +501,7 @@ export const ExploreExperience = () => {
           message="Verifique sua conexão e tente novamente."
           action={<AppButton testID="client-shops-retry-button" label="Tentar novamente" onPress={() => { void refresh(); }} variant="secondary" size="sm" />}
         />}
+        {!!favoritesError && <InlineNotice testID="client-favorites-error" tone="danger" title="Salvos" message={favoritesError} />}
 
         {loading ? (
           <View testID="client-shops-loading-skeleton" style={styles.carouselContainer}>
@@ -444,13 +514,28 @@ export const ExploreExperience = () => {
         ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
           <EmptyState
             testID="client-shops-empty"
-            title={search || hasActiveFilters ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'}
-            description={hasActiveFilters ? 'Os filtros atuais não encontraram estabelecimentos. Remova um filtro ou limpe todos para ampliar a busca.' : search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Fique de olho, novos parceiros estarão disponíveis em breve!'}
-            icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />}
+            title={favoritesOnly ? 'Nenhum lugar salvo' : search || hasActiveFilters ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'}
+            description={
+              favoritesOnly
+                ? 'Toque no coração nos cards para guardar estabelecimentos aqui.'
+                : hasActiveFilters
+                  ? 'Os filtros atuais não encontraram estabelecimentos. Remova um filtro ou limpe todos para ampliar a busca.'
+                  : search
+                    ? 'Tente buscar por outro nome, bairro ou cidade.'
+                    : 'Fique de olho, novos parceiros estarão disponíveis em breve!'
+            }
+            icon={favoritesOnly
+              ? <Heart color={colors.textSecondary} size={22} strokeWidth={1.6} />
+              : <Store color={colors.textSecondary} size={22} strokeWidth={1.6} />}
             action={hasActiveFilters ? <AppButton testID="client-empty-clear-filters" label="Limpar filtros" onPress={clearFilters} variant="secondary" size="sm" /> : undefined}
           />
         ) : (
-          <ShopCarousel shops={filtered} onOpen={openShop} />
+          <ShopCarousel
+            shops={filtered}
+            onOpen={openShop}
+            isFavorite={isFavorite}
+            onToggleFavorite={handleToggleFavorite}
+          />
         )}
       </ScrollView>
 
@@ -685,6 +770,20 @@ const styles = StyleSheet.create({
   },
   visual: { aspectRatio: 3.6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   bannerVisualImage: { width: '100%', height: '100%' },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    zIndex: 2,
+  },
   shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   shopLogoCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   shopLogoImage: { width: '100%', height: '100%' },

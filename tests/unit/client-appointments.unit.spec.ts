@@ -119,12 +119,20 @@ test('oferece novo agendamento a partir do histórico e do atendimento encerrado
   const list = readSource('apps/client/src/screens/client-appointments.tsx');
   const card = readSource('apps/client/src/components/appointments/client-appointment-ui.tsx');
   const detail = readSource('apps/client/src/screens/client-appointment-detail.tsx');
+  const webAppointments = readSource('apps/web/src/components/screens/AppointmentsExperience.tsx');
+  const webBooking = readSource('apps/web/src/components/screens/BookingExperience.tsx');
 
   expect(list).toContain("onRebook={tab === 'history'");
   expect(list).toContain('serviceId: appointment.service.id');
   expect(card).toContain("'client-appointment-rebook-' + appointment.id");
   expect(detail).toContain('client-appointment-rebook');
   expect(detail).toContain("appointment.status === 'completed' || appointment.status === 'cancelled'");
+  expect(webAppointments).toContain('handleRebook');
+  expect(webAppointments).toContain('client-appointment-${item.id}-rebook-button');
+  expect(webAppointments).toContain("pathname: '/(client)/booking'");
+  expect(webAppointments).toContain('params.serviceId = item.serviceId');
+  expect(webBooking).toContain('initialServiceId');
+  expect(webBooking).toContain('setSelectedService(initialServiceId)');
 });
 
 test('separa o motivo público da nota interna na migração aditiva', () => {

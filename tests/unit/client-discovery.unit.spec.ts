@@ -74,6 +74,27 @@ test('adensa o Client web explore→detalhe→booking no padrão marketplace', (
   expect(slots).toContain('MERGED_PROFESSIONAL_LIMIT');
 });
 
+test('expõe favoritos do Client web com contrato autenticado no Supabase', () => {
+  const migration = readSource('supabase/migrations/20260807000000_client_favorites.sql');
+  const sqlTest = readSource('supabase/tests/client_favorites.sql');
+  const hook = readSource('apps/web/src/hooks/useClientFavorites.ts');
+  const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
+
+  expect(migration).toContain('client_favorite_establishments');
+  expect(migration).toContain('list_client_favorite_establishments');
+  expect(migration).toContain('set_client_favorite_establishment');
+  expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.list_client_favorite_establishments() TO authenticated');
+  expect(migration).toContain('REVOKE ALL ON FUNCTION public.set_client_favorite_establishment(uuid, boolean) FROM PUBLIC, anon');
+  expect(sqlTest).toContain("set_client_favorite_establishment('87000000-0000-0000-0000-000000000010', true)");
+  expect(sqlTest).toContain('RLS leaked another client favorite rows');
+  expect(hook).toContain("rpc as any)('list_client_favorite_establishments'");
+  expect(hook).toContain("rpc as any)('set_client_favorite_establishment'");
+  expect(explore).toContain('useClientFavorites');
+  expect(explore).toContain('client-filter-favorites');
+  expect(explore).toContain('client-shop-card-${shop.id}-favorite');
+  expect(explore).toContain('favoritesOnly');
+});
+
 test('normaliza a busca e rejeita emoji, SVG e excesso de caracteres', () => {
   expect(normalizeClientDiscoveryQuery('  corte   masculino  ')).toBe('corte masculino');
   expect(validateClientDiscoveryQuery('Barbearia Central')).toEqual({ ok: true, query: 'Barbearia Central' });
