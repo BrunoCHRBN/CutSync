@@ -40,3 +40,24 @@ export function logoRing(theme: EstablishmentTheme) {
     borderColor: theme.muted,
   } as const;
 }
+
+export function accentBorderLeft(theme: EstablishmentTheme) {
+  return {
+    borderLeftWidth: 3,
+    borderLeftColor: theme.primary,
+  } as const;
+}
+
+export function outlineSurface(theme: EstablishmentTheme) {
+  return {
+    borderColor: theme.primary,
+    backgroundColor: theme.soft,
+  } as const;
+}
+
+export function avatarRing(theme: EstablishmentTheme) {
+  return {
+    borderWidth: 2,
+    borderColor: theme.muted,
+  } as const;
+}

@@ -13,11 +13,20 @@ import { EmptyState } from '../ui/EmptyState';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { SectionHeading } from '../ui/SectionHeading';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
-import { EstablishmentThemeProvider } from '../../contexts/establishment-theme-context';
+import { EstablishmentThemeProvider, useEstablishmentTheme } from '../../contexts/establishment-theme-context';
 import { EstablishmentThemeScope } from '../theme/establishment-theme-scope';
+import {
+  accentBorderLeft,
+  accentText,
+  avatarRing,
+  iconSoftBackground,
+  logoRing,
+  outlineSurface,
+  primaryButton,
+} from '../../theme/establishment-styles';
 import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { getOpeningStatus } from '@cutsync/domain';
-import { initialsOf, readableForeground } from '../../theme/color';
+import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 
 function BarbershopProfileSkeleton() {
@@ -66,7 +75,6 @@ export const EstablishmentProfileExperience = () => {
   const { establishment: barbershop, loading } = useEstablishment(identifier, by);
   const { services } = useServices(barbershop?.id, true);
   const { team: barbers } = usePublicTeam(barbershop?.id);
-  const [selectedTeamMember, setSelectedTeamMember] = useState<ProfileRecord | null>(null);
   const [mapUrl, setMapUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -124,21 +132,82 @@ export const EstablishmentProfileExperience = () => {
     );
   }
 
-  const accent = barbershop.primaryColor || colors.accent;
-  const accentFg = readableForeground(accent);
-  const bookingSlug = slug || barbershop.slug;
-  const goBooking = () => {
-    tapLight();
-    if (bookingSlug) {
-      router.push(`/${bookingSlug}/booking` as never);
-      return;
-    }
-    router.push(`/(client)/booking?barbershopId=${barbershop.id}` as never);
-  };
-
   return (
     <EstablishmentThemeProvider primaryColor={barbershop.primaryColor} establishmentId={barbershop.id} establishmentName={barbershop.name}>
       <EstablishmentThemeScope>
+        <EstablishmentProfileBody
+          barbershop={barbershop}
+          barbers={barbers}
+          services={services}
+          galleryPhotos={galleryPhotos}
+          mapUrl={mapUrl}
+          statusInfo={statusInfo}
+          isWide={isWide}
+          slug={slug}
+          goBack={goBack}
+          currency={currency}
+        />
+      </EstablishmentThemeScope>
+    </EstablishmentThemeProvider>
+  );
+};
+
+interface EstablishmentProfileBodyProps {
+  barbershop: NonNullable<ReturnType<typeof useEstablishment>['establishment']>;
+  barbers: ProfileRecord[];
+  services: ReturnType<typeof useServices>['services'];
+  galleryPhotos: string[];
+  mapUrl: string | null;
+  statusInfo: ReturnType<typeof getOpeningStatus>;
+  isWide: boolean;
+  slug?: string;
+  goBack: () => void;
+  currency: (value: number) => string;
+}
+
+function EstablishmentProfileBody({
+  barbershop,
+  barbers,
+  services,
+  galleryPhotos,
+  mapUrl,
+  statusInfo,
+  isWide,
+  slug,
+  goBack,
+  currency,
+}: EstablishmentProfileBodyProps) {
+  const router = useRouter();
+  const { theme } = useEstablishmentTheme();
+  const [selectedTeamMember, setSelectedTeamMember] = useState<ProfileRecord | null>(null);
+  const bookingSlug = slug || barbershop.slug;
+
+  const goBooking = (professionalId?: string) => {
+    tapLight();
+    if (bookingSlug) {
+      router.push({
+        pathname: `/${bookingSlug}/booking`,
+        params: professionalId ? { professional_id: professionalId } : undefined,
+      } as never);
+      return;
+    }
+    router.push({
+      pathname: '/(client)/booking',
+      params: { barbershopId: barbershop.id, ...(professionalId ? { professional_id: professionalId } : {}) },
+    } as never);
+  };
+
+  const openDirections = () => {
+    const address = barbershop.address || '';
+    const url = Platform.select({
+      ios: `maps:0,0?q=${encodeURIComponent(address)}`,
+      android: `geo:0,0?q=${encodeURIComponent(address)}`,
+      default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+    });
+    Linking.openURL(url);
+  };
+
+  return (
     <ScreenBackground testID="barbershop-profile-screen">
       <View style={styles.topbar}>
         <Pressable testID="barbershop-profile-back-button" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressedScale]}>
@@ -162,7 +231,7 @@ export const EstablishmentProfileExperience = () => {
             testID="barbershop-profile-banner"
             name={barbershop.name}
             uri={barbershop.bannerUrl}
-            color={accent}
+            color={theme.primary}
             category="Perfil do estabelecimento"
             style={styles.bannerImage}
           />
@@ -177,11 +246,13 @@ export const EstablishmentProfileExperience = () => {
         {/* Informações Principais */}
         <View style={[styles.heroCopy, isWide && styles.heroCopyWide]}>
           <View style={styles.brandContainer}>
-            <View style={styles.logoCircle}>
+            <View style={[styles.logoCircle, logoRing(theme)]}>
               {barbershop.logoUrl ? (
                 <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} resizeMode="contain" />
               ) : (
-                <Text style={styles.logoLetter}>{initialsOf(barbershop.name)}</Text>
+                <View style={[styles.logoFallback, { backgroundColor: theme.primary }]}>
+                  <Text style={[styles.logoLetter, { color: theme.onPrimary }]}>{initialsOf(barbershop.name)}</Text>
+                </View>
               )}
             </View>
             <View style={styles.titleInfo}>
@@ -197,7 +268,7 @@ export const EstablishmentProfileExperience = () => {
                   </Pressable>
                 )}
               </View>
-              {!!barbershop.slogan && <Text style={styles.slogan}>“{barbershop.slogan}”</Text>}
+              {!!barbershop.slogan && <Text testID="barbershop-profile-slogan" style={[styles.slogan, accentText(theme)]}>“{barbershop.slogan}”</Text>}
               <Text testID="barbershop-profile-description" style={styles.description}>
                 {barbershop.description || 'Este estabelecimento ainda não publicou uma descrição.'}
               </Text>
@@ -281,18 +352,10 @@ export const EstablishmentProfileExperience = () => {
               <AppButton 
                 testID="barbershop-profile-route-button"
                 label="Como chegar" 
-                onPress={() => {
-                  const address = barbershop.address || '';
-                  const url = Platform.select({
-                    ios: `maps:0,0?q=${encodeURIComponent(address)}`,
-                    android: `geo:0,0?q=${encodeURIComponent(address)}`,
-                    default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
-                  });
-                  Linking.openURL(url);
-                }}
+                onPress={openDirections}
                 variant="secondary"
-                style={styles.routeBtn}
-                icon={<MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />}
+                style={[styles.routeBtn, outlineSurface(theme)]}
+                icon={<MapPin color={theme.primary} size={13} strokeWidth={1.6} />}
               />
             </View>
           </View>
@@ -306,12 +369,12 @@ export const EstablishmentProfileExperience = () => {
           ) : (
             <View testID="barbershop-services-grid" style={styles.cardsGrid}>
               {services.map((service) => (
-                <View key={service.id} testID={`barbershop-service-${service.id}`} style={styles.serviceCard}>
-                  <View style={styles.cardIcon}>
-                    <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
+                <View key={service.id} testID={`barbershop-service-${service.id}`} style={[styles.serviceCard, accentBorderLeft(theme)]}>
+                  <View style={[styles.cardIcon, iconSoftBackground(theme)]}>
+                    <Scissors color={theme.primary} size={14} strokeWidth={1.6} />
                   </View>
                   <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text style={styles.servicePrice}>{currency(service.price)}</Text>
+                  <Text testID={`barbershop-service-${service.id}-price`} style={[styles.servicePrice, accentText(theme)]}>{currency(service.price)}</Text>
                   <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
                 </View>
               ))}
@@ -352,12 +415,12 @@ export const EstablishmentProfileExperience = () => {
               contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
               renderItem={({ item }) => (
                 <Pressable onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
-                  <View testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
-                    <View style={styles.avatarCircleSmall}>
+                  <View testID={`barbershop-professional-${item.id}`} style={[styles.professionalCard, { borderColor: theme.muted }]}>
+                    <View style={[styles.avatarCircleSmall, avatarRing(theme), !item.avatarUrl && iconSoftBackground(theme)]}>
                       {item.avatarUrl ? (
                         <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
                       ) : (
-                        <Text style={styles.avatarInitials}>{initialsOf(item.name)}</Text>
+                        <Text style={[styles.avatarInitials, accentText(theme)]}>{initialsOf(item.name)}</Text>
                       )}
                     </View>
                     <Text style={styles.professionalName}>{item.name}</Text>
@@ -399,12 +462,12 @@ export const EstablishmentProfileExperience = () => {
                   <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
                     {/* 📸 1. Autoridade Visual & Avatar Real */}
                     <View style={styles.profHeroBox}>
-                      <View style={styles.profAvatarCircle}>
+                      <View style={[styles.profAvatarCircle, avatarRing(theme), iconSoftBackground(theme)]}>
                         {selectedTeamMember.avatarUrl ? (
-                          <Image source={{ uri: selectedTeamMember.avatarUrl }} style={styles.profAvatarImage} contentFit="cover" />
+                          <Image source={{ uri: selectedTeamMember.avatarUrl }} style={styles.profAvatarImage} />
                         ) : (
                           <View style={styles.profAvatarFallback}>
-                            <UserRound size={36} color="#113939" />
+                            <UserRound size={36} color={theme.primary} />
                           </View>
                         )}
                       </View>
@@ -435,8 +498,8 @@ export const EstablishmentProfileExperience = () => {
                         const trimmed = chip.trim();
                         if (!trimmed) return null;
                         return (
-                          <View key={idx} style={styles.profChip}>
-                            <Text style={styles.profChipText}>💈 {trimmed}</Text>
+                          <View key={idx} style={[styles.profChip, iconSoftBackground(theme)]}>
+                            <Text style={[styles.profChipText, accentText(theme)]}>💈 {trimmed}</Text>
                           </View>
                         );
                       })}
@@ -474,7 +537,7 @@ export const EstablishmentProfileExperience = () => {
                               <Text style={styles.profServiceName}>• {srv.name}</Text>
                               <Text style={styles.profServiceDuration}>{srv.durationMinutes} min</Text>
                             </View>
-                            <Text style={styles.profServicePrice}>R$ {Number(srv.price).toFixed(2)}</Text>
+                            <Text style={[styles.profServicePrice, accentText(theme)]}>R$ {Number(srv.price).toFixed(2)}</Text>
                           </View>
                         ))}
                       </View>
@@ -483,16 +546,14 @@ export const EstablishmentProfileExperience = () => {
                     {/* 🎯 4. Conversão Direta (CTA Único de Agendamento) */}
                     <View style={styles.modalCtaWrap}>
                       <AppButton
+                        testID="barbershop-professional-book-button"
                         label={`📅 Agendar com ${selectedTeamMember.name.split(' ')[0]}`}
-                        style={styles.modalCtaBtn}
+                        style={[styles.modalCtaBtn, primaryButton(theme)]}
+                        foregroundColor={theme.onPrimary}
                         onPress={() => {
                           const profId = selectedTeamMember.id;
                           setSelectedTeamMember(null);
-                          tapLight();
-                          router.push({
-                            pathname: `/${slug}/booking`,
-                            params: { professional_id: profId },
-                          } as any);
+                          goBooking(profId);
                         }}
                       />
                     </View>
@@ -506,26 +567,24 @@ export const EstablishmentProfileExperience = () => {
 
       {/* Barra de ação flutuante (glassmorphism) */}
       <View style={styles.floatingWrap} pointerEvents="box-none">
-        <View testID="barbershop-booking-cta" style={styles.floatingBar}>
+        <View testID="barbershop-booking-cta" style={[styles.floatingBar, { borderColor: theme.muted }]}>
           <View style={styles.floatingCopy}>
-            <Text style={styles.floatingEyebrow}>Pronto para o próximo corte?</Text>
+            <Text style={[styles.floatingEyebrow, accentText(theme)]}>Pronto para o próximo corte?</Text>
             <Text numberOfLines={1} style={styles.floatingTitle}>Garanta seu horário na agenda</Text>
           </View>
           <Pressable
             testID="barbershop-profile-book-button"
-            onPress={goBooking}
-            style={({ pressed }) => [styles.floatingButton, { backgroundColor: accent }, pressed && styles.pressedScale]}
+            onPress={() => goBooking()}
+            style={({ pressed }) => [styles.floatingButton, primaryButton(theme), pressed && styles.pressedScale]}
           >
-            <Text style={[styles.floatingButtonText, { color: accentFg }]}>Agendar agora</Text>
-            <ArrowRight color={accentFg} size={15} strokeWidth={2} />
+            <Text style={[styles.floatingButtonText, { color: theme.onPrimary }]}>Agendar agora</Text>
+            <ArrowRight color={theme.onPrimary} size={15} strokeWidth={2} />
           </Pressable>
         </View>
       </View>
     </ScreenBackground>
-      </EstablishmentThemeScope>
-    </EstablishmentThemeProvider>
   );
-};
+}
 
 const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
 
@@ -546,12 +605,13 @@ const styles = StyleSheet.create({
   heroCopyWide: { paddingHorizontal: 40 },
   brandContainer: { flexDirection: 'row', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' },
   logoCircle: { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: colors.surface, backgroundColor: '#FAFAF8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...atmosphericShadow },
+  logoFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   logoImage: { width: '100%', height: '100%' },
-  logoLetter: { fontFamily: typography.serif, fontSize: 30, color: '#52525B', letterSpacing: 1 },
+  logoLetter: { fontFamily: typography.serif, fontSize: 30, letterSpacing: 1 },
   titleInfo: { flex: 1, minWidth: 260, justifyContent: 'flex-end' },
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1 },
-  slogan: { color: colors.textSecondary, fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
+  slogan: { fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
   instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surface, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: hairlineW, borderColor: colors.border },
   instagramBadgeText: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textSecondary },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: 8 },
@@ -576,13 +636,13 @@ const styles = StyleSheet.create({
   serviceCard: { flex: 1, minWidth: 160, maxWidth: 260, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 18, ...atmosphericShadow },
   cardIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 16 },
-  servicePrice: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 8 },
+  servicePrice: { fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 8 },
   serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
   // Equipe
   professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 18, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, ...atmosphericShadow },
   avatarCircleSmall: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.canvas },
   avatarImage: { width: '100%', height: '100%' },
-  avatarInitials: { fontFamily: typography.serif, fontSize: 20, color: '#52525B', letterSpacing: 1 },
+  avatarInitials: { fontFamily: typography.serif, fontSize: 20, letterSpacing: 1 },
   professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 6 },
   professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4 },
   professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, textAlign: 'center', marginTop: 2 },
@@ -609,7 +669,7 @@ const styles = StyleSheet.create({
     }),
   },
   floatingCopy: { flex: 1, minWidth: 0 },
-  floatingEyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8, textTransform: 'uppercase' },
+  floatingEyebrow: { fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8, textTransform: 'uppercase' },
   floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 13, letterSpacing: -0.3, marginTop: 3 },
   floatingButton: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 18, borderRadius: radii.pill },
   floatingButtonText: { fontFamily: typography.bodyStrong, fontSize: 12 },
@@ -624,7 +684,7 @@ const styles = StyleSheet.create({
   bottomSheetCloseBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', alignItems: 'center', justifyContent: 'center' },
   modalScrollBody: { gap: 16, paddingBottom: 20 },
   profHeroBox: { alignItems: 'center', gap: 4, paddingTop: 6 },
-  profAvatarCircle: { width: 84, height: 84, borderRadius: 42, overflow: 'hidden', borderWidth: 2, borderColor: '#113939', backgroundColor: '#F0ECE0', alignItems: 'center', justifyContent: 'center' },
+  profAvatarCircle: { width: 84, height: 84, borderRadius: 42, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   profAvatarImage: { width: '100%', height: '100%' },
   profAvatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   profName: { fontSize: 20, fontFamily: typography.display, color: '#1A1A1E', marginTop: 4 },
@@ -633,8 +693,8 @@ const styles = StyleSheet.create({
   profRatingScore: { fontSize: 12, fontFamily: typography.bodyStrong, color: '#1A1A1E' },
   profRatingCount: { fontSize: 11, fontFamily: typography.body, color: colors.textMuted },
   profChipsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
-  profChip: { backgroundColor: '#F0ECE0', borderPadding: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill },
-  profChipText: { fontSize: 11, fontFamily: typography.bodyStrong, color: '#113939' },
+  profChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill },
+  profChipText: { fontSize: 11, fontFamily: typography.bodyStrong },
   profBioBox: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', borderRadius: radii.md, padding: 12 },
   profBioText: { fontSize: 12, fontFamily: typography.body, color: colors.textSecondary, lineHeight: 18, textAlign: 'center' },
   profSection: { gap: 8 },
@@ -644,7 +704,7 @@ const styles = StyleSheet.create({
   profServiceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E4E5DF', paddingBottom: 8 },
   profServiceName: { fontSize: 13, fontFamily: typography.bodyStrong, color: '#1A1A1E' },
   profServiceDuration: { fontSize: 11, fontFamily: typography.body, color: colors.textMuted },
-  profServicePrice: { fontSize: 13, fontFamily: typography.display, color: '#113939' },
+  profServicePrice: { fontSize: 13, fontFamily: typography.display },
   modalCtaWrap: { marginTop: 8 },
-  modalCtaBtn: { backgroundColor: '#113939', minHeight: 48 },
+  modalCtaBtn: { minHeight: 48 },
 });

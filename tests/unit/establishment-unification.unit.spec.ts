@@ -29,3 +29,15 @@ test('rotas públicas reexportam experiências unificadas', () => {
   expect(unifiedBooking).toContain('useEstablishmentRouteParams');
   expect(unifiedBooking).toContain('EstablishmentThemeProvider');
 });
+
+test('perfil público aplica tema da marca nos pontos visuais', () => {
+  const profile = readSource('apps/web/src/components/establishment/EstablishmentProfileExperience.tsx');
+
+  expect(profile).toContain('useEstablishmentTheme');
+  expect(profile).toContain('accentBorderLeft(theme)');
+  expect(profile).toContain('barbershop-profile-slogan');
+  expect(profile).toContain('barbershop-service-');
+  expect(profile).toContain('barbershop-profile-route-button');
+  expect(profile).toContain('barbershop-professional-book-button');
+  expect(profile).toContain('primaryButton(theme)');
+});
