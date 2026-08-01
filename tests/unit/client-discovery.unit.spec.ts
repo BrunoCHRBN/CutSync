@@ -23,17 +23,33 @@ test('normaliza a busca e rejeita emoji, SVG e excesso de caracteres', () => {
 
 test('expõe descoberta e detalhe em rotas próprias do Client', () => {
   const layout = readSource('apps/client/src/app/(app)/_layout.tsx');
+  const tabsLayout = readSource('apps/client/src/app/(app)/(tabs)/_layout.tsx');
   const discovery = readSource('apps/client/src/screens/client-discovery.tsx');
   const detail = readSource('apps/client/src/screens/client-establishment-detail.tsx');
 
-  expect(fs.existsSync(path.join(root, 'apps/client/src/app/(app)/explore.tsx'))).toBe(true);
+  expect(fs.existsSync(path.join(root, 'apps/client/src/app/(app)/(tabs)/explore.tsx'))).toBe(true);
   expect(fs.existsSync(path.join(root, 'apps/client/src/app/(app)/establishments/[slug].tsx'))).toBe(true);
-  expect(layout).toContain('name="explore"');
+  expect(tabsLayout).toContain('name="explore"');
   expect(layout).toContain('name="establishments/[slug]"');
   expect(discovery).toContain('validateClientDiscoveryQuery(nextValue)');
   expect(discovery).toContain('RefreshControl');
   expect(detail).toContain('client-establishment-services');
   expect(detail).toContain('client-establishment-professionals');
+});
+
+test('prioriza busca e agendamento direto na descoberta do Client', () => {
+  const discovery = readSource('apps/client/src/screens/client-discovery.tsx');
+  const detail = readSource('apps/client/src/screens/client-establishment-detail.tsx');
+  const ui = readSource('apps/client/src/components/ui/client-ui.tsx');
+
+  expect(discovery).toContain('stickyHeaderIndices={[2]}');
+  expect(discovery).toContain('client-discovery-results');
+  expect(discovery).not.toContain('Lugares próximos a você');
+
+  expect(detail).toContain('ClientStickyFooter');
+  expect(detail).toContain("'client-establishment-service-' + service.id");
+  expect(detail).toContain('startBooking(service.id)');
+  expect(ui).toContain('export function ClientStickyFooter');
 });
 
 test('limita o catálogo no servidor a dados ativos e contratos autenticados', () => {

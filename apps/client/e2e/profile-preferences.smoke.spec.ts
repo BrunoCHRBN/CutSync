@@ -141,8 +141,10 @@ test('cliente consulta disponibilidade real e revisa o agendamento sem confirmar
 
   await expect(page.getByTestId('client-booking-screen')).toBeVisible({ timeout: 20_000 });
   await page.locator('[data-testid^="client-booking-service-"]').first().click();
+  await page.getByTestId('client-booking-continue').click();
   await expect(page.getByTestId('client-booking-professionals')).toBeVisible();
   await page.locator('[data-testid^="client-booking-professional-"]').first().click();
+  await page.getByTestId('client-booking-continue').click();
 
   const dateButtons = page.locator('[data-testid^="client-booking-date-"]');
   await expect(dateButtons.first()).toBeVisible();
@@ -163,6 +165,7 @@ test('cliente consulta disponibilidade real e revisa o agendamento sem confirmar
 
   expect(foundSlot).toBe(true);
   await page.locator('[data-testid^="client-booking-slot-"]').first().click();
+  await page.getByTestId('client-booking-continue').click();
   await expect(page.getByTestId('client-booking-review')).toBeVisible();
   await expect(page.getByTestId('client-booking-confirm')).toBeEnabled();
   await expect(page.getByTestId('client-booking-success')).toHaveCount(0);
@@ -243,6 +246,7 @@ test('cliente abre cancelamento e reagendamento sem confirmar alterações', asy
   }
   expect(foundSlot).toBe(true);
   await page.locator('[data-testid^="client-booking-slot-"]').first().click();
+  await page.getByTestId('client-booking-continue').click();
   await expect(page.getByTestId('client-booking-review')).toBeVisible();
   await expect(page.getByTestId('client-booking-confirm')).toBeEnabled();
   await expect(page.getByTestId('client-booking-success')).toHaveCount(0);

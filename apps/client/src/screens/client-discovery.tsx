@@ -117,6 +117,7 @@ export function ClientDiscoveryScreen() {
       return;
     }
     setQuery(validation.query);
+    setSelectedCategory('all');
     void load(validation.query);
   };
 
@@ -142,7 +143,7 @@ export function ClientDiscoveryScreen() {
       .slice(0, 6)
   ), [filtered]);
 
-  const nearby = useMemo(() => (
+  const recentlyAdded = useMemo(() => (
     filtered.length <= 6 ? filtered : filtered.slice(0, 10)
   ), [filtered]);
 
@@ -170,6 +171,7 @@ export function ClientDiscoveryScreen() {
           />
         )}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
       >
         <View style={styles.topbar}>
           <ClientBrand />
@@ -185,59 +187,57 @@ export function ClientDiscoveryScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>DESCUBRA PERTO DE VOCÊ</Text>
-          <Text style={styles.title}>Seu próximo{'\n'}cuidado começa aqui.</Text>
-          <Text style={styles.description}>
-            Estabelecimentos, serviços, profissionais e regiões — tudo num lugar só.
-          </Text>
+          <Text style={styles.title}>Onde vamos cuidar de você?</Text>
         </View>
 
-        <View style={[styles.searchField, validationError && styles.searchFieldError]}>
-          <Text style={styles.searchIcon}>⌕</Text>
-          <TextInput
-            testID="client-discovery-search"
-            accessibilityLabel="Buscar estabelecimentos e profissionais"
-            autoCapitalize="words"
-            autoCorrect={false}
-            enterKeyHint="search"
-            maxLength={80}
-            onChangeText={changeQuery}
-            onSubmitEditing={submitSearch}
-            placeholder="Buscar nome, serviço ou região"
-            placeholderTextColor={discoveryColors.muted}
-            returnKeyType="search"
-            style={styles.searchInput}
-            value={query}
-          />
-          {!!query ? (
-            <Pressable
-              testID="client-discovery-clear-search"
-              accessibilityRole="button"
-              accessibilityLabel="Limpar busca"
-              onPress={clearSearch}
-              hitSlop={8}
-              style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.clearButtonText}>×</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              testID="client-discovery-submit"
-              accessibilityRole="button"
-              accessibilityLabel="Buscar"
-              onPress={submitSearch}
-              hitSlop={8}
-              style={({ pressed }) => [styles.searchGoButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.searchGoButtonText}>Buscar</Text>
-            </Pressable>
+        <View style={styles.searchBlock}>
+          <View style={[styles.searchField, validationError && styles.searchFieldError]}>
+            <Text style={styles.searchIcon}>⌕</Text>
+            <TextInput
+              testID="client-discovery-search"
+              accessibilityLabel="Buscar estabelecimentos e profissionais"
+              autoCapitalize="words"
+              autoCorrect={false}
+              enterKeyHint="search"
+              maxLength={80}
+              onChangeText={changeQuery}
+              onSubmitEditing={submitSearch}
+              placeholder="Nome, serviço ou região"
+              placeholderTextColor={discoveryColors.muted}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={query}
+            />
+            {!!query ? (
+              <Pressable
+                testID="client-discovery-clear-search"
+                accessibilityRole="button"
+                accessibilityLabel="Limpar busca"
+                onPress={clearSearch}
+                hitSlop={8}
+                style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.clearButtonText}>×</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                testID="client-discovery-submit"
+                accessibilityRole="button"
+                accessibilityLabel="Buscar"
+                onPress={submitSearch}
+                hitSlop={8}
+                style={({ pressed }) => [styles.searchGoButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.searchGoButtonText}>Buscar</Text>
+              </Pressable>
+            )}
+          </View>
+          {!!validationError && (
+            <Text testID="client-discovery-search-error" accessibilityLiveRegion="polite" style={styles.validationError}>
+              {validationError}
+            </Text>
           )}
         </View>
-        {!!validationError && (
-          <Text testID="client-discovery-search-error" accessibilityLiveRegion="polite" style={styles.validationError}>
-            {validationError}
-          </Text>
-        )}
 
         {!isSearching && !isLoading && !error && establishments.length > 0 && (
           <ScrollView
@@ -359,14 +359,14 @@ export function ClientDiscoveryScreen() {
               </View>
             )}
 
-            {nearby.length > 0 && (
+            {recentlyAdded.length > 0 && (
               <View style={styles.carouselSection}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionCopy}>
                     <Text style={styles.sectionEyebrow}>PARA CONHECER</Text>
-                    <Text style={styles.sectionTitle}>Lugares próximos a você</Text>
+                    <Text style={styles.sectionTitle}>Em destaque na região</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{nearby.length}</Text>
+                  <Text style={styles.sectionCount}>{recentlyAdded.length}</Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -377,7 +377,7 @@ export function ClientDiscoveryScreen() {
                   contentContainerStyle={styles.carouselContent}
                   testID="client-discovery-carousel-nearby"
                 >
-                  {nearby.map((item, index) => (
+                  {recentlyAdded.map((item, index) => (
                     <Animated.View
                       key={item.id}
                       entering={FadeInRight
@@ -428,6 +428,24 @@ export function ClientDiscoveryScreen() {
                 </ScrollView>
               </View>
             )}
+
+            <View style={styles.paddedContent}>
+              <View style={styles.resultsHeader}>
+                <View style={styles.resultsCopy}>
+                  <Text style={styles.resultsEyebrow}>CATÁLOGO COMPLETO</Text>
+                  <Text testID="client-discovery-result-count" style={styles.resultsTitle}>{totalLabel}</Text>
+                </View>
+              </View>
+              <View testID="client-discovery-results" style={styles.searchResults}>
+                {filtered.map((establishment) => (
+                  <EstablishmentCard
+                    key={establishment.id}
+                    establishment={establishment}
+                    onPress={() => openEstablishment(establishment.slug)}
+                  />
+                ))}
+              </View>
+            </View>
           </>
         )}
       </ScrollView>
@@ -443,11 +461,10 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 40, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: discoveryColors.border, backgroundColor: discoveryColors.card, paddingHorizontal: 16 },
   accountButtonText: { color: discoveryColors.text, fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
 
-  hero: { gap: 12, paddingTop: 18, paddingHorizontal: 20 },
-  eyebrow: { color: discoveryColors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
-  title: { color: discoveryColors.text, fontSize: 40, lineHeight: 44, fontWeight: '800', letterSpacing: -1.4 },
-  description: { color: discoveryColors.secondary, fontSize: 15, lineHeight: 23, maxWidth: 420 },
+  hero: { paddingTop: 6, paddingHorizontal: 20 },
+  title: { color: discoveryColors.text, fontSize: 26, lineHeight: 32, fontWeight: '800', letterSpacing: -0.8 },
 
+  searchBlock: { gap: 8, backgroundColor: discoveryColors.background, paddingBottom: 6 },
   searchField: {
     marginHorizontal: 20,
     minHeight: 58,

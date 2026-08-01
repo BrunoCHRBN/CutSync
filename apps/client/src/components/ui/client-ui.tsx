@@ -11,6 +11,7 @@ import {
   type ViewProps,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { clientTheme } from '@/theme/client-theme';
 import type { ClientHapticEvent } from '@/features/experience/client-haptic-state';
@@ -157,6 +158,19 @@ export function ClientFeedback({
         <Text selectable style={styles.feedbackDescription}>{description}</Text>
       </View>
       {action}
+    </View>
+  );
+}
+
+// Pinned action bar that stays reachable while the screen content scrolls behind it.
+export function ClientStickyFooter({ children, testID }: PropsWithChildren<{ testID?: string }>) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      testID={testID}
+      style={[styles.stickyFooter, { paddingBottom: Math.max(insets.bottom, clientTheme.spacing.md) }]}
+    >
+      <View style={styles.stickyFooterInner}>{children}</View>
     </View>
   );
 }
@@ -333,6 +347,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: clientTheme.radii.sm,
     backgroundColor: clientTheme.colors.border,
+  },
+  stickyFooter: {
+    borderTopWidth: 1,
+    borderTopColor: clientTheme.colors.border,
+    backgroundColor: clientTheme.colors.surface,
+    paddingHorizontal: clientTheme.spacing.lg,
+    paddingTop: clientTheme.spacing.md,
+    boxShadow: clientTheme.shadows.floating,
+  },
+  stickyFooterInner: {
+    width: '100%',
+    maxWidth: clientTheme.sizing.contentMaxWidth,
+    alignSelf: 'center',
+    gap: clientTheme.spacing.sm,
   },
   glassStage: {
     minHeight: 260,

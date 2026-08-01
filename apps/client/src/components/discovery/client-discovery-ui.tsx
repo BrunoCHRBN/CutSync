@@ -50,6 +50,13 @@ export const formatDiscoveryPrice = (value: number, currency = 'BRL') => {
   }
 };
 
+// Average price is only meaningful once the establishment has published priced services.
+const averagePriceLabel = (establishment: ClientDiscoveryEstablishment) => (
+  establishment.averagePrice > 0
+    ? 'Média ' + formatDiscoveryPrice(establishment.averagePrice, establishment.currency)
+    : null
+);
+
 const StarIcon = ({ size = 11, color }: { size?: number; color: string }) => (
   <Text style={{ color, fontSize: size, lineHeight: size + 2, fontWeight: '900' }}>★</Text>
 );
@@ -145,6 +152,12 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
           <Text style={styles.featuredMeta}>
             {establishment.professionalCount} {establishment.professionalCount === 1 ? 'profissional' : 'profissionais'}
           </Text>
+          {!!averagePriceLabel(establishment) && (
+            <>
+              <View style={styles.featuredMetaDot} />
+              <Text style={styles.featuredMeta}>{averagePriceLabel(establishment)}</Text>
+            </>
+          )}
         </View>
       </View>
     </Pressable>
@@ -157,6 +170,7 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
   onPress: () => void;
 }) {
   const services = establishment.serviceNames.slice(0, 2).join(' · ');
+  const price = averagePriceLabel(establishment);
   return (
     <Pressable
       testID={'client-discovery-compact-' + establishment.slug}
@@ -190,6 +204,16 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
           <Text numberOfLines={1} style={styles.compactAddress}>{establishment.address}</Text>
         )}
         {!!services && <Text numberOfLines={1} style={styles.compactServices}>{services}</Text>}
+        {(!!price || establishment.instantBookingEnabled) && (
+          <View style={styles.compactMetaRow}>
+            {!!price && <Text style={styles.compactPrice}>{price}</Text>}
+            {establishment.instantBookingEnabled && (
+              <View style={styles.compactInstantBadge}>
+                <Text style={styles.compactInstantText}>NA HORA</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -267,6 +291,7 @@ export function EstablishmentCard({ establishment, onPress }: {
             {establishment.serviceCount} {establishment.serviceCount === 1 ? 'serviço' : 'serviços'}
             {'  ·  '}
             {establishment.professionalCount} {establishment.professionalCount === 1 ? 'profissional' : 'profissionais'}
+            {!!averagePriceLabel(establishment) && '  ·  ' + averagePriceLabel(establishment)}
           </Text>
           <Text style={styles.openLabel}>Ver detalhes →</Text>
         </View>
@@ -444,6 +469,10 @@ const styles = StyleSheet.create({
   compactRatingText: { color: discoveryColors.amber, fontSize: 11, fontWeight: '800' },
   compactAddress: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
   compactServices: { color: discoveryColors.accent, fontSize: 11, fontWeight: '700' },
+  compactMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
+  compactPrice: { color: discoveryColors.text, fontSize: 11, fontWeight: '800' },
+  compactInstantBadge: { borderRadius: 999, backgroundColor: discoveryColors.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
+  compactInstantText: { color: discoveryColors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
 
   // Category chip
   categoryChip: {

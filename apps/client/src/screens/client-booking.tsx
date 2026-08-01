@@ -32,6 +32,7 @@ import {
   loadClientAppointment,
   rescheduleClientAppointment,
 } from '@/features/appointments/client-appointments-service';
+import { ClientStickyFooter } from '@/components/ui/client-ui';
 import { performClientHaptic } from '@/features/experience/client-haptics';
 import { clientTheme } from '@/theme/client-theme';
 
@@ -163,18 +164,22 @@ export function ClientBookingScreen() {
   };
 
   const selectService = (serviceId: string) => {
+    void performClientHaptic('selection');
+    setBookingError(null);
+    if (serviceId === selectedServiceId) return;
     setSelectedServiceId(serviceId);
     setSelectedProfessionalId(null);
     setSelectedLocalDate(null);
     setSelectedSlot(null);
-    moveTo(2);
   };
 
   const selectProfessional = (professionalId: string) => {
+    void performClientHaptic('selection');
+    setBookingError(null);
+    if (professionalId === selectedProfessionalId) return;
     setSelectedProfessionalId(professionalId);
     setSelectedLocalDate(dateOptions[0]?.localDate ?? null);
     setSelectedSlot(null);
-    moveTo(3);
   };
 
   const selectDate = (localDate: string) => {
@@ -185,8 +190,9 @@ export function ClientBookingScreen() {
   };
 
   const selectTime = (slot: ClientAvailableSlot) => {
+    void performClientHaptic('selection');
     setSelectedSlot(slot);
-    moveTo(4);
+    setBookingError(null);
   };
 
   const confirmBooking = async () => {
@@ -320,196 +326,237 @@ export function ClientBookingScreen() {
     );
   }
 
+  const canAdvance = step === 1
+    ? Boolean(selectedServiceId)
+    : step === 2
+      ? Boolean(selectedProfessionalId)
+      : Boolean(selectedSlot);
+
+  const footerSummary = [
+    selectedOffer?.service.name,
+    selectedOffer && step >= 2 ? selectedOffer.professional.name : null,
+    selectedSlot ? selectedSlot.localTime : null,
+    selectedOffer ? formatDiscoveryPrice(selectedOffer.price, options.currency) : null,
+  ].filter(Boolean).join('  ·  ');
+
   return (
-    <ScrollView
-      ref={scrollRef}
-      testID="client-booking-screen"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      style={styles.page}
-    >
-      <StatusBar style="dark" />
-      <View style={styles.hero}>
-        <Text testID={isRescheduling ? 'client-booking-reschedule' : undefined} style={styles.eyebrow}>
-          {isRescheduling ? 'REAGENDAMENTO' : 'NOVO AGENDAMENTO'}
-        </Text>
-        <Text style={styles.title}>{options.establishmentName}</Text>
-        {!!options.establishmentAddress && <Text style={styles.description}>{options.establishmentAddress}</Text>}
-      </View>
-
-      <View accessibilityRole="tablist" style={styles.stepper}>
-        {stepLabels.map((item) => {
-          const enabled = item.step <= step;
-          return (
-            <Pressable
-              key={item.step}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: step === item.step, disabled: !enabled }}
-              disabled={!enabled}
-              onPress={() => moveTo(item.step)}
-              style={[styles.step, step === item.step && styles.stepActive]}
-            >
-              <Text style={[styles.stepNumber, step === item.step && styles.stepNumberActive]}>{item.step}</Text>
-              <Text numberOfLines={1} style={[styles.stepLabel, step === item.step && styles.stepLabelActive]}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {step === 1 && (
-        <View style={styles.section}>
-          <SectionHeading eyebrow="ETAPA 1 DE 4" title="Escolha o serviço" description="Preço e duração podem variar conforme o profissional." />
-          {options.services.length === 0 ? (
-            <DiscoveryMessage title="Serviços indisponíveis" description="Este estabelecimento ainda não possui serviços ativos." />
-          ) : (
-            <View testID="client-booking-services" style={styles.choiceList}>
-              {options.services.map((service) => (
-                <Pressable
-                  key={service.id}
-                  testID={'client-booking-service-' + service.id}
-                  accessibilityRole="button"
-                  onPress={() => selectService(service.id)}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <View style={styles.choiceCopy}>
-                    <Text style={styles.choiceTitle}>{service.name}</Text>
-                    <Text style={styles.choiceSubtitle}>{service.durationMinutes} minutos</Text>
-                  </View>
-                  <Text style={styles.choiceValue}>{formatDiscoveryPrice(service.price, options.currency)}</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <View style={styles.page}>
+      <ScrollView
+        ref={scrollRef}
+        testID="client-booking-screen"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <StatusBar style="dark" />
+        <View style={styles.hero}>
+          <Text testID={isRescheduling ? 'client-booking-reschedule' : undefined} style={styles.eyebrow}>
+            {isRescheduling ? 'REAGENDAMENTO' : 'NOVO AGENDAMENTO'}
+          </Text>
+          <Text style={styles.title}>{options.establishmentName}</Text>
         </View>
-      )}
 
-      {step === 2 && selectedServiceId && (
-        <View style={styles.section}>
-          <SectionHeading eyebrow="ETAPA 2 DE 4" title="Escolha o profissional" description="Mostramos somente quem atende o serviço selecionado." />
-          {eligibleProfessionals.length === 0 ? (
-            <DiscoveryMessage
-              title="Nenhum profissional disponível"
-              description="Volte e escolha outro serviço para continuar."
-              actionLabel="Escolher outro serviço"
-              onAction={() => moveTo(1)}
-            />
-          ) : (
-            <View testID="client-booking-professionals" style={styles.choiceList}>
-              {eligibleProfessionals.map((professional) => {
-                const offer = resolveClientBookingOffer(options, selectedServiceId, professional.id);
-                if (!offer) return null;
+        <View accessibilityRole="tablist" style={styles.stepper}>
+          {stepLabels.map((item) => {
+            const enabled = item.step <= step;
+            return (
+              <Pressable
+                key={item.step}
+                accessibilityRole="tab"
+                accessibilityLabel={'Etapa ' + item.step + ': ' + item.label}
+                accessibilityState={{ selected: step === item.step, disabled: !enabled }}
+                disabled={!enabled}
+                hitSlop={10}
+                onPress={() => moveTo(item.step)}
+                style={styles.stepTarget}
+              >
+                <View
+                  style={[
+                    styles.stepDot,
+                    item.step < step && styles.stepDotDone,
+                    item.step === step && styles.stepDotActive,
+                  ]}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {step === 1 && (
+          <View style={styles.section}>
+            <SectionHeading eyebrow="ETAPA 1 DE 4" title="Escolha o serviço" description="Preço e duração podem variar conforme o profissional." />
+            {options.services.length === 0 ? (
+              <DiscoveryMessage title="Serviços indisponíveis" description="Este estabelecimento ainda não possui serviços ativos." />
+            ) : (
+              <View testID="client-booking-services" style={styles.choiceList}>
+                {options.services.map((service) => {
+                  const selected = service.id === selectedServiceId;
+                  return (
+                    <Pressable
+                      key={service.id}
+                      testID={'client-booking-service-' + service.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => selectService(service.id)}
+                      style={({ pressed }) => [styles.choiceCard, selected && styles.choiceCardSelected, pressed && styles.pressed]}
+                    >
+                      <View style={styles.choiceCopy}>
+                        <Text style={styles.choiceTitle}>{service.name}</Text>
+                        <Text style={styles.choiceSubtitle}>{service.durationMinutes} minutos</Text>
+                      </View>
+                      <Text style={styles.choiceValue}>{formatDiscoveryPrice(service.price, options.currency)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {step === 2 && selectedServiceId && (
+          <View style={styles.section}>
+            <SectionHeading eyebrow="ETAPA 2 DE 4" title="Escolha o profissional" description="Mostramos somente quem atende o serviço selecionado." />
+            {eligibleProfessionals.length === 0 ? (
+              <DiscoveryMessage
+                title="Nenhum profissional disponível"
+                description="Volte e escolha outro serviço para continuar."
+                actionLabel="Escolher outro serviço"
+                onAction={() => moveTo(1)}
+              />
+            ) : (
+              <View testID="client-booking-professionals" style={styles.choiceList}>
+                {eligibleProfessionals.map((professional) => {
+                  const offer = resolveClientBookingOffer(options, selectedServiceId, professional.id);
+                  if (!offer) return null;
+                  const selected = professional.id === selectedProfessionalId;
+                  return (
+                    <Pressable
+                      key={professional.id}
+                      testID={'client-booking-professional-' + professional.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => selectProfessional(professional.id)}
+                      style={({ pressed }) => [styles.choiceCard, selected && styles.choiceCardSelected, pressed && styles.pressed]}
+                    >
+                      {professional.avatarUrl ? (
+                        <Image accessibilityLabel={'Foto de ' + professional.name} contentFit="cover" source={{ uri: professional.avatarUrl }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatarFallback}><Text style={styles.avatarInitials}>{initialsOf(professional.name)}</Text></View>
+                      )}
+                      <View style={styles.choiceCopy}>
+                        <Text style={styles.choiceTitle}>{professional.name}</Text>
+                        <Text style={styles.choiceSubtitle}>{professional.title || professional.specialties || 'Profissional da equipe'}</Text>
+                      </View>
+                      <View style={styles.offerMeta}>
+                        <Text style={styles.choiceValue}>{formatDiscoveryPrice(offer.price, options.currency)}</Text>
+                        <Text style={styles.offerDuration}>{offer.durationMinutes} min</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {step === 3 && selectedOffer && (
+          <View style={styles.section}>
+            <SectionHeading eyebrow="ETAPA 3 DE 4" title="Escolha data e horário" description="Os horários são consultados em tempo real na agenda do profissional." />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
+              {dateOptions.map((date) => {
+                const selected = date.localDate === selectedLocalDate;
                 return (
                   <Pressable
-                    key={professional.id}
-                    testID={'client-booking-professional-' + professional.id}
+                    key={date.localDate}
+                    testID={'client-booking-date-' + date.localDate}
                     accessibilityRole="button"
-                    onPress={() => selectProfessional(professional.id)}
-                    style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
+                    accessibilityState={{ selected }}
+                    onPress={() => selectDate(date.localDate)}
+                    style={[styles.dateCard, selected && styles.dateCardSelected]}
                   >
-                    {professional.avatarUrl ? (
-                      <Image accessibilityLabel={'Foto de ' + professional.name} contentFit="cover" source={{ uri: professional.avatarUrl }} style={styles.avatar} />
-                    ) : (
-                      <View style={styles.avatarFallback}><Text style={styles.avatarInitials}>{initialsOf(professional.name)}</Text></View>
-                    )}
-                    <View style={styles.choiceCopy}>
-                      <Text style={styles.choiceTitle}>{professional.name}</Text>
-                      <Text style={styles.choiceSubtitle}>{professional.title || professional.specialties || 'Profissional da equipe'}</Text>
-                    </View>
-                    <View style={styles.offerMeta}>
-                      <Text style={styles.choiceValue}>{formatDiscoveryPrice(offer.price, options.currency)}</Text>
-                      <Text style={styles.offerDuration}>{offer.durationMinutes} min</Text>
-                    </View>
+                    <Text style={[styles.dateWeekday, selected && styles.dateTextSelected]}>{date.isToday ? 'Hoje' : date.weekdayLabel}</Text>
+                    <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{date.dayLabel}</Text>
+                    <Text style={[styles.dateMonth, selected && styles.dateTextSelected]}>{date.monthLabel}</Text>
                   </Pressable>
                 );
               })}
+            </ScrollView>
+
+            <View testID="client-booking-availability" style={styles.availabilityCard}>
+              {!selectedLocalDate ? (
+                <Text style={styles.helperText}>Escolha uma data para consultar a agenda.</Text>
+              ) : availability.isLoading ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color={sharedBrand.colors.forest} />
+                  <Text style={styles.helperText}>Atualizando horários…</Text>
+                </View>
+              ) : availability.error ? (
+                <DiscoveryMessage
+                  testID="client-booking-availability-error"
+                  title="A agenda não carregou"
+                  description={availability.error}
+                  actionLabel="Tentar novamente"
+                  onAction={() => { void availability.refresh(); }}
+                />
+              ) : availability.slots.length === 0 ? (
+                <Text testID="client-booking-availability-empty" style={styles.helperText}>{availability.emptyMessage}</Text>
+              ) : (
+                <SlotGroups slots={availability.slots} selectedStartsAt={selectedSlot?.startsAt ?? null} onSelect={selectTime} />
+              )}
             </View>
-          )}
-        </View>
-      )}
-
-      {step === 3 && selectedOffer && (
-        <View style={styles.section}>
-          <SectionHeading eyebrow="ETAPA 3 DE 4" title="Escolha data e horário" description="Os horários são consultados em tempo real na agenda do profissional." />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-            {dateOptions.map((date) => {
-              const selected = date.localDate === selectedLocalDate;
-              return (
-                <Pressable
-                  key={date.localDate}
-                  testID={'client-booking-date-' + date.localDate}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => selectDate(date.localDate)}
-                  style={[styles.dateCard, selected && styles.dateCardSelected]}
-                >
-                  <Text style={[styles.dateWeekday, selected && styles.dateTextSelected]}>{date.isToday ? 'Hoje' : date.weekdayLabel}</Text>
-                  <Text style={[styles.dateDay, selected && styles.dateTextSelected]}>{date.dayLabel}</Text>
-                  <Text style={[styles.dateMonth, selected && styles.dateTextSelected]}>{date.monthLabel}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          <View testID="client-booking-availability" style={styles.availabilityCard}>
-            {!selectedLocalDate ? (
-              <Text style={styles.helperText}>Escolha uma data para consultar a agenda.</Text>
-            ) : availability.isLoading ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator color={sharedBrand.colors.forest} />
-                <Text style={styles.helperText}>Atualizando horários…</Text>
-              </View>
-            ) : availability.error ? (
-              <DiscoveryMessage
-                testID="client-booking-availability-error"
-                title="A agenda não carregou"
-                description={availability.error}
-                actionLabel="Tentar novamente"
-                onAction={() => { void availability.refresh(); }}
-              />
-            ) : availability.slots.length === 0 ? (
-              <Text testID="client-booking-availability-empty" style={styles.helperText}>{availability.emptyMessage}</Text>
-            ) : (
-              <SlotGroups slots={availability.slots} onSelect={selectTime} />
-            )}
+            {!!bookingError && <Text testID="client-booking-error" accessibilityLiveRegion="polite" style={styles.errorText}>{bookingError}</Text>}
           </View>
-          {!!bookingError && <Text testID="client-booking-error" accessibilityLiveRegion="polite" style={styles.errorText}>{bookingError}</Text>}
-        </View>
-      )}
+        )}
 
-      {step === 4 && selectedOffer && selectedLocalDate && selectedSlot && (
-        <View testID="client-booking-review" style={styles.section}>
-          <SectionHeading
-            eyebrow="ETAPA 4 DE 4"
-            title={isRescheduling ? 'Revise o novo horário' : 'Revise seu agendamento'}
-            description="A disponibilidade será conferida novamente ao confirmar."
-          />
-          <View style={styles.summaryCard}>
-            <SummaryRow label="Local" value={options.establishmentName} />
-            <View style={styles.divider} />
-            <SummaryRow label="Serviço" value={selectedOffer.service.name} action="Alterar" onAction={() => moveTo(1)} />
-            <View style={styles.divider} />
-            <SummaryRow label="Profissional" value={selectedOffer.professional.name} action="Alterar" onAction={() => moveTo(2)} />
-            <View style={styles.divider} />
-            <SummaryRow label="Data" value={formatBookingDateLong(selectedLocalDate)} action="Alterar" onAction={() => moveTo(3)} />
-            <View style={styles.divider} />
-            <SummaryRow label="Horário" value={selectedSlot.localTime} />
-            <View style={styles.divider} />
-            <SummaryRow label="Duração" value={selectedOffer.durationMinutes + ' minutos'} />
-            <View style={styles.divider} />
-            <SummaryRow label="Total" value={formatDiscoveryPrice(selectedOffer.price, options.currency)} strong />
+        {step === 4 && selectedOffer && selectedLocalDate && selectedSlot && (
+          <View testID="client-booking-review" style={styles.section}>
+            <SectionHeading
+              eyebrow="ETAPA 4 DE 4"
+              title={isRescheduling ? 'Revise o novo horário' : 'Revise seu agendamento'}
+              description="A disponibilidade será conferida novamente ao confirmar."
+            />
+            <View style={styles.summaryCard}>
+              <SummaryRow label="Local" value={options.establishmentName} />
+              {!!options.establishmentAddress && (
+                <>
+                  <View style={styles.divider} />
+                  <SummaryRow label="Endereço" value={options.establishmentAddress} />
+                </>
+              )}
+              <View style={styles.divider} />
+              <SummaryRow label="Serviço" value={selectedOffer.service.name} action="Alterar" onAction={() => moveTo(1)} />
+              <View style={styles.divider} />
+              <SummaryRow label="Profissional" value={selectedOffer.professional.name} action="Alterar" onAction={() => moveTo(2)} />
+              <View style={styles.divider} />
+              <SummaryRow label="Data" value={formatBookingDateLong(selectedLocalDate)} action="Alterar" onAction={() => moveTo(3)} />
+              <View style={styles.divider} />
+              <SummaryRow label="Horário" value={selectedSlot.localTime} />
+              <View style={styles.divider} />
+              <SummaryRow label="Duração" value={selectedOffer.durationMinutes + ' minutos'} />
+              <View style={styles.divider} />
+              <SummaryRow label="Total" value={formatDiscoveryPrice(selectedOffer.price, options.currency)} strong />
+            </View>
+            <View style={styles.statusNotice}>
+              <Text style={styles.statusNoticeTitle}>
+                {options.instantBookingEnabled ? 'Confirmação imediata' : 'Confirmação pelo estabelecimento'}
+              </Text>
+              <Text style={styles.statusNoticeText}>
+                {options.instantBookingEnabled
+                  ? 'Ao confirmar, o horário será reservado imediatamente.'
+                  : 'Ao confirmar, o estabelecimento receberá uma solicitação para aprovar.'}
+              </Text>
+            </View>
+            {!!bookingError && <Text testID="client-booking-error" accessibilityLiveRegion="polite" style={styles.errorText}>{bookingError}</Text>}
+            <Text style={styles.safetyText}>Nenhuma cobrança é realizada pelo aplicativo nesta etapa.</Text>
           </View>
-          <View style={styles.statusNotice}>
-            <Text style={styles.statusNoticeTitle}>
-              {options.instantBookingEnabled ? 'Confirmação imediata' : 'Confirmação pelo estabelecimento'}
-            </Text>
-            <Text style={styles.statusNoticeText}>
-              {options.instantBookingEnabled
-                ? 'Ao confirmar, o horário será reservado imediatamente.'
-                : 'Ao confirmar, o estabelecimento receberá uma solicitação para aprovar.'}
-            </Text>
-          </View>
-          {!!bookingError && <Text testID="client-booking-error" accessibilityLiveRegion="polite" style={styles.errorText}>{bookingError}</Text>}
+        )}
+      </ScrollView>
+
+      <ClientStickyFooter>
+        {!!footerSummary && (
+          <Text numberOfLines={1} style={styles.footerSummary}>{footerSummary}</Text>
+        )}
+        {step === 4 ? (
           <Pressable
             testID="client-booking-confirm"
             accessibilityRole="button"
@@ -525,10 +572,20 @@ export function ClientBookingScreen() {
               </Text>
             )}
           </Pressable>
-          <Text style={styles.safetyText}>Nenhuma cobrança é realizada pelo aplicativo nesta etapa.</Text>
-        </View>
-      )}
-    </ScrollView>
+        ) : (
+          <Pressable
+            testID="client-booking-continue"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canAdvance }}
+            disabled={!canAdvance}
+            onPress={() => moveTo((step + 1) as BookingStep)}
+            style={({ pressed }) => [styles.primaryButton, !canAdvance && styles.disabled, pressed && canAdvance && styles.pressed]}
+          >
+            <Text style={styles.primaryButtonText}>Continuar</Text>
+          </Pressable>
+        )}
+      </ClientStickyFooter>
+    </View>
   );
 }
 
@@ -564,7 +621,11 @@ function SummaryRow({ label, value, action, onAction, strong = false }: {
   );
 }
 
-function SlotGroups({ slots, onSelect }: { slots: ClientAvailableSlot[]; onSelect: (slot: ClientAvailableSlot) => void }) {
+function SlotGroups({ slots, selectedStartsAt, onSelect }: {
+  slots: ClientAvailableSlot[];
+  selectedStartsAt: string | null;
+  onSelect: (slot: ClientAvailableSlot) => void;
+}) {
   const groups = [
     { label: 'Manhã', slots: slots.filter((slot) => Number(slot.localTime.slice(0, 2)) < 12) },
     { label: 'Tarde', slots: slots.filter((slot) => {
@@ -580,18 +641,22 @@ function SlotGroups({ slots, onSelect }: { slots: ClientAvailableSlot[]; onSelec
         <View key={group.label} style={styles.slotGroup}>
           <Text style={styles.slotGroupLabel}>{group.label}</Text>
           <View style={styles.slotGrid}>
-            {group.slots.map((slot) => (
-              <Pressable
-                key={slot.startsAt}
-                testID={'client-booking-slot-' + slot.localTime}
-                accessibilityRole="button"
-                accessibilityLabel={'Selecionar ' + slot.localTime}
-                onPress={() => onSelect(slot)}
-                style={({ pressed }) => [styles.slotButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.slotButtonText}>{slot.localTime}</Text>
-              </Pressable>
-            ))}
+            {group.slots.map((slot) => {
+              const selected = slot.startsAt === selectedStartsAt;
+              return (
+                <Pressable
+                  key={slot.startsAt}
+                  testID={'client-booking-slot-' + slot.localTime}
+                  accessibilityRole="button"
+                  accessibilityLabel={'Selecionar ' + slot.localTime}
+                  accessibilityState={{ selected }}
+                  onPress={() => onSelect(slot)}
+                  style={({ pressed }) => [styles.slotButton, selected && styles.slotButtonSelected, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.slotButtonText, selected && styles.slotButtonTextSelected]}>{slot.localTime}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       ))}
@@ -602,24 +667,23 @@ function SlotGroups({ slots, onSelect }: { slots: ClientAvailableSlot[]; onSelec
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: discoveryColors.background },
   centeredContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
-  content: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 22, paddingBottom: 56, gap: 22 },
+  content: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28, gap: 22 },
   hero: { gap: 8 },
   eyebrow: { color: sharedBrand.colors.forest, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { color: discoveryColors.text, fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 },
   description: { color: discoveryColors.secondary, fontSize: 13, lineHeight: 20 },
-  stepper: { flexDirection: 'row', gap: 6, backgroundColor: '#EFE9D9', borderRadius: 20, borderCurve: 'continuous', padding: 5 },
-  step: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, borderCurve: 'continuous', paddingHorizontal: 4, paddingVertical: 9 },
-  stepActive: { backgroundColor: '#FFFFFF', boxShadow: '0 4px 12px rgba(20, 27, 23, 0.06)' },
-  stepNumber: { color: discoveryColors.muted, fontSize: 10, fontWeight: '900' },
-  stepNumberActive: { color: sharedBrand.colors.forest },
-  stepLabel: { color: discoveryColors.muted, fontSize: 10, fontWeight: '700' },
-  stepLabelActive: { color: discoveryColors.text },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepTarget: { paddingVertical: 6 },
+  stepDot: { width: 8, height: 8, borderRadius: 999, backgroundColor: '#DFD8C4' },
+  stepDotDone: { backgroundColor: '#B6C7B0' },
+  stepDotActive: { width: 26, backgroundColor: sharedBrand.colors.forest },
   section: { gap: 16 },
   sectionHeading: { gap: 6, paddingHorizontal: 2 },
   sectionTitle: { color: discoveryColors.text, fontSize: 26, lineHeight: 32, fontWeight: '800', letterSpacing: -0.6 },
   sectionDescription: { color: discoveryColors.secondary, fontSize: 13, lineHeight: 20 },
   choiceList: { gap: 11 },
-  choiceCard: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FFFFFF', borderRadius: 22, borderCurve: 'continuous', padding: 16, boxShadow: '0 8px 22px rgba(20, 27, 23, 0.05)' },
+  choiceCard: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'transparent', backgroundColor: '#FFFFFF', borderRadius: 22, borderCurve: 'continuous', padding: 16, boxShadow: '0 8px 22px rgba(20, 27, 23, 0.05)' },
+  choiceCardSelected: { borderColor: sharedBrand.colors.forest, backgroundColor: sharedBrand.colors.forestSoft },
   choiceCopy: { flex: 1, gap: 5 },
   choiceTitle: { color: discoveryColors.text, fontSize: 15, fontWeight: '700' },
   choiceSubtitle: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
@@ -644,7 +708,9 @@ const styles = StyleSheet.create({
   slotGroupLabel: { color: discoveryColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   slotButton: { minWidth: 76, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CBDCC6', borderRadius: 999, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forestSoft, paddingHorizontal: 14 },
+  slotButtonSelected: { borderColor: sharedBrand.colors.forest, backgroundColor: sharedBrand.colors.forest },
   slotButtonText: { color: sharedBrand.colors.forest, fontSize: 13, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  slotButtonTextSelected: { color: '#FFFFFF' },
   summaryCard: { gap: 0, backgroundColor: '#FFFFFF', borderRadius: 26, borderCurve: 'continuous', paddingHorizontal: 20, boxShadow: '0 10px 26px rgba(20, 27, 23, 0.05)' },
   summaryRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13 },
   summaryCopy: { flex: 1, gap: 4 },
@@ -660,6 +726,7 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.3 },
   errorText: { color: '#9A3D34', fontSize: 12, lineHeight: 18, textAlign: 'center' },
   safetyText: { color: discoveryColors.muted, fontSize: 10, lineHeight: 16, textAlign: 'center' },
+  footerSummary: { color: discoveryColors.secondary, fontSize: 12, fontWeight: '700' },
   disabled: { opacity: 0.48 },
   pressed: { opacity: 0.65 },
   successContent: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 42, paddingBottom: 52, gap: 22 },

@@ -45,9 +45,10 @@ export function AppointmentStatusBadge({ appointment }: { appointment: ClientApp
   );
 }
 
-export function ClientAppointmentCard({ appointment, onPress, featured = false }: {
+export function ClientAppointmentCard({ appointment, onPress, onRebook, featured = false }: {
   appointment: ClientAppointment;
   onPress: () => void;
+  onRebook?: () => void;
   featured?: boolean;
 }) {
   const formatted = formatClientAppointmentDateTime(appointment.startsAt, appointment.establishment.timezone);
@@ -94,6 +95,20 @@ export function ClientAppointmentCard({ appointment, onPress, featured = false }
         </View>
         <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
       </Pressable>
+      {onRebook && (
+        <Pressable
+          testID={'client-appointment-rebook-' + appointment.id}
+          accessibilityRole="button"
+          accessibilityLabel={`Agendar novamente em ${appointment.establishment.name}`}
+          onPress={() => {
+            void performClientHaptic('selection');
+            onRebook();
+          }}
+          style={({ pressed }) => [styles.rebookButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.rebookButtonText}>Agendar novamente</Text>
+        </Pressable>
+      )}
     </Animated.View>
   );
 }
@@ -134,7 +149,19 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   statusDot: { width: 6, height: 6, borderRadius: 999 },
   statusText: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 0.5 },
-  animatedCard: { width: '100%' },
+  animatedCard: { width: '100%', gap: 8 },
+  rebookButton: {
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: appointmentColors.border,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    backgroundColor: appointmentColors.card,
+    paddingHorizontal: 18,
+  },
+  rebookButtonText: { color: appointmentColors.accent, fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
   card: {
     minHeight: 156,
     flexDirection: 'row',

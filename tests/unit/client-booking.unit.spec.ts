@@ -56,6 +56,16 @@ test('expõe o wizard autenticado e confirma somente pela RPC transacional', () 
   expect(service).not.toMatch(/console\.(log|info|warn|error)/);
 });
 
+test('conduz o wizard por uma barra de ação fixa em vez de avanço automático', () => {
+  const screen = readSource('apps/client/src/screens/client-booking.tsx');
+
+  expect(screen).toContain('ClientStickyFooter');
+  expect(screen).toContain('client-booking-continue');
+  expect(screen).toContain('disabled={!canAdvance}');
+  expect(screen).not.toMatch(/setSelectedServiceId\(serviceId\);[\s\S]{0,200}moveTo\(2\)/);
+  expect(screen).not.toMatch(/setSelectedSlot\(slot\);\s*moveTo\(4\)/);
+});
+
 test('mantém catálogo e criação protegidos no backend', () => {
   const migration = readSource('supabase/migrations/20260723023000_client_booking.sql');
   const sqlTest = readSource('supabase/tests/client_booking.sql');

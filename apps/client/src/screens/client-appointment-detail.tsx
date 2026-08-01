@@ -135,6 +135,25 @@ export function ClientAppointmentDetailScreen() {
         </View>
       )}
 
+      {(appointment.status === 'completed' || appointment.status === 'cancelled') && (
+        <View testID="client-appointment-rebook-actions" style={styles.actionsCard}>
+          <Pressable
+            testID="client-appointment-rebook"
+            accessibilityRole="button"
+            onPress={() => {
+              void performClientHaptic('selection');
+              router.push({
+                pathname: '/booking/[slug]',
+                params: { slug: appointment.establishment.slug, serviceId: appointment.service.id },
+              });
+            }}
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryButtonText}>Agendar novamente</Text>
+          </Pressable>
+        </View>
+      )}
+
       {(appointment.canReschedule || appointment.canCancel) && (
         <View testID="client-appointment-actions" style={styles.actionsCard}>
           {appointment.canReschedule && (
