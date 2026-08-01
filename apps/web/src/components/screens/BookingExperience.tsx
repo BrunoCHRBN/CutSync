@@ -47,13 +47,19 @@ import { BookingStepper } from '../ui/BookingStepper';
 export const BookingExperience = () => {
   const { width } = useWindowDimensions();
   const isMobileWeb = width < layout.mobileBreakpoint;
-  const { barbershopId, professionalId: professionalIdParam } = useLocalSearchParams<{
+  const {
+    barbershopId,
+    professionalId: professionalIdParam,
+    serviceId: serviceIdParam,
+  } = useLocalSearchParams<{
     barbershopId: string;
     professionalId?: string;
+    serviceId?: string;
   }>();
   const initialProfessionalId = Array.isArray(professionalIdParam)
     ? professionalIdParam[0]
     : professionalIdParam;
+  const initialServiceId = Array.isArray(serviceIdParam) ? serviceIdParam[0] : serviceIdParam;
   const router = useRouter();
   const { user } = useAuth();
 
@@ -99,14 +105,35 @@ export const BookingExperience = () => {
 
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
-  const [didApplyProfessionalPrefill, setDidApplyProfessionalPrefill] = useState(false);
+  const [didApplyDeepLinkPrefill, setDidApplyDeepLinkPrefill] = useState(false);
 
   useEffect(() => {
-    if (didApplyProfessionalPrefill || teamLoading || !initialProfessionalId) return;
-    if (!barbers.some((barber) => barber.id === initialProfessionalId)) return;
-    setSelectedBarber(initialProfessionalId);
-    setDidApplyProfessionalPrefill(true);
-  }, [barbers, didApplyProfessionalPrefill, initialProfessionalId, teamLoading]);
+    if (didApplyDeepLinkPrefill || servicesLoading || teamLoading) return;
+    if (!initialServiceId && !initialProfessionalId) return;
+
+    const serviceReady = Boolean(
+      initialServiceId && services.some((service) => service.id === initialServiceId),
+    );
+    const professionalReady = Boolean(
+      initialProfessionalId && barbers.some((barber) => barber.id === initialProfessionalId),
+    );
+
+    if (serviceReady && initialServiceId) setSelectedService(initialServiceId);
+    if (professionalReady && initialProfessionalId) setSelectedBarber(initialProfessionalId);
+
+    if (serviceReady && professionalReady) setWizardStep(3);
+    else if (serviceReady) setWizardStep(2);
+
+    setDidApplyDeepLinkPrefill(true);
+  }, [
+    barbers,
+    didApplyDeepLinkPrefill,
+    initialProfessionalId,
+    initialServiceId,
+    services,
+    servicesLoading,
+    teamLoading,
+  ]);
 
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
@@ -399,7 +426,7 @@ export const BookingExperience = () => {
           </Pressable>
 
           <Text style={styles.topbarTitle} numberOfLines={1}>
-            {barbershop?.name || 'Novo Agendamento'}
+            {formatEstablishmentDisplayName(barbershop?.name, barbershop?.slug) || 'Novo Agendamento'}
           </Text>
 
           <View style={{ width: 60 }} />

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Camera, Clock3, MapPin, Phone, Scissors, Star, Store, UsersRound } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -112,12 +112,12 @@ export const BarbershopProfileExperience = () => {
   const accentFg = readableForeground(accent);
   const displayName = formatEstablishmentDisplayName(barbershop.name, barbershop.slug);
   const instagramHandle = normalizeInstagramHandle(barbershop.instagram);
-  const goBooking = (professionalId?: string) => {
+  const goBooking = (options?: { professionalId?: string; serviceId?: string }) => {
     tapLight();
-    const query = professionalId
-      ? `barbershopId=${barbershopId}&professionalId=${professionalId}`
-      : `barbershopId=${barbershopId}`;
-    router.push(`/(client)/booking?${query}`);
+    const params = new URLSearchParams({ barbershopId: String(barbershopId) });
+    if (options?.professionalId) params.set('professionalId', options.professionalId);
+    if (options?.serviceId) params.set('serviceId', options.serviceId);
+    router.push(`/(client)/booking?${params.toString()}`);
   };
   const openProfessional = (professional: (typeof barbers)[number]) => {
     tapLight();
@@ -125,7 +125,7 @@ export const BarbershopProfileExperience = () => {
       router.push(`/profile/${professional.profileSlug}`);
       return;
     }
-    goBooking(professional.id);
+    goBooking({ professionalId: professional.id });
   };
 
   return (
@@ -188,9 +188,16 @@ export const BarbershopProfileExperience = () => {
                 )}
               </View>
               {!!barbershop.slogan && <Text style={styles.slogan}>“{barbershop.slogan}”</Text>}
-              <Text testID="barbershop-profile-description" style={styles.description}>
-                {barbershop.description || 'Este estabelecimento ainda não publicou uma descrição.'}
+              <Text testID="barbershop-profile-rating" style={styles.ratingLine}>
+                {barbershop.averageRating
+                  ? `★ ${barbershop.averageRating.toFixed(1)}${barbershop.reviewCount ? ` · ${barbershop.reviewCount} avaliações` : ''}`
+                  : '★ Novo no CutSync'}
               </Text>
+              {!!barbershop.description && (
+                <Text testID="barbershop-profile-description" style={styles.description}>
+                  {barbershop.description}
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -212,18 +219,24 @@ export const BarbershopProfileExperience = () => {
               </View>
             </View>
           </View>
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}><Phone color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
-            <View style={styles.infoCopyText}>
-              <Text style={styles.infoLabel}>Contato</Text>
-              <Text style={styles.infoValue}>{barbershop.phone || 'Telefone não informado'}</Text>
+          {!!barbershop.phone && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIcon}><Phone color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
+              <View style={styles.infoCopyText}>
+                <Text style={styles.infoLabel}>Contato</Text>
+                <Text style={styles.infoValue}>{barbershop.phone}</Text>
+              </View>
             </View>
-          </View>
+          )}
           <View style={styles.infoItem}>
-            <View style={styles.infoIcon}><Coins color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
+            <View style={styles.infoIcon}><Star color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
             <View style={styles.infoCopyText}>
-              <Text style={styles.infoLabel}>Moeda oficial</Text>
-              <Text style={styles.infoValue}>{barbershop.currency || 'BRL'}</Text>
+              <Text style={styles.infoLabel}>Avaliação</Text>
+              <Text style={styles.infoValue}>
+                {barbershop.averageRating
+                  ? `${barbershop.averageRating.toFixed(1)} · ${barbershop.reviewCount || 0} reviews`
+                  : 'Ainda sem avaliações'}
+              </Text>
             </View>
           </View>
         </View>
@@ -290,14 +303,24 @@ export const BarbershopProfileExperience = () => {
           ) : (
             <View testID="barbershop-services-grid" style={styles.cardsGrid}>
               {services.map((service) => (
-                <View key={service.id} testID={`barbershop-service-${service.id}`} style={styles.serviceCard}>
+                <Pressable
+                  key={service.id}
+                  testID={`barbershop-service-${service.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Agendar ${service.name}`}
+                  onPress={() => goBooking({ serviceId: service.id })}
+                  style={({ pressed }) => [styles.serviceCard, pressed && styles.pressedScale]}
+                >
                   <View style={styles.cardIcon}>
                     <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
                   </View>
-                  <Text style={styles.serviceName}>{service.name}</Text>
+                  <View style={styles.serviceCopy}>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
+                  </View>
                   <Text style={styles.servicePrice}>{currency(service.price)}</Text>
-                  <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
-                </View>
+                  <Text style={styles.serviceBookHint}>Reservar</Text>
+                </Pressable>
               ))}
             </View>
           )}
@@ -340,9 +363,9 @@ export const BarbershopProfileExperience = () => {
                     <Text style={styles.professionalName}>{professionalName}</Text>
                     <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                     {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                    {!!item.profileSlug && (
-                      <Text style={styles.barberInstaText}>Ver perfil público →</Text>
-                    )}
+                    <Text style={styles.barberInstaText}>
+                      {item.profileSlug ? 'Ver perfil →' : 'Agendar →'}
+                    </Text>
                     {!item.profileSlug && !!professionalInstagram && (
                       <View style={styles.barberInstaBtn}>
                         <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
@@ -374,12 +397,11 @@ export const BarbershopProfileExperience = () => {
         ) : null}
       </ScrollView>
 
-      {/* Barra de ação flutuante (glassmorphism) */}
-      <View style={[styles.floatingWrap, isWide && styles.floatingWrapWide]} pointerEvents="box-none">
+      <View style={styles.floatingWrap} pointerEvents="box-none">
         <View testID="barbershop-booking-cta" style={styles.floatingBar}>
           <View style={styles.floatingCopy}>
-            <Text style={styles.floatingEyebrow}>Pronto para o próximo corte?</Text>
-            <Text numberOfLines={1} style={styles.floatingTitle}>Garanta seu horário na agenda</Text>
+            <Text style={styles.floatingEyebrow}>Agendar neste lugar</Text>
+            <Text numberOfLines={1} style={styles.floatingTitle}>Escolha serviço e horário</Text>
           </View>
           <Pressable
             testID="barbershop-profile-book-button"
@@ -405,24 +427,25 @@ const styles = StyleSheet.create({
   topbarStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', paddingBottom: 150 },
-  heroContainer: { width: '100%', aspectRatio: 3.2, minHeight: 180, maxHeight: 300, position: 'relative', overflow: 'hidden' },
+  heroContainer: { width: '100%', aspectRatio: 3.8, minHeight: 140, maxHeight: 220, position: 'relative', overflow: 'hidden' },
   bannerImage: { width: '100%', height: '100%' },
   bannerFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 48 },
-  heroCopy: { paddingHorizontal: 20, marginTop: 18, zIndex: 2 },
+  heroCopy: { paddingHorizontal: 20, marginTop: 14, zIndex: 2 },
   heroCopyWide: { paddingHorizontal: 40 },
-  brandContainer: { flexDirection: 'row', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' },
-  logoCircle: { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: colors.surface, backgroundColor: '#FAFAF8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...atmosphericShadow },
+  brandContainer: { flexDirection: 'row', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' },
+  logoCircle: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: colors.surface, backgroundColor: '#FAFAF8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...atmosphericShadow },
   logoImage: { width: '100%', height: '100%' },
-  logoLetter: { fontFamily: typography.serif, fontSize: 30, color: '#52525B', letterSpacing: 1 },
-  titleInfo: { flex: 1, minWidth: 260, justifyContent: 'flex-end' },
+  logoLetter: { fontFamily: typography.serif, fontSize: 26, color: '#52525B', letterSpacing: 1 },
+  titleInfo: { flex: 1, minWidth: 240, justifyContent: 'flex-end' },
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
-  title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1 },
+  title: { color: colors.text, fontFamily: typography.display, fontSize: 26, letterSpacing: -1 },
   slogan: { color: colors.textSecondary, fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
+  ratingLine: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 8 },
   instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surface, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: hairlineW, borderColor: colors.border },
   instagramBadgeText: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textSecondary },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginTop: 8 },
-  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 24 },
-  infoItem: { flex: 1, minWidth: 200, flexDirection: 'row', gap: 11, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 15, ...atmosphericShadow },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 20 },
+  infoItem: { flex: 1, minWidth: 180, flexDirection: 'row', gap: 11, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 15, ...atmosphericShadow },
   infoIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.pill },
   infoCopyText: { flex: 1 },
   infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
@@ -438,13 +461,15 @@ const styles = StyleSheet.create({
   mapInfoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: colors.surface, borderTopWidth: hairlineW, borderTopColor: colors.hairline },
   mapInfoAddress: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   routeBtn: { minHeight: 34, paddingVertical: 6, paddingHorizontal: 12 },
-  section: { marginTop: 44, paddingHorizontal: 20, gap: 16 },
+  section: { marginTop: 32, paddingHorizontal: 20, gap: 14 },
   cardsGrid: { borderColor: colors.borderSubtle, borderRadius: radii.lg, borderWidth: 1, overflow: 'hidden' },
   serviceCard: { alignItems: 'center', backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle, borderBottomWidth: hairlineW, flexDirection: 'row', gap: 12, minHeight: 68, paddingHorizontal: 16, paddingVertical: 12 },
   cardIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
-  serviceName: { color: colors.text, flex: 1, fontFamily: typography.bodyStrong, fontSize: 14 },
+  serviceCopy: { flex: 1, gap: 2 },
+  serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14 },
   servicePrice: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14 },
   serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
+  serviceBookHint: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 11 },
   professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 18, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, ...atmosphericShadow },
   avatarCircleSmall: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.canvas },
   avatarImage: { width: '100%', height: '100%' },
@@ -455,11 +480,10 @@ const styles = StyleSheet.create({
   barberInstaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
   barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
   galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover' },
-  floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
-  floatingWrapWide: { left: undefined, right: 28, alignItems: 'flex-end' },
+  floatingWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', zIndex: 10, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
   floatingBar: {
     width: '100%',
-    maxWidth: 680,
+    maxWidth: layout.contentMax,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,

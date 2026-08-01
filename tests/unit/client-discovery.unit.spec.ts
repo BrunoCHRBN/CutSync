@@ -40,10 +40,28 @@ test('aplica tipografia e Instagram no Client web explore/detalhe', () => {
 
   expect(explore).toContain('formatEstablishmentDisplayName');
   expect(detail).toContain('normalizeInstagramHandle');
-  expect(detail).toContain('Ver perfil público →');
+  expect(detail).toContain('Ver perfil →');
   expect(detail).toContain('/profile/${professional.profileSlug}');
   expect(models).toContain('professional_profile_slug');
   expect(models).toContain('profileSlug');
+});
+
+test('adensa o Client web explore→detalhe→booking no padrão marketplace', () => {
+  const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
+  const detail = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
+  const booking = readSource('apps/web/src/components/screens/BookingExperience.tsx');
+
+  expect(explore).toContain('Onde você quer marcar?');
+  expect(explore).toContain("lugar' : 'lugares'");
+  expect(explore).not.toContain('Seleção CutSync');
+  expect(explore).toContain('aspectRatio: 2.6');
+  expect(detail).toContain('barbershop-profile-rating');
+  expect(detail).toContain('goBooking({ serviceId: service.id })');
+  expect(detail).toContain('Reservar');
+  expect(detail).not.toContain('Moeda oficial');
+  expect(booking).toContain('formatEstablishmentDisplayName(barbershop?.name, barbershop?.slug)');
+  expect(booking).toContain('initialServiceId');
+  expect(booking).toContain('setWizardStep(3)');
 });
 
 test('normaliza a busca e rejeita emoji, SVG e excesso de caracteres', () => {
