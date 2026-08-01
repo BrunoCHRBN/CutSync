@@ -33,7 +33,7 @@ test('apresenta o onboarding uma vez e permite pular', async ({ page }) => {
 
 test('mantém as rotas privadas do Client protegidas sem sessão', async ({ page }) => {
   await bypassOnboarding(page);
-  for (const privatePath of ['/profile', '/explore', '/appointments', '/appointments/appointment-test', '/appointments/appointment-test/cancel', '/establishments/estudio-teste', '/booking/estudio-teste']) {
+  for (const privatePath of ['/profile', '/explore', '/appointments', '/appointments/appointment-test', '/appointments/appointment-test/cancel', '/establishments/estudio-teste', '/professionals/profissional-teste', '/booking/estudio-teste']) {
     await page.goto(privatePath);
     await expect(page.getByTestId('client-sign-in-screen')).toBeVisible();
     await expect(page.getByTestId('client-auth-config-message')).toHaveCount(0);

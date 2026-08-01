@@ -56,7 +56,7 @@ test('prioriza busca e agendamento direto na descoberta do Client', () => {
 
   expect(detail).toContain('ClientStickyFooter');
   expect(detail).toContain("'client-establishment-service-' + service.id");
-  expect(detail).toContain('startBooking(service.id)');
+  expect(detail).toContain('startBooking({ serviceId: service.id })');
   expect(ui).toContain('export function ClientStickyFooter');
 });
 
@@ -95,6 +95,26 @@ test('enriquece o detalhe com horário, mapa e tipografia de display', () => {
   expect(ui).toContain('FEATURED_CARD_HEIGHT');
   expect(ui).toContain('formatDisplayName(establishment.name)');
   expect(discovery).toContain("lugar' : 'lugares'");
+});
+
+test('abre perfil público nativo a partir da equipe do estabelecimento', () => {
+  const layout = readSource('apps/client/src/app/(app)/_layout.tsx');
+  const detail = readSource('apps/client/src/screens/client-establishment-detail.tsx');
+  const ui = readSource('apps/client/src/components/discovery/client-discovery-ui.tsx');
+  const screen = readSource('apps/client/src/screens/client-professional-profile.tsx');
+  const service = readSource('apps/client/src/features/discovery/client-professional-profile-service.ts');
+
+  expect(fs.existsSync(path.join(root, 'apps/client/src/app/(app)/professionals/[slug].tsx'))).toBe(true);
+  expect(layout).toContain('name="professionals/[slug]"');
+  expect(detail).toContain("pathname: '/professionals/[slug]'");
+  expect(detail).toContain('establishmentSlug');
+  expect(detail).toContain('client-establishment-professional-');
+  expect(ui).toContain('Ver perfil público →');
+  expect(screen).toContain('client-professional-profile-screen');
+  expect(screen).toContain('client-professional-profile-start-booking');
+  expect(service).toContain("rpc('get_public_professional_profile'");
+  expect(service).not.toMatch(/service.?role/i);
+  expect(service).not.toMatch(/console\.(log|info|warn|error)/);
 });
 
 test('limita o catálogo no servidor a dados ativos e contratos autenticados', () => {

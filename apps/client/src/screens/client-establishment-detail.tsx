@@ -93,12 +93,33 @@ export function ClientEstablishmentDetailScreen() {
     if (!query) return;
     void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
   };
-  const startBooking = (serviceId?: string) => {
+  const startBooking = (options?: { serviceId?: string; professionalId?: string }) => {
     void performClientHaptic('selection');
     router.push({
       pathname: '/booking/[slug]',
-      params: serviceId ? { slug: establishment.slug, serviceId } : { slug: establishment.slug },
+      params: {
+        slug: establishment.slug,
+        ...(options?.serviceId ? { serviceId: options.serviceId } : {}),
+        ...(options?.professionalId ? { professionalId: options.professionalId } : {}),
+      },
     });
+  };
+
+  const openProfessional = (professional: ClientDiscoveryDetail['professionals'][number]) => {
+    void performClientHaptic('selection');
+    if (professional.profileSlug) {
+      router.push({
+        pathname: '/professionals/[slug]',
+        params: {
+          slug: professional.profileSlug,
+          establishmentSlug: establishment.slug,
+          professionalId: professional.id,
+        },
+      });
+      return;
+    }
+    if (!canBook) return;
+    startBooking({ professionalId: professional.id });
   };
 
   return (
@@ -241,7 +262,7 @@ export function ClientEstablishmentDetailScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={'Agendar ' + service.name}
                     disabled={!canBook}
-                    onPress={() => startBooking(service.id)}
+                    onPress={() => startBooking({ serviceId: service.id })}
                     style={({ pressed }) => [styles.serviceRow, pressed && styles.rowPressed]}
                   >
                     <View style={styles.serviceCopy}>
@@ -271,7 +292,15 @@ export function ClientEstablishmentDetailScreen() {
             <View testID="client-establishment-professionals" style={styles.listCard}>
               {establishment.professionals.map((professional, index) => (
                 <View key={professional.id}>
-                  <ProfessionalCard professional={professional} />
+                  <ProfessionalCard
+                    testID={'client-establishment-professional-' + professional.id}
+                    professional={professional}
+                    onPress={
+                      professional.profileSlug || canBook
+                        ? () => openProfessional(professional)
+                        : undefined
+                    }
+                  />
                   {index < establishment.professionals.length - 1 && <View style={styles.divider} />}
                 </View>
               ))}

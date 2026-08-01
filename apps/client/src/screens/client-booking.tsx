@@ -59,10 +59,14 @@ export function ClientBookingScreen() {
   const params = useLocalSearchParams<{
     slug?: string | string[];
     serviceId?: string | string[];
+    professionalId?: string | string[];
     appointmentId?: string | string[];
   }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
   const initialServiceId = Array.isArray(params.serviceId) ? params.serviceId[0] : params.serviceId;
+  const initialProfessionalId = Array.isArray(params.professionalId)
+    ? params.professionalId[0]
+    : params.professionalId;
   const appointmentId = Array.isArray(params.appointmentId) ? params.appointmentId[0] : params.appointmentId;
   const isRescheduling = Boolean(appointmentId);
   const router = useRouter();
@@ -120,9 +124,32 @@ export function ClientBookingScreen() {
           setSelectedProfessionalId(appointment.professional.id);
           setSelectedLocalDate(getBookingDateOptions(result.timezone, 14)[0]?.localDate ?? null);
           setStep(3);
-        } else if (result && initialServiceId && result.services.some((service) => service.id === initialServiceId)) {
-          setSelectedServiceId(initialServiceId);
-          setStep(2);
+        } else if (result) {
+          const serviceReady = Boolean(
+            initialServiceId && result.services.some((service) => service.id === initialServiceId),
+          );
+          const professionalReady = Boolean(
+            initialProfessionalId
+            && result.professionals.some((professional) => professional.id === initialProfessionalId),
+          );
+          if (serviceReady && professionalReady && initialServiceId && initialProfessionalId
+            && resolveClientBookingOffer(result, initialServiceId, initialProfessionalId)) {
+            setSelectedServiceId(initialServiceId);
+            setSelectedProfessionalId(initialProfessionalId);
+            setSelectedLocalDate(getBookingDateOptions(result.timezone, 14)[0]?.localDate ?? null);
+            setStep(3);
+          } else if (serviceReady && initialServiceId) {
+            setSelectedServiceId(initialServiceId);
+            if (professionalReady && initialProfessionalId
+              && resolveClientBookingOffer(result, initialServiceId, initialProfessionalId)) {
+              setSelectedProfessionalId(initialProfessionalId);
+              setSelectedLocalDate(getBookingDateOptions(result.timezone, 14)[0]?.localDate ?? null);
+            }
+            setStep(2);
+          } else if (professionalReady && initialProfessionalId) {
+            setSelectedProfessionalId(initialProfessionalId);
+            setStep(1);
+          }
         }
       } catch (error) {
         if (active) setLoadError(error instanceof Error ? error.message : 'Não foi possível preparar o agendamento.');
@@ -132,7 +159,7 @@ export function ClientBookingScreen() {
     };
     void load();
     return () => { active = false; };
-  }, [appointmentId, initialServiceId, slug]);
+  }, [appointmentId, initialProfessionalId, initialServiceId, slug]);
 
   const dateOptions = useMemo(
     () => options ? getBookingDateOptions(options.timezone, 14) : [],
@@ -191,8 +218,12 @@ export function ClientBookingScreen() {
     setBookingError(null);
     if (serviceId === selectedServiceId) return;
     setSelectedServiceId(serviceId);
-    setSelectedProfessionalId(null);
-    setSelectedLocalDate(null);
+    const keepProfessional = selectedProfessionalId
+      && selectedProfessionalId !== ANY_PROFESSIONAL
+      && options
+      && resolveClientBookingOffer(options, serviceId, selectedProfessionalId);
+    setSelectedProfessionalId(keepProfessional ? selectedProfessionalId : null);
+    setSelectedLocalDate(keepProfessional ? (dateOptions[0]?.localDate ?? null) : null);
     setSelectedSlot(null);
   };
 

@@ -318,10 +318,18 @@ export function EstablishmentCard({ establishment, onPress }: {
   );
 }
 
-export function ProfessionalCard({ professional }: { professional: ClientDiscoveryProfessional }) {
+export function ProfessionalCard({
+  professional,
+  onPress,
+  testID,
+}: {
+  professional: ClientDiscoveryProfessional;
+  onPress?: () => void;
+  testID?: string;
+}) {
   const displayName = formatDisplayName(professional.name);
-  return (
-    <View style={styles.professionalCard}>
+  const content = (
+    <>
       {professional.avatarUrl ? (
         <Image
           accessibilityLabel={'Foto de ' + displayName}
@@ -342,10 +350,35 @@ export function ProfessionalCard({ professional }: { professional: ClientDiscove
           <Text numberOfLines={2} style={styles.professionalSpecialties}>{professional.specialties}</Text>
         )}
         {!!professional.profileSlug && (
-          <Text style={styles.professionalProfileHint}>Perfil público disponível</Text>
+          <Text style={styles.professionalProfileHint}>
+            {onPress ? 'Ver perfil público →' : 'Perfil público disponível'}
+          </Text>
+        )}
+        {!professional.profileSlug && !!onPress && (
+          <Text style={styles.professionalProfileHint}>Agendar com este profissional →</Text>
         )}
       </View>
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.professionalCard}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={
+        professional.profileSlug
+          ? 'Ver perfil de ' + displayName
+          : 'Agendar com ' + displayName
+      }
+      onPress={onPress}
+      style={({ pressed }) => [styles.professionalCard, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
   );
 }
 

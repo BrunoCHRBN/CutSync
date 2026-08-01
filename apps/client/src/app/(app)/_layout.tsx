@@ -19,6 +19,7 @@ export default function ClientAppLayout() {
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="establishments/[slug]" options={{ title: 'Detalhes' }} />
+          <Stack.Screen name="professionals/[slug]" options={{ title: 'Profissional' }} />
           <Stack.Screen name="booking/[slug]" options={{ title: 'Agendar' }} />
           <Stack.Screen name="appointments/[id]" options={{ title: 'Atendimento' }} />
           <Stack.Screen

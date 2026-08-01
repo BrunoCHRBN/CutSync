@@ -81,6 +81,15 @@ test('oferece qualquer profissional com resolução client-side de slots', () =>
   expect(hook).toContain('loadClientAvailability');
 });
 
+test('aceita professionalId na deep link e preserva elegibilidade ao trocar serviço', () => {
+  const screen = readSource('apps/client/src/screens/client-booking.tsx');
+
+  expect(screen).toContain('initialProfessionalId');
+  expect(screen).toContain('professionalReady');
+  expect(screen).toContain('keepProfessional');
+  expect(screen).toContain('setStep(3)');
+});
+
 test('mantém catálogo e criação protegidos no backend', () => {
   const migration = readSource('supabase/migrations/20260723023000_client_booking.sql');
   const sqlTest = readSource('supabase/tests/client_booking.sql');
