@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Quote } from 'lucide-react-native';
-import { landingColors, landingRadii, landingTypography } from '../../../theme/landing-tokens';
+import { landingColors, landingTypography } from '../../../theme/landing-tokens';
 import { LandingPageAudience } from '../landing-content';
 import { getApprovedTestimonials } from '../landing-testimonials';
 import { LandingSectionShell } from './section-shell';
@@ -40,17 +40,23 @@ export const TestimonialsSection = ({ audience, onLayout, onReveal }: Testimonia
 };
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, borderTopWidth: 1, borderColor: landingColors.border },
   card: {
     flex: 1,
     minWidth: 280,
-    padding: 24,
-    gap: 14,
-    borderRadius: landingRadii.lg,
-    borderWidth: 1,
+    paddingVertical: 32,
+    paddingHorizontal: 28,
+    gap: 16,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
     borderColor: landingColors.border,
-    backgroundColor: landingColors.surface,
   },
-  quote: { color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
-  person: { color: landingColors.inkMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 12 },
+  quote: {
+    color: landingColors.ink,
+    fontFamily: landingTypography.displaySemiBold,
+    fontSize: 20,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+  },
+  person: { color: landingColors.inkMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 12, letterSpacing: 0.2 },
 });

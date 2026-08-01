@@ -1,16 +1,21 @@
 import React from 'react';
-import { LayoutChangeEvent, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { LayoutChangeEvent, StyleProp, StyleSheet, Text, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { landingColors, landingLayout, landingTypography } from '../../../theme/landing-tokens';
 import { RevealOnScroll } from '../motion/landing-effects';
 import { LandingSectionId } from '../landing-content';
 
-export const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => (
-  <View style={styles.heading}>
-    <Text style={styles.eyebrow}>{eyebrow}</Text>
-    <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-    <Text style={styles.description}>{description}</Text>
-  </View>
-);
+export const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) => {
+  const { width } = useWindowDimensions();
+  const compact = width < landingLayout.mobileBreakpoint;
+
+  return (
+    <View style={styles.heading}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact]}>{title}</Text>
+      <Text style={styles.description}>{description}</Text>
+    </View>
+  );
+};
 
 interface LandingSectionShellProps {
   id: LandingSectionId;
@@ -44,9 +49,28 @@ export const LandingSectionShell = ({
 );
 
 const styles = StyleSheet.create({
-  section: { gap: 40 },
-  heading: { maxWidth: landingLayout.copyWidth, gap: 12 },
-  eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
-  title: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 40, lineHeight: 46, letterSpacing: -1.5 },
-  description: { maxWidth: 620, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
+  section: { gap: 48 },
+  heading: { maxWidth: landingLayout.copyWidth, gap: 14 },
+  eyebrow: {
+    color: landingColors.brand,
+    fontFamily: landingTypography.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: landingColors.ink,
+    fontFamily: landingTypography.displaySemiBold,
+    fontSize: 44,
+    lineHeight: 50,
+    letterSpacing: -1.7,
+  },
+  titleCompact: { fontSize: 32, lineHeight: 38, letterSpacing: -1.1 },
+  description: {
+    maxWidth: 620,
+    color: landingColors.inkSecondary,
+    fontFamily: landingTypography.body,
+    fontSize: 16,
+    lineHeight: 27,
+  },
 });

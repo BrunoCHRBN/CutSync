@@ -15,6 +15,7 @@ interface ServicesCapabilitiesProps {
 
 export const ServicesCapabilities = ({ audience, onLayout, onReveal, children }: ServicesCapabilitiesProps) => {
   const content = LANDING_CONTENT[audience].services;
+  const structural = audience === 'business';
 
   return (
     <LandingSectionShell
@@ -26,9 +27,13 @@ export const ServicesCapabilities = ({ audience, onLayout, onReveal, children }:
       onLayout={onLayout as never}
       onReveal={onReveal}
     >
-      <StaggerGroup style={styles.grid}>
+      <StaggerGroup style={[styles.grid, structural && styles.gridStructural]}>
         {content.items.map((item, index) => (
-          <StaggerItem key={item.title} index={index % 6} style={styles.item}>
+          <StaggerItem
+            key={item.title}
+            index={index % 6}
+            style={[styles.item, structural ? styles.itemStructural : styles.itemEditorial]}
+          >
             <View style={styles.badge}><Check size={13} color={landingColors.brand} /></View>
             <Text style={styles.itemTitle}>{item.title}</Text>
             <Text style={styles.itemText}>{item.description}</Text>
@@ -43,16 +48,31 @@ export const ServicesCapabilities = ({ audience, onLayout, onReveal, children }:
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, backgroundColor: landingColors.border },
+  gridStructural: { backgroundColor: landingColors.borderStrong },
   item: {
     flex: 1,
     minWidth: 260,
-    minHeight: 170,
-    padding: 24,
-    gap: 10,
+    minHeight: 180,
+    padding: 28,
+    gap: 12,
     backgroundColor: landingColors.canvas,
   },
-  badge: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: landingRadii.sm, backgroundColor: landingColors.brandSoft },
-  itemTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 16 },
-  itemText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 20 },
+  itemEditorial: { backgroundColor: landingColors.surface },
+  itemStructural: { backgroundColor: landingColors.surface },
+  badge: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: landingRadii.sm,
+    backgroundColor: landingColors.brandSoft,
+  },
+  itemTitle: {
+    color: landingColors.ink,
+    fontFamily: landingTypography.displaySemiBold,
+    fontSize: 20,
+    letterSpacing: -0.4,
+  },
+  itemText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22 },
   note: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 19 },
 });
