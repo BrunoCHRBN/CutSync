@@ -53,3 +53,28 @@ test('booking aplica tema da marca nos pontos visuais', () => {
   expect(booking).not.toContain('#113939');
   expect(booking).not.toContain('colors.brandPrimary');
 });
+
+test('explore cards aplicam tema da marca no CTA', () => {
+  const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
+
+  expect(explore).toContain('buildEstablishmentTheme(shop.primaryColor)');
+  expect(explore).toContain('client-shop-card-${shop.id}-cta');
+  expect(explore).toContain('accentText(theme)');
+  expect(explore).toContain('primaryButton(theme)');
+  expect(explore).toContain('logoRing(theme)');
+});
+
+test('settings usa BrandColorPicker e prévia expandida da marca', () => {
+  const settings = readSource('apps/web/src/components/screens/SettingsExperience.tsx');
+  const picker = readSource('apps/web/src/components/ui/BrandColorPicker.tsx');
+  const preview = readSource('apps/web/src/components/settings/EstablishmentBrandPreview.tsx');
+
+  expect(settings).toContain('BrandColorPicker');
+  expect(settings).toContain('EstablishmentBrandPreview');
+  expect(picker).toContain('ESTABLISHMENT_COLOR_PRESETS');
+  expect(picker).toContain('settings-color-input');
+  expect(picker).toContain('meetsWcagAA');
+  expect(preview).toContain('Agendar agora');
+  expect(preview).toContain('settings-explore-card-preview');
+  expect(preview).toContain('primaryButton(theme)');
+});

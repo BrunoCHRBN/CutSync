@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindow
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
+import { buildEstablishmentTheme } from '@cutsync/brand';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { Establishment, mapEstablishment } from '@cutsync/database';
@@ -14,6 +15,7 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { ClientFilterChip } from '../ui/ClientFilterChip';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
+import { accentText, logoRing, primaryButton } from '../../theme/establishment-styles';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 import { getOpeningStatus } from '@cutsync/domain';
@@ -59,7 +61,7 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
   onOpen: (id: string) => void;
   desktop?: boolean;
 }) => {
-  const accent = shop.primaryColor || colors.accent;
+  const theme = useMemo(() => buildEstablishmentTheme(shop.primaryColor), [shop.primaryColor]);
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
   return (
     <Pressable
@@ -70,13 +72,13 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
       style={({ pressed }) => [styles.shopCard, desktop ? styles.gridCard : styles.carouselSlide, pressed && styles.pressed]}
     >
       <View style={styles.visual}>
-        <EstablishmentMedia name={shop.name} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
-        <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
+        <EstablishmentMedia name={shop.name} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
+        <View style={[styles.visualLine, { backgroundColor: theme.muted }]} />
       </View>
       <View style={styles.shopBody}>
         <View style={styles.shopHeaderRow}>
-          <View style={styles.shopLogoCircle}>
-            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>}
+          <View style={[styles.shopLogoCircle, logoRing(theme)]}>
+            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, accentText(theme)]}>{initialsOf(shop.name)}</Text>}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
@@ -84,13 +86,16 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
               <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
               {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
               <Text style={styles.metaDivider}>·</Text>
-              <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
+              <Text style={[styles.priceLevelText, accentText(theme)]}>{'$'.repeat(shop.priceLevel || 1)}</Text>
             </View>
           </View>
         </View>
         <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
         <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text></View>
-        <View style={styles.cardFooter}><Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text><View style={styles.openButton}><ArrowUpRight color={colors.textSecondary} size={15} strokeWidth={1.8} /></View></View>
+        <View style={styles.cardFooter}>
+          <Text testID={`client-shop-card-${shop.id}-cta`} style={[styles.footerHint, accentText(theme)]}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
+          <View style={[styles.openButton, primaryButton(theme)]}><ArrowUpRight color={theme.onPrimary} size={15} strokeWidth={1.8} /></View>
+        </View>
       </View>
     </Pressable>
   );
@@ -674,22 +679,22 @@ const styles = StyleSheet.create({
   visual: { aspectRatio: 1.8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   bannerVisualImage: { width: '100%', height: '100%' },
   shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  shopLogoCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  shopLogoCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   shopLogoImage: { width: '100%', height: '100%' },
-  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 16, color: colors.textSecondary },
+  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 16 },
   ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   ratingText: { color: '#EAB308', fontFamily: typography.bodyStrong, fontSize: 12 },
   reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   metaDivider: { color: colors.textMuted },
-  priceLevelText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  priceLevelText: { fontFamily: typography.bodyStrong, fontSize: 12 },
   visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
   shopBody: { padding: 18 },
   shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.5 },
   shopMeta: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 },
   shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 14, marginTop: 16 },
-  footerHint: { flex: 1, color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
-  openButton: { width: 44, height: 44, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSecondarySoft, borderWidth: hairlineW, borderColor: colors.brandSecondary },
+  footerHint: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
+  openButton: { width: 44, height: 44, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', borderWidth: hairlineW },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   filterContainer: { marginTop: 12, marginBottom: 4 },
   filterScroll: { gap: 8, paddingBottom: 4 },
