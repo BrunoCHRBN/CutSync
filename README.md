@@ -95,3 +95,5 @@ Tokens e credenciais permanecem apenas em variáveis de ambiente e nunca devem s
 - `docs/architecture/MONOREPO_FOUNDATION.md`: estrutura, validações e pendências da Fase 2.
 - `docs/architecture/CLIENT_MVP_PROGRESS.md`: andamento, limites e próximas fatias da Fase 3.
 - `docs/control-rollout.md`: implantação segura e validação do Control.
+- `docs/architecture/ESTABLISHMENT_CLIENTS_PLAN.md`: consolidação da carteira de clientes por estabelecimento.
+- `docs/architecture/DATA_IMPORT_MIGRATION_PLAN.md`: motor de importação e migração entre plataformas.

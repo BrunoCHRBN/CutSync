@@ -12,6 +12,10 @@ export const BUSINESS_CAPABILITIES = [
   'view_own_commission',
   'view_unit_reports',
   'manage_operational_settings',
+  'view_clients',
+  'manage_clients',
+  'export_clients',
+  'manage_data_imports',
 ] as const;
 
 export type BusinessOperationalRole = 'owner' | 'admin' | 'professional';

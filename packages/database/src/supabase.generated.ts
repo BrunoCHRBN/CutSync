@@ -1,4 +1,3 @@
-// Gerado pelo Supabase CLI. Atualize com: npm run types:supabase
 export type Json =
   | string
   | number
@@ -8,10 +7,74 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
+      appointment_events: {
+        Row: {
+          actor_id: string | null
+          appointment_id: string
+          created_at: string
+          establishment_id: string
+          event_type: string
+          id: number
+          metadata: Json
+          previous_status: string | null
+          resulting_status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          appointment_id: string
+          created_at?: string
+          establishment_id: string
+          event_type: string
+          id?: never
+          metadata?: Json
+          previous_status?: string | null
+          resulting_status: string
+        }
+        Update: {
+          actor_id?: string | null
+          appointment_id?: string
+          created_at?: string
+          establishment_id?: string
+          event_type?: string
+          id?: never
+          metadata?: Json
+          previous_status?: string | null
+          resulting_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_events_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
+          business_notes: string | null
           cancellation_note_internal: string | null
           cancellation_reason: string | null
           cancellation_reason_code: string | null
@@ -23,6 +86,7 @@ export type Database = {
           deleted_at: string | null
           duration_minutes: number
           ends_at: string
+          establishment_client_id: string | null
           establishment_id: string
           id: string
           original_date_time: string | null
@@ -33,6 +97,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          business_notes?: string | null
           cancellation_note_internal?: string | null
           cancellation_reason?: string | null
           cancellation_reason_code?: string | null
@@ -44,6 +109,7 @@ export type Database = {
           deleted_at?: string | null
           duration_minutes?: number
           ends_at: string
+          establishment_client_id?: string | null
           establishment_id: string
           id?: string
           original_date_time?: string | null
@@ -54,6 +120,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          business_notes?: string | null
           cancellation_note_internal?: string | null
           cancellation_reason?: string | null
           cancellation_reason_code?: string | null
@@ -65,6 +132,7 @@ export type Database = {
           deleted_at?: string | null
           duration_minutes?: number
           ends_at?: string
+          establishment_client_id?: string | null
           establishment_id?: string
           id?: string
           original_date_time?: string | null
@@ -76,6 +144,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "appointments_barber_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_barbershop_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "appointments_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -83,17 +165,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "appointments_establishment_id_fkey"
-            columns: ["establishment_id"]
+            foreignKeyName: "appointments_establishment_client_id_fkey"
+            columns: ["establishment_client_id"]
             isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_professional_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "establishment_clients"
             referencedColumns: ["id"]
           },
           {
@@ -166,7 +241,6 @@ export type Database = {
           establishment_id: string
           fiscal_address: Json
           id: string
-          legal_entity_id: string | null
           municipal_registration: string | null
           operationally_activated_at: string | null
           owner_resolution_status: string
@@ -186,7 +260,6 @@ export type Database = {
           establishment_id: string
           fiscal_address?: Json
           id?: string
-          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -206,7 +279,6 @@ export type Database = {
           establishment_id?: string
           fiscal_address?: Json
           id?: string
-          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -231,13 +303,6 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: true
             referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "billing_accounts_legal_entity_id_fkey"
-            columns: ["legal_entity_id"]
-            isOneToOne: false
-            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
@@ -673,13 +738,165 @@ export type Database = {
           },
         ]
       }
-      client_push_deliveries: {
+      business_push_deliveries: {
         Row: {
-          appointment_id: string
+          appointment_id: string | null
           attempts: number
           available_at: string
           body: string
           created_at: string
+          establishment_id: string
+          event_key: string
+          event_type: string
+          expo_ticket_id: string | null
+          id: string
+          invitation_id: string | null
+          last_error_code: string | null
+          locked_at: string | null
+          payload: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at: string | null
+          sent_at: string | null
+          status: string
+          ticketed_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          attempts?: number
+          available_at?: string
+          body: string
+          created_at?: string
+          establishment_id: string
+          event_key: string
+          event_type: string
+          expo_ticket_id?: string | null
+          id?: string
+          invitation_id?: string | null
+          last_error_code?: string | null
+          locked_at?: string | null
+          payload: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticketed_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          attempts?: number
+          available_at?: string
+          body?: string
+          created_at?: string
+          establishment_id?: string
+          event_key?: string
+          event_type?: string
+          expo_ticket_id?: string | null
+          id?: string
+          invitation_id?: string | null
+          last_error_code?: string | null
+          locked_at?: string | null
+          payload?: Json
+          profile_id?: string
+          push_device_id?: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticketed_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "active_establishment_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_push_device_id_fkey"
+            columns: ["push_device_id"]
+            isOneToOne: false
+            referencedRelation: "push_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_favorite_establishments: {
+        Row: {
+          client_id: string
+          created_at: string
+          establishment_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          establishment_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          establishment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_favorite_establishments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_favorite_establishments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_push_deliveries: {
+        Row: {
+          appointment_id: string | null
+          attempts: number
+          available_at: string
+          body: string
+          created_at: string
+          establishment_client_link_id: string | null
           event_key: string
           event_type: string
           expo_ticket_id: string | null
@@ -697,11 +914,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          appointment_id: string
+          appointment_id?: string | null
           attempts?: number
           available_at?: string
           body: string
           created_at?: string
+          establishment_client_link_id?: string | null
           event_key: string
           event_type: string
           expo_ticket_id?: string | null
@@ -719,11 +937,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          appointment_id?: string
+          appointment_id?: string | null
           attempts?: number
           available_at?: string
           body?: string
           created_at?: string
+          establishment_client_link_id?: string | null
           event_key?: string
           event_type?: string
           expo_ticket_id?: string | null
@@ -749,6 +968,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "client_push_deliveries_establishment_client_link_id_fkey"
+            columns: ["establishment_client_link_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_client_links"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "client_push_deliveries_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
@@ -760,6 +986,291 @@ export type Database = {
             columns: ["push_device_id"]
             isOneToOne: false
             referencedRelation: "push_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      command_receipts: {
+        Row: {
+          actor_id: string
+          command_type: string
+          completed_at: string | null
+          created_at: string
+          establishment_id: string
+          request_hash: string
+          request_id: string
+          response_payload: Json | null
+        }
+        Insert: {
+          actor_id: string
+          command_type: string
+          completed_at?: string | null
+          created_at?: string
+          establishment_id: string
+          request_hash: string
+          request_id: string
+          response_payload?: Json | null
+        }
+        Update: {
+          actor_id?: string
+          command_type?: string
+          completed_at?: string | null
+          created_at?: string
+          establishment_id?: string
+          request_hash?: string
+          request_id?: string
+          response_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "command_receipts_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "command_receipts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      establishment_client_links: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          establishment_client_id: string
+          establishment_id: string
+          id: string
+          match_kind: string
+          profile_id: string
+          requested_by: string
+          responded_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          establishment_client_id: string
+          establishment_id: string
+          id?: string
+          match_kind: string
+          profile_id: string
+          requested_by: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          establishment_client_id?: string
+          establishment_id?: string
+          id?: string
+          match_kind?: string
+          profile_id?: string
+          requested_by?: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_client_links_establishment_client_id_fkey"
+            columns: ["establishment_client_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_client_links_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_client_links_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_client_links_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      establishment_client_merge_events: {
+        Row: {
+          actor_id: string
+          created_at: string
+          duplicate_client_id: string
+          establishment_id: string
+          id: string
+          reason_provided: boolean
+          survivor_client_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          duplicate_client_id: string
+          establishment_id: string
+          id?: string
+          reason_provided?: boolean
+          survivor_client_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          duplicate_client_id?: string
+          establishment_id?: string
+          id?: string
+          reason_provided?: boolean
+          survivor_client_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_client_merge_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_client_merge_events_duplicate_client_id_fkey"
+            columns: ["duplicate_client_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_client_merge_events_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_client_merge_events_survivor_client_id_fkey"
+            columns: ["survivor_client_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      establishment_clients: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string
+          display_name: string
+          email: string | null
+          establishment_id: string
+          external_id: string | null
+          first_appointment_at: string | null
+          id: string
+          last_appointment_at: string | null
+          marketing_consent_at: string | null
+          marketing_consent_status: string
+          merged_into_id: string | null
+          normalized_email: string | null
+          normalized_phone: string | null
+          notes: string | null
+          phone: string | null
+          source: string
+          source_provider: string | null
+          status: string
+          tags: string[]
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by: string
+          display_name: string
+          email?: string | null
+          establishment_id: string
+          external_id?: string | null
+          first_appointment_at?: string | null
+          id?: string
+          last_appointment_at?: string | null
+          marketing_consent_at?: string | null
+          marketing_consent_status?: string
+          merged_into_id?: string | null
+          normalized_email?: string | null
+          normalized_phone?: string | null
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          source_provider?: string | null
+          status?: string
+          tags?: string[]
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string
+          display_name?: string
+          email?: string | null
+          establishment_id?: string
+          external_id?: string | null
+          first_appointment_at?: string | null
+          id?: string
+          last_appointment_at?: string | null
+          marketing_consent_at?: string | null
+          marketing_consent_status?: string
+          merged_into_id?: string | null
+          normalized_email?: string | null
+          normalized_phone?: string | null
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          source_provider?: string | null
+          status?: string
+          tags?: string[]
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_clients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_clients_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_clients_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_clients_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1008,7 +1519,7 @@ export type Database = {
           professional_pix_allowed: boolean
           published_at: string | null
           review_count: number
-          share_agendas: boolean
+          share_agendas: boolean | null
           slogan: string | null
           slug: string
           timezone: string
@@ -1049,7 +1560,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean
+          share_agendas?: boolean | null
           slogan?: string | null
           slug: string
           timezone?: string
@@ -1090,7 +1601,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean
+          share_agendas?: boolean | null
           slogan?: string | null
           slug?: string
           timezone?: string
@@ -1924,6 +2435,48 @@ export type Database = {
           },
         ]
       }
+      marketing_contact_requests: {
+        Row: {
+          answered_at: string | null
+          consent: boolean
+          created_at: string
+          email: string
+          establishment_name: string | null
+          id: string
+          message: string
+          name: string
+          origin: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          answered_at?: string | null
+          consent: boolean
+          created_at?: string
+          email: string
+          establishment_name?: string | null
+          id?: string
+          message: string
+          name: string
+          origin: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          answered_at?: string | null
+          consent?: boolean
+          created_at?: string
+          email?: string
+          establishment_name?: string | null
+          id?: string
+          message?: string
+          name?: string
+          origin?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           commission_rate: number
@@ -1992,6 +2545,56 @@ export type Database = {
           {
             foreignKeyName: "memberships_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mobile_app_release_policies: {
+        Row: {
+          app_kind: string
+          created_at: string
+          enforcement_enabled: boolean
+          id: string
+          latest_version: string
+          message: string | null
+          minimum_supported_version: string
+          platform: string
+          store_url: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          app_kind: string
+          created_at?: string
+          enforcement_enabled?: boolean
+          id?: string
+          latest_version: string
+          message?: string | null
+          minimum_supported_version: string
+          platform: string
+          store_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          app_kind?: string
+          created_at?: string
+          enforcement_enabled?: boolean
+          id?: string
+          latest_version?: string
+          message?: string | null
+          minimum_supported_version?: string
+          platform?: string
+          store_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_app_release_policies_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2849,21 +3452,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "professional_services_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "professional_services_professional_id_fkey"
+            foreignKeyName: "barber_services_barber_id_fkey"
             columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "professional_services_service_id_fkey"
+            foreignKeyName: "barber_services_barbershop_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "barber_services_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
@@ -2895,14 +3498,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profile_establishments_establishment_id_fkey"
+            foreignKeyName: "profile_barbershops_barbershop_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profile_establishments_profile_id_fkey"
+            foreignKeyName: "profile_barbershops_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2968,7 +3571,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          commission_rate: number
+          commission_rate: number | null
           created_at: string
           deleted_at: string | null
           email: string
@@ -2991,7 +3594,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          commission_rate?: number
+          commission_rate?: number | null
           created_at?: string
           deleted_at?: string | null
           email: string
@@ -3014,7 +3617,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          commission_rate?: number
+          commission_rate?: number | null
           created_at?: string
           deleted_at?: string | null
           email?: string
@@ -3037,7 +3640,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_establishment_id_fkey"
+            foreignKeyName: "profiles_barbershop_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -3097,7 +3700,9 @@ export type Database = {
           ends_at: string
           establishment_id: string
           id: string
+          is_all_day: boolean
           kind: string
+          local_date: string | null
           professional_id: string
           reason: string | null
           starts_at: string
@@ -3110,7 +3715,9 @@ export type Database = {
           ends_at: string
           establishment_id: string
           id?: string
+          is_all_day?: boolean
           kind: string
+          local_date?: string | null
           professional_id: string
           reason?: string | null
           starts_at: string
@@ -3123,7 +3730,9 @@ export type Database = {
           ends_at?: string
           establishment_id?: string
           id?: string
+          is_all_day?: boolean
           kind?: string
+          local_date?: string | null
           professional_id?: string
           reason?: string | null
           starts_at?: string
@@ -3233,7 +3842,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "services_establishment_id_fkey"
+            foreignKeyName: "services_barbershop_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -3869,9 +4478,9 @@ export type Database = {
           product: string
           protocol: string
           provider_updated_at: string | null
+          request_kind: string
           requester_id: string | null
           requester_role: string
-          request_kind: string
           resolved_at: string | null
           routing_version: number
           sla_breached: boolean
@@ -3915,9 +4524,9 @@ export type Database = {
           product: string
           protocol?: string
           provider_updated_at?: string | null
+          request_kind: string
           requester_id?: string | null
           requester_role: string
-          request_kind?: string
           resolved_at?: string | null
           routing_version?: number
           sla_breached?: boolean
@@ -3961,9 +4570,9 @@ export type Database = {
           product?: string
           protocol?: string
           provider_updated_at?: string | null
+          request_kind?: string
           requester_id?: string | null
           requester_role?: string
-          request_kind?: string
           resolved_at?: string | null
           routing_version?: number
           sla_breached?: boolean
@@ -4134,6 +4743,17 @@ export type Database = {
       }
     }
     Functions: {
+      accept_business_invitation_token: {
+        Args: { target_invitation_token: string; target_request_id: string }
+        Returns: {
+          accepted_establishment_id: string
+          accepted_role: string
+        }[]
+      }
+      accept_business_team_invite: {
+        Args: { target_invitation_id: string; target_request_id: string }
+        Returns: Json
+      }
       accept_governance_kb_solution: {
         Args: { target_reply_id?: string; target_topic_id: string }
         Returns: undefined
@@ -4209,6 +4829,16 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      apply_business_appointment_status: {
+        Args: {
+          target_appointment_id: string
+          target_establishment_id: string
+          target_reason?: string
+          target_request_id: string
+          target_status: string
+        }
+        Returns: Json
+      }
       apply_support_reconciliation: {
         Args: {
           target_assignee_jira_account_id: string
@@ -4242,6 +4872,54 @@ export type Database = {
           raw_token: string
         }[]
       }
+      archive_establishment_client: {
+        Args: {
+          target_establishment_client_id: string
+          target_establishment_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      assert_business_schedule_block_access: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
+        Returns: undefined
+      }
+      assert_can_manage_business_membership: {
+        Args: { target_establishment_id: string; target_membership_id: string }
+        Returns: {
+          commission_rate: number
+          created_at: string
+          created_by: string | null
+          establishment_id: string
+          id: string
+          professional_profile_id: string | null
+          profile_id: string
+          revocation_reason: string | null
+          revoked_at: string | null
+          role: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "memberships"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      assert_valid_establishment_client_values: {
+        Args: {
+          target_email: string
+          target_name: string
+          target_notes: string
+          target_phone: string
+          target_tags: string[]
+        }
+        Returns: undefined
+      }
       begin_client_account_deletion_execution: {
         Args: { execution_reason: string; target_request_id: string }
         Returns: {
@@ -4257,9 +4935,28 @@ export type Database = {
         Returns: string
       }
       bootstrap_superadmins_from_config: { Args: never; Returns: number }
+      can_manage_business_invitation: {
+        Args: { target_establishment_id: string; target_role: string }
+        Returns: boolean
+      }
+      can_operate_business_appointment: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
+        Returns: boolean
+      }
       can_read_control_live: { Args: never; Returns: boolean }
+      can_upload_professional_gallery_image: { Args: never; Returns: boolean }
       can_use_establishment_feature: {
         Args: { target_establishment_id: string; target_feature: string }
+        Returns: boolean
+      }
+      can_view_business_appointment: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
         Returns: boolean
       }
       can_view_private_profile: {
@@ -4269,6 +4966,45 @@ export type Database = {
       can_view_profile: {
         Args: { target_profile_id: string }
         Returns: boolean
+      }
+      cancel_appointment: {
+        Args: { reason: string; target_appointment_id: string }
+        Returns: undefined
+      }
+      cancel_business_appointment: {
+        Args: {
+          target_appointment_id: string
+          target_establishment_id: string
+          target_reason?: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      change_business_team_member_status: {
+        Args: {
+          target_establishment_id: string
+          target_membership_id: string
+          target_request_id: string
+          target_status: string
+        }
+        Returns: Json
+      }
+      claim_business_push_deliveries: {
+        Args: { target_limit?: number }
+        Returns: {
+          delivery_id: string
+          expo_push_token: string
+          notification_body: string
+          notification_payload: Json
+          notification_title: string
+        }[]
+      }
+      claim_business_push_receipts: {
+        Args: { target_limit?: number }
+        Returns: {
+          delivery_id: string
+          expo_ticket_id: string
+        }[]
       }
       claim_client_push_deliveries: {
         Args: { target_limit?: number }
@@ -4286,6 +5022,15 @@ export type Database = {
           delivery_id: string
           expo_ticket_id: string
         }[]
+      }
+      claim_mobile_command: {
+        Args: {
+          target_command_type: string
+          target_establishment_id: string
+          target_request_id: string
+          target_request_payload: Json
+        }
+        Returns: Json
       }
       claim_support_push_deliveries: {
         Args: { target_limit?: number }
@@ -4318,6 +5063,40 @@ export type Database = {
           ticket_id: string
         }[]
       }
+      compare_mobile_semver: {
+        Args: { left_version: string; right_version: string }
+        Returns: number
+      }
+      complete_appointment: {
+        Args: { target_appointment_id: string }
+        Returns: undefined
+      }
+      complete_business_appointment: {
+        Args: {
+          target_appointment_id: string
+          target_establishment_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      complete_business_push_delivery: {
+        Args: {
+          target_delivery_id: string
+          target_error_code?: string
+          target_retryable?: boolean
+          target_success: boolean
+          target_ticket_id?: string
+        }
+        Returns: boolean
+      }
+      complete_business_push_receipt: {
+        Args: {
+          target_delivery_id: string
+          target_error_code?: string
+          target_success: boolean
+        }
+        Returns: boolean
+      }
       complete_client_account_deletion: {
         Args: { target_request_id: string }
         Returns: Json
@@ -4339,6 +5118,10 @@ export type Database = {
           target_success: boolean
         }
         Returns: boolean
+      }
+      complete_mobile_command: {
+        Args: { target_request_id: string; target_response: Json }
+        Returns: Json
       }
       complete_support_message_sync: {
         Args: {
@@ -4426,6 +5209,22 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_appointment: {
+        Args: { target_appointment_id: string }
+        Returns: undefined
+      }
+      confirm_business_appointment: {
+        Args: {
+          target_appointment_id: string
+          target_establishment_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      confirm_establishment_client_link: {
+        Args: { target_link_id: string; target_request_id: string }
+        Returns: Json
+      }
       create_appointment: {
         Args: {
           target_client_id?: string
@@ -4447,6 +5246,55 @@ export type Database = {
           target_service_id: string
         }
         Returns: string
+      }
+      create_business_appointment: {
+        Args: {
+          target_client_email?: string
+          target_client_name?: string
+          target_client_phone?: string
+          target_date_time: string
+          target_establishment_client_id?: string
+          target_establishment_id: string
+          target_notes?: string
+          target_professional_id: string
+          target_request_id: string
+          target_service_id: string
+        }
+        Returns: Json
+      }
+      create_business_schedule_block: {
+        Args: {
+          target_all_day?: boolean
+          target_ends_at: string
+          target_establishment_id: string
+          target_kind: string
+          target_local_date?: string
+          target_professional_id: string
+          target_reason?: string
+          target_request_id: string
+          target_starts_at: string
+        }
+        Returns: Json
+      }
+      create_business_service: {
+        Args: {
+          target_duration_minutes: number
+          target_establishment_id: string
+          target_name: string
+          target_price: number
+          target_request_id: string
+          target_sort_order?: number
+        }
+        Returns: Json
+      }
+      create_business_team_invite: {
+        Args: {
+          target_contact: string
+          target_establishment_id: string
+          target_request_id: string
+          target_role: string
+        }
+        Returns: Json
       }
       create_client_appointment: {
         Args: {
@@ -4471,6 +5319,18 @@ export type Database = {
           target_user_id: string
         }
         Returns: string
+      }
+      create_establishment_client: {
+        Args: {
+          target_email?: string
+          target_establishment_id: string
+          target_name: string
+          target_notes?: string
+          target_phone?: string
+          target_request_id: string
+          target_tags?: string[]
+        }
+        Returns: Json
       }
       create_establishment_cpf: {
         Args: {
@@ -4549,9 +5409,26 @@ export type Database = {
         Returns: Json
       }
       current_session_is_aal2: { Args: never; Returns: boolean }
+      delete_business_schedule_block: {
+        Args: {
+          target_establishment_id: string
+          target_request_id: string
+          target_schedule_block_id: string
+        }
+        Returns: Json
+      }
       delete_schedule_block: {
         Args: { target_block_id: string }
         Returns: string
+      }
+      enqueue_business_operational_conflict: {
+        Args: {
+          target_appointment_id?: string
+          target_establishment_id: string
+          target_event_key: string
+          target_professional_id: string
+        }
+        Returns: number
       }
       enqueue_support_push: {
         Args: {
@@ -4569,6 +5446,14 @@ export type Database = {
         }
         Returns: string
       }
+      ensure_establishment_client_for_profile: {
+        Args: {
+          target_establishment_id: string
+          target_profile_id: string
+          target_source?: string
+        }
+        Returns: string
+      }
       escalate_support_ticket: {
         Args: { reason: string; target_level: number; target_ticket_id: string }
         Returns: Json
@@ -4579,6 +5464,15 @@ export type Database = {
       }
       execute_governance_privacy_request: {
         Args: { reason: string; request_id: string }
+        Returns: Json
+      }
+      export_establishment_clients: {
+        Args: {
+          target_establishment_id: string
+          target_include_archived?: boolean
+          target_limit?: number
+          target_offset?: number
+        }
         Returns: Json
       }
       fail_client_account_deletion: {
@@ -4605,7 +5499,23 @@ export type Database = {
         Args: { target_cutover_request_id: string }
         Returns: undefined
       }
+      find_control_profile_by_email: {
+        Args: { target_email: string }
+        Returns: {
+          email: string
+          name: string
+          profile_id: string
+        }[]
+      }
       get_admin_report: {
+        Args: {
+          target_establishment_id: string
+          target_range_end: string
+          target_range_start: string
+        }
+        Returns: Json
+      }
+      get_admin_report_before_business_access: {
         Args: {
           target_establishment_id: string
           target_range_end: string
@@ -4630,7 +5540,35 @@ export type Database = {
         }
         Returns: Json
       }
+      get_admin_report_details_before_business_access: {
+        Args: {
+          target_cursor?: string
+          target_day?: string
+          target_day_of_week?: number
+          target_dimension: string
+          target_establishment_id: string
+          target_hour?: number
+          target_limit?: number
+          target_professional_id?: string
+          target_range_end: string
+          target_range_start: string
+          target_service_id?: string
+          target_status?: string
+        }
+        Returns: Json
+      }
       get_admin_report_v2: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id?: string
+          target_range_end: string
+          target_range_start: string
+          target_service_id?: string
+          target_status?: string
+        }
+        Returns: Json
+      }
+      get_admin_report_v2_before_business_access: {
         Args: {
           target_establishment_id: string
           target_professional_id?: string
@@ -4680,6 +5618,46 @@ export type Database = {
           starts_at: string
           unavailable_reason: string
         }[]
+      }
+      get_business_agenda_day: {
+        Args: {
+          target_establishment_id: string
+          target_local_date: string
+          target_scope: string
+        }
+        Returns: {
+          appointment_id: string
+          appointment_status: string
+          client_display_name: string
+          ends_at: string
+          establishment_id: string
+          professional_id: string
+          professional_name: string
+          service_id: string
+          service_name: string
+          starts_at: string
+        }[]
+      }
+      get_business_appointment_detail: {
+        Args: { target_appointment_id: string; target_establishment_id: string }
+        Returns: Json
+      }
+      get_business_schedule_blocks: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id?: string
+          target_range_end: string
+          target_range_start: string
+        }
+        Returns: Json
+      }
+      get_business_services: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      get_business_team: {
+        Args: { target_establishment_id: string }
+        Returns: Json
       }
       get_client_account_deletion_request: {
         Args: never
@@ -4862,8 +5840,27 @@ export type Database = {
           timezone: string
         }[]
       }
+      get_control_analytics_health: { Args: never; Returns: Json }
       get_control_context: { Args: never; Returns: Json }
       get_control_dashboard: { Args: never; Returns: Json }
+      get_control_executive_dashboard: {
+        Args: {
+          range_end: string
+          range_start: string
+          scope_id: string
+          scope_type: string
+        }
+        Returns: Json
+      }
+      get_control_executive_dashboard_source_v1: {
+        Args: {
+          range_end: string
+          range_start: string
+          scope_id: string
+          scope_type: string
+        }
+        Returns: Json
+      }
       get_control_live_snapshot: { Args: never; Returns: Json }
       get_control_support_overview: {
         Args: {
@@ -4877,6 +5874,13 @@ export type Database = {
       }
       get_control_support_ticket: {
         Args: { target_ticket_id: string }
+        Returns: Json
+      }
+      get_establishment_client: {
+        Args: {
+          target_establishment_client_id: string
+          target_establishment_id: string
+        }
         Returns: Json
       }
       get_establishment_client_contacts: {
@@ -4924,6 +5928,23 @@ export type Database = {
         Args: { target_topic_id: string }
         Returns: Json
       }
+      get_mobile_release_policy: {
+        Args: {
+          target_app_kind: string
+          target_app_version: string
+          target_platform: string
+        }
+        Returns: {
+          app_kind: string
+          enforcement_enabled: boolean
+          latest_version: string
+          message: string
+          minimum_supported_version: string
+          platform: string
+          store_url: string
+          update_required: boolean
+        }[]
+      }
       get_my_billing_overview: {
         Args: { target_establishment_id: string }
         Returns: Json
@@ -4951,6 +5972,37 @@ export type Database = {
           trial_ends_at: string
         }[]
       }
+      get_my_business_operational_contexts: {
+        Args: never
+        Returns: {
+          access_mode: string
+          billing_account_id: string
+          billing_owner: boolean
+          billing_scope: string
+          billing_status: string
+          capabilities: string[]
+          covered_establishment_ids: string[]
+          current_period_ends_at: string
+          establishment_id: string
+          establishment_name: string
+          establishment_slug: string
+          grace_ends_at: string
+          membership_id: string
+          membership_role: string
+          membership_status: string
+          operational_role: string
+          organization_id: string
+          payer_role: string
+          pending_change_at: string
+          subscription_id: string
+          timezone: string
+          trial_ends_at: string
+        }[]
+      }
+      get_my_business_team_invitation: {
+        Args: { target_invitation_id: string }
+        Returns: Json
+      }
       get_my_client_profile: {
         Args: never
         Returns: {
@@ -4963,6 +6015,7 @@ export type Database = {
           phone: string
         }[]
       }
+      get_my_establishment_client_link_requests: { Args: never; Returns: Json }
       get_my_legal_entity_context: {
         Args: never
         Returns: {
@@ -5140,6 +6193,10 @@ export type Database = {
         Args: { allowed_roles?: string[]; target_establishment_id: string }
         Returns: boolean
       }
+      has_business_capability: {
+        Args: { target_capability: string; target_establishment_id: string }
+        Returns: boolean
+      }
       has_organization_role: {
         Args: { allowed_roles?: string[]; target_organization_id: string }
         Returns: boolean
@@ -5158,6 +6215,16 @@ export type Database = {
           target_ticket_id: string
         }
         Returns: Json
+      }
+      inspect_business_invitation_token: {
+        Args: { target_invitation_token: string }
+        Returns: {
+          establishment_name: string
+          expiration: string
+          invitation_status: string
+          invited_contact: string
+          invited_role: string
+        }[]
       }
       inspect_invitation: {
         Args: { invitation_token: string }
@@ -5191,6 +6258,26 @@ export type Database = {
           invitation_token: string
         }[]
       }
+      is_active_establishment_professional: {
+        Args: { target_establishment_id: string; target_profile_id: string }
+        Returns: boolean
+      }
+      is_active_establishment_service: {
+        Args: { target_establishment_id: string; target_service_id: string }
+        Returns: boolean
+      }
+      is_business_administrator: {
+        Args: { require_full_access?: boolean; target_establishment_id: string }
+        Returns: boolean
+      }
+      is_confirmed_establishment_client_match: {
+        Args: {
+          target_establishment_client_id: string
+          target_match_kind?: string
+          target_profile_id: string
+        }
+        Returns: boolean
+      }
       is_establishment_active: {
         Args: { target_establishment_id: string }
         Returns: boolean
@@ -5201,8 +6288,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_safe_business_push_payload: { Args: { value: Json }; Returns: boolean }
       is_safe_client_profile_text: {
         Args: { target_value: string }
+        Returns: boolean
+      }
+      is_safe_mobile_command_response: {
+        Args: { value: Json }
         Returns: boolean
       }
       is_safe_public_url: { Args: { value: string }; Returns: boolean }
@@ -5238,6 +6330,13 @@ export type Database = {
           timezone: string
         }[]
       }
+      list_client_favorite_establishments: {
+        Args: never
+        Returns: {
+          created_at: string
+          establishment_id: string
+        }[]
+      }
       list_control_billing_accounts: {
         Args: never
         Returns: {
@@ -5262,6 +6361,17 @@ export type Database = {
           organization_subscription_id: string
           status: string
           unit_count: number
+        }[]
+      }
+      list_control_metric_scopes: {
+        Args: never
+        Returns: {
+          label: string
+          parent_id: string
+          scope_id: string
+          scope_type: string
+          status: string
+          timezone: string
         }[]
       }
       list_control_users: {
@@ -5486,12 +6596,38 @@ export type Database = {
           ticket_id: string
         }[]
       }
+      mark_business_appointment_no_show: {
+        Args: {
+          target_appointment_id: string
+          target_establishment_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      merge_establishment_clients: {
+        Args: {
+          target_duplicate_client_id: string
+          target_establishment_id: string
+          target_reason?: string
+          target_request_id: string
+          target_survivor_client_id: string
+        }
+        Returns: Json
+      }
       moderate_governance_kb_topic: {
         Args: { requested_action: string; target_topic_id: string }
         Returns: undefined
       }
       normalize_brazil_phone_e164: {
         Args: { input_phone: string }
+        Returns: string
+      }
+      normalize_establishment_client_email: {
+        Args: { target_email: string }
+        Returns: string
+      }
+      normalize_establishment_client_phone: {
+        Args: { target_phone: string }
         Returns: string
       }
       publish_establishment_discovery: {
@@ -5502,6 +6638,7 @@ export type Database = {
           requirements: Json
         }[]
       }
+      pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
       purge_expired_support_content: {
         Args: { target_limit?: number; target_now?: string }
         Returns: number
@@ -5510,12 +6647,28 @@ export type Database = {
         Args: { target_profile_id: string }
         Returns: number
       }
+      push_changes: { Args: { changes: Json }; Returns: undefined }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
       }
+      queue_establishment_client_match: {
+        Args: {
+          target_establishment_client_id: string
+          target_requested_by: string
+        }
+        Returns: string
+      }
       queue_support_ticket_sync_internal: {
         Args: { actor_profile_id: string; target_ticket_id: string }
+        Returns: Json
+      }
+      reactivate_business_team_member: {
+        Args: {
+          target_establishment_id: string
+          target_membership_id: string
+          target_request_id: string
+        }
         Returns: Json
       }
       register_business_identity_atomic: {
@@ -5547,6 +6700,10 @@ export type Database = {
         }
         Returns: string
       }
+      reject_establishment_client_link: {
+        Args: { target_link_id: string; target_request_id: string }
+        Returns: Json
+      }
       reject_establishment_request: {
         Args: { reason: string; target_request_id: string }
         Returns: undefined
@@ -5557,6 +6714,14 @@ export type Database = {
       }
       reject_governance_privacy_request: {
         Args: { reason: string; request_id: string }
+        Returns: Json
+      }
+      remove_business_team_member: {
+        Args: {
+          target_establishment_id: string
+          target_membership_id: string
+          target_request_id: string
+        }
         Returns: Json
       }
       remove_organization_establishment: {
@@ -5574,6 +6739,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      reorder_business_services: {
+        Args: {
+          target_establishment_id: string
+          target_request_id: string
+          target_service_ids: string[]
+        }
+        Returns: Json
+      }
       reorder_service: {
         Args: {
           direction: string
@@ -5584,6 +6757,10 @@ export type Database = {
       }
       reprocess_support_sync: {
         Args: { reason: string; target_ticket_id: string }
+        Returns: Json
+      }
+      request_control_analytics_reprocess: {
+        Args: { range_end: string; range_start: string; reason: string }
         Returns: Json
       }
       request_establishment: {
@@ -5614,6 +6791,25 @@ export type Database = {
           target_appointment_id: string
         }
         Returns: string
+      }
+      reschedule_business_appointment: {
+        Args: {
+          target_appointment_id: string
+          target_date_time: string
+          target_establishment_id: string
+          target_professional_id: string
+          target_request_id: string
+          target_service_id: string
+        }
+        Returns: Json
+      }
+      resend_business_team_invite: {
+        Args: {
+          target_establishment_id: string
+          target_invitation_id: string
+          target_request_id: string
+        }
+        Returns: Json
       }
       reserve_governance_kb_attachment: {
         Args: {
@@ -5651,6 +6847,37 @@ export type Database = {
           trial_ends_at: string
         }[]
       }
+      resolve_business_operational_capabilities: {
+        Args: {
+          target_access_mode: string
+          target_establishment_id: string
+          target_profile_id: string
+        }
+        Returns: string[]
+      }
+      resolve_business_operational_identity: {
+        Args: { target_establishment_id: string; target_profile_id: string }
+        Returns: {
+          membership_id: string
+          membership_role: string
+          operational_role: string
+          organization_id: string
+        }[]
+      }
+      resolve_business_schedule_block_period: {
+        Args: {
+          target_all_day: boolean
+          target_ends_at: string
+          target_establishment_id: string
+          target_local_date: string
+          target_starts_at: string
+        }
+        Returns: {
+          ends_at: string
+          local_date: string
+          starts_at: string
+        }[]
+      }
       resolve_identity_migration_conflict: {
         Args: {
           actor_profile_id: string
@@ -5659,6 +6886,18 @@ export type Database = {
           target_reason: string
         }
         Returns: string
+      }
+      resolve_merged_marketing_consent: {
+        Args: { left_status: string; right_status: string }
+        Returns: string
+      }
+      restore_establishment_client: {
+        Args: {
+          target_establishment_client_id: string
+          target_establishment_id: string
+          target_request_id: string
+        }
+        Returns: Json
       }
       restore_governance_kb_revision: {
         Args: { requested_change_summary: string; target_revision_id: number }
@@ -5669,6 +6908,14 @@ export type Database = {
           reason: string
           target_decision: string
           target_review_id: string
+        }
+        Returns: Json
+      }
+      revoke_business_team_invite: {
+        Args: {
+          target_establishment_id: string
+          target_invitation_id: string
+          target_request_id: string
         }
         Returns: Json
       }
@@ -5703,6 +6950,16 @@ export type Database = {
         }
         Returns: string
       }
+      search_establishment_clients: {
+        Args: {
+          target_establishment_id: string
+          target_include_archived?: boolean
+          target_limit?: number
+          target_offset?: number
+          target_query?: string
+        }
+        Returns: Json
+      }
       search_governance_kb_topics: {
         Args: {
           filter_category?: string
@@ -5734,6 +6991,19 @@ export type Database = {
           updated_at: string
           version: number
         }[]
+      }
+      set_business_service_status: {
+        Args: {
+          target_establishment_id: string
+          target_is_active: boolean
+          target_request_id: string
+          target_service_id: string
+        }
+        Returns: Json
+      }
+      set_client_favorite_establishment: {
+        Args: { target_establishment_id: string; target_favorited: boolean }
+        Returns: boolean
       }
       set_control_subscription_enforcement: {
         Args: {
@@ -5814,6 +7084,18 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_marketing_contact_request: {
+        Args: {
+          contact_consent: boolean
+          contact_email: string
+          contact_establishment_name: string
+          contact_message: string
+          contact_name: string
+          contact_trap?: string
+          request_origin: string
+        }
+        Returns: Json
+      }
       support_add_business_minutes: {
         Args: { target_at: string; target_minutes: number }
         Returns: string
@@ -5844,6 +7126,14 @@ export type Database = {
       }
       support_ticket_payload: {
         Args: { target_ticket_id: string }
+        Returns: Json
+      }
+      suspend_business_team_member: {
+        Args: {
+          target_establishment_id: string
+          target_membership_id: string
+          target_request_id: string
+        }
         Returns: Json
       }
       switch_active_establishment: {
@@ -5887,6 +7177,55 @@ export type Database = {
         }
         Returns: string
       }
+      update_business_schedule_block: {
+        Args: {
+          target_all_day?: boolean
+          target_ends_at: string
+          target_establishment_id: string
+          target_kind: string
+          target_local_date?: string
+          target_reason?: string
+          target_request_id: string
+          target_schedule_block_id: string
+          target_starts_at: string
+        }
+        Returns: Json
+      }
+      update_business_service: {
+        Args: {
+          target_duration_minutes?: number
+          target_establishment_id: string
+          target_name?: string
+          target_price?: number
+          target_request_id: string
+          target_service_id: string
+          target_sort_order?: number
+        }
+        Returns: Json
+      }
+      update_business_team_commission: {
+        Args: {
+          target_commission_rate: number
+          target_establishment_id: string
+          target_membership_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      update_establishment_client: {
+        Args: {
+          target_email?: string
+          target_establishment_client_id: string
+          target_establishment_id: string
+          target_marketing_consent_status?: string
+          target_name?: string
+          target_notes?: string
+          target_phone?: string
+          target_request_id: string
+          target_tags?: string[]
+        }
+        Returns: Json
+      }
       update_governance_establishment_status: {
         Args: {
           target_establishment_id: string
@@ -5896,7 +7235,7 @@ export type Database = {
         Returns: Json
       }
       update_my_client_avatar: {
-        Args: { target_avatar_url: string | null }
+        Args: { target_avatar_url: string }
         Returns: {
           avatar_url: string
           email: string
@@ -5941,6 +7280,18 @@ export type Database = {
           target_role: string
         }
         Returns: undefined
+      }
+      upsert_business_professional_service: {
+        Args: {
+          target_duration_minutes: number
+          target_establishment_id: string
+          target_is_active: boolean
+          target_price: number
+          target_professional_id: string
+          target_request_id: string
+          target_service_id: string
+        }
+        Returns: Json
       }
       upsert_my_professional_profile: {
         Args: {
