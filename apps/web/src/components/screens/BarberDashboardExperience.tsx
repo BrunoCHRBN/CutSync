@@ -46,12 +46,7 @@ const defaultSchedule = [
   { day: 0, name: 'Domingo', isOpen: false, open: '09:00', close: '18:00' },
 ];
 
-const readableForeground = (hex: string) => {
-  const normalized = hex.replace('#', '');
-  if (!/^[0-9A-Fa-f]{6}$/.test(normalized)) return '#FFFFFF';
-  const [r, g, b] = [0, 2, 4].map((index) => parseInt(normalized.slice(index, index + 2), 16));
-  return ((r * 299 + g * 587 + b * 114) / 1000) > 160 ? '#171717' : '#FFFFFF';
-};
+import { readableForeground } from '../../theme/color';
 
 export const BarberDashboardExperience = () => {
   const { open: openCommandPalette } = useCommandPalette();
