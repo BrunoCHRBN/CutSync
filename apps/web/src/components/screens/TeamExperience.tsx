@@ -128,7 +128,7 @@ export const TeamExperience = () => {
         updates: {
           commission_rate: value / 100,
           specialties: specialties.trim() || null,
-          instagram: barberInstagram.trim() || null,
+          instagram: (barberInstagram.trim().replace(/^@+/, '') || null),
           titulo_profissional: tituloProfissional.trim() || null,
         },
       });

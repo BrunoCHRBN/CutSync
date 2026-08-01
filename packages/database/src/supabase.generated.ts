@@ -5209,6 +5209,15 @@ export type Database = {
         }
         Returns: Json
       }
+      client_discovery_distance_meters: {
+        Args: {
+          origin_latitude: number
+          origin_longitude: number
+          target_latitude: number
+          target_longitude: number
+        }
+        Returns: number
+      }
       confirm_appointment: {
         Args: { target_appointment_id: string }
         Returns: undefined
@@ -5825,9 +5834,12 @@ export type Database = {
           banner_url: string
           currency: string
           description: string
+          gallery_urls: string
           id: string
           instant_booking_enabled: boolean
+          latitude: number
           logo_url: string
+          longitude: number
           name: string
           opening_hours: string
           price_level: number
@@ -6305,7 +6317,12 @@ export type Database = {
         Returns: string
       }
       list_client_discovery_establishments: {
-        Args: { result_limit?: number; target_query?: string }
+        Args: {
+          result_limit?: number
+          target_latitude?: number
+          target_longitude?: number
+          target_query?: string
+        }
         Returns: {
           address: string
           average_price: number
@@ -6313,9 +6330,13 @@ export type Database = {
           banner_url: string
           currency: string
           description: string
+          distance_meters: number
+          gallery_urls: string
           id: string
           instant_booking_enabled: boolean
+          latitude: number
           logo_url: string
+          longitude: number
           name: string
           opening_hours: string
           price_level: number

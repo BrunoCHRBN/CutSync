@@ -64,8 +64,7 @@ export function ClientAppointmentsScreen() {
         style={styles.hero}
       >
         <Text style={styles.eyebrow}>SUA AGENDA</Text>
-        <Text style={styles.title}>Seus horários, sempre por perto.</Text>
-        <Text style={styles.description}>Acompanhe confirmações, próximos atendimentos e seu histórico.</Text>
+        <Text style={styles.title}>Seus horários</Text>
       </Animated.View>
 
       <Animated.View
@@ -138,6 +137,10 @@ export function ClientAppointmentsScreen() {
                 pathname: '/appointments/[id]',
                 params: { id: appointment.id },
               })}
+              onRebook={tab === 'history' ? () => router.push({
+                pathname: '/booking/[slug]',
+                params: { slug: appointment.establishment.slug, serviceId: appointment.service.id },
+              }) : undefined}
             />
           ))}
         </View>
@@ -149,10 +152,9 @@ export function ClientAppointmentsScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: appointmentColors.background },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 52, gap: 20 },
-  hero: { gap: 10, paddingTop: 26 },
+  hero: { gap: 6, paddingTop: 12 },
   eyebrow: { color: sharedBrand.colors.forest, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
-  title: { maxWidth: 520, color: appointmentColors.text, fontSize: 38, lineHeight: 42, fontWeight: '800', letterSpacing: -1.2 },
-  description: { color: appointmentColors.secondary, fontSize: 14, lineHeight: 22 },
+  title: { maxWidth: 520, color: appointmentColors.text, fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.8 },
   tabs: { flexDirection: 'row', gap: 6, borderRadius: 18, borderCurve: 'continuous', backgroundColor: '#EFE9D9', padding: 5 },
   tab: { minHeight: 48, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, borderCurve: 'continuous' },
   tabActive: { backgroundColor: '#FFFFFF', boxShadow: '0 4px 10px rgba(20, 27, 23, 0.06)' },

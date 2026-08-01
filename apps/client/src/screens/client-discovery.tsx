@@ -29,8 +29,10 @@ import {
 import { ClientBrand } from '@/components/settings/client-settings-ui';
 import {
   type ClientDiscoveryEstablishment,
+  type ClientDiscoveryOrigin,
   listClientDiscoveryEstablishments,
 } from '@/features/discovery/client-discovery-service';
+import { useClientLocation } from '@/features/discovery/use-client-location';
 import { clientTheme } from '@/theme/client-theme';
 
 type CategoryFilter = {
@@ -74,15 +76,20 @@ export function ClientDiscoveryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const location = useClientLocation();
 
-  const load = useCallback(async (nextQuery: string, refresh = false) => {
+  const load = useCallback(async (
+    nextQuery: string,
+    refresh = false,
+    origin: ClientDiscoveryOrigin | null = null,
+  ) => {
     const sequence = ++requestSequence.current;
     setActiveQuery(nextQuery);
     if (refresh) setIsRefreshing(true);
     else setIsLoading(true);
     setError(null);
     try {
-      const result = await listClientDiscoveryEstablishments(nextQuery);
+      const result = await listClientDiscoveryEstablishments(nextQuery, origin);
       if (sequence !== requestSequence.current) return;
       setEstablishments(result);
     } catch (nextError) {
@@ -117,13 +124,24 @@ export function ClientDiscoveryScreen() {
       return;
     }
     setQuery(validation.query);
-    void load(validation.query);
+    setSelectedCategory('all');
+    void load(validation.query, false, location.origin);
   };
 
   const clearSearch = () => {
     setQuery('');
     setValidationError(null);
-    void load('');
+    void load('', false, location.origin);
+  };
+
+  const toggleNearby = async () => {
+    if (location.origin) {
+      location.clear();
+      await load(activeQuery, false, null);
+      return;
+    }
+    const origin = await location.request();
+    if (origin) await load(activeQuery, false, origin);
   };
 
   const openEstablishment = useCallback((slug: string) => {
@@ -142,7 +160,15 @@ export function ClientDiscoveryScreen() {
       .slice(0, 6)
   ), [filtered]);
 
-  const nearby = useMemo(() => (
+  const nearby = useMemo(() => {
+    if (!location.origin) return [];
+    return filtered
+      .filter((item) => item.distanceMeters !== null)
+      .sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0))
+      .slice(0, 10);
+  }, [filtered, location.origin]);
+
+  const recentlyAdded = useMemo(() => (
     filtered.length <= 6 ? filtered : filtered.slice(0, 10)
   ), [filtered]);
 
@@ -165,11 +191,12 @@ export function ClientDiscoveryScreen() {
         refreshControl={(
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => { void load(activeQuery, true); }}
+            onRefresh={() => { void load(activeQuery, true, location.origin); }}
             tintColor={discoveryColors.accent}
           />
         )}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
       >
         <View style={styles.topbar}>
           <ClientBrand />
@@ -185,59 +212,84 @@ export function ClientDiscoveryScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>DESCUBRA PERTO DE VOCÊ</Text>
-          <Text style={styles.title}>Seu próximo{'\n'}cuidado começa aqui.</Text>
-          <Text style={styles.description}>
-            Estabelecimentos, serviços, profissionais e regiões — tudo num lugar só.
-          </Text>
+          <Text style={styles.title}>Onde vamos cuidar de você?</Text>
         </View>
 
-        <View style={[styles.searchField, validationError && styles.searchFieldError]}>
-          <Text style={styles.searchIcon}>⌕</Text>
-          <TextInput
-            testID="client-discovery-search"
-            accessibilityLabel="Buscar estabelecimentos e profissionais"
-            autoCapitalize="words"
-            autoCorrect={false}
-            enterKeyHint="search"
-            maxLength={80}
-            onChangeText={changeQuery}
-            onSubmitEditing={submitSearch}
-            placeholder="Buscar nome, serviço ou região"
-            placeholderTextColor={discoveryColors.muted}
-            returnKeyType="search"
-            style={styles.searchInput}
-            value={query}
-          />
-          {!!query ? (
-            <Pressable
-              testID="client-discovery-clear-search"
-              accessibilityRole="button"
-              accessibilityLabel="Limpar busca"
-              onPress={clearSearch}
-              hitSlop={8}
-              style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.clearButtonText}>×</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              testID="client-discovery-submit"
-              accessibilityRole="button"
-              accessibilityLabel="Buscar"
-              onPress={submitSearch}
-              hitSlop={8}
-              style={({ pressed }) => [styles.searchGoButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.searchGoButtonText}>Buscar</Text>
-            </Pressable>
+        <View style={styles.searchBlock}>
+          <View style={[styles.searchField, validationError && styles.searchFieldError]}>
+            <Text style={styles.searchIcon}>⌕</Text>
+            <TextInput
+              testID="client-discovery-search"
+              accessibilityLabel="Buscar estabelecimentos e profissionais"
+              autoCapitalize="words"
+              autoCorrect={false}
+              enterKeyHint="search"
+              maxLength={80}
+              onChangeText={changeQuery}
+              onSubmitEditing={submitSearch}
+              placeholder="Nome, serviço ou região"
+              placeholderTextColor={discoveryColors.muted}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={query}
+            />
+            {!!query ? (
+              <Pressable
+                testID="client-discovery-clear-search"
+                accessibilityRole="button"
+                accessibilityLabel="Limpar busca"
+                onPress={clearSearch}
+                hitSlop={8}
+                style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.clearButtonText}>×</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                testID="client-discovery-submit"
+                accessibilityRole="button"
+                accessibilityLabel="Buscar"
+                onPress={submitSearch}
+                hitSlop={8}
+                style={({ pressed }) => [styles.searchGoButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.searchGoButtonText}>Buscar</Text>
+              </Pressable>
+            )}
+          </View>
+          {!!validationError && (
+            <Text testID="client-discovery-search-error" accessibilityLiveRegion="polite" style={styles.validationError}>
+              {validationError}
+            </Text>
           )}
+          <View style={styles.locationRow}>
+            <Pressable
+              testID="client-discovery-nearby-toggle"
+              accessibilityRole="button"
+              accessibilityState={{ selected: Boolean(location.origin), busy: location.status === 'requesting' }}
+              disabled={location.status === 'requesting'}
+              onPress={() => { void toggleNearby(); }}
+              style={({ pressed }) => [
+                styles.locationChip,
+                !!location.origin && styles.locationChipActive,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.locationChipText, !!location.origin && styles.locationChipTextActive]}>
+                {location.status === 'requesting'
+                  ? 'Localizando…'
+                  : location.origin ? 'Perto de você · ativo' : 'Perto de você'}
+              </Text>
+            </Pressable>
+            {(location.status === 'denied' || location.status === 'unavailable') && (
+              <Text testID="client-discovery-location-notice" style={styles.locationNotice}>
+                {location.status === 'denied'
+                  ? 'Sem acesso à localização. Buscamos por nome, serviço ou região.'
+                  : 'Não conseguimos obter sua localização agora.'}
+              </Text>
+            )}
+          </View>
         </View>
-        {!!validationError && (
-          <Text testID="client-discovery-search-error" accessibilityLiveRegion="polite" style={styles.validationError}>
-            {validationError}
-          </Text>
-        )}
 
         {!isSearching && !isLoading && !error && establishments.length > 0 && (
           <ScrollView
@@ -276,7 +328,7 @@ export function ClientDiscoveryScreen() {
               title="A busca não carregou"
               description={error}
               actionLabel="Tentar novamente"
-              onAction={() => { void load(activeQuery); }}
+              onAction={() => { void load(activeQuery, false, location.origin); }}
             />
           </View>
         ) : establishments.length === 0 ? (
@@ -331,7 +383,9 @@ export function ClientDiscoveryScreen() {
                     <Text style={styles.sectionEyebrow}>DESTAQUES</Text>
                     <Text style={styles.sectionTitle}>Melhores avaliados</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{featured.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {featured.length} {featured.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -363,10 +417,12 @@ export function ClientDiscoveryScreen() {
               <View style={styles.carouselSection}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionCopy}>
-                    <Text style={styles.sectionEyebrow}>PARA CONHECER</Text>
-                    <Text style={styles.sectionTitle}>Lugares próximos a você</Text>
+                    <Text style={styles.sectionEyebrow}>PERTO DE VOCÊ</Text>
+                    <Text style={styles.sectionTitle}>A menor distância</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{nearby.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {nearby.length} {nearby.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -394,6 +450,43 @@ export function ClientDiscoveryScreen() {
               </View>
             )}
 
+            {recentlyAdded.length > 0 && (
+              <View style={styles.carouselSection}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionCopy}>
+                    <Text style={styles.sectionEyebrow}>PARA CONHECER</Text>
+                    <Text style={styles.sectionTitle}>Em destaque na região</Text>
+                  </View>
+                  <Text style={styles.sectionCount}>
+                    {recentlyAdded.length} {recentlyAdded.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  decelerationRate="fast"
+                  snapToInterval={CARD_SNAP_INTERVAL}
+                  snapToAlignment="start"
+                  contentContainerStyle={styles.carouselContent}
+                  testID="client-discovery-carousel-region"
+                >
+                  {recentlyAdded.map((item, index) => (
+                    <Animated.View
+                      key={item.id}
+                      entering={FadeInRight
+                        .delay(index * clientTheme.motion.stagger)
+                        .duration(clientTheme.motion.emphasized)}
+                    >
+                      <CompactEstablishmentCard
+                        establishment={item}
+                        onPress={() => openEstablishment(item.slug)}
+                      />
+                    </Animated.View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {popular.length > 0 && (
               <View style={styles.carouselSection}>
                 <View style={styles.sectionHeader}>
@@ -401,7 +494,9 @@ export function ClientDiscoveryScreen() {
                     <Text style={styles.sectionEyebrow}>QUERIDINHOS</Text>
                     <Text style={styles.sectionTitle}>Mais reservados</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{popular.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {popular.length} {popular.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -428,6 +523,24 @@ export function ClientDiscoveryScreen() {
                 </ScrollView>
               </View>
             )}
+
+            <View style={styles.paddedContent}>
+              <View style={styles.resultsHeader}>
+                <View style={styles.resultsCopy}>
+                  <Text style={styles.resultsEyebrow}>CATÁLOGO COMPLETO</Text>
+                  <Text testID="client-discovery-result-count" style={styles.resultsTitle}>{totalLabel}</Text>
+                </View>
+              </View>
+              <View testID="client-discovery-results" style={styles.searchResults}>
+                {filtered.map((establishment) => (
+                  <EstablishmentCard
+                    key={establishment.id}
+                    establishment={establishment}
+                    onPress={() => openEstablishment(establishment.slug)}
+                  />
+                ))}
+              </View>
+            </View>
           </>
         )}
       </ScrollView>
@@ -443,11 +556,10 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 40, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: discoveryColors.border, backgroundColor: discoveryColors.card, paddingHorizontal: 16 },
   accountButtonText: { color: discoveryColors.text, fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
 
-  hero: { gap: 12, paddingTop: 18, paddingHorizontal: 20 },
-  eyebrow: { color: discoveryColors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
-  title: { color: discoveryColors.text, fontSize: 40, lineHeight: 44, fontWeight: '800', letterSpacing: -1.4 },
-  description: { color: discoveryColors.secondary, fontSize: 15, lineHeight: 23, maxWidth: 420 },
+  hero: { paddingTop: 6, paddingHorizontal: 20 },
+  title: { color: discoveryColors.text, fontSize: 26, lineHeight: 32, fontWeight: '800', letterSpacing: -0.8 },
 
+  searchBlock: { gap: 8, backgroundColor: discoveryColors.background, paddingBottom: 6 },
   searchField: {
     marginHorizontal: 20,
     minHeight: 58,
@@ -470,6 +582,12 @@ const styles = StyleSheet.create({
   searchGoButton: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: discoveryColors.accent, paddingHorizontal: 20 },
   searchGoButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
   validationError: { color: '#9A3D34', fontSize: 12, lineHeight: 18, paddingHorizontal: 24 },
+  locationRow: { gap: 6, paddingHorizontal: 20 },
+  locationChip: { minHeight: 40, alignSelf: 'flex-start', justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: discoveryColors.border, backgroundColor: discoveryColors.card, paddingHorizontal: 16 },
+  locationChipActive: { borderColor: discoveryColors.accent, backgroundColor: discoveryColors.accentSoft },
+  locationChipText: { color: discoveryColors.secondary, fontSize: 12, fontWeight: '800' },
+  locationChipTextActive: { color: discoveryColors.accent },
+  locationNotice: { color: discoveryColors.muted, fontSize: 11, lineHeight: 16 },
 
   categoriesRow: { gap: 10, paddingHorizontal: 20, paddingRight: 32 },
 

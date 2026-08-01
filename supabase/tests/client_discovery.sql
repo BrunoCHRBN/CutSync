@@ -32,10 +32,38 @@ UPDATE public.profiles
 SET name = 'Ana Especialista', role = 'professional', specialties = 'Corte clássico'
 WHERE id = '84000000-0000-0000-0000-000000000002';
 
-INSERT INTO public.establishments (id, name, slug, address, account_status)
+INSERT INTO public.establishments (id, name, slug, address, account_status, gallery_urls, latitude, longitude)
 VALUES
-  ('84000000-0000-0000-0000-000000000010', 'Estúdio Descoberta', 'estudio-descoberta', 'Centro, São Paulo - SP', 'active'),
-  ('84000000-0000-0000-0000-000000000011', 'Estúdio Bloqueado', 'estudio-bloqueado', 'Centro, São Paulo - SP', 'blocked');
+  (
+    '84000000-0000-0000-0000-000000000010',
+    'Estúdio Descoberta',
+    'estudio-descoberta',
+    'Centro, São Paulo - SP',
+    'active',
+    '["https://cdn.example.test/a.jpg","https://cdn.example.test/b.jpg"]',
+    -23.5505,
+    -46.6333
+  ),
+  (
+    '84000000-0000-0000-0000-000000000011',
+    'Estúdio Bloqueado',
+    'estudio-bloqueado',
+    'Centro, São Paulo - SP',
+    'blocked',
+    NULL,
+    NULL,
+    NULL
+  ),
+  (
+    '84000000-0000-0000-0000-000000000012',
+    'Estúdio Distante',
+    'estudio-distante',
+    'Centro, Rio de Janeiro - RJ',
+    'active',
+    NULL,
+    -22.9068,
+    -43.1729
+  );
 
 INSERT INTO public.services (id, establishment_id, name, price, duration_minutes, is_active, sort_order)
 VALUES
@@ -84,7 +112,46 @@ BEGIN
   THEN
     RAISE EXCEPTION 'FAIL: detail did not filter services and professionals';
   END IF;
+
+  IF detail_row.gallery_urls IS NULL
+    OR position('cdn.example.test/a.jpg' IN detail_row.gallery_urls) = 0
+    OR detail_row.latitude IS NULL
+  THEN
+    RAISE EXCEPTION 'FAIL: detail did not expose gallery and coordinates';
+  END IF;
 END $$;
+
+-- Distance ranking: from São Paulo the local studio must come before Rio.
+DO $$
+DECLARE
+  nearest_slug text;
+  nearest_distance double precision;
+BEGIN
+  SELECT slug, distance_meters INTO nearest_slug, nearest_distance
+  FROM public.list_client_discovery_establishments('', 30, -23.5505, -46.6333)
+  LIMIT 1;
+
+  IF nearest_slug <> 'estudio-descoberta' THEN
+    RAISE EXCEPTION 'FAIL: nearest establishment was not ranked first, got %', nearest_slug;
+  END IF;
+
+  IF nearest_distance IS NULL OR nearest_distance > 1000 THEN
+    RAISE EXCEPTION 'FAIL: distance for the co-located establishment was %', nearest_distance;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.list_client_discovery_establishments('', 30)
+    WHERE distance_meters IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL: distance was computed without an origin';
+  END IF;
+END $$;
+
+SELECT pg_temp.expect_error(
+  $$SELECT public.list_client_discovery_establishments('', 30, 120, -46.6333)$$,
+  'invalid_discovery_coordinates'
+);
 
 SELECT pg_temp.expect_error(
   $$SELECT public.list_client_discovery_establishments('barbearia ' || U&'\+01F488', 30)$$,

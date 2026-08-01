@@ -21,6 +21,7 @@ import {
   Scissors,
   Star,
   UserRound,
+  UsersRound,
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -53,10 +54,12 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { AppButton } from '../ui/AppButton';
 import { BookingStepper } from '../ui/BookingStepper';
 
+const ANY_PROFESSIONAL = 'any';
+
 export const EstablishmentBookingExperience = () => {
   const { width } = useWindowDimensions();
   const isMobileWeb = width < layout.mobileBreakpoint;
-  const { by, identifier, slug, rescheduleId } = useEstablishmentRouteParams();
+  const { by, identifier, slug, rescheduleId, initialProfessionalId, initialServiceId } = useEstablishmentRouteParams();
   const router = useRouter();
   const { user } = useAuth();
 
@@ -102,6 +105,7 @@ export const EstablishmentBookingExperience = () => {
 
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
+  const [didApplyDeepLinkPrefill, setDidApplyDeepLinkPrefill] = useState(false);
 
   useEffect(() => {
     if (!rescheduleId) return;
@@ -120,6 +124,35 @@ export const EstablishmentBookingExperience = () => {
     });
   }, [rescheduleId]);
 
+  useEffect(() => {
+    if (rescheduleId || didApplyDeepLinkPrefill || servicesLoading || teamLoading) return;
+    if (!initialServiceId && !initialProfessionalId) return;
+
+    const serviceReady = Boolean(
+      initialServiceId && services.some((service) => service.id === initialServiceId),
+    );
+    const professionalReady = Boolean(
+      initialProfessionalId && barbers.some((barber) => barber.id === initialProfessionalId),
+    );
+
+    if (serviceReady && initialServiceId) setSelectedService(initialServiceId);
+    if (professionalReady && initialProfessionalId) setSelectedBarber(initialProfessionalId);
+
+    if (serviceReady && professionalReady) setWizardStep(3);
+    else if (serviceReady) setWizardStep(2);
+
+    setDidApplyDeepLinkPrefill(true);
+  }, [
+    barbers,
+    didApplyDeepLinkPrefill,
+    initialProfessionalId,
+    initialServiceId,
+    rescheduleId,
+    services,
+    servicesLoading,
+    teamLoading,
+  ]);
+
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -129,6 +162,7 @@ export const EstablishmentBookingExperience = () => {
   const loading = shopLoading || servicesLoading || teamLoading;
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState('');
+  const isAnyProfessional = selectedBarber === ANY_PROFESSIONAL;
 
   const {
     availableSlots,
@@ -138,7 +172,7 @@ export const EstablishmentBookingExperience = () => {
     refresh: refreshAvailability,
   } = useAvailableSlots({
     establishmentId: barbershop?.id,
-    professionalId: selectedBarber,
+    professionalId: isAnyProfessional ? null : selectedBarber,
     serviceId: selectedService,
     date: selectedDate,
     appointmentId: user ? rescheduleId : null,
@@ -220,7 +254,18 @@ export const EstablishmentBookingExperience = () => {
   const activeServiceObj = services.find((s) => s.id === selectedService);
   const activeBarberObj = barbers.find((b) => b.id === selectedBarber);
 
-  const { price: summaryPrice } = getServicePriceAndDuration(selectedService, selectedBarber);
+  const anyFromPrice = useMemo(() => {
+    if (!selectedService || filteredBarbers.length === 0) return null;
+    const prices = filteredBarbers
+      .map((barber) => getServicePriceAndDuration(selectedService, barber.id).price)
+      .filter((price) => typeof price === 'number' && price > 0);
+    return prices.length > 0 ? Math.min(...prices) : null;
+  }, [filteredBarbers, selectedService, barberServices, services]);
+
+  const { price: summaryPrice } = getServicePriceAndDuration(
+    selectedService,
+    isAnyProfessional ? null : selectedBarber,
+  );
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -306,6 +351,13 @@ export const EstablishmentBookingExperience = () => {
         throw new Error('O horário selecionado não está mais disponível.');
       }
 
+      const resolvedProfessionalId = isAnyProfessional
+        ? (chosenSlot.professionalId || filteredBarbers[0]?.id)
+        : selectedBarber;
+      if (!resolvedProfessionalId || resolvedProfessionalId === ANY_PROFESSIONAL) {
+        throw new Error('Não foi possível definir o profissional para este horário.');
+      }
+
       if (rescheduleId) {
         const latestSlots = await refreshAvailability(rescheduleId);
         const confirmedSlot = latestSlots?.find((slot) => (
@@ -314,7 +366,7 @@ export const EstablishmentBookingExperience = () => {
         if (!confirmedSlot) throw new Error('appointment_conflict');
         const { error: rescheduleError } = await supabase.rpc('reschedule_appointment', {
           target_appointment_id: rescheduleId,
-          requested_professional_id: selectedBarber,
+          requested_professional_id: resolvedProfessionalId,
           requested_service_id: selectedService,
           requested_date_time: confirmedSlot.startsAt,
         });
@@ -327,7 +379,7 @@ export const EstablishmentBookingExperience = () => {
       const { data: created, error: insertError } = await supabase.rpc('create_client_appointment', {
         target_establishment_id: barbershop.id,
         target_service_id: selectedService,
-        target_professional_id: selectedBarber,
+        target_professional_id: resolvedProfessionalId,
         target_date_time: chosenSlot.startsAt,
       }).single();
 
@@ -587,42 +639,68 @@ export const EstablishmentBookingExperience = () => {
                     </Text>
                   </View>
                 ) : (
-                  filteredBarbers.map((barber) => {
-                    const isSelected = selectedBarber === barber.id;
-                    const { price: customPrice } = getServicePriceAndDuration(selectedService, barber.id);
-
-                    return (
+                  <>
+                    {filteredBarbers.length > 1 ? (
                       <Pressable
-                        key={barber.id}
-                        style={[styles.barberCard, isSelected && selectedSurface(theme)]}
+                        testID="client-booking-professional-any"
+                        style={[styles.barberCard, isAnyProfessional && selectedSurface(theme)]}
                         onPress={() => {
                           tapLight();
-                          setSelectedBarber(barber.id);
+                          setSelectedBarber(ANY_PROFESSIONAL);
                           setSelectedTime(null);
-                          // Auto advance to Step 3
                           animateStep(3);
                         }}
                       >
                         <View style={[styles.barberAvatar, iconSoftBackground(theme)]}>
-                          {barber.avatarUrl ? (
-                            <Image source={{ uri: barber.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
-                          ) : (
-                            <UserRound size={18} color={theme.primary} />
-                          )}
+                          <UsersRound size={18} color={theme.primary} />
                         </View>
-
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={styles.barberName}>{barber.name}</Text>
+                          <Text style={styles.barberName}>Qualquer profissional</Text>
                           <Text style={styles.barberRole}>
-                            {barber.tituloProfissional || 'Especialista'}
-                            {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
+                            Primeiro horário disponível
+                            {anyFromPrice != null ? ` • a partir de R$ ${anyFromPrice.toFixed(2)}` : ''}
                           </Text>
                         </View>
-
                         <ChevronRight size={16} color={colors.textMuted} />
                       </Pressable>
-                    );
-                  })
+                    ) : null}
+                    {filteredBarbers.map((barber) => {
+                      const isSelected = selectedBarber === barber.id;
+                      const { price: customPrice } = getServicePriceAndDuration(selectedService, barber.id);
+
+                      return (
+                        <Pressable
+                          key={barber.id}
+                          style={[styles.barberCard, isSelected && selectedSurface(theme)]}
+                          onPress={() => {
+                            tapLight();
+                            setSelectedBarber(barber.id);
+                            setSelectedTime(null);
+                            // Auto advance to Step 3
+                            animateStep(3);
+                          }}
+                        >
+                          <View style={[styles.barberAvatar, iconSoftBackground(theme)]}>
+                            {barber.avatarUrl ? (
+                              <Image source={{ uri: barber.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+                            ) : (
+                              <UserRound size={18} color={theme.primary} />
+                            )}
+                          </View>
+
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <Text style={styles.barberName}>{barber.name}</Text>
+                            <Text style={styles.barberRole}>
+                              {barber.tituloProfissional || 'Especialista'}
+                              {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
+                            </Text>
+                          </View>
+
+                          <ChevronRight size={16} color={colors.textMuted} />
+                        </Pressable>
+                      );
+                    })}
+                  </>
                 )}
               </View>
 
@@ -647,7 +725,7 @@ export const EstablishmentBookingExperience = () => {
                 <Text style={styles.stepSubtitle}>
                   Atendimento com{' '}
                   <Text style={{ fontFamily: typography.bodyStrong, ...accentText(theme) }}>
-                    {activeBarberObj?.name || 'Profissional'}
+                    {isAnyProfessional ? 'Qualquer profissional' : (activeBarberObj?.name || 'Profissional')}
                   </Text>
                 </Text>
               </View>
@@ -886,7 +964,7 @@ export const EstablishmentBookingExperience = () => {
 
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Profissional:</Text>
-                  <Text style={styles.summaryValue}>{activeBarberObj?.name}</Text>
+                  <Text style={styles.summaryValue}>{isAnyProfessional ? 'Qualquer disponível' : (activeBarberObj?.name || '—')}</Text>
                 </View>
 
                 <View style={styles.summaryDivider} />

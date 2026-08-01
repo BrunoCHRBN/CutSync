@@ -1,29 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   type ClientAvailableSlot,
-  loadClientAvailableSlots,
+  loadClientAvailability,
 } from '@/features/booking/client-booking-service';
 
 interface ClientAvailabilitySelection {
   establishmentId: string | null;
-  professionalId: string | null;
+  professionalIds: string[];
   serviceId: string | null;
   localDate: string | null;
   appointmentId?: string | null;
 }
 
 export function useClientAvailability(selection: ClientAvailabilitySelection) {
-  const { establishmentId, professionalId, serviceId, localDate, appointmentId } = selection;
+  const { establishmentId, professionalIds, serviceId, localDate, appointmentId } = selection;
   const requestSequence = useRef(0);
   const [slots, setSlots] = useState<ClientAvailableSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState('');
 
+  // Identity of the array changes on every render, so the effect keys off the
+  // ids themselves instead of the array reference.
+  const professionalKey = professionalIds.join(',');
+
+  const targets = useMemo(
+    () => professionalKey ? professionalKey.split(',') : [],
+    [professionalKey],
+  );
+
   const refresh = useCallback(async () => {
     const sequence = ++requestSequence.current;
-    if (!establishmentId || !professionalId || !serviceId || !localDate) {
+    if (!establishmentId || targets.length === 0 || !serviceId || !localDate) {
       setSlots([]);
       setError(null);
       setEmptyMessage('');
@@ -34,9 +43,9 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await loadClientAvailableSlots({
+      const result = await loadClientAvailability({
         establishmentId,
-        professionalId,
+        professionalIds: targets,
         serviceId,
         localDate,
         appointmentId,
@@ -54,13 +63,13 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
     } finally {
       if (sequence === requestSequence.current) setIsLoading(false);
     }
-  }, [appointmentId, establishmentId, localDate, professionalId, serviceId]);
+  }, [appointmentId, establishmentId, localDate, serviceId, targets]);
 
   useEffect(() => {
     void refresh();
     const hasSelection = Boolean(
       establishmentId
-      && professionalId
+      && targets.length > 0
       && serviceId
       && localDate,
     );
@@ -70,7 +79,7 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
       clearInterval(timer);
       requestSequence.current += 1;
     };
-  }, [establishmentId, localDate, professionalId, refresh, serviceId]);
+  }, [establishmentId, localDate, refresh, serviceId, targets]);
 
   return { slots, isLoading, error, emptyMessage, refresh };
 }

@@ -18,6 +18,7 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { getErrorMessage } from '../../utils/errors';
 import { StickyActionBar } from '../ui/sticky-action-bar';
+import { normalizeInstagramHandle } from '@cutsync/domain';
 
 type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'security';
 
@@ -330,7 +331,7 @@ export const SettingsExperience = () => {
         setLogoUrl(shop.logoUrl || null);
         setSlogan(shop.slogan || '');
         setBannerUrl(shop.bannerUrl || '');
-        setInstagram(shop.instagram || '');
+        setInstagram(normalizeInstagramHandle(shop.instagram) || '');
         setInstantBookingEnabled(shop.instantBookingEnabled !== false);
         setMinCancellationHours(String(shop.minCancellationHours ?? '24'));
         setNoShowFeePercent(String(shop.noShowFeePercent ?? '0'));
@@ -396,7 +397,7 @@ export const SettingsExperience = () => {
       const { data: updatedEstablishment, error } = await supabase.from('establishments').update({
         name: name.trim(), slug: cleanSlug, address: address.trim(), phone: phone.trim(),
         slogan: slogan.trim() || null, banner_url: bannerUrl.trim() || null,
-        instagram: instagram.trim() || null, opening_hours: JSON.stringify(schedule),
+        instagram: normalizeInstagramHandle(instagram), opening_hours: JSON.stringify(schedule),
         primary_color: primaryColor.toUpperCase(), logo_url: logoUrl,
         gallery_urls: JSON.stringify(galleryUrls),
         instant_booking_enabled: instantBookingEnabled,

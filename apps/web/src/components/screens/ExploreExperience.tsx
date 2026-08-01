@@ -2,27 +2,27 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
+import { ArrowUpRight, Clock3, Heart, MapPin, Search, Store } from 'lucide-react-native';
 import { buildEstablishmentTheme } from '@cutsync/brand';
 import { useAuth } from '../../contexts/AuthContext';
+import { useClientFavorites } from '../../hooks/useClientFavorites';
 import { supabase } from '../../services/supabase';
 import { Establishment, mapEstablishment } from '@cutsync/database';
 import { ClientShell } from '../layout/ClientShell';
 import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
-import { SectionHeading } from '../ui/SectionHeading';
 import { ClientFilterChip } from '../ui/ClientFilterChip';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { accentText, logoRing, primaryButton } from '../../theme/establishment-styles';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
-import { getOpeningStatus } from '@cutsync/domain';
+import { formatEstablishmentDisplayName, getOpeningStatus } from '@cutsync/domain';
 
 const ShopCardSkeleton = () => {
   return (
-    <View style={[styles.shopCard, styles.carouselSlide]}>
+    <View style={styles.shopCard}>
       <View style={[styles.visual, { backgroundColor: '#EBEBEB' }]} />
       <View style={styles.shopBody}>
         <View style={{ height: 16, backgroundColor: '#E5E5E5', borderRadius: 4, width: '60%' }} />
@@ -56,34 +56,58 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
-const ShopCard = ({ shop, onOpen, desktop = false }: {
+const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
   shop: Establishment;
   onOpen: (id: string) => void;
-  desktop?: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
 }) => {
   const theme = useMemo(() => buildEstablishmentTheme(shop.primaryColor), [shop.primaryColor]);
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
+  const displayName = formatEstablishmentDisplayName(shop.name, shop.slug);
+  const ratingLabel = shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo';
+  const hoursLabel = opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil';
+
   return (
     <Pressable
       testID={`client-shop-card-${shop.id}`}
       accessibilityRole="button"
-      accessibilityLabel={`Ver ${shop.name}`}
+      accessibilityLabel={`Ver ${displayName}`}
       onPress={() => { tapLight(); onOpen(shop.id); }}
-      style={({ pressed }) => [styles.shopCard, desktop ? styles.gridCard : styles.carouselSlide, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.shopCard, pressed && styles.pressed]}
     >
       <View style={styles.visual}>
-        <EstablishmentMedia name={shop.name} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
+        <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
         <View style={[styles.visualLine, { backgroundColor: theme.muted }]} />
+        <Pressable
+          testID={`client-shop-card-${shop.id}-favorite`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isFavorite }}
+          accessibilityLabel={isFavorite ? `Remover ${displayName} dos salvos` : `Salvar ${displayName}`}
+          onPress={(event) => {
+            event?.stopPropagation?.();
+            tapLight();
+            onToggleFavorite(shop.id);
+          }}
+          style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}
+        >
+          <Heart
+            color={isFavorite ? colors.danger : colors.text}
+            fill={isFavorite ? colors.danger : 'transparent'}
+            size={16}
+            strokeWidth={1.8}
+          />
+        </Pressable>
       </View>
       <View style={styles.shopBody}>
         <View style={styles.shopHeaderRow}>
           <View style={[styles.shopLogoCircle, logoRing(theme)]}>
-            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, accentText(theme)]}>{initialsOf(shop.name)}</Text>}
+            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, accentText(theme)]}>{initialsOf(displayName)}</Text>}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
+            <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
             <View style={styles.ratingPriceRow}>
-              <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
+              <Text style={styles.ratingText}>★ {ratingLabel}</Text>
               {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
               <Text style={styles.metaDivider}>·</Text>
               <Text style={[styles.priceLevelText, accentText(theme)]}>{'$'.repeat(shop.priceLevel || 1)}</Text>
@@ -91,7 +115,7 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
           </View>
         </View>
         <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
-        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text></View>
+        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text></View>
         <View style={styles.cardFooter}>
           <Text testID={`client-shop-card-${shop.id}-cta`} style={[styles.footerHint, accentText(theme)]}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
           <View style={[styles.openButton, primaryButton(theme)]}><ArrowUpRight color={theme.onPrimary} size={15} strokeWidth={1.8} /></View>
@@ -105,18 +129,23 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
 function ShopCarousel({
   shops,
   onOpen,
+  isFavorite,
+  onToggleFavorite,
 }: {
   shops: Establishment[];
   onOpen: (id: string) => void;
+  isFavorite: (id: string) => boolean;
+  onToggleFavorite: (id: string) => void;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const { width: winWidth } = useWindowDimensions();
 
-  // Cards visible per page depending on window width
-  const cardsPerPage = winWidth >= 1280 ? 3 : winWidth >= layout.mobileBreakpoint ? 2 : 1;
-  const cardWidth = 320;
-  const cardGap = 16;
+  const isDesktop = winWidth >= layout.desktopBreakpoint;
+  // Banner reduzido em carrossel horizontal — cards um pouco mais estreitos no desktop.
+  const cardWidth = isDesktop ? 272 : winWidth >= layout.mobileBreakpoint ? 260 : Math.min(winWidth - 48, 280);
+  const cardGap = 14;
+  const cardsPerPage = Math.max(1, Math.floor((Math.min(winWidth, layout.contentMax) + cardGap) / (cardWidth + cardGap)));
   const pageWidth = cardsPerPage * (cardWidth + cardGap);
   const totalPages = Math.ceil(shops.length / cardsPerPage);
 
@@ -134,58 +163,60 @@ function ShopCarousel({
 
   const startIdx = currentPage * cardsPerPage;
   const endIdx = Math.min(startIdx + cardsPerPage, shops.length);
-  const cards = shops.map((shop) => <ShopCard key={shop.id} shop={shop} onOpen={onOpen} desktop={winWidth >= layout.desktopBreakpoint} />);
-
-  if (winWidth >= layout.desktopBreakpoint) {
-    return (
-      <View testID="client-shops-grid" style={styles.carouselContainer}>
-        <Text style={styles.carouselPageInfo}>{shops.length} {shops.length === 1 ? 'estabelecimento' : 'estabelecimentos'}</Text>
-        <View style={styles.desktopGrid}>{cards}</View>
-      </View>
-    );
-  }
 
   return (
     <View testID="client-shops-grid" style={styles.carouselContainer}>
-      {/* Navigation Row */}
       <View style={styles.carouselNavRow}>
         <Text style={styles.carouselPageInfo}>
-          {startIdx + 1}–{endIdx} de {shops.length} estabelecimentos
+          {shops.length === 1
+            ? '1 lugar em destaque'
+            : `${startIdx + 1}–${endIdx} de ${shops.length} lugares`}
         </Text>
-        <View style={styles.carouselNavBtns}>
-          <Pressable
-            onPress={() => goTo(currentPage - 1)}
-            disabled={currentPage === 0}
-            style={[styles.carouselNavBtn, currentPage === 0 && styles.carouselNavBtnDisabled]}
-            accessibilityLabel="Anterior"
-          >
-            <Text style={[styles.carouselNavBtnText, currentPage === 0 && styles.carouselNavBtnTextDisabled]}>‹</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => goTo(currentPage + 1)}
-            disabled={currentPage >= totalPages - 1}
-            style={[styles.carouselNavBtn, currentPage >= totalPages - 1 && styles.carouselNavBtnDisabled]}
-            accessibilityLabel="Próximo"
-          >
-            <Text style={[styles.carouselNavBtnText, currentPage >= totalPages - 1 && styles.carouselNavBtnTextDisabled]}>›</Text>
-          </Pressable>
-        </View>
+        {totalPages > 1 ? (
+          <View style={styles.carouselNavBtns}>
+            <Pressable
+              onPress={() => goTo(currentPage - 1)}
+              disabled={currentPage === 0}
+              style={[styles.carouselNavBtn, currentPage === 0 && styles.carouselNavBtnDisabled]}
+              accessibilityLabel="Anterior"
+            >
+              <Text style={[styles.carouselNavBtnText, currentPage === 0 && styles.carouselNavBtnTextDisabled]}>‹</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => goTo(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              style={[styles.carouselNavBtn, currentPage >= totalPages - 1 && styles.carouselNavBtnDisabled]}
+              accessibilityLabel="Próximo"
+            >
+              <Text style={[styles.carouselNavBtnText, currentPage >= totalPages - 1 && styles.carouselNavBtnTextDisabled]}>›</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
-      {/* Scrollable Track */}
       <ScrollView
         ref={scrollRef}
         horizontal
         decelerationRate="fast"
+        snapToInterval={cardWidth + cardGap}
+        disableIntervalMomentum
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScrollEnd}
         contentContainerStyle={styles.carouselTrack}
         style={styles.carouselScroll}
       >
-        {cards}
+        {shops.map((shop) => (
+          <View key={shop.id} style={{ width: cardWidth }}>
+            <ShopCard
+              shop={shop}
+              onOpen={onOpen}
+              isFavorite={isFavorite(shop.id)}
+              onToggleFavorite={onToggleFavorite}
+            />
+          </View>
+        ))}
       </ScrollView>
 
-      {/* Dot Indicators */}
       {totalPages > 1 && (
         <View style={styles.dotsRow}>
           {Array.from({ length: totalPages }).map((_, i) => (
@@ -201,11 +232,22 @@ export const ExploreExperience = () => {
   const router = useRouter();
   const { search: searchParam } = useLocalSearchParams<{ search?: string }>();
   const { profile, signOut } = useAuth();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isDesktopViewport = viewportWidth >= layout.desktopBreakpoint;
+  const listHeadingHint = isDesktopViewport
+    ? 'Veja serviços e horários.'
+    : 'Toque para ver serviços e horários.';
   const [barbershops, setBarbershops] = useState<Establishment[]>([]);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const {
+    favoriteIds,
+    isFavorite,
+    toggleFavorite,
+    error: favoritesError,
+  } = useClientFavorites(Boolean(profile?.id));
 
   useEffect(() => {
     if (searchParam) {
@@ -213,6 +255,7 @@ export const ExploreExperience = () => {
     }
   }, [searchParam]);
   const [openOnly, setOpenOnly] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const [selectedEstado, setSelectedEstado] = useState('Todos');
   const [selectedCidade, setSelectedCidade] = useState('Todos');
@@ -294,11 +337,14 @@ export const ExploreExperience = () => {
     return () => { void supabase.removeChannel(channel); };
   }, [refresh]);
 
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return barbershops.filter((shop) => {
       const matchesTerm = !term || [shop.name, shop.address, shop.slug].some((value) => value?.toLowerCase().includes(term));
       const matchesOpen = !openOnly || getOpeningStatus(shop.openingHours, shop.timezone).isOpen;
+      const matchesFavorite = !favoritesOnly || favoriteIdSet.has(shop.id);
       
       const { estado, cidade, bairro } = parseAddress(shop.address);
       const matchesEstado = selectedEstado === 'Todos' || estado === selectedEstado;
@@ -308,18 +354,23 @@ export const ExploreExperience = () => {
       const matchesPrice = !selectedPriceLevel || shop.priceLevel === selectedPriceLevel;
       const matchesRating = !minRating || (shop.averageRating || 0) >= minRating;
 
-      return matchesTerm && matchesOpen && matchesEstado && matchesCidade && matchesBairro && matchesPrice && matchesRating;
+      return matchesTerm && matchesOpen && matchesFavorite && matchesEstado && matchesCidade && matchesBairro && matchesPrice && matchesRating;
     });
-  }, [barbershops, openOnly, search, selectedEstado, selectedCidade, selectedBairro, selectedPriceLevel, minRating]);
+  }, [barbershops, favoriteIdSet, favoritesOnly, openOnly, search, selectedEstado, selectedCidade, selectedBairro, selectedPriceLevel, minRating]);
 
   const openShop = (id: string) => {
     tapLight();
     router.push({ pathname: '/(client)/barbershop', params: { barbershopId: id } });
   };
 
-  const hasActiveFilters = openOnly || selectedEstado !== 'Todos' || selectedPriceLevel !== null || minRating !== null;
+  const handleToggleFavorite = useCallback((establishmentId: string) => {
+    void toggleFavorite(establishmentId);
+  }, [toggleFavorite]);
+
+  const hasActiveFilters = openOnly || favoritesOnly || selectedEstado !== 'Todos' || selectedPriceLevel !== null || minRating !== null;
   const clearFilters = () => {
     setOpenOnly(false);
+    setFavoritesOnly(false);
     setSelectedEstado('Todos');
     setSelectedCidade('Todos');
     setSelectedBairro('Todos');
@@ -331,15 +382,11 @@ export const ExploreExperience = () => {
     <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
         <View style={styles.hero}>
-          <View style={styles.heroCopy}>
-            <Text testID="client-explore-eyebrow" style={styles.eyebrow}>Descubra seu próximo atendimento</Text>
-            <Text testID="client-explore-title" style={styles.title}>Encontre o lugar{`\n`}certo para você.</Text>
-            <Text testID="client-explore-description" style={styles.description}>Compare estabelecimentos, conheça os serviços e marque sem ligações ou espera.</Text>
-          </View>
+          <Text testID="client-explore-eyebrow" style={styles.eyebrow}>Explorar</Text>
+          <Text testID="client-explore-title" style={styles.title}>Onde você quer marcar?</Text>
         </View>
         <View style={styles.searchSticky}>
           <View style={styles.searchBox}>
-            <Text style={styles.searchLabel}>Buscar estabelecimento</Text>
             <View style={[styles.searchField, searchFocused && styles.searchFieldFocused]}>
               <Search color={searchFocused ? colors.textSecondary : colors.textMuted} size={17} strokeWidth={1.8} />
               <TextInput
@@ -364,6 +411,24 @@ export const ExploreExperience = () => {
               >
                 <View style={[styles.openDot, !openOnly && styles.openDotMuted]} />
                 <Text style={[styles.filterText, openOnly && styles.filterTextSelected]}>Aberto agora</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: favoritesOnly }}
+                onPress={() => setFavoritesOnly((current) => !current)}
+                style={[styles.filterChip, favoritesOnly && styles.filterChipSelected]}
+                testID="client-filter-favorites"
+              >
+                <Heart
+                  color={favoritesOnly ? colors.brandPrimary : colors.textSecondary}
+                  fill={favoritesOnly ? colors.brandPrimary : 'transparent'}
+                  size={13}
+                  strokeWidth={1.8}
+                />
+                <Text style={[styles.filterText, favoritesOnly && styles.filterTextSelected]}>
+                  Salvos{favoriteIds.length > 0 ? ` (${favoriteIds.length})` : ''}
+                </Text>
               </Pressable>
 
               <Pressable
@@ -397,13 +462,17 @@ export const ExploreExperience = () => {
               </Pressable>
             </ScrollView>
 
-            <View style={styles.searchMeta}>
-              <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento encontrado' : 'estabelecimentos encontrados'}</Text>
-              {hasActiveFilters ? <Pressable testID="client-filters-clear-all" accessibilityRole="button" onPress={clearFilters}><Text style={styles.clearAll}>Limpar todos</Text></Pressable> : null}
-            </View>
+            {(hasActiveFilters) ? (
+              <View style={styles.searchMeta}>
+                <Pressable testID="client-filters-clear-all" accessibilityRole="button" onPress={clearFilters}>
+                  <Text style={styles.clearAll}>Limpar filtros</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {hasActiveFilters ? (
               <View testID="client-active-filters" style={styles.activeFilters}>
                 {openOnly ? <ClientFilterChip label="Aberto agora" active removable onPress={() => setOpenOnly(false)} /> : null}
+                {favoritesOnly ? <ClientFilterChip label="Salvos" active removable onPress={() => setFavoritesOnly(false)} testID="client-active-filter-favorites" /> : null}
                 {selectedEstado !== 'Todos' ? <ClientFilterChip label={locationLabel} active removable onPress={() => { setSelectedEstado('Todos'); setSelectedCidade('Todos'); setSelectedBairro('Todos'); }} /> : null}
                 {selectedPriceLevel !== null ? <ClientFilterChip label={`Preço: ${'$'.repeat(selectedPriceLevel)}`} active removable onPress={() => setSelectedPriceLevel(null)} /> : null}
                 {minRating !== null ? <ClientFilterChip label={`★ ${minRating.toFixed(1)}+`} active removable onPress={() => setMinRating(null)} /> : null}
@@ -412,7 +481,16 @@ export const ExploreExperience = () => {
           </View>
         </View>
 
-        <SectionHeading testID="client-shops-heading" eyebrow="Seleção CutSync" title="Estabelecimentos disponíveis" description="Informações reais de cada estabelecimento, direto da agenda do salão." />
+        <View testID="client-shops-heading" style={styles.listHeading}>
+          <Text testID="client-search-result-count" style={styles.listHeadingTitle}>
+            {favoritesOnly
+              ? `${filtered.length} ${filtered.length === 1 ? 'salvo' : 'salvos'}`
+              : `${filtered.length} ${filtered.length === 1 ? 'lugar' : 'lugares'}`}
+          </Text>
+          <Text style={styles.listHeadingHint}>
+            {favoritesOnly ? 'Seus lugares salvos para remarcar mais rápido.' : listHeadingHint}
+          </Text>
+        </View>
 
         {!!error && <InlineNotice
           testID="client-shops-error"
@@ -421,6 +499,7 @@ export const ExploreExperience = () => {
           message="Verifique sua conexão e tente novamente."
           action={<AppButton testID="client-shops-retry-button" label="Tentar novamente" onPress={() => { void refresh(); }} variant="secondary" size="sm" />}
         />}
+        {!!favoritesError && <InlineNotice testID="client-favorites-error" tone="danger" title="Salvos" message={favoritesError} />}
 
         {loading ? (
           <View testID="client-shops-loading-skeleton" style={styles.carouselContainer}>
@@ -433,13 +512,28 @@ export const ExploreExperience = () => {
         ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
           <EmptyState
             testID="client-shops-empty"
-            title={search || hasActiveFilters ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'}
-            description={hasActiveFilters ? 'Os filtros atuais não encontraram estabelecimentos. Remova um filtro ou limpe todos para ampliar a busca.' : search ? 'Tente buscar por outro nome, bairro ou cidade.' : 'Fique de olho, novos parceiros estarão disponíveis em breve!'}
-            icon={<Store color={colors.textSecondary} size={22} strokeWidth={1.6} />}
+            title={favoritesOnly ? 'Nenhum lugar salvo' : search || hasActiveFilters ? 'Nenhum resultado' : 'Novos estabelecimentos em breve'}
+            description={
+              favoritesOnly
+                ? 'Toque no coração nos cards para guardar estabelecimentos aqui.'
+                : hasActiveFilters
+                  ? 'Os filtros atuais não encontraram estabelecimentos. Remova um filtro ou limpe todos para ampliar a busca.'
+                  : search
+                    ? 'Tente buscar por outro nome, bairro ou cidade.'
+                    : 'Fique de olho, novos parceiros estarão disponíveis em breve!'
+            }
+            icon={favoritesOnly
+              ? <Heart color={colors.textSecondary} size={22} strokeWidth={1.6} />
+              : <Store color={colors.textSecondary} size={22} strokeWidth={1.6} />}
             action={hasActiveFilters ? <AppButton testID="client-empty-clear-filters" label="Limpar filtros" onPress={clearFilters} variant="secondary" size="sm" /> : undefined}
           />
         ) : (
-          <ShopCarousel shops={filtered} onOpen={openShop} />
+          <ShopCarousel
+            shops={filtered}
+            onOpen={openShop}
+            isFavorite={isFavorite}
+            onToggleFavorite={handleToggleFavorite}
+          />
         )}
       </ScrollView>
 
@@ -596,17 +690,14 @@ export const ExploreExperience = () => {
 const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
 
 const styles = StyleSheet.create({
-  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 34, paddingBottom: 120 },
-  hero: { gap: 20, marginBottom: 22 },
-  heroCopy: { flex: 1 },
+  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 20, paddingBottom: 120 },
+  hero: { gap: 6, marginBottom: 10 },
   eyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' },
-  title: { color: colors.text, fontFamily: typography.display, fontSize: 34, lineHeight: 40, letterSpacing: -1.4, marginTop: 10 },
-  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21, maxWidth: 560, marginTop: 10 },
-  searchSticky: { backgroundColor: colors.canvas, paddingBottom: 16, paddingTop: 4, zIndex: 4 },
+  title: { color: colors.text, fontFamily: typography.display, fontSize: 26, lineHeight: 30, letterSpacing: -1 },
+  searchSticky: { backgroundColor: colors.canvas, paddingBottom: 12, paddingTop: 4, zIndex: 4 },
   searchBox: { width: '100%', maxWidth: 720 },
-  searchLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 8 },
   searchField: {
-    minHeight: 52,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -624,9 +715,11 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  searchInput: { flex: 1, minHeight: 50, color: colors.text, fontFamily: typography.body, fontSize: 14, outlineStyle: 'none' } as any,
-  searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 10 },
-  resultCount: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginLeft: 4 },
+  searchInput: { flex: 1, minHeight: 46, color: colors.text, fontFamily: typography.body, fontSize: 14, outlineStyle: 'none' } as any,
+  listHeading: { gap: 4, marginTop: 8, marginBottom: 4 },
+  listHeadingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 22, letterSpacing: -0.6 },
+  listHeadingHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
+  searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
   clearAll: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, textDecorationLine: 'underline' },
   activeFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   filterChip: {
@@ -649,7 +742,7 @@ const styles = StyleSheet.create({
   loader: { margin: 50 },
 
   /* Carousel */
-  carouselContainer: { marginTop: 24, gap: 12 },
+  carouselContainer: { marginTop: 12, gap: 10 },
   carouselNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
   carouselPageInfo: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   carouselNavBtns: { flexDirection: 'row', gap: 6 },
@@ -658,26 +751,37 @@ const styles = StyleSheet.create({
   carouselNavBtnText: { fontSize: 22, lineHeight: 26, color: colors.text, fontFamily: typography.bodyStrong },
   carouselNavBtnTextDisabled: { color: colors.textMuted },
   carouselScroll: { overflow: 'hidden' } as any,
-  carouselTrack: { flexDirection: 'row', gap: 16, paddingBottom: 4 },
-  carouselSlide: { width: 320, flexShrink: 0 },
-  desktopGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  gridCard: { width: '31.8%', minWidth: 280, flexGrow: 1 },
+  carouselTrack: { flexDirection: 'row', gap: 14, paddingBottom: 4 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
   dotActive: { backgroundColor: colors.brandPrimary, width: 20 },
 
-  /* Shop Card */
+  /* Shop Card — banner reduzido + carrossel horizontal */
   shopCard: {
     width: '100%',
     backgroundColor: colors.surface,
     borderWidth: hairlineW,
     borderColor: colors.hairline,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     ...atmosphericShadow,
   },
-  visual: { aspectRatio: 1.8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  visual: { aspectRatio: 3.6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   bannerVisualImage: { width: '100%', height: '100%' },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    zIndex: 2,
+  },
   shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   shopLogoCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   shopLogoImage: { width: '100%', height: '100%' },
@@ -688,13 +792,13 @@ const styles = StyleSheet.create({
   metaDivider: { color: colors.textMuted },
   priceLevelText: { fontFamily: typography.bodyStrong, fontSize: 12 },
   visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
-  shopBody: { padding: 18 },
-  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.5 },
-  shopMeta: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 },
-  shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 14, marginTop: 16 },
+  shopBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 },
+  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: -0.4 },
+  shopMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 16 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 10, marginTop: 10 },
   footerHint: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
-  openButton: { width: 44, height: 44, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', borderWidth: hairlineW },
+  openButton: { width: 36, height: 36, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', borderWidth: hairlineW },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   filterContainer: { marginTop: 12, marginBottom: 4 },
   filterScroll: { gap: 8, paddingBottom: 4 },

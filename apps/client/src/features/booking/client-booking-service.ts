@@ -45,6 +45,7 @@ export interface ClientAvailableSlot {
   startsAt: string;
   localTime: string;
   durationMinutes: number;
+  professionalId: string;
 }
 
 export interface ClientAvailabilityResult {
@@ -217,6 +218,7 @@ export const loadClientAvailableSlots = async ({
             startsAt: row.starts_at,
             localTime: row.local_time,
             durationMinutes: Number(row.duration_minutes),
+            professionalId,
           }]
         : []
     ));
@@ -233,6 +235,72 @@ export const loadClientAvailableSlots = async ({
   } catch (error) {
     throw new Error(bookingErrorMessage(error, 'Não foi possível consultar os horários. Tente novamente.'));
   }
+};
+
+// Backs the "Qualquer profissional" option: each professional keeps their own
+// agenda in the backend, so the app merges the eligible agendas and books the
+// first professional able to serve the chosen time.
+export const MERGED_AVAILABILITY_PROFESSIONAL_LIMIT = 8;
+
+export const loadClientAvailability = async ({
+  establishmentId,
+  professionalIds,
+  serviceId,
+  localDate,
+  appointmentId,
+}: {
+  establishmentId: string;
+  professionalIds: string[];
+  serviceId: string;
+  localDate: string;
+  appointmentId?: string | null;
+}): Promise<ClientAvailabilityResult> => {
+  const targets = professionalIds.slice(0, MERGED_AVAILABILITY_PROFESSIONAL_LIMIT);
+  if (targets.length === 0) return { slots: [], emptyMessage: '' };
+  if (targets.length === 1) {
+    return loadClientAvailableSlots({
+      establishmentId,
+      professionalId: targets[0],
+      serviceId,
+      localDate,
+      appointmentId,
+    });
+  }
+
+  const settled = await Promise.all(targets.map(async (professionalId) => {
+    try {
+      return await loadClientAvailableSlots({
+        establishmentId,
+        professionalId,
+        serviceId,
+        localDate,
+        appointmentId,
+      });
+    } catch (error) {
+      return error instanceof Error ? error : new Error('Não foi possível consultar os horários.');
+    }
+  }));
+
+  const results = settled.filter((entry): entry is ClientAvailabilityResult => !(entry instanceof Error));
+  if (results.length === 0) throw settled[0];
+
+  // Professionals are merged in eligibility order, so the earliest one in the
+  // list wins a time that more than one of them can serve.
+  const byStartsAt = new Map<string, ClientAvailableSlot>();
+  for (const result of results) {
+    for (const slot of result.slots) {
+      if (!byStartsAt.has(slot.startsAt)) byStartsAt.set(slot.startsAt, slot);
+    }
+  }
+  const slots = [...byStartsAt.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+  return {
+    slots,
+    emptyMessage: slots.length > 0
+      ? ''
+      : results.find((result) => result.emptyMessage)?.emptyMessage
+        || 'Nenhum horário disponível nesta data.',
+  };
 };
 
 export const createClientAppointment = async ({

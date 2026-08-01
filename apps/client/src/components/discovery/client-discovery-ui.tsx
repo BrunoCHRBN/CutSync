@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { formatDisplayName } from '@cutsync/domain';
+
 import type {
   ClientDiscoveryEstablishment,
   ClientDiscoveryProfessional,
@@ -48,6 +50,19 @@ export const formatDiscoveryPrice = (value: number, currency = 'BRL') => {
   } catch {
     return 'R$ ' + value.toFixed(2).replace('.', ',');
   }
+};
+
+// Average price is only meaningful once the establishment has published priced services.
+const averagePriceLabel = (establishment: ClientDiscoveryEstablishment) => (
+  establishment.averagePrice > 0
+    ? 'Média ' + formatDiscoveryPrice(establishment.averagePrice, establishment.currency)
+    : null
+);
+
+export const formatDiscoveryDistance = (meters: number | null) => {
+  if (meters === null || !Number.isFinite(meters)) return null;
+  if (meters < 1000) return Math.round(meters) + ' m';
+  return (meters / 1000).toFixed(meters < 10000 ? 1 : 0).replace('.', ',') + ' km';
 };
 
 const StarIcon = ({ size = 11, color }: { size?: number; color: string }) => (
@@ -102,7 +117,7 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
     <Pressable
       testID={'client-discovery-featured-' + establishment.slug}
       accessibilityRole="button"
-      accessibilityLabel={'Abrir ' + establishment.name}
+      accessibilityLabel={'Abrir ' + formatDisplayName(establishment.name)}
       onPress={() => select(onPress)}
       style={({ pressed }) => [styles.featuredCard, pressed && styles.cardPressed]}
     >
@@ -133,7 +148,7 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
         </View>
       </View>
       <View style={styles.featuredCopy}>
-        <Text numberOfLines={1} style={styles.featuredTitle}>{establishment.name}</Text>
+        <Text numberOfLines={1} style={styles.featuredTitle}>{formatDisplayName(establishment.name)}</Text>
         {!!establishment.address && (
           <Text numberOfLines={1} style={styles.featuredAddress}>{establishment.address}</Text>
         )}
@@ -145,6 +160,18 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
           <Text style={styles.featuredMeta}>
             {establishment.professionalCount} {establishment.professionalCount === 1 ? 'profissional' : 'profissionais'}
           </Text>
+          {!!averagePriceLabel(establishment) && (
+            <>
+              <View style={styles.featuredMetaDot} />
+              <Text style={styles.featuredMeta}>{averagePriceLabel(establishment)}</Text>
+            </>
+          )}
+          {!!formatDiscoveryDistance(establishment.distanceMeters) && (
+            <>
+              <View style={styles.featuredMetaDot} />
+              <Text style={styles.featuredMeta}>{formatDiscoveryDistance(establishment.distanceMeters)}</Text>
+            </>
+          )}
         </View>
       </View>
     </Pressable>
@@ -157,11 +184,13 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
   onPress: () => void;
 }) {
   const services = establishment.serviceNames.slice(0, 2).join(' · ');
+  const price = averagePriceLabel(establishment);
+  const distance = formatDiscoveryDistance(establishment.distanceMeters);
   return (
     <Pressable
       testID={'client-discovery-compact-' + establishment.slug}
       accessibilityRole="button"
-      accessibilityLabel={'Abrir ' + establishment.name}
+      accessibilityLabel={'Abrir ' + formatDisplayName(establishment.name)}
       onPress={() => select(onPress)}
       style={({ pressed }) => [styles.compactCard, pressed && styles.cardPressed]}
     >
@@ -180,7 +209,7 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
       )}
       <View style={styles.compactBody}>
         <View style={styles.compactHeadline}>
-          <Text numberOfLines={1} style={styles.compactTitle}>{establishment.name}</Text>
+          <Text numberOfLines={1} style={styles.compactTitle}>{formatDisplayName(establishment.name)}</Text>
           <View style={styles.compactRatingPill}>
             <StarIcon color={discoveryColors.amber} size={9} />
             <Text style={styles.compactRatingText}>{establishment.averageRating.toFixed(1)}</Text>
@@ -190,6 +219,17 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
           <Text numberOfLines={1} style={styles.compactAddress}>{establishment.address}</Text>
         )}
         {!!services && <Text numberOfLines={1} style={styles.compactServices}>{services}</Text>}
+        {(!!price || !!distance || establishment.instantBookingEnabled) && (
+          <View style={styles.compactMetaRow}>
+            {!!distance && <Text style={styles.compactDistance}>{distance}</Text>}
+            {!!price && <Text style={styles.compactPrice}>{price}</Text>}
+            {establishment.instantBookingEnabled && (
+              <View style={styles.compactInstantBadge}>
+                <Text style={styles.compactInstantText}>NA HORA</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -230,7 +270,7 @@ export function EstablishmentCard({ establishment, onPress }: {
     <Pressable
       testID={'client-discovery-card-' + establishment.slug}
       accessibilityRole="button"
-      accessibilityLabel={'Abrir ' + establishment.name}
+      accessibilityLabel={'Abrir ' + formatDisplayName(establishment.name)}
       onPress={() => select(onPress)}
       style={({ pressed }) => [styles.establishmentCard, pressed && styles.cardPressed]}
     >
@@ -250,7 +290,7 @@ export function EstablishmentCard({ establishment, onPress }: {
       <View style={styles.cardBody}>
         <View style={styles.cardTopline}>
           <View style={styles.cardTitleCopy}>
-            <Text numberOfLines={1} style={styles.cardTitle}>{establishment.name}</Text>
+            <Text numberOfLines={1} style={styles.cardTitle}>{formatDisplayName(establishment.name)}</Text>
             {!!establishment.address && (
               <Text numberOfLines={2} style={styles.cardAddress}>{establishment.address}</Text>
             )}
@@ -267,6 +307,9 @@ export function EstablishmentCard({ establishment, onPress }: {
             {establishment.serviceCount} {establishment.serviceCount === 1 ? 'serviço' : 'serviços'}
             {'  ·  '}
             {establishment.professionalCount} {establishment.professionalCount === 1 ? 'profissional' : 'profissionais'}
+            {!!averagePriceLabel(establishment) && '  ·  ' + averagePriceLabel(establishment)}
+            {!!formatDiscoveryDistance(establishment.distanceMeters)
+              && '  ·  ' + formatDiscoveryDistance(establishment.distanceMeters)}
           </Text>
           <Text style={styles.openLabel}>Ver detalhes →</Text>
         </View>
@@ -275,12 +318,21 @@ export function EstablishmentCard({ establishment, onPress }: {
   );
 }
 
-export function ProfessionalCard({ professional }: { professional: ClientDiscoveryProfessional }) {
-  return (
-    <View style={styles.professionalCard}>
+export function ProfessionalCard({
+  professional,
+  onPress,
+  testID,
+}: {
+  professional: ClientDiscoveryProfessional;
+  onPress?: () => void;
+  testID?: string;
+}) {
+  const displayName = formatDisplayName(professional.name);
+  const content = (
+    <>
       {professional.avatarUrl ? (
         <Image
-          accessibilityLabel={'Foto de ' + professional.name}
+          accessibilityLabel={'Foto de ' + displayName}
           contentFit="cover"
           source={{ uri: professional.avatarUrl }}
           style={styles.professionalAvatar}
@@ -288,23 +340,52 @@ export function ProfessionalCard({ professional }: { professional: ClientDiscove
         />
       ) : (
         <View style={styles.professionalAvatarFallback}>
-          <Text style={styles.professionalInitials}>{initialsOf(professional.name)}</Text>
+          <Text style={styles.professionalInitials}>{initialsOf(displayName)}</Text>
         </View>
       )}
       <View style={styles.professionalCopy}>
-        <Text style={styles.professionalName}>{professional.name}</Text>
+        <Text style={styles.professionalName}>{displayName}</Text>
         {!!professional.title && <Text style={styles.professionalTitle}>{professional.title}</Text>}
         {!!professional.specialties && (
           <Text numberOfLines={2} style={styles.professionalSpecialties}>{professional.specialties}</Text>
         )}
+        {!!professional.profileSlug && (
+          <Text style={styles.professionalProfileHint}>
+            {onPress ? 'Ver perfil público →' : 'Perfil público disponível'}
+          </Text>
+        )}
+        {!professional.profileSlug && !!onPress && (
+          <Text style={styles.professionalProfileHint}>Agendar com este profissional →</Text>
+        )}
       </View>
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.professionalCard}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={
+        professional.profileSlug
+          ? 'Ver perfil de ' + displayName
+          : 'Agendar com ' + displayName
+      }
+      onPress={onPress}
+      style={({ pressed }) => [styles.professionalCard, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
 // Compact card size constants (also exported for the carousel snapping intervals).
 export const COMPACT_CARD_WIDTH = 262;
-export const FEATURED_CARD_WIDTH = 296;
+export const FEATURED_CARD_WIDTH = 268;
+export const FEATURED_CARD_HEIGHT = 300;
 
 // ---------- Skeleton loaders ----------
 function ShimmerBlock({ style }: { style: any }) {
@@ -400,7 +481,7 @@ const styles = StyleSheet.create({
   // Featured (hero) card
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 380,
+    height: FEATURED_CARD_HEIGHT,
     overflow: 'hidden',
     borderRadius: 28,
     borderCurve: 'continuous',
@@ -412,14 +493,14 @@ const styles = StyleSheet.create({
   featuredFallback: { alignItems: 'center', justifyContent: 'center' },
   featuredInitials: { color: '#FFFFFF', fontSize: 56, fontWeight: '900', letterSpacing: 1.2, opacity: 0.72 },
   featuredGradientTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 110, backgroundColor: 'rgba(20, 27, 23, 0.42)' },
-  featuredGradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 210, backgroundColor: 'rgba(20, 27, 23, 0.7)' },
+  featuredGradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 160, backgroundColor: 'rgba(20, 27, 23, 0.7)' },
   featuredBadgeRow: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   featuredInstantBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.92)' },
   featuredInstantText: { color: discoveryColors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   featuredRatingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(20, 27, 23, 0.62)' },
   featuredRatingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   featuredCopy: { position: 'absolute', left: 20, right: 20, bottom: 20, gap: 6 },
-  featuredTitle: { color: '#FFFFFF', fontSize: 24, lineHeight: 28, fontWeight: '800', letterSpacing: -0.5 },
+  featuredTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 24, fontWeight: '800', letterSpacing: -0.4 },
   featuredAddress: { color: 'rgba(255, 255, 255, 0.86)', fontSize: 12, lineHeight: 18 },
   featuredMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 6 },
   featuredMeta: { color: 'rgba(255, 255, 255, 0.82)', fontSize: 11, fontWeight: '600' },
@@ -444,6 +525,11 @@ const styles = StyleSheet.create({
   compactRatingText: { color: discoveryColors.amber, fontSize: 11, fontWeight: '800' },
   compactAddress: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
   compactServices: { color: discoveryColors.accent, fontSize: 11, fontWeight: '700' },
+  compactMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
+  compactDistance: { color: discoveryColors.accent, fontSize: 11, fontWeight: '800' },
+  compactPrice: { color: discoveryColors.text, fontSize: 11, fontWeight: '800' },
+  compactInstantBadge: { borderRadius: 999, backgroundColor: discoveryColors.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
+  compactInstantText: { color: discoveryColors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
 
   // Category chip
   categoryChip: {
@@ -493,6 +579,7 @@ const styles = StyleSheet.create({
   professionalName: { color: discoveryColors.text, fontSize: 15, fontWeight: '700' },
   professionalTitle: { color: discoveryColors.accent, fontSize: 12, fontWeight: '700' },
   professionalSpecialties: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
+  professionalProfileHint: { color: discoveryColors.muted, fontSize: 11, fontWeight: '700', paddingTop: 2 },
 
   pressed: { opacity: 0.65 },
 
@@ -503,7 +590,7 @@ const styles = StyleSheet.create({
   skeletonRow: { flexDirection: 'row', gap: 14, paddingHorizontal: 20 },
   skeletonFeatured: {
     width: FEATURED_CARD_WIDTH,
-    height: 380,
+    height: FEATURED_CARD_HEIGHT,
     overflow: 'hidden',
     borderRadius: 28,
     borderCurve: 'continuous',

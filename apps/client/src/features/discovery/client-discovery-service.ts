@@ -14,6 +14,10 @@ export interface ClientDiscoveryEstablishment {
   address: string | null;
   logoUrl: string | null;
   bannerUrl: string | null;
+  galleryUrls: string[];
+  latitude: number | null;
+  longitude: number | null;
+  distanceMeters: number | null;
   primaryColor: string;
   timezone: string;
   currency: string;
@@ -47,10 +51,15 @@ export interface ClientDiscoveryProfessional {
 
 export interface ClientDiscoveryDetail extends Omit<
   ClientDiscoveryEstablishment,
-  'serviceCount' | 'professionalCount' | 'serviceNames' | 'professionalNames'
+  'serviceCount' | 'professionalCount' | 'serviceNames' | 'professionalNames' | 'distanceMeters'
 > {
   services: ClientDiscoveryService[];
   professionals: ClientDiscoveryProfessional[];
+}
+
+export interface ClientDiscoveryOrigin {
+  latitude: number;
+  longitude: number;
 }
 
 const isObject = (value: Json): value is { [key: string]: Json | undefined } => (
@@ -94,6 +103,27 @@ const mapProfessionals = (value: Json): ClientDiscoveryProfessional[] => {
   });
 };
 
+// The column stores a JSON array as text, but older records were saved as a
+// comma-separated list, so both shapes are accepted.
+const mapGalleryUrls = (value: string | null): string[] => {
+  const raw = value?.trim();
+  if (!raw) return [];
+  let entries: unknown[];
+  try {
+    const parsed = JSON.parse(raw);
+    entries = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    entries = raw.split(',');
+  }
+  return entries
+    .map((entry) => typeof entry === 'string' ? entry.trim() : '')
+    .filter((entry) => entry.startsWith('http://') || entry.startsWith('https://'));
+};
+
+const asCoordinate = (value: number | null, limit: number) => (
+  typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit ? value : null
+);
+
 const mapDiscoveryRow = (row: DiscoveryRow): ClientDiscoveryEstablishment => ({
   id: row.id,
   slug: row.slug,
@@ -103,6 +133,12 @@ const mapDiscoveryRow = (row: DiscoveryRow): ClientDiscoveryEstablishment => ({
   address: row.address,
   logoUrl: row.logo_url,
   bannerUrl: row.banner_url,
+  galleryUrls: mapGalleryUrls(row.gallery_urls),
+  latitude: asCoordinate(row.latitude, 90),
+  longitude: asCoordinate(row.longitude, 180),
+  distanceMeters: typeof row.distance_meters === 'number' && Number.isFinite(row.distance_meters)
+    ? row.distance_meters
+    : null,
   primaryColor: row.primary_color || '#2C4334',
   timezone: row.timezone,
   currency: row.currency,
@@ -127,6 +163,9 @@ const mapDetailRow = (row: EstablishmentRow): ClientDiscoveryDetail => ({
   address: row.address,
   logoUrl: row.logo_url,
   bannerUrl: row.banner_url,
+  galleryUrls: mapGalleryUrls(row.gallery_urls),
+  latitude: asCoordinate(row.latitude, 90),
+  longitude: asCoordinate(row.longitude, 180),
   primaryColor: row.primary_color || '#2C4334',
   timezone: row.timezone,
   currency: row.currency,
@@ -159,11 +198,15 @@ const friendlyDiscoveryError = (error: unknown) => {
   return 'Não foi possível carregar a descoberta agora. Tente novamente.';
 };
 
-export const listClientDiscoveryEstablishments = async (query: string) => {
+export const listClientDiscoveryEstablishments = async (
+  query: string,
+  origin: ClientDiscoveryOrigin | null = null,
+) => {
   try {
     const { data, error } = await requireClient().rpc('list_client_discovery_establishments', {
       target_query: query,
       result_limit: 30,
+      ...(origin ? { target_latitude: origin.latitude, target_longitude: origin.longitude } : {}),
     });
     if (error) throw error;
     return (data ?? []).map(mapDiscoveryRow);
