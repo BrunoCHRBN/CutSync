@@ -4920,6 +4920,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      backfill_establishment_clients_from_appointments: {
+        Args: { target_batch_size?: number }
+        Returns: Json
+      }
       begin_client_account_deletion_execution: {
         Args: { execution_reason: string; target_request_id: string }
         Returns: {

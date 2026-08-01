@@ -1,13 +1,13 @@
 import React, { ReactNode } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
-import { BarChart3, Building2, CreditCard, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react-native';
+import { BarChart3, Building2, ContactRound, CreditCard, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useOperationalContext } from '../../contexts/operational-context';
 import { colors, radii, typeScale } from '../../theme/tokens';
 import { ActionMenu } from '../ui/action-menu';
 import { OperationalShell } from './operational-shell';
 
-type AdminRoute = 'overview' | 'reports' | 'services' | 'team' | 'organization' | 'billing' | 'settings';
+type AdminRoute = 'overview' | 'reports' | 'services' | 'team' | 'clients' | 'organization' | 'billing' | 'settings';
 
 interface AdminShellProps {
   children: ReactNode;
@@ -25,6 +25,7 @@ const navItems = [
   { key: 'reports', label: 'Relatórios', path: '/(admin)/reports', icon: BarChart3 },
   { key: 'services', label: 'Serviços', path: '/(admin)/services', icon: Scissors },
   { key: 'team', label: 'Equipe', path: '/(admin)/team', icon: Users },
+  { key: 'clients', label: 'Clientes', path: '/(admin)/clients', icon: ContactRound },
   { key: 'organization', label: 'Meu grupo', path: '/(admin)/organization', icon: Building2 },
   { key: 'billing', label: 'Assinatura', path: '/(admin)/billing', icon: CreditCard },
   { key: 'settings', label: 'Configurações', path: '/(admin)/settings', icon: Settings },
