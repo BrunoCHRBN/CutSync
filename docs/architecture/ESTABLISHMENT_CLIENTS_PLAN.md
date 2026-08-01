@@ -1,6 +1,6 @@
 # Clientes por estabelecimento — plano de consolidação
 
-Status: etapas 1 e 2 implementadas; etapas 3 a 7 planejadas
+Status: etapas 1 a 3 implementadas; etapas 4 a 7 planejadas
 
 Data da verificação: 2026-08-01
 
@@ -169,11 +169,8 @@ Definição de pronto:
 - normalização em SQL e em TypeScript produz o mesmo resultado para a mesma
   tabela de casos.
 
-Pendência consciente: o atendimento de balcão criado por
-`create_business_appointment` continuará gravando `source = 'manual'` até a
-Etapa 3, porque corrigi-lo exige reescrever a função de agendamento — o mesmo
-trabalho que vincula o cliente autenticado. Nenhuma linha fica inválida nesse
-intervalo; apenas menos específica.
+Pendência resolvida na Etapa 3: `create_business_appointment` grava
+`source = 'walk_in'` no cliente criado no balcão.
 
 ## 4. Etapa 2 — Ciclo de vida e agregados
 
@@ -275,6 +272,19 @@ saíram.
 
 ## 5. Etapa 3 — Integração com agendamentos
 
+Status: implementada em
+`supabase/migrations/20260809000000_establishment_client_appointment_link.sql`
+e `supabase/tests/establishment_client_appointment_link.sql`.
+
+Validação executada: a matriz de testes rodou junto com a migration dentro de
+uma transação encerrada em `ROLLBACK`, e só depois a migration foi aplicada em
+homolog (`sphbbqdgcreowxzjgibj`), com a versão `20260809000000` registrada.
+O backfill vinculou os 12 agendamentos com `client_id` que estavam sem cliente
+local; nenhum ficou só com nome. Em seguida
+`packages/database/src/supabase.generated.ts` foi regerado, e
+`npm run typecheck:shared` e `npm run lint` passaram sem erro. Produção não foi
+tocada.
+
 Duração estimada: 4 a 6 dias.
 
 ### 5.1 Cliente autenticado agendando pelo app
@@ -338,9 +348,15 @@ Definição de pronto:
 
 ## 6. Etapa 4 — Diretório no Web
 
+Status: implementada em `apps/web/src/features/establishment-clients/`
+(lista/detalhe, archive/restore/merge, sugestão de duplicidade, nav em
+`AdminShell`), com mapper compartilhado em
+`packages/database/src/establishment-client.ts`. Validação local: typecheck/
+lint do Web e dos pacotes compartilhados. Produção não foi tocada.
+
 Duração estimada: 5 a 8 dias.
 
-O Web ainda não consome nenhuma RPC de cliente. Entregas:
+Entregas:
 
 ```text
 apps/web/src/features/establishment-clients/
@@ -410,9 +426,9 @@ Os testes SQL seguem o formato das matrizes existentes em `supabase/tests/`
 | 2 | `validation: add client normalization helpers` | 1 |
 | 3 | `database: enrich establishment_clients with source and consent` — feito | — |
 | 4 | `database: add client lifecycle rpcs and capabilities` — feito | 3 |
-| 5 | `database: link client bookings to establishment clients` | 4 |
-| 6 | `database: backfill profile-linked establishment clients` | 5 |
-| 7 | `web: add establishment client directory` | 2, 4 |
+| 5 | `database: link client bookings to establishment clients` — feito | 4 |
+| 6 | `database: backfill profile-linked establishment clients` — feito (na mesma migration) | 5 |
+| 7 | `web: add establishment client directory` — feito (código local) | 2, 4 |
 | 8 | `business: expose client origin, consent and archiving` | 2, 4 |
 | 9 | `testing: add establishment client sql coverage` | 6 |
 
