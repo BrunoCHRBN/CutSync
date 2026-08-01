@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image } from 'expo-image';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { landingColors, landingRadii, landingTypography } from '../../../theme/landing-tokens';
+import { landingColors, landingTypography } from '../../../theme/landing-tokens';
 
 const SOURCES = {
   client: require('../../../../assets/images/landing/landing-client-scene.webp'),
@@ -38,20 +38,28 @@ export const EditorialScene = ({ source, caption, alternativeText, style }: Edit
 const styles = StyleSheet.create({
   frame: {
     overflow: 'hidden',
-    borderRadius: landingRadii.xl,
+    borderRadius: 0,
     backgroundColor: landingColors.brandSoft,
-    borderWidth: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: landingColors.border,
+    marginHorizontal: -24,
   },
-  image: { width: '100%', aspectRatio: 16 / 9 },
+  image: { width: '100%', aspectRatio: 21 / 9, minHeight: 280 },
   captionShell: {
     position: 'absolute',
-    left: 14,
-    bottom: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: landingRadii.pill,
-    backgroundColor: 'rgba(20,33,25,0.72)',
+    left: 24,
+    bottom: 18,
+    paddingVertical: 4,
   },
-  caption: { color: landingColors.white, fontFamily: landingTypography.bodyMedium, fontSize: 11, letterSpacing: 0.6 },
+  caption: {
+    color: landingColors.white,
+    fontFamily: landingTypography.bodyMedium,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(20,33,25,0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
 });

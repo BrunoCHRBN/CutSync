@@ -2,8 +2,11 @@ export type LandingPageAudience = 'client' | 'business';
 
 export type LandingSectionId =
   | 'hero'
+  | 'search'
   | 'proposal_values'
+  | 'comparison'
   | 'ecosystem'
+  | 'roles'
   | 'services'
   | 'devices'
   | 'transparency'
@@ -15,10 +18,14 @@ export type LandingSectionId =
   | 'contact'
   | 'future';
 
+/** Catálogo de todas as seções existentes. A ordem real de cada página vive em LANDING_JOURNEY. */
 export const LANDING_SECTION_ORDER: readonly LandingSectionId[] = [
   'hero',
+  'search',
   'proposal_values',
+  'comparison',
   'ecosystem',
+  'roles',
   'services',
   'devices',
   'transparency',
@@ -31,18 +38,71 @@ export const LANDING_SECTION_ORDER: readonly LandingSectionId[] = [
   'future',
 ] as const;
 
+/**
+ * Cada produto tem a própria sequência editorial, conforme a seção 7 do contrato de produto:
+ * páginas completas e estruturas responsivas não são compartilhadas entre superfícies.
+ *
+ * O cliente chega para encontrar um horário, então a página abre na busca e explica o fluxo logo
+ * em seguida. O estabelecimento chega para avaliar, então a página abre pelo problema que resolve
+ * e só pede a decisão depois da demonstração.
+ */
+export const LANDING_JOURNEY: Record<LandingPageAudience, readonly LandingSectionId[]> = {
+  client: [
+    'hero',
+    'search',
+    'how_to_start',
+    'services',
+    'ecosystem',
+    'devices',
+    'proposal_values',
+    'transparency',
+    'security',
+    'resources',
+    'testimonials',
+    'faq',
+    'contact',
+    'future',
+  ],
+  business: [
+    'hero',
+    'proposal_values',
+    'comparison',
+    'ecosystem',
+    'roles',
+    'services',
+    'devices',
+    'transparency',
+    'security',
+    'how_to_start',
+    'resources',
+    'testimonials',
+    'faq',
+    'contact',
+    'future',
+  ],
+};
+
 export interface LandingNavItem {
-  id: Extract<LandingSectionId, 'proposal_values' | 'services' | 'security' | 'resources' | 'contact'>;
+  id: Extract<LandingSectionId, 'search' | 'proposal_values' | 'services' | 'security' | 'how_to_start' | 'resources' | 'contact'>;
   label: string;
 }
 
-export const LANDING_NAV_ITEMS: readonly LandingNavItem[] = [
-  { id: 'proposal_values', label: 'Solução' },
-  { id: 'services', label: 'Serviços' },
-  { id: 'security', label: 'Confiança' },
-  { id: 'resources', label: 'Recursos' },
-  { id: 'contact', label: 'Contato' },
-] as const;
+export const LANDING_NAV_ITEMS: Record<LandingPageAudience, readonly LandingNavItem[]> = {
+  client: [
+    { id: 'search', label: 'Explorar' },
+    { id: 'how_to_start', label: 'Como funciona' },
+    { id: 'security', label: 'Confiança' },
+    { id: 'resources', label: 'Recursos' },
+    { id: 'contact', label: 'Contato' },
+  ],
+  business: [
+    { id: 'proposal_values', label: 'Solução' },
+    { id: 'services', label: 'Demonstração' },
+    { id: 'security', label: 'Confiança' },
+    { id: 'resources', label: 'Recursos' },
+    { id: 'contact', label: 'Contato' },
+  ],
+};
 
 interface SectionCopy {
   eyebrow: string;
@@ -90,11 +150,22 @@ export interface LandingAudienceContent {
   scene: { source: 'client' | 'business'; caption: string; alternativeText: string };
 }
 
-const SHARED_VALUES: readonly LandingItem[] = [
-  { title: 'Clareza', description: 'Cada informação exibida vem do que já foi publicado ou configurado, sem promessas fora do produto.' },
-  { title: 'Autonomia', description: 'Cliente escolhe sozinho; estabelecimento define suas regras; profissional acompanha a própria rotina.' },
-  { title: 'Confiança', description: 'Acesso por perfil, registros de operação e comunicação apenas para quem participa do atendimento.' },
-  { title: 'Cuidado', description: 'O produto acompanha o ritmo de quem atende, com linguagem direta e nenhum dado pedido sem finalidade.' },
+/**
+ * Os quatro princípios da marca são os mesmos nas duas páginas, mas cada audiência lê o que o
+ * princípio significa para ela. O cliente não precisa ler sobre configuração de unidade.
+ */
+const CLIENT_VALUES: readonly LandingItem[] = [
+  { title: 'Clareza', description: 'Serviço, duração e preço aparecem como o estabelecimento publicou, antes de você decidir.' },
+  { title: 'Autonomia', description: 'Você pesquisa, compara e escolhe o horário sem depender de resposta por mensagem.' },
+  { title: 'Confiança', description: 'Seus dados de contato ficam com o estabelecimento do atendimento, e com mais ninguém.' },
+  { title: 'Cuidado', description: 'Linguagem direta, nenhum dado pedido sem finalidade e nenhuma etapa além da necessária.' },
+];
+
+const BUSINESS_VALUES: readonly LandingItem[] = [
+  { title: 'Clareza', description: 'A vitrine pública mostra exatamente o que está configurado na operação, sem versão paralela.' },
+  { title: 'Autonomia', description: 'Você define serviços, jornadas e regras da unidade, e o produto segue essa configuração.' },
+  { title: 'Confiança', description: 'Acesso por perfil, registro das operações e dados do cliente restritos ao atendimento.' },
+  { title: 'Cuidado', description: 'O produto acompanha o ritmo de quem atende, sem exigir treinamento longo para começar.' },
 ];
 
 const CLIENT_ECOSYSTEM: readonly LandingEcosystemStep[] = [
@@ -163,7 +234,7 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       title: 'Agendar deveria ser uma decisão simples.',
       statement: 'O CutSync existe para que você veja serviços, preços informados pelo estabelecimento e horários antes de escolher — e confirme sem negociar por mensagem.',
       description: 'Quatro princípios orientam cada tela que você usa.',
-      values: SHARED_VALUES,
+      values: CLIENT_VALUES,
     },
     ecosystem: {
       eyebrow: 'ECOSSISTEMA CONECTADO',
@@ -209,13 +280,13 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       ],
     },
     howToStart: {
-      eyebrow: 'COMO COMEÇAR',
+      eyebrow: 'COMO FUNCIONA',
       title: 'Três passos até o horário confirmado.',
       description: 'Você pode explorar antes de entrar. A conta é necessária somente para concluir a reserva.',
       steps: [
-        { title: 'Descubra', description: 'Busque por serviço, estabelecimento ou localização.' },
-        { title: 'Escolha', description: 'Consulte o catálogo e os horários publicados pela unidade.' },
-        { title: 'Confirme', description: 'Acesse sua conta apenas para finalizar o agendamento.' },
+        { title: 'Descubra', description: 'Busque por serviço, estabelecimento, bairro ou cidade na vitrine pública.' },
+        { title: 'Escolha', description: 'Abra o perfil, compare o catálogo publicado e veja os horários da agenda.' },
+        { title: 'Confirme', description: 'Acesse sua conta apenas na última etapa para finalizar o agendamento.' },
       ],
     },
     resources: {
@@ -263,14 +334,14 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       title: 'Sua vitrine e sua agenda no mesmo fluxo.',
       statement: 'O CutSync existe para que a apresentação pública do estabelecimento alimente a rotina real da equipe, sem planilhas paralelas e sem retrabalho.',
       description: 'Quatro princípios orientam cada decisão do produto.',
-      values: SHARED_VALUES,
+      values: BUSINESS_VALUES,
     },
     ecosystem: {
       eyebrow: 'ECOSSISTEMA CONECTADO',
       title: 'Você administra; o profissional executa; o cliente agenda.',
       description: 'Um único fluxo conecta os três papéis, começando pela operação do estabelecimento.',
       steps: BUSINESS_ECOSYSTEM,
-      note: 'O profissional acompanha apenas a própria agenda e produção; a visão da unidade permanece com a administração.',
+      note: 'O profissional acompanha apenas a própria agenda; a visão da unidade permanece com a administração.',
     },
     services: {
       eyebrow: 'SERVIÇOS E CAPACIDADES',
@@ -356,5 +427,115 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       caption: 'Cena ilustrativa',
       alternativeText: 'Cena ilustrativa de uma proprietária e um profissional revisando juntos a agenda do estabelecimento.',
     },
+  },
+};
+
+export interface LandingClientDiscovery {
+  hero: {
+    badge: string;
+    title: string;
+    description: string;
+    primaryCta: string;
+    secondaryCta: string;
+    businessCta: string;
+    searchPlaceholder: string;
+    locationPlaceholder: string;
+    submitLabel: string;
+  };
+  trust: readonly string[];
+  search: SectionCopy & {
+    note: string;
+    loadingLabel: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    errorTitle: string;
+    retryLabel: string;
+    bookingLabel: string;
+    noPriceLabel: string;
+    finalCta: string;
+  };
+}
+
+/** Superfície exclusiva da página do cliente: descoberta pública e entrada no agendamento. */
+export const LANDING_CLIENT_DISCOVERY: LandingClientDiscovery = {
+  hero: {
+    badge: 'VITRINES E AGENDAS CONECTADAS',
+    title: 'Encontre seu próximo horário sem depender de mensagens.',
+    description: 'Pesquise por serviço ou por bairro, veja o que cada estabelecimento publicou e escolha quando agendar.',
+    primaryCta: 'Explorar resultados',
+    secondaryCta: 'Como funciona',
+    businessCta: 'Tenho um negócio',
+    searchPlaceholder: 'Estabelecimento ou serviço',
+    locationPlaceholder: 'Bairro ou cidade',
+    submitLabel: 'Buscar',
+  },
+  trust: ['Explore sem cadastro', 'Consulte serviços e preços', 'Entre apenas para confirmar'],
+  search: {
+    eyebrow: 'VITRINES PUBLICADAS',
+    title: 'Escolha com informações reais.',
+    description: 'Serviços, localização e situação informados a partir do perfil de cada estabelecimento.',
+    note: 'A disponibilidade é consultada na agenda da unidade antes da confirmação do agendamento.',
+    loadingLabel: 'Buscando estabelecimentos…',
+    emptyTitle: 'Nenhum resultado com esses filtros.',
+    emptyDescription: 'Tente outro serviço, bairro ou cidade.',
+    errorTitle: 'Não foi possível atualizar a vitrine.',
+    retryLabel: 'Tentar novamente',
+    bookingLabel: 'Ver horários',
+    noPriceLabel: 'Consulte os serviços',
+    finalCta: 'Ver estabelecimentos',
+  },
+};
+
+export interface LandingBusinessEvaluation {
+  hero: {
+    badge: string;
+    title: string;
+    description: string;
+    primaryCta: string;
+    secondaryCta: string;
+    capabilities: readonly string[];
+  };
+  comparison: SectionCopy & {
+    pairs: readonly { id: 'messages' | 'notes' | 'catalog'; before: string; after: string; fragments: readonly [string, string] }[];
+  };
+  roles: SectionCopy & {
+    options: readonly { id: 'owner' | 'professional'; label: string; summary: string }[];
+  };
+  demo: SectionCopy;
+}
+
+/** Superfície exclusiva da página de estabelecimento: avaliação da operação antes do cadastro. */
+export const LANDING_BUSINESS_EVALUATION: LandingBusinessEvaluation = {
+  hero: {
+    badge: 'VITRINE E OPERAÇÃO CONECTADAS',
+    title: 'Sua vitrine e sua agenda trabalhando juntas.',
+    description: 'Publique serviços com preço e duração, receba agendamentos na agenda da unidade e organize a rotina da equipe em um só fluxo.',
+    primaryCta: 'Criar meu estabelecimento',
+    secondaryCta: 'Explorar demonstração',
+    capabilities: ['Vitrine pública', 'Agenda da unidade', 'Catálogo de serviços', 'Equipe e jornadas'],
+  },
+  comparison: {
+    eyebrow: 'UM FLUXO MAIS CLARO',
+    title: 'Reúna o que hoje fica separado.',
+    description: 'O CutSync conecta a apresentação do negócio às informações usadas na rotina, sem manter duas versões da mesma agenda.',
+    pairs: [
+      { id: 'messages', before: 'Mensagens dispersas', after: 'Vitrine pública', fragments: ['Tem horário?', 'Qual o valor?'] },
+      { id: 'notes', before: 'Anotações separadas', after: 'Agenda centralizada', fragments: ['09:30 · Corte', '11:00 · Barba'] },
+      { id: 'catalog', before: 'Catálogo informal', after: 'Serviços com preço e duração', fragments: ['Corte', 'Corte + barba'] },
+    ],
+  },
+  roles: {
+    eyebrow: 'DUAS ROTINAS, UMA OPERAÇÃO',
+    title: 'Cada pessoa vê o que precisa para agir.',
+    description: 'A visão do dono acompanha a unidade inteira; a visão profissional mantém o foco na própria agenda.',
+    options: [
+      { id: 'owner', label: 'Visão do dono', summary: 'Panorama do dia da unidade, atendimentos da equipe e configuração de serviços.' },
+      { id: 'professional', label: 'Visão profissional', summary: 'Agenda pessoal, próximo atendimento e conclusão do serviço, sem acesso ao restante da unidade.' },
+    ],
+  },
+  demo: {
+    eyebrow: 'PRODUTO DISPONÍVEL',
+    title: 'Veja como cada parte sustenta a operação.',
+    description: 'Demonstração baseada em funcionalidades disponíveis, com dados fictícios.',
   },
 };

@@ -18,7 +18,7 @@ export const LandingNav = ({ audience, onNavigate, inverse = false, compact = fa
     contentContainerStyle={[styles.nav, compact && styles.navCompact]}
     {...({ role: 'navigation', 'aria-label': 'Seções da página' } as any)}
   >
-    {LANDING_NAV_ITEMS.map((item) => (
+    {LANDING_NAV_ITEMS[audience].map((item) => (
       <Pressable
         key={item.id}
         testID={`landing-nav-${item.id}`}

@@ -30,13 +30,14 @@ export const landingColors = {
   white: '#FFFFFF',
 } as const;
 
+/** Fraunces for display + Geist for UI — Superhuman-like editorial hierarchy without Inter defaults. */
 export const landingTypography = {
-  displaySemiBold: 'Inter_600SemiBold',
-  displayBold: 'Inter_700Bold',
-  body: 'Inter_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  mono: 'Inter_500Medium',
+  displaySemiBold: 'Fraunces_600SemiBold',
+  displayBold: 'Fraunces_700Bold',
+  body: 'Geist_400Regular',
+  bodyMedium: 'Geist_500Medium',
+  bodySemiBold: 'Geist_600SemiBold',
+  mono: 'GeistMono_500Medium',
 } as const;
 
 export const landingMotion = {

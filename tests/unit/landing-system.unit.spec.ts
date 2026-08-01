@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { configureLandingAnalytics, trackLandingEvent } from '../../apps/web/src/components/landing/landing-analytics';
+import { LANDING_BUSINESS_EVALUATION, LANDING_CLIENT_DISCOVERY } from '../../apps/web/src/components/landing/landing-content';
 
 const root = process.cwd();
 const tokens = fs.readFileSync(path.join(root, 'apps/web/src/theme/landing-tokens.ts'), 'utf8');
@@ -54,10 +55,23 @@ test('mantém os tokens claros e os pares principais em contraste AA', () => {
   expect(contrast('#FFFFFF', '#294B3A')).toBeGreaterThanOrEqual(4.5);
 });
 
+test('mantém tipografia editorial Fraunces/Geist nas landings', () => {
+  expect(tokens).toContain("displaySemiBold: 'Fraunces_600SemiBold'");
+  expect(tokens).toContain("displayBold: 'Fraunces_700Bold'");
+  expect(tokens).toContain("body: 'Geist_400Regular'");
+  expect(tokens).toContain("bodyMedium: 'Geist_500Medium'");
+  expect(tokens).toContain("bodySemiBold: 'Geist_600SemiBold'");
+  expect(tokens).toContain("mono: 'GeistMono_500Medium'");
+  expect(clientLanding).toContain('<HeroAtmosphere');
+  expect(businessLanding).toContain('<HeroAtmosphere');
+  expect(clientLanding).toContain('landing-client-hero-brand');
+  expect(businessLanding).toContain('landing-business-hero-brand');
+});
+
 test('aplica a hierarquia de superfícies sem transformar tudo em cards', () => {
-  expect(clientLanding).toContain('heroSearchPanel:');
+  expect(clientLanding).toContain('searchPanel:');
   expect(clientLanding).toContain('resultsSection: { paddingVertical: 48, gap: 40 }');
-  expect(businessLanding).toContain('heroOuter: { backgroundColor: landingColors.brandStrong }');
+  expect(businessLanding).toContain("heroOuter: { position: 'relative', overflow: 'hidden', backgroundColor: landingColors.brandStrong }");
   expect(businessLanding).toContain('sandboxSection: { paddingVertical: 24, gap: 40 }');
   expect(businessLanding).toContain("roleSection: { paddingVertical: 72, paddingHorizontal: 48, flexDirection: 'row', alignItems: 'center', gap: 72");
 });
@@ -104,8 +118,9 @@ test('humaniza demonstrações sem confundir exemplos com prova social', () => {
   expect(mockData).toContain('João Silva');
   expect(mockData).toContain('Marcos Lima');
   expect(mockData).not.toMatch(/Cliente \d|Profissional [A-Z]/);
-  expect(businessLanding).toContain('Demonstração baseada em funcionalidades disponíveis, com dados fictícios.');
-  expect(businessLanding.indexOf('Demonstração baseada')).toBeGreaterThan(businessLanding.indexOf('PRODUTO DISPONÍVEL'));
+  expect(LANDING_BUSINESS_EVALUATION.demo.eyebrow).toBe('PRODUTO DISPONÍVEL');
+  expect(LANDING_BUSINESS_EVALUATION.demo.description).toBe('Demonstração baseada em funcionalidades disponíveis, com dados fictícios.');
+  expect(businessLanding).toContain('description={demo.description}');
 });
 
 test('bloqueia claims comerciais não aprovados e documenta gates mensuráveis', () => {
@@ -118,7 +133,28 @@ test('bloqueia claims comerciais não aprovados e documenta gates mensuráveis',
 test('limita as demonstrações públicas às capacidades disponíveis', () => {
   for (const capability of ['agenda', 'services', 'team']) expect(capabilities).toContain(`id: '${capability}'`);
   for (const unsupported of ['coverage', 'validation', 'commissions']) expect(capabilities).not.toContain(`id: '${unsupported}'`);
-  expect(businessLanding).toContain('Demonstração baseada em funcionalidades disponíveis, com dados fictícios.');
+  expect(businessLanding).toContain('description={demo.description}');
+});
+
+test('não anuncia funcionalidades fora do MVP definido no contrato de produto', () => {
+  // Contrato, seção 10: fora do MVP do Client ficam favoritos, lista de espera, pagamentos,
+  // fidelidade, cupons, chat e carteira; fora do MVP do Business ficam caixa completo, estoque,
+  // CRM, campanhas, folha de pagamento, conciliação financeira e chat.
+  for (const outOfScope of [
+    /favorit/i,
+    /lista de espera/i,
+    /fidelidade/i,
+    /cupom|cupons/i,
+    /carteira digital/i,
+    /controle de estoque/i,
+    /folha de pagamento/i,
+    /concilia(ç|c)ão/i,
+    /campanhas de marketing/i,
+    /comiss(ã|õ|a)o|comissões|repasse|percentual/i,
+  ]) expect(landingSource).not.toMatch(outOfScope);
+
+  // Pagamento só pode aparecer como ressalva de que o CutSync não processa cobrança.
+  expect(landingSource).not.toMatch(/pagamento (online|pelo aplicativo|integrado)/i);
 });
 
 test('bloqueia promessas públicas sem suporte no produto', () => {
@@ -186,8 +222,22 @@ test('publica somente vitrines elegíveis e mantém a descoberta pública sem ca
 
 test('mantém busca no hero e comparação editorial sem marcas externas', () => {
   expect(clientLanding.indexOf('landing-search-input')).toBeLessThan(clientLanding.indexOf('landing-client-credibility'));
-  expect(clientLanding).toContain('Explorar resultados');
+  expect(LANDING_CLIENT_DISCOVERY.hero.primaryCta).toBe('Explorar resultados');
   expect(businessLanding).toContain('comparisonBeforePanel');
   expect(businessLanding).not.toMatch(/WhatsApp|Excel/);
   expect(stickyStory).toContain('height * 0.66');
+});
+
+test('mantém a busca do cliente ligada ao Supabase e o agendamento na rota pública', () => {
+  // Um único controle de busca: termo, localização e envio dentro do mesmo painel do hero.
+  for (const testID of ['landing-search-input', 'landing-location-input', 'landing-search-submit']) {
+    expect(clientLanding).toContain(testID);
+  }
+  expect(clientLanding.indexOf('landing-search-input')).toBeLessThan(clientLanding.indexOf('landing-search-submit'));
+  expect(clientLanding).toContain("rpc('list_public_discovery_establishments'");
+  expect(clientLanding).toContain('`/${establishment.slug}/booking`');
+  expect(clientLanding).toContain("booking ? 'booking_started' : 'establishment_opened'");
+  // Os filtros de categoria continuam derivados dos serviços realmente publicados.
+  expect(clientLanding).toContain('availableServiceGroups');
+  expect(clientLanding).not.toContain('MOCK_');
 });
