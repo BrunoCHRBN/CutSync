@@ -55,9 +55,14 @@ test('adensa o Client web explore→detalhe→booking no padrão marketplace', (
   expect(explore).toContain('Onde você quer marcar?');
   expect(explore).toContain("lugar' : 'lugares'");
   expect(explore).not.toContain('Seleção CutSync');
-  expect(explore).toContain('denseCard');
+  expect(explore).toContain('Veja serviços e horários.');
+  expect(explore).toContain('ShopCarousel');
+  expect(explore).toContain('aspectRatio: 3.6');
+  expect(explore).not.toContain('denseCard');
   expect(explore).not.toContain('estabelecimento encontrado');
   expect(detail).toContain('barbershop-profile-rating');
+  expect(detail).toContain('metaLine');
+  expect(detail).not.toContain('infoGrid');
   expect(detail).toContain('goBooking({ serviceId: service.id })');
   expect(detail).toContain('Serviços primeiro');
   expect(detail).not.toContain('Moeda oficial');

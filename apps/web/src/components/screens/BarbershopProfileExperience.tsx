@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Camera, Clock3, MapPin, Phone, Scissors, Star, Store, UsersRound } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Camera, MapPin, Scissors, Store, UsersRound } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
@@ -35,15 +35,10 @@ function BarbershopProfileSkeleton() {
             <View style={[styles.logoCircle, { backgroundColor: colors.surfaceRaised }]} />
             <View style={[styles.titleInfo, { gap: 8 }]}>
               <View style={{ width: 220, height: 26, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
-              <View style={{ width: 150, height: 14, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
+              <View style={{ width: 180, height: 14, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
               <View style={{ width: '100%', height: 40, backgroundColor: colors.surfaceRaised, borderRadius: 6, marginTop: 4 }} />
             </View>
           </View>
-        </View>
-        <View style={styles.infoGrid}>
-          <View style={[styles.infoItem, { height: 60, backgroundColor: colors.surfaceRaised }]} />
-          <View style={[styles.infoItem, { height: 60, backgroundColor: colors.surfaceRaised }]} />
-          <View style={[styles.infoItem, { height: 60, backgroundColor: colors.surfaceRaised }]} />
         </View>
         <View style={styles.section}>
           <View style={{ width: 100, height: 20, backgroundColor: colors.surfaceRaised, borderRadius: 4 }} />
@@ -188,55 +183,22 @@ export const BarbershopProfileExperience = () => {
                 )}
               </View>
               {!!barbershop.slogan && <Text style={styles.slogan}>“{barbershop.slogan}”</Text>}
-              <Text testID="barbershop-profile-rating" style={styles.ratingLine}>
-                {barbershop.averageRating
-                  ? `★ ${barbershop.averageRating.toFixed(1)}${barbershop.reviewCount ? ` · ${barbershop.reviewCount} avaliações` : ''}`
-                  : '★ Novo no CutSync'}
+              <Text testID="barbershop-profile-rating" style={styles.metaLine}>
+                {[
+                  barbershop.averageRating
+                    ? `★ ${barbershop.averageRating.toFixed(1)}${barbershop.reviewCount ? ` · ${barbershop.reviewCount} avaliações` : ''}`
+                    : '★ Novo no CutSync',
+                  statusInfo.isOpen
+                    ? (statusInfo.text ? `Aberto · ${statusInfo.text}` : 'Aberto')
+                    : (statusInfo.text || null),
+                  barbershop.phone || null,
+                ].filter(Boolean).join(' · ')}
               </Text>
               {!!barbershop.description && (
                 <Text testID="barbershop-profile-description" style={styles.description}>
                   {barbershop.description}
                 </Text>
               )}
-            </View>
-          </View>
-        </View>
-
-        {/* Informações Rápidas */}
-        <View style={styles.infoGrid}>
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}><Clock3 color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
-            <View style={styles.infoCopyText}>
-              <Text style={styles.infoLabel}>Funcionamento</Text>
-              <View style={styles.statusRow}>
-                <View style={[styles.statusDot, { backgroundColor: statusInfo.isOpen ? colors.success : colors.danger }]} />
-                <Text style={[styles.statusLabelText, { color: statusInfo.isOpen ? colors.success : colors.danger }]}>
-                  {statusInfo.isOpen ? 'Aberto' : 'Fechado'}
-                </Text>
-                {!!statusInfo.text && (
-                  <Text style={styles.infoValue}>· {statusInfo.text}</Text>
-                )}
-              </View>
-            </View>
-          </View>
-          {!!barbershop.phone && (
-            <View style={styles.infoItem}>
-              <View style={styles.infoIcon}><Phone color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
-              <View style={styles.infoCopyText}>
-                <Text style={styles.infoLabel}>Contato</Text>
-                <Text style={styles.infoValue}>{barbershop.phone}</Text>
-              </View>
-            </View>
-          )}
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}><Star color={colors.textSecondary} size={15} strokeWidth={1.6} /></View>
-            <View style={styles.infoCopyText}>
-              <Text style={styles.infoLabel}>Avaliação</Text>
-              <Text style={styles.infoValue}>
-                {barbershop.averageRating
-                  ? `${barbershop.averageRating.toFixed(1)} · ${barbershop.reviewCount || 0} reviews`
-                  : 'Ainda sem avaliações'}
-              </Text>
             </View>
           </View>
         </View>
@@ -439,19 +401,11 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 26, letterSpacing: -1 },
   slogan: { color: colors.textSecondary, fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
-  ratingLine: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 8 },
+  metaLine: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 13, lineHeight: 18, marginTop: 8 },
   instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surface, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: hairlineW, borderColor: colors.border },
   instagramBadgeText: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textSecondary },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginTop: 8 },
-  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 20 },
-  infoItem: { flex: 1, minWidth: 180, flexDirection: 'row', gap: 11, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 15, ...atmosphericShadow },
-  infoIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.pill },
-  infoCopyText: { flex: 1 },
-  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
-  infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusLabelText: { fontSize: 11, fontFamily: typography.bodyStrong },
   mapCard: { marginHorizontal: 20, marginTop: 32, borderRadius: radii.xl, borderWidth: hairlineW, borderColor: colors.hairline, overflow: 'hidden', backgroundColor: colors.surface, ...atmosphericShadow },
   mapThumbnail: { width: '100%', height: '100%' },
   mapPlaceholder: { alignItems: 'center', backgroundColor: colors.surfaceMuted, flex: 1, gap: 8, justifyContent: 'center', padding: 20 },

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowUpRight, Clock3, MapPin, Search, Store } from 'lucide-react-native';
+import { ArrowUpRight, Clock3, Search, Store } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { Establishment, mapEstablishment } from '@cutsync/database';
@@ -19,7 +19,7 @@ import { formatEstablishmentDisplayName, getOpeningStatus } from '@cutsync/domai
 
 const ShopCardSkeleton = () => {
   return (
-    <View style={[styles.shopCard, styles.carouselSlide]}>
+    <View style={styles.shopCard}>
       <View style={[styles.visual, { backgroundColor: '#EBEBEB' }]} />
       <View style={styles.shopBody}>
         <View style={{ height: 16, backgroundColor: '#E5E5E5', borderRadius: 4, width: '60%' }} />
@@ -53,10 +53,9 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
-const ShopCard = ({ shop, onOpen, dense = false }: {
+const ShopCard = ({ shop, onOpen }: {
   shop: Establishment;
   onOpen: (id: string) => void;
-  dense?: boolean;
 }) => {
   const accent = shop.primaryColor || colors.accent;
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
@@ -64,45 +63,13 @@ const ShopCard = ({ shop, onOpen, dense = false }: {
   const ratingLabel = shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo';
   const hoursLabel = opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil';
 
-  if (dense) {
-    return (
-      <Pressable
-        testID={`client-shop-card-${shop.id}`}
-        accessibilityRole="button"
-        accessibilityLabel={`Ver ${displayName}`}
-        onPress={() => { tapLight(); onOpen(shop.id); }}
-        style={({ pressed }) => [styles.denseCard, pressed && styles.pressed]}
-      >
-        <View style={styles.denseThumb}>
-          <EstablishmentMedia name={displayName} uri={shop.bannerUrl || shop.logoUrl} color={accent} category="Estabelecimento" style={styles.denseThumbImage} />
-        </View>
-        <View style={styles.denseBody}>
-          <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
-          <Text numberOfLines={1} style={styles.denseMeta}>
-            ★ {ratingLabel}
-            {!!shop.reviewCount ? ` (${shop.reviewCount})` : ''}
-            {' · '}
-            {'$'.repeat(shop.priceLevel || 1)}
-            {' · '}
-            {hoursLabel}
-          </Text>
-          <Text numberOfLines={1} style={styles.denseAddress}>{shop.address || 'Endereço ainda não informado'}</Text>
-        </View>
-        <View style={styles.denseCta}>
-          <Text style={styles.footerHint}>Agendar</Text>
-          <View style={styles.openButton}><ArrowUpRight color={colors.canvas} size={14} strokeWidth={1.8} /></View>
-        </View>
-      </Pressable>
-    );
-  }
-
   return (
     <Pressable
       testID={`client-shop-card-${shop.id}`}
       accessibilityRole="button"
       accessibilityLabel={`Ver ${displayName}`}
       onPress={() => { tapLight(); onOpen(shop.id); }}
-      style={({ pressed }) => [styles.shopCard, styles.carouselSlide, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.shopCard, pressed && styles.pressed]}
     >
       <View style={styles.visual}>
         <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
@@ -123,9 +90,16 @@ const ShopCard = ({ shop, onOpen, dense = false }: {
             </View>
           </View>
         </View>
-        <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
-        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text></View>
-        <View style={styles.cardFooter}><Text style={styles.footerHint}>Agendar →</Text><View style={styles.openButton}><ArrowUpRight color={colors.canvas} size={15} strokeWidth={1.8} /></View></View>
+        <Text numberOfLines={1} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text>
+        <View style={styles.shopMeta}>
+          <Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} />
+          <View style={[styles.openDot, !opening.isOpen && styles.closedDot]} />
+          <Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text>
+        </View>
+        <View style={styles.cardFooter}>
+          <Text style={styles.footerHint}>Agendar →</Text>
+          <View style={styles.openButton}><ArrowUpRight color={colors.canvas} size={15} strokeWidth={1.8} /></View>
+        </View>
       </View>
     </Pressable>
   );
@@ -143,10 +117,11 @@ function ShopCarousel({
   const [currentPage, setCurrentPage] = useState(0);
   const { width: winWidth } = useWindowDimensions();
 
-  // Cards visible per page depending on window width
-  const cardsPerPage = winWidth >= 1280 ? 3 : winWidth >= layout.mobileBreakpoint ? 2 : 1;
-  const cardWidth = 320;
-  const cardGap = 16;
+  const isDesktop = winWidth >= layout.desktopBreakpoint;
+  // Banner reduzido em carrossel horizontal — cards um pouco mais estreitos no desktop.
+  const cardWidth = isDesktop ? 272 : winWidth >= layout.mobileBreakpoint ? 260 : Math.min(winWidth - 48, 280);
+  const cardGap = 14;
+  const cardsPerPage = Math.max(1, Math.floor((Math.min(winWidth, layout.contentMax) + cardGap) / (cardWidth + cardGap)));
   const pageWidth = cardsPerPage * (cardWidth + cardGap);
   const totalPages = Math.ceil(shops.length / cardsPerPage);
 
@@ -164,61 +139,55 @@ function ShopCarousel({
 
   const startIdx = currentPage * cardsPerPage;
   const endIdx = Math.min(startIdx + cardsPerPage, shops.length);
-  const cards = shops.map((shop) => <ShopCard key={shop.id} shop={shop} onOpen={onOpen} />);
-
-  if (winWidth >= layout.desktopBreakpoint) {
-    return (
-      <View testID="client-shops-grid" style={styles.carouselContainer}>
-        <View style={styles.denseList}>
-          {shops.map((shop) => (
-            <ShopCard key={shop.id} shop={shop} onOpen={onOpen} dense />
-          ))}
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View testID="client-shops-grid" style={styles.carouselContainer}>
-      {/* Navigation Row */}
       <View style={styles.carouselNavRow}>
         <Text style={styles.carouselPageInfo}>
-          {startIdx + 1}–{endIdx} de {shops.length} estabelecimentos
+          {shops.length === 1
+            ? '1 lugar em destaque'
+            : `${startIdx + 1}–${endIdx} de ${shops.length} lugares`}
         </Text>
-        <View style={styles.carouselNavBtns}>
-          <Pressable
-            onPress={() => goTo(currentPage - 1)}
-            disabled={currentPage === 0}
-            style={[styles.carouselNavBtn, currentPage === 0 && styles.carouselNavBtnDisabled]}
-            accessibilityLabel="Anterior"
-          >
-            <Text style={[styles.carouselNavBtnText, currentPage === 0 && styles.carouselNavBtnTextDisabled]}>‹</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => goTo(currentPage + 1)}
-            disabled={currentPage >= totalPages - 1}
-            style={[styles.carouselNavBtn, currentPage >= totalPages - 1 && styles.carouselNavBtnDisabled]}
-            accessibilityLabel="Próximo"
-          >
-            <Text style={[styles.carouselNavBtnText, currentPage >= totalPages - 1 && styles.carouselNavBtnTextDisabled]}>›</Text>
-          </Pressable>
-        </View>
+        {totalPages > 1 ? (
+          <View style={styles.carouselNavBtns}>
+            <Pressable
+              onPress={() => goTo(currentPage - 1)}
+              disabled={currentPage === 0}
+              style={[styles.carouselNavBtn, currentPage === 0 && styles.carouselNavBtnDisabled]}
+              accessibilityLabel="Anterior"
+            >
+              <Text style={[styles.carouselNavBtnText, currentPage === 0 && styles.carouselNavBtnTextDisabled]}>‹</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => goTo(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              style={[styles.carouselNavBtn, currentPage >= totalPages - 1 && styles.carouselNavBtnDisabled]}
+              accessibilityLabel="Próximo"
+            >
+              <Text style={[styles.carouselNavBtnText, currentPage >= totalPages - 1 && styles.carouselNavBtnTextDisabled]}>›</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
-      {/* Scrollable Track */}
       <ScrollView
         ref={scrollRef}
         horizontal
         decelerationRate="fast"
+        snapToInterval={cardWidth + cardGap}
+        disableIntervalMomentum
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScrollEnd}
         contentContainerStyle={styles.carouselTrack}
         style={styles.carouselScroll}
       >
-        {cards}
+        {shops.map((shop) => (
+          <View key={shop.id} style={{ width: cardWidth }}>
+            <ShopCard shop={shop} onOpen={onOpen} />
+          </View>
+        ))}
       </ScrollView>
 
-      {/* Dot Indicators */}
       {totalPages > 1 && (
         <View style={styles.dotsRow}>
           {Array.from({ length: totalPages }).map((_, i) => (
@@ -234,6 +203,11 @@ export const ExploreExperience = () => {
   const router = useRouter();
   const { search: searchParam } = useLocalSearchParams<{ search?: string }>();
   const { profile, signOut } = useAuth();
+  const { width: viewportWidth } = useWindowDimensions();
+  const isDesktopViewport = viewportWidth >= layout.desktopBreakpoint;
+  const listHeadingHint = isDesktopViewport
+    ? 'Veja serviços e horários.'
+    : 'Toque para ver serviços e horários.';
   const [barbershops, setBarbershops] = useState<Establishment[]>([]);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -448,7 +422,7 @@ export const ExploreExperience = () => {
           <Text testID="client-search-result-count" style={styles.listHeadingTitle}>
             {filtered.length} {filtered.length === 1 ? 'lugar' : 'lugares'}
           </Text>
-          <Text style={styles.listHeadingHint}>Toque para ver serviços e horários.</Text>
+          <Text style={styles.listHeadingHint}>{listHeadingHint}</Text>
         </View>
 
         {!!error && <InlineNotice
@@ -695,31 +669,11 @@ const styles = StyleSheet.create({
   carouselNavBtnTextDisabled: { color: colors.textMuted },
   carouselScroll: { overflow: 'hidden' } as any,
   carouselTrack: { flexDirection: 'row', gap: 14, paddingBottom: 4 },
-  carouselSlide: { width: 300, flexShrink: 0 },
-  denseList: { gap: 10 },
-  denseCard: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: colors.surface,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
-    borderRadius: radii.lg,
-    padding: 12,
-    ...atmosphericShadow,
-  },
-  denseThumb: { width: 88, height: 88, borderRadius: radii.md, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
-  denseThumbImage: { width: '100%', height: '100%' },
-  denseBody: { flex: 1, minWidth: 0, gap: 4 },
-  denseMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
-  denseAddress: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
-  denseCta: { alignItems: 'center', gap: 8 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
   dotActive: { backgroundColor: colors.brandPrimary, width: 20 },
 
-  /* Shop Card */
+  /* Shop Card — banner reduzido + carrossel horizontal */
   shopCard: {
     width: '100%',
     backgroundColor: colors.surface,
@@ -729,25 +683,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...atmosphericShadow,
   },
-  visual: { aspectRatio: 2.6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  visual: { aspectRatio: 3.6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   bannerVisualImage: { width: '100%', height: '100%' },
-  shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  shopLogoCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  shopLogoCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   shopLogoImage: { width: '100%', height: '100%' },
-  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 15, color: colors.textSecondary },
-  ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 14, color: colors.textSecondary },
+  ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   ratingText: { color: '#EAB308', fontFamily: typography.bodyStrong, fontSize: 12 },
   reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   metaDivider: { color: colors.textMuted },
   priceLevelText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
   visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
-  shopBody: { padding: 14 },
-  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4 },
-  shopMeta: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 },
+  shopBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 },
+  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: -0.4 },
+  shopMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 16 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 12, marginTop: 12 },
-  footerHint: { flex: 1, color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 13, letterSpacing: 0.2 },
-  openButton: { width: 40, height: 40, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandPrimary },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 10, marginTop: 10 },
+  footerHint: { flex: 1, color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
+  openButton: { width: 36, height: 36, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandPrimary },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   filterContainer: { marginTop: 12, marginBottom: 4 },
   filterScroll: { gap: 8, paddingBottom: 4 },
