@@ -65,6 +65,12 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O CutSync usa sua localização somente para ordenar os estabelecimentos mais próximos de você."
+        }
+      ],
+      [
         "@sentry/react-native/expo",
         {
           "organization": "cutsync",

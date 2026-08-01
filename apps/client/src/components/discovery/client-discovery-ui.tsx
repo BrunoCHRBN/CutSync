@@ -57,6 +57,12 @@ const averagePriceLabel = (establishment: ClientDiscoveryEstablishment) => (
     : null
 );
 
+export const formatDiscoveryDistance = (meters: number | null) => {
+  if (meters === null || !Number.isFinite(meters)) return null;
+  if (meters < 1000) return Math.round(meters) + ' m';
+  return (meters / 1000).toFixed(meters < 10000 ? 1 : 0).replace('.', ',') + ' km';
+};
+
 const StarIcon = ({ size = 11, color }: { size?: number; color: string }) => (
   <Text style={{ color, fontSize: size, lineHeight: size + 2, fontWeight: '900' }}>★</Text>
 );
@@ -158,6 +164,12 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
               <Text style={styles.featuredMeta}>{averagePriceLabel(establishment)}</Text>
             </>
           )}
+          {!!formatDiscoveryDistance(establishment.distanceMeters) && (
+            <>
+              <View style={styles.featuredMetaDot} />
+              <Text style={styles.featuredMeta}>{formatDiscoveryDistance(establishment.distanceMeters)}</Text>
+            </>
+          )}
         </View>
       </View>
     </Pressable>
@@ -171,6 +183,7 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
 }) {
   const services = establishment.serviceNames.slice(0, 2).join(' · ');
   const price = averagePriceLabel(establishment);
+  const distance = formatDiscoveryDistance(establishment.distanceMeters);
   return (
     <Pressable
       testID={'client-discovery-compact-' + establishment.slug}
@@ -204,8 +217,9 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
           <Text numberOfLines={1} style={styles.compactAddress}>{establishment.address}</Text>
         )}
         {!!services && <Text numberOfLines={1} style={styles.compactServices}>{services}</Text>}
-        {(!!price || establishment.instantBookingEnabled) && (
+        {(!!price || !!distance || establishment.instantBookingEnabled) && (
           <View style={styles.compactMetaRow}>
+            {!!distance && <Text style={styles.compactDistance}>{distance}</Text>}
             {!!price && <Text style={styles.compactPrice}>{price}</Text>}
             {establishment.instantBookingEnabled && (
               <View style={styles.compactInstantBadge}>
@@ -292,6 +306,8 @@ export function EstablishmentCard({ establishment, onPress }: {
             {'  ·  '}
             {establishment.professionalCount} {establishment.professionalCount === 1 ? 'profissional' : 'profissionais'}
             {!!averagePriceLabel(establishment) && '  ·  ' + averagePriceLabel(establishment)}
+            {!!formatDiscoveryDistance(establishment.distanceMeters)
+              && '  ·  ' + formatDiscoveryDistance(establishment.distanceMeters)}
           </Text>
           <Text style={styles.openLabel}>Ver detalhes →</Text>
         </View>
@@ -470,6 +486,7 @@ const styles = StyleSheet.create({
   compactAddress: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
   compactServices: { color: discoveryColors.accent, fontSize: 11, fontWeight: '700' },
   compactMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
+  compactDistance: { color: discoveryColors.accent, fontSize: 11, fontWeight: '800' },
   compactPrice: { color: discoveryColors.text, fontSize: 11, fontWeight: '800' },
   compactInstantBadge: { borderRadius: 999, backgroundColor: discoveryColors.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
   compactInstantText: { color: discoveryColors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },

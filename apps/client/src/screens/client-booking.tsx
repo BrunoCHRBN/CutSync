@@ -38,6 +38,10 @@ import { clientTheme } from '@/theme/client-theme';
 
 type BookingStep = 1 | 2 | 3 | 4;
 
+// Sentinel for the "any professional" choice; the real professional is only
+// decided once the client picks a time.
+const ANY_PROFESSIONAL = 'any';
+
 const stepLabels: { step: BookingStep; label: string }[] = [
   { step: 1, label: 'Serviço' },
   { step: 2, label: 'Profissional' },
@@ -142,15 +146,34 @@ export function ClientBookingScreen() {
     ));
   }, [options, selectedServiceId]);
 
+  const isAnyProfessional = selectedProfessionalId === ANY_PROFESSIONAL;
+
+  const resolvedProfessionalId = isAnyProfessional
+    ? selectedSlot?.professionalId ?? null
+    : selectedProfessionalId;
+
   const selectedOffer = useMemo(() => (
-    options && selectedServiceId && selectedProfessionalId
-      ? resolveClientBookingOffer(options, selectedServiceId, selectedProfessionalId)
+    options && selectedServiceId && resolvedProfessionalId
+      ? resolveClientBookingOffer(options, selectedServiceId, resolvedProfessionalId)
       : null
-  ), [options, selectedProfessionalId, selectedServiceId]);
+  ), [options, resolvedProfessionalId, selectedServiceId]);
+
+  const availabilityProfessionalIds = useMemo(() => {
+    if (isAnyProfessional) return eligibleProfessionals.map((professional) => professional.id);
+    return selectedProfessionalId ? [selectedProfessionalId] : [];
+  }, [eligibleProfessionals, isAnyProfessional, selectedProfessionalId]);
+
+  const anyProfessionalFromPrice = useMemo(() => {
+    if (!options || !selectedServiceId || eligibleProfessionals.length === 0) return null;
+    const prices = eligibleProfessionals
+      .map((professional) => resolveClientBookingOffer(options, selectedServiceId, professional.id)?.price)
+      .filter((price): price is number => typeof price === 'number');
+    return prices.length > 0 ? Math.min(...prices) : null;
+  }, [eligibleProfessionals, options, selectedServiceId]);
 
   const availability = useClientAvailability({
     establishmentId: options?.establishmentId ?? null,
-    professionalId: selectedProfessionalId,
+    professionalIds: availabilityProfessionalIds,
     serviceId: selectedServiceId,
     localDate: bookingResult ? null : selectedLocalDate,
     appointmentId: appointmentId ?? null,
@@ -196,7 +219,7 @@ export function ClientBookingScreen() {
   };
 
   const confirmBooking = async () => {
-    if (!options || !selectedOffer || !selectedLocalDate || !selectedSlot) return;
+    if (!options || !selectedServiceId || !selectedLocalDate || !selectedSlot) return;
     setBookingError(null);
     setIsBooking(true);
     try {
@@ -208,12 +231,17 @@ export function ClientBookingScreen() {
         moveTo(3);
         throw new Error('Este horário acabou de ser reservado. Escolha outro horário.');
       }
+      // Prefer the professional attached to the refreshed slot so "Qualquer
+      // profissional" still books a concrete agenda after a race.
+      const offer = resolveClientBookingOffer(options, selectedServiceId, freshSlot.professionalId);
+      if (!offer) throw new Error('O profissional selecionado não está mais disponível para este serviço.');
+      setSelectedSlot(freshSlot);
       const result = appointmentId
         ? await (async () => {
             await rescheduleClientAppointment({
               appointmentId,
-              professionalId: selectedOffer.professional.id,
-              serviceId: selectedOffer.service.id,
+              professionalId: offer.professional.id,
+              serviceId: offer.service.id,
               startsAt: freshSlot.startsAt,
             });
             const updated = await loadClientAppointment(appointmentId);
@@ -224,8 +252,8 @@ export function ClientBookingScreen() {
           })()
         : await createClientAppointment({
             establishmentId: options.establishmentId,
-            professionalId: selectedOffer.professional.id,
-            serviceId: selectedOffer.service.id,
+            professionalId: offer.professional.id,
+            serviceId: offer.service.id,
             startsAt: freshSlot.startsAt,
           });
       setBookingResult(result);
@@ -332,11 +360,22 @@ export function ClientBookingScreen() {
       ? Boolean(selectedProfessionalId)
       : Boolean(selectedSlot);
 
+  const selectedService = options.services.find((service) => service.id === selectedServiceId) ?? null;
+  const professionalSummary = selectedOffer?.professional.name
+    ?? (isAnyProfessional ? 'Qualquer profissional' : null);
+  const priceSummary = selectedOffer
+    ? formatDiscoveryPrice(selectedOffer.price, options.currency)
+    : anyProfessionalFromPrice !== null
+      ? 'a partir de ' + formatDiscoveryPrice(anyProfessionalFromPrice, options.currency)
+      : selectedService
+        ? formatDiscoveryPrice(selectedService.price, options.currency)
+        : null;
+
   const footerSummary = [
-    selectedOffer?.service.name,
-    selectedOffer && step >= 2 ? selectedOffer.professional.name : null,
+    selectedService?.name,
+    step >= 2 ? professionalSummary : null,
     selectedSlot ? selectedSlot.localTime : null,
-    selectedOffer ? formatDiscoveryPrice(selectedOffer.price, options.currency) : null,
+    priceSummary,
   ].filter(Boolean).join('  ·  ');
 
   return (
@@ -425,6 +464,30 @@ export function ClientBookingScreen() {
               />
             ) : (
               <View testID="client-booking-professionals" style={styles.choiceList}>
+                {eligibleProfessionals.length > 1 && (
+                  <Pressable
+                    testID="client-booking-professional-any"
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isAnyProfessional }}
+                    onPress={() => selectProfessional(ANY_PROFESSIONAL)}
+                    style={({ pressed }) => [styles.choiceCard, isAnyProfessional && styles.choiceCardSelected, pressed && styles.pressed]}
+                  >
+                    <View style={styles.avatarFallback}>
+                      <Text style={styles.avatarInitials}>★</Text>
+                    </View>
+                    <View style={styles.choiceCopy}>
+                      <Text style={styles.choiceTitle}>Qualquer profissional</Text>
+                      <Text style={styles.choiceSubtitle}>Escolhemos o primeiro disponível no horário</Text>
+                    </View>
+                    {anyProfessionalFromPrice !== null && (
+                      <View style={styles.offerMeta}>
+                        <Text style={styles.choiceValue}>
+                          a partir de {formatDiscoveryPrice(anyProfessionalFromPrice, options.currency)}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                )}
                 {eligibleProfessionals.map((professional) => {
                   const offer = resolveClientBookingOffer(options, selectedServiceId, professional.id);
                   if (!offer) return null;
@@ -459,9 +522,15 @@ export function ClientBookingScreen() {
           </View>
         )}
 
-        {step === 3 && selectedOffer && (
+        {step === 3 && selectedProfessionalId && (
           <View style={styles.section}>
-            <SectionHeading eyebrow="ETAPA 3 DE 4" title="Escolha data e horário" description="Os horários são consultados em tempo real na agenda do profissional." />
+            <SectionHeading
+              eyebrow="ETAPA 3 DE 4"
+              title="Escolha data e horário"
+              description={isAnyProfessional
+                ? 'Mostramos os horários disponíveis da equipe para o serviço escolhido.'
+                : 'Os horários são consultados em tempo real na agenda do profissional.'}
+            />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
               {dateOptions.map((date) => {
                 const selected = date.localDate === selectedLocalDate;

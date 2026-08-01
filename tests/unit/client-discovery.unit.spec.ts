@@ -52,6 +52,29 @@ test('prioriza busca e agendamento direto na descoberta do Client', () => {
   expect(ui).toContain('export function ClientStickyFooter');
 });
 
+test('expõe galeria, coordenadas e ordenação por distância na descoberta', () => {
+  const migration = readSource('supabase/migrations/20260806000000_client_discovery_media_and_geo.sql');
+  const service = readSource('apps/client/src/features/discovery/client-discovery-service.ts');
+  const location = readSource('apps/client/src/features/discovery/use-client-location.ts');
+  const discovery = readSource('apps/client/src/screens/client-discovery.tsx');
+  const detail = readSource('apps/client/src/screens/client-establishment-detail.tsx');
+  const appJson = readSource('apps/client/app.json');
+  const sqlTest = readSource('supabase/tests/client_discovery.sql');
+
+  expect(migration).toContain('gallery_urls');
+  expect(migration).toContain('target_latitude');
+  expect(migration).toContain('client_discovery_distance_meters');
+  expect(service).toContain('galleryUrls');
+  expect(service).toContain('distanceMeters');
+  expect(service).toContain('target_latitude: origin.latitude');
+  expect(location).toContain('requestForegroundPermissionsAsync');
+  expect(discovery).toContain('client-discovery-nearby-toggle');
+  expect(discovery).toContain('distanceMeters');
+  expect(detail).toContain('client-establishment-gallery');
+  expect(appJson).toContain('expo-location');
+  expect(sqlTest).toContain('nearest establishment was not ranked first');
+});
+
 test('limita o catálogo no servidor a dados ativos e contratos autenticados', () => {
   const migration = readSource('supabase/migrations/20260722223000_client_discovery.sql');
   const service = readSource('apps/client/src/features/discovery/client-discovery-service.ts');

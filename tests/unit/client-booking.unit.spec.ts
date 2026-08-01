@@ -66,6 +66,21 @@ test('conduz o wizard por uma barra de ação fixa em vez de avanço automático
   expect(screen).not.toMatch(/setSelectedSlot\(slot\);\s*moveTo\(4\)/);
 });
 
+test('oferece qualquer profissional com resolução client-side de slots', () => {
+  const screen = readSource('apps/client/src/screens/client-booking.tsx');
+  const service = readSource('apps/client/src/features/booking/client-booking-service.ts');
+  const hook = readSource('apps/client/src/features/booking/use-client-availability.ts');
+
+  expect(screen).toContain('client-booking-professional-any');
+  expect(screen).toContain("const ANY_PROFESSIONAL = 'any'");
+  expect(screen).toContain('freshSlot.professionalId');
+  expect(service).toContain('loadClientAvailability');
+  expect(service).toContain('MERGED_AVAILABILITY_PROFESSIONAL_LIMIT');
+  expect(service).toContain('professionalId,');
+  expect(hook).toContain('professionalIds');
+  expect(hook).toContain('loadClientAvailability');
+});
+
 test('mantém catálogo e criação protegidos no backend', () => {
   const migration = readSource('supabase/migrations/20260723023000_client_booking.sql');
   const sqlTest = readSource('supabase/tests/client_booking.sql');

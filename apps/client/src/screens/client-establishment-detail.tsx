@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   DiscoveryLoading,
@@ -74,6 +74,11 @@ export function ClientEstablishmentDetailScreen() {
     );
   }
 
+  // Banner leads the gallery so the establishment's chosen cover stays first.
+  const photos = [establishment.bannerUrl, ...establishment.galleryUrls]
+    .filter((photo): photo is string => Boolean(photo))
+    .filter((photo, index, all) => all.indexOf(photo) === index);
+  const galleryWidth = Math.min(Dimensions.get('window').width, 720) - 40;
   const canBook = establishment.services.length > 0 && establishment.professionals.length > 0;
   const startBooking = (serviceId?: string) => {
     void performClientHaptic('selection');
@@ -98,11 +103,30 @@ export function ClientEstablishmentDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <StatusBar style="dark" />
-        {establishment.bannerUrl ? (
+        {photos.length > 1 ? (
+          <ScrollView
+            testID="client-establishment-gallery"
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.gallery}
+          >
+            {photos.map((photo, index) => (
+              <Image
+                key={photo}
+                accessibilityLabel={`Foto ${index + 1} de ${establishment.name}`}
+                contentFit="cover"
+                source={{ uri: photo }}
+                style={[styles.heroImage, { width: galleryWidth }]}
+                transition={180}
+              />
+            ))}
+          </ScrollView>
+        ) : photos.length === 1 ? (
           <Image
             accessibilityLabel={'Imagem de ' + establishment.name}
             contentFit="cover"
-            source={{ uri: establishment.bannerUrl }}
+            source={{ uri: photos[0] }}
             style={styles.heroImage}
             transition={180}
           />
@@ -238,6 +262,7 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: discoveryColors.background },
   centeredPage: { flex: 1, justifyContent: 'center', backgroundColor: discoveryColors.background, padding: 20 },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28, gap: 22 },
+  gallery: { borderRadius: 30, borderCurve: 'continuous' },
   heroImage: { width: '100%', height: 232, borderRadius: 30, borderCurve: 'continuous', backgroundColor: '#E7E1CE' },
   heroFallback: { width: '100%', height: 160, borderRadius: 30, borderCurve: 'continuous' },
   identityCard: { gap: 20, backgroundColor: '#FFFFFF', borderRadius: 28, borderCurve: 'continuous', padding: 22, boxShadow: '0 14px 32px rgba(20, 27, 23, 0.07)' },
