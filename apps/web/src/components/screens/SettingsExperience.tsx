@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Check, Clock3, Copy, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, Link2, MapPin, Palette, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
+import { Check, Clock3, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, MapPin, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,8 +9,9 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
-import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
+import { BrandColorPicker } from '../ui/BrandColorPicker';
+import { EstablishmentBrandPreview } from '../settings/EstablishmentBrandPreview';
 import { FormSection } from '../ui/FormSection';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
@@ -579,19 +580,8 @@ export const SettingsExperience = () => {
               </View>
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Nome comercial" testID="settings-name-input" icon={<Store color={colors.textMuted} size={17} />} value={name} onChangeText={setName} placeholder="Nome da barbearia" />
-                <View style={styles.colorFieldContainer}>
-                  <AppInput containerStyle={styles.colorField} label="Cor da marca" testID="settings-color-input" icon={<Palette color={colors.textMuted} size={17} />} value={primaryColor} onChangeText={setPrimaryColor} autoCapitalize="characters" />
-                  <View 
-                    testID="settings-color-preview-swatch"
-                    style={[
-                      styles.colorSwatch, 
-                      { 
-                        backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : 'transparent' 
-                      }
-                    ]} 
-                  />
-                </View>
               </View>
+              <BrandColorPicker value={primaryColor} onChange={setPrimaryColor} />
             </FormSection> : null}
 
             {activeSection === 'security' ? <FormSection testID="settings-account-security-section" title="Segurança da conta" description="Atualize sua senha pessoal sem alterar dados ou permissões do estabelecimento.">
@@ -753,23 +743,18 @@ export const SettingsExperience = () => {
           </View>
 
           <View style={styles.previewColumn}>
-            <AppCard testID="settings-public-profile-preview" style={styles.previewCard} elevated>
-              <View testID="settings-preview-accent" style={[styles.previewAccent, { backgroundColor: primaryColor }]} />
-              <Text testID="settings-preview-eyebrow" style={[styles.previewEyebrow, { color: primaryColor }]}>PERFIL PÚBLICO</Text>
-              <View style={[styles.previewLogo, { backgroundColor: `${primaryColor}22`, borderColor: `${primaryColor}55` }]}>
-                {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.previewLogoImage} /> : <Store color={primaryColor} size={26} />}
-              </View>
-              <Text testID="settings-preview-name" style={styles.previewName}>{name || 'Sua barbearia'}</Text>
-              {!!slogan && <Text testID="settings-preview-slogan" style={{ color: primaryColor, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4, textAlign: 'center' }}>“{slogan}”</Text>}
-              <Text testID="settings-preview-address" style={styles.previewMeta}>{address || 'Adicione seu endereço'}</Text>
-              <Text testID="settings-preview-phone" style={styles.previewMeta}>{phone || 'Adicione seu telefone'}</Text>
-              <View style={[styles.linkBox, { backgroundColor: `${primaryColor}14` }]}>
-                <Link2 color={primaryColor} size={15} />
-                <Text testID="settings-public-link" numberOfLines={1} style={[styles.linkText, { color: primaryColor }]}>cutsync.com/salon/{slug || 'sua-barbearia'}</Text>
-                <Pressable testID="settings-copy-public-link-button" onPress={copyPublicLink} style={({ pressed }) => [styles.copyButton, { backgroundColor: primaryColor }, pressed && styles.pressed]}><Copy color={colors.white} size={14} /></Pressable>
-              </View>
-              <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
-            </AppCard>
+            <EstablishmentBrandPreview
+              name={name}
+              slogan={slogan}
+              address={address}
+              phone={phone}
+              slug={slug}
+              logoUrl={logoUrl}
+              bannerUrl={bannerUrl}
+              primaryColor={primaryColor}
+              onCopyLink={copyPublicLink}
+            />
+            <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
           </View>
         </View>
         </ScrollView>
@@ -810,20 +795,6 @@ const styles = StyleSheet.create({
   compactButton: { alignSelf: 'flex-start', minHeight: 38, paddingVertical: 7 },
   fieldsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   flexField: { flex: 1, minWidth: 210 },
-  colorField: { width: 190 },
-  colorFieldContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  colorSwatch: { width: 40, height: 40, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, marginBottom: 5 },
-  previewCard: { position: 'relative', alignItems: 'center', padding: 24, overflow: 'hidden' },
-  previewAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  previewEyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, alignSelf: 'flex-start' },
-  previewLogo: { width: 74, height: 74, borderRadius: radii.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 28, overflow: 'hidden' },
-  previewLogoImage: { width: '100%', height: '100%' },
-  previewName: { color: colors.text, fontFamily: typography.display, fontSize: 21, letterSpacing: -0.7, marginTop: 15, textAlign: 'center' },
-  previewMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 5, textAlign: 'center' },
-  linkBox: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radii.md, padding: 9, marginTop: 22, marginBottom: 16 },
-  linkText: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 11 },
-  copyButton: { width: 30, height: 30, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6, transform: [{ scale: 0.97 }] },
   scheduleGrid: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, paddingHorizontal: 18, paddingVertical: 8 },
   scheduleRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.hairline },
   scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 12 },

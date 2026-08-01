@@ -14,6 +14,7 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@cutsync/brand": "*",
     "@cutsync/database": "*",
     "@cutsync/domain": "*",
     "@cutsync/validation": "*",

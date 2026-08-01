@@ -31,3 +31,24 @@ export const products = {
     purpose: 'Operar agenda, equipe e serviços do estabelecimento.',
   },
 } as const;
+
+export {
+  readableForeground,
+  initialsOf,
+  getLuminance,
+  getContrastRatio,
+} from './color-utils';
+
+export {
+  ESTABLISHMENT_COLOR_PRESETS,
+  type EstablishmentColorPreset,
+} from './color-presets';
+
+export {
+  DEFAULT_ESTABLISHMENT_COLOR,
+  buildEstablishmentTheme,
+  normalizeHex,
+  meetsWcagAA,
+  establishmentThemeCssVars,
+  type EstablishmentTheme,
+} from './establishment-theme';
