@@ -1,9 +1,10 @@
 import { sharedBrand } from '@cutsync/brand';
+import { formatDisplayName, getOpeningStatus, parseSchedule } from '@cutsync/domain';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   DiscoveryLoading,
@@ -80,6 +81,18 @@ export function ClientEstablishmentDetailScreen() {
     .filter((photo, index, all) => all.indexOf(photo) === index);
   const galleryWidth = Math.min(Dimensions.get('window').width, 720) - 40;
   const canBook = establishment.services.length > 0 && establishment.professionals.length > 0;
+  const displayName = formatDisplayName(establishment.name);
+  const opening = getOpeningStatus(establishment.openingHours, establishment.timezone);
+  const schedule = parseSchedule(establishment.openingHours);
+  const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const openMaps = () => {
+    void performClientHaptic('selection');
+    const query = establishment.latitude !== null && establishment.longitude !== null
+      ? `${establishment.latitude},${establishment.longitude}`
+      : establishment.address;
+    if (!query) return;
+    void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
+  };
   const startBooking = (serviceId?: string) => {
     void performClientHaptic('selection');
     router.push({
@@ -148,8 +161,16 @@ export function ClientEstablishmentDetailScreen() {
               <View style={[styles.logoFallback, { backgroundColor: establishment.primaryColor }]} />
             )}
             <View style={styles.identityCopy}>
-              <Text testID="client-establishment-name" style={styles.name}>{establishment.name}</Text>
+              <Text testID="client-establishment-name" style={styles.name}>{displayName}</Text>
               {!!establishment.slogan && <Text style={styles.slogan}>{establishment.slogan}</Text>}
+              {!!opening.text && (
+                <Text
+                  testID="client-establishment-opening-status"
+                  style={[styles.openingStatus, opening.isOpen ? styles.openingOpen : styles.openingClosed]}
+                >
+                  {opening.isOpen ? 'Aberto agora' : 'Fechado'} · {opening.text}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -175,6 +196,31 @@ export function ClientEstablishmentDetailScreen() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>ENDEREÇO</Text>
               <Text selectable style={styles.infoValue}>{establishment.address}</Text>
+              <Pressable
+                testID="client-establishment-open-maps"
+                accessibilityRole="button"
+                accessibilityLabel="Abrir no mapa"
+                onPress={openMaps}
+                style={({ pressed }) => [styles.mapButton, pressed && styles.rowPressed]}
+              >
+                <Text style={styles.mapButtonText}>Como chegar</Text>
+              </Pressable>
+            </View>
+          )}
+          {schedule.length > 0 && (
+            <View testID="client-establishment-hours" style={styles.infoRow}>
+              <Text style={styles.infoLabel}>HORÁRIO</Text>
+              {schedule
+                .slice()
+                .sort((a, b) => a.day - b.day)
+                .map((day) => (
+                  <View key={day.day} style={styles.hoursRow}>
+                    <Text style={styles.hoursDay}>{dayNames[day.day] ?? day.name ?? 'Dia'}</Text>
+                    <Text style={styles.hoursValue}>
+                      {day.isOpen ? `${day.open} – ${day.close}` : 'Fechado'}
+                    </Text>
+                  </View>
+                ))}
             </View>
           )}
         </View>
@@ -272,6 +318,9 @@ const styles = StyleSheet.create({
   identityCopy: { flex: 1, gap: 5 },
   name: { color: discoveryColors.text, fontSize: 26, lineHeight: 30, fontWeight: '800', letterSpacing: -0.6 },
   slogan: { color: discoveryColors.secondary, fontSize: 13, lineHeight: 19 },
+  openingStatus: { fontSize: 12, fontWeight: '800', paddingTop: 4 },
+  openingOpen: { color: sharedBrand.colors.forest },
+  openingClosed: { color: discoveryColors.muted },
   metrics: { flexDirection: 'row', alignItems: 'stretch', borderRadius: 20, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forestSoft, paddingVertical: 15 },
   metric: { flex: 1, alignItems: 'center', gap: 3, paddingHorizontal: 4 },
   metricDivider: { width: 1, backgroundColor: '#CBDCC6' },
@@ -279,8 +328,13 @@ const styles = StyleSheet.create({
   metricLabel: { color: discoveryColors.secondary, fontSize: 10, textAlign: 'center', fontWeight: '600' },
   description: { color: discoveryColors.secondary, fontSize: 14, lineHeight: 22 },
   infoRow: { gap: 6, borderTopWidth: 1, borderTopColor: discoveryColors.border, paddingTop: 16 },
-  infoLabel: { color: discoveryColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
+  infoLabel: { color: discoveryColors.muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.3 },
   infoValue: { color: discoveryColors.text, fontSize: 13, lineHeight: 20 },
+  mapButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center', borderRadius: 999, backgroundColor: sharedBrand.colors.forestSoft, paddingHorizontal: 14, marginTop: 4 },
+  mapButtonText: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '800' },
+  hoursRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  hoursDay: { color: discoveryColors.secondary, fontSize: 12, fontWeight: '600' },
+  hoursValue: { color: discoveryColors.text, fontSize: 12, fontWeight: '700' },
   section: { gap: 14 },
   sectionHeading: { gap: 4, paddingHorizontal: 2 },
   sectionEyebrow: { color: discoveryColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },

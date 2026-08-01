@@ -1,5 +1,5 @@
 import { sharedBrand } from '@cutsync/brand';
-import { formatBookingDateLong, getBookingDateOptions } from '@cutsync/domain';
+import { formatBookingDateLong, formatDisplayName, getBookingDateOptions } from '@cutsync/domain';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -326,11 +326,11 @@ export function ClientBookingScreen() {
             .duration(clientTheme.motion.emphasized)}
           style={styles.summaryCard}
         >
-          <SummaryRow label="Local" value={options.establishmentName} />
+          <SummaryRow label="Local" value={formatDisplayName(options.establishmentName)} />
           <View style={styles.divider} />
           <SummaryRow label="Serviço" value={selectedOffer.service.name} />
           <View style={styles.divider} />
-          <SummaryRow label="Profissional" value={selectedOffer.professional.name} />
+          <SummaryRow label="Profissional" value={formatDisplayName(selectedOffer.professional.name)} />
           <View style={styles.divider} />
           <SummaryRow label="Data" value={formatBookingDateLong(selectedLocalDate)} />
           <View style={styles.divider} />
@@ -361,8 +361,9 @@ export function ClientBookingScreen() {
       : Boolean(selectedSlot);
 
   const selectedService = options.services.find((service) => service.id === selectedServiceId) ?? null;
-  const professionalSummary = selectedOffer?.professional.name
-    ?? (isAnyProfessional ? 'Qualquer profissional' : null);
+  const professionalSummary = selectedOffer
+    ? formatDisplayName(selectedOffer.professional.name)
+    : (isAnyProfessional ? 'Qualquer profissional' : null);
   const priceSummary = selectedOffer
     ? formatDiscoveryPrice(selectedOffer.price, options.currency)
     : anyProfessionalFromPrice !== null
@@ -392,7 +393,7 @@ export function ClientBookingScreen() {
           <Text testID={isRescheduling ? 'client-booking-reschedule' : undefined} style={styles.eyebrow}>
             {isRescheduling ? 'REAGENDAMENTO' : 'NOVO AGENDAMENTO'}
           </Text>
-          <Text style={styles.title}>{options.establishmentName}</Text>
+          <Text style={styles.title}>{formatDisplayName(options.establishmentName)}</Text>
         </View>
 
         <View accessibilityRole="tablist" style={styles.stepper}>
@@ -502,12 +503,12 @@ export function ClientBookingScreen() {
                       style={({ pressed }) => [styles.choiceCard, selected && styles.choiceCardSelected, pressed && styles.pressed]}
                     >
                       {professional.avatarUrl ? (
-                        <Image accessibilityLabel={'Foto de ' + professional.name} contentFit="cover" source={{ uri: professional.avatarUrl }} style={styles.avatar} />
+                        <Image accessibilityLabel={'Foto de ' + formatDisplayName(professional.name)} contentFit="cover" source={{ uri: professional.avatarUrl }} style={styles.avatar} />
                       ) : (
-                        <View style={styles.avatarFallback}><Text style={styles.avatarInitials}>{initialsOf(professional.name)}</Text></View>
+                        <View style={styles.avatarFallback}><Text style={styles.avatarInitials}>{initialsOf(formatDisplayName(professional.name))}</Text></View>
                       )}
                       <View style={styles.choiceCopy}>
-                        <Text style={styles.choiceTitle}>{professional.name}</Text>
+                        <Text style={styles.choiceTitle}>{formatDisplayName(professional.name)}</Text>
                         <Text style={styles.choiceSubtitle}>{professional.title || professional.specialties || 'Profissional da equipe'}</Text>
                       </View>
                       <View style={styles.offerMeta}>
@@ -585,7 +586,7 @@ export function ClientBookingScreen() {
               description="A disponibilidade será conferida novamente ao confirmar."
             />
             <View style={styles.summaryCard}>
-              <SummaryRow label="Local" value={options.establishmentName} />
+              <SummaryRow label="Local" value={formatDisplayName(options.establishmentName)} />
               {!!options.establishmentAddress && (
                 <>
                   <View style={styles.divider} />
@@ -595,7 +596,7 @@ export function ClientBookingScreen() {
               <View style={styles.divider} />
               <SummaryRow label="Serviço" value={selectedOffer.service.name} action="Alterar" onAction={() => moveTo(1)} />
               <View style={styles.divider} />
-              <SummaryRow label="Profissional" value={selectedOffer.professional.name} action="Alterar" onAction={() => moveTo(2)} />
+              <SummaryRow label="Profissional" value={formatDisplayName(selectedOffer.professional.name)} action="Alterar" onAction={() => moveTo(2)} />
               <View style={styles.divider} />
               <SummaryRow label="Data" value={formatBookingDateLong(selectedLocalDate)} action="Alterar" onAction={() => moveTo(3)} />
               <View style={styles.divider} />

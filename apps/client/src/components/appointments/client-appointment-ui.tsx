@@ -1,6 +1,7 @@
 import {
   clientAppointmentStatusLabels,
   formatClientAppointmentDateTime,
+  formatDisplayName,
 } from '@cutsync/domain';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -83,11 +84,11 @@ export function ClientAppointmentCard({ appointment, onPress, onRebook, featured
         </View>
         <View style={styles.cardCopy}>
           <View style={styles.cardTopline}>
-            <Text numberOfLines={1} style={styles.establishmentName}>{appointment.establishment.name}</Text>
+            <Text numberOfLines={1} style={styles.establishmentName}>{formatDisplayName(appointment.establishment.name)}</Text>
             <AppointmentStatusBadge appointment={appointment} />
           </View>
           <Text numberOfLines={1} style={styles.serviceName}>{appointment.service.name}</Text>
-          <Text numberOfLines={1} style={styles.professionalName}>com {appointment.professional.name}</Text>
+          <Text numberOfLines={1} style={styles.professionalName}>com {formatDisplayName(appointment.professional.name)}</Text>
           <Text numberOfLines={1} style={styles.dateLabel}>{formatted.dateLabel}</Text>
           {appointment.rescheduleCount > 0 && (
             <Text style={styles.rescheduleLabel}>Reagendado {appointment.rescheduleCount}x</Text>

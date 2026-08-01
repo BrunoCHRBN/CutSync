@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
+import { formatDisplayName } from '../../packages/domain/src/display-name';
 import {
   CLIENT_DISCOVERY_QUERY_MAX_LENGTH,
   normalizeClientDiscoveryQuery,
@@ -12,6 +13,13 @@ import {
 
 const root = process.cwd();
 const readSource = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
+
+test('formata nomes de exibição em title case pt-BR sem alterar partículas', () => {
+  expect(formatDisplayName('  barbeiro bruno  ')).toBe('Barbeiro Bruno');
+  expect(formatDisplayName('BRUNO VINICIUS DA SILVA SANTOS')).toBe('Bruno Vinicius da Silva Santos');
+  expect(formatDisplayName('barbearia do bruno')).toBe('Barbearia do Bruno');
+  expect(formatDisplayName('ana-clara de sousa')).toBe('Ana-Clara de Sousa');
+});
 
 test('normaliza a busca e rejeita emoji, SVG e excesso de caracteres', () => {
   expect(normalizeClientDiscoveryQuery('  corte   masculino  ')).toBe('corte masculino');
@@ -73,6 +81,20 @@ test('expõe galeria, coordenadas e ordenação por distância na descoberta', (
   expect(detail).toContain('client-establishment-gallery');
   expect(appJson).toContain('expo-location');
   expect(sqlTest).toContain('nearest establishment was not ranked first');
+});
+
+test('enriquece o detalhe com horário, mapa e tipografia de display', () => {
+  const detail = readSource('apps/client/src/screens/client-establishment-detail.tsx');
+  const ui = readSource('apps/client/src/components/discovery/client-discovery-ui.tsx');
+  const discovery = readSource('apps/client/src/screens/client-discovery.tsx');
+
+  expect(detail).toContain('getOpeningStatus');
+  expect(detail).toContain('client-establishment-hours');
+  expect(detail).toContain('client-establishment-open-maps');
+  expect(detail).toContain('formatDisplayName');
+  expect(ui).toContain('FEATURED_CARD_HEIGHT');
+  expect(ui).toContain('formatDisplayName(establishment.name)');
+  expect(discovery).toContain("lugar' : 'lugares'");
 });
 
 test('limita o catálogo no servidor a dados ativos e contratos autenticados', () => {

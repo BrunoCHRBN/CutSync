@@ -1,6 +1,7 @@
 import { sharedBrand } from '@cutsync/brand';
 import {
   formatClientAppointmentDateTime,
+  formatDisplayName,
   getClientAppointmentBlockMessage,
 } from '@cutsync/domain';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -93,8 +94,8 @@ export function ClientAppointmentDetailScreen() {
       >
         <AppointmentStatusBadge appointment={appointment} />
         <Text style={styles.eyebrow}>DETALHES DO ATENDIMENTO</Text>
-        <Text testID="client-appointment-detail-establishment" style={styles.title}>{appointment.establishment.name}</Text>
-        <Text style={styles.description}>{appointment.service.name} com {appointment.professional.name}</Text>
+        <Text testID="client-appointment-detail-establishment" style={styles.title}>{formatDisplayName(appointment.establishment.name)}</Text>
+        <Text style={styles.description}>{appointment.service.name} com {formatDisplayName(appointment.professional.name)}</Text>
       </Animated.View>
 
       <Animated.View
@@ -115,7 +116,7 @@ export function ClientAppointmentDetailScreen() {
         style={styles.detailCard}
       >
         <AppointmentDetailRow label="Serviço" value={appointment.service.name} />
-        <AppointmentDetailRow label="Profissional" value={appointment.professional.name} />
+        <AppointmentDetailRow label="Profissional" value={formatDisplayName(appointment.professional.name)} />
         <AppointmentDetailRow label="Endereço" value={appointment.establishment.address || 'Endereço não informado'} />
         <AppointmentDetailRow label="Fuso do local" value={appointment.establishment.timezone} />
         <AppointmentDetailRow label="Protocolo" value={appointment.id} last />

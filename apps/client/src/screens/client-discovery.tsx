@@ -383,7 +383,9 @@ export function ClientDiscoveryScreen() {
                     <Text style={styles.sectionEyebrow}>DESTAQUES</Text>
                     <Text style={styles.sectionTitle}>Melhores avaliados</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{featured.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {featured.length} {featured.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -418,7 +420,9 @@ export function ClientDiscoveryScreen() {
                     <Text style={styles.sectionEyebrow}>PERTO DE VOCÊ</Text>
                     <Text style={styles.sectionTitle}>A menor distância</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{nearby.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {nearby.length} {nearby.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -453,7 +457,9 @@ export function ClientDiscoveryScreen() {
                     <Text style={styles.sectionEyebrow}>PARA CONHECER</Text>
                     <Text style={styles.sectionTitle}>Em destaque na região</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{recentlyAdded.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {recentlyAdded.length} {recentlyAdded.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -488,7 +494,9 @@ export function ClientDiscoveryScreen() {
                     <Text style={styles.sectionEyebrow}>QUERIDINHOS</Text>
                     <Text style={styles.sectionTitle}>Mais reservados</Text>
                   </View>
-                  <Text style={styles.sectionCount}>{popular.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    {popular.length} {popular.length === 1 ? 'lugar' : 'lugares'}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal

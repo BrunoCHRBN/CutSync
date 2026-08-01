@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { formatDisplayName } from '@cutsync/domain';
+
 import type {
   ClientDiscoveryEstablishment,
   ClientDiscoveryProfessional,
@@ -115,7 +117,7 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
     <Pressable
       testID={'client-discovery-featured-' + establishment.slug}
       accessibilityRole="button"
-      accessibilityLabel={'Abrir ' + establishment.name}
+      accessibilityLabel={'Abrir ' + formatDisplayName(establishment.name)}
       onPress={() => select(onPress)}
       style={({ pressed }) => [styles.featuredCard, pressed && styles.cardPressed]}
     >
@@ -146,7 +148,7 @@ export function FeaturedEstablishmentCard({ establishment, onPress }: {
         </View>
       </View>
       <View style={styles.featuredCopy}>
-        <Text numberOfLines={1} style={styles.featuredTitle}>{establishment.name}</Text>
+        <Text numberOfLines={1} style={styles.featuredTitle}>{formatDisplayName(establishment.name)}</Text>
         {!!establishment.address && (
           <Text numberOfLines={1} style={styles.featuredAddress}>{establishment.address}</Text>
         )}
@@ -188,7 +190,7 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
     <Pressable
       testID={'client-discovery-compact-' + establishment.slug}
       accessibilityRole="button"
-      accessibilityLabel={'Abrir ' + establishment.name}
+      accessibilityLabel={'Abrir ' + formatDisplayName(establishment.name)}
       onPress={() => select(onPress)}
       style={({ pressed }) => [styles.compactCard, pressed && styles.cardPressed]}
     >
@@ -207,7 +209,7 @@ export function CompactEstablishmentCard({ establishment, onPress }: {
       )}
       <View style={styles.compactBody}>
         <View style={styles.compactHeadline}>
-          <Text numberOfLines={1} style={styles.compactTitle}>{establishment.name}</Text>
+          <Text numberOfLines={1} style={styles.compactTitle}>{formatDisplayName(establishment.name)}</Text>
           <View style={styles.compactRatingPill}>
             <StarIcon color={discoveryColors.amber} size={9} />
             <Text style={styles.compactRatingText}>{establishment.averageRating.toFixed(1)}</Text>
@@ -268,7 +270,7 @@ export function EstablishmentCard({ establishment, onPress }: {
     <Pressable
       testID={'client-discovery-card-' + establishment.slug}
       accessibilityRole="button"
-      accessibilityLabel={'Abrir ' + establishment.name}
+      accessibilityLabel={'Abrir ' + formatDisplayName(establishment.name)}
       onPress={() => select(onPress)}
       style={({ pressed }) => [styles.establishmentCard, pressed && styles.cardPressed]}
     >
@@ -288,7 +290,7 @@ export function EstablishmentCard({ establishment, onPress }: {
       <View style={styles.cardBody}>
         <View style={styles.cardTopline}>
           <View style={styles.cardTitleCopy}>
-            <Text numberOfLines={1} style={styles.cardTitle}>{establishment.name}</Text>
+            <Text numberOfLines={1} style={styles.cardTitle}>{formatDisplayName(establishment.name)}</Text>
             {!!establishment.address && (
               <Text numberOfLines={2} style={styles.cardAddress}>{establishment.address}</Text>
             )}
@@ -317,11 +319,12 @@ export function EstablishmentCard({ establishment, onPress }: {
 }
 
 export function ProfessionalCard({ professional }: { professional: ClientDiscoveryProfessional }) {
+  const displayName = formatDisplayName(professional.name);
   return (
     <View style={styles.professionalCard}>
       {professional.avatarUrl ? (
         <Image
-          accessibilityLabel={'Foto de ' + professional.name}
+          accessibilityLabel={'Foto de ' + displayName}
           contentFit="cover"
           source={{ uri: professional.avatarUrl }}
           style={styles.professionalAvatar}
@@ -329,14 +332,17 @@ export function ProfessionalCard({ professional }: { professional: ClientDiscove
         />
       ) : (
         <View style={styles.professionalAvatarFallback}>
-          <Text style={styles.professionalInitials}>{initialsOf(professional.name)}</Text>
+          <Text style={styles.professionalInitials}>{initialsOf(displayName)}</Text>
         </View>
       )}
       <View style={styles.professionalCopy}>
-        <Text style={styles.professionalName}>{professional.name}</Text>
+        <Text style={styles.professionalName}>{displayName}</Text>
         {!!professional.title && <Text style={styles.professionalTitle}>{professional.title}</Text>}
         {!!professional.specialties && (
           <Text numberOfLines={2} style={styles.professionalSpecialties}>{professional.specialties}</Text>
+        )}
+        {!!professional.profileSlug && (
+          <Text style={styles.professionalProfileHint}>Perfil público disponível</Text>
         )}
       </View>
     </View>
@@ -345,7 +351,8 @@ export function ProfessionalCard({ professional }: { professional: ClientDiscove
 
 // Compact card size constants (also exported for the carousel snapping intervals).
 export const COMPACT_CARD_WIDTH = 262;
-export const FEATURED_CARD_WIDTH = 296;
+export const FEATURED_CARD_WIDTH = 268;
+export const FEATURED_CARD_HEIGHT = 300;
 
 // ---------- Skeleton loaders ----------
 function ShimmerBlock({ style }: { style: any }) {
@@ -441,7 +448,7 @@ const styles = StyleSheet.create({
   // Featured (hero) card
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 380,
+    height: FEATURED_CARD_HEIGHT,
     overflow: 'hidden',
     borderRadius: 28,
     borderCurve: 'continuous',
@@ -453,14 +460,14 @@ const styles = StyleSheet.create({
   featuredFallback: { alignItems: 'center', justifyContent: 'center' },
   featuredInitials: { color: '#FFFFFF', fontSize: 56, fontWeight: '900', letterSpacing: 1.2, opacity: 0.72 },
   featuredGradientTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 110, backgroundColor: 'rgba(20, 27, 23, 0.42)' },
-  featuredGradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 210, backgroundColor: 'rgba(20, 27, 23, 0.7)' },
+  featuredGradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 160, backgroundColor: 'rgba(20, 27, 23, 0.7)' },
   featuredBadgeRow: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   featuredInstantBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.92)' },
   featuredInstantText: { color: discoveryColors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   featuredRatingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(20, 27, 23, 0.62)' },
   featuredRatingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   featuredCopy: { position: 'absolute', left: 20, right: 20, bottom: 20, gap: 6 },
-  featuredTitle: { color: '#FFFFFF', fontSize: 24, lineHeight: 28, fontWeight: '800', letterSpacing: -0.5 },
+  featuredTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 24, fontWeight: '800', letterSpacing: -0.4 },
   featuredAddress: { color: 'rgba(255, 255, 255, 0.86)', fontSize: 12, lineHeight: 18 },
   featuredMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 6 },
   featuredMeta: { color: 'rgba(255, 255, 255, 0.82)', fontSize: 11, fontWeight: '600' },
@@ -539,6 +546,7 @@ const styles = StyleSheet.create({
   professionalName: { color: discoveryColors.text, fontSize: 15, fontWeight: '700' },
   professionalTitle: { color: discoveryColors.accent, fontSize: 12, fontWeight: '700' },
   professionalSpecialties: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
+  professionalProfileHint: { color: discoveryColors.muted, fontSize: 11, fontWeight: '700', paddingTop: 2 },
 
   pressed: { opacity: 0.65 },
 
@@ -549,7 +557,7 @@ const styles = StyleSheet.create({
   skeletonRow: { flexDirection: 'row', gap: 14, paddingHorizontal: 20 },
   skeletonFeatured: {
     width: FEATURED_CARD_WIDTH,
-    height: 380,
+    height: FEATURED_CARD_HEIGHT,
     overflow: 'hidden',
     borderRadius: 28,
     borderCurve: 'continuous',
