@@ -34,6 +34,16 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { buildEstablishmentTheme } from '@cutsync/brand';
+import {
+  accentText,
+  iconSoftBackground,
+  logoRing,
+  outlineSurface,
+  primaryButton,
+  selectedChip,
+  selectedChipText,
+  selectedSurface,
+} from '../../theme/establishment-styles';
 import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
 import { EstablishmentThemeProvider } from '../../contexts/establishment-theme-context';
 import { EstablishmentThemeScope } from '../theme/establishment-theme-scope';
@@ -442,7 +452,7 @@ export const EstablishmentBookingExperience = () => {
             <Text style={styles.backBtnText}>Voltar</Text>
           </Pressable>
 
-          <Text style={styles.topbarTitle} numberOfLines={1}>
+          <Text style={[styles.topbarTitle, accentText(theme)]} numberOfLines={1}>
             {barbershop?.name || 'Novo Agendamento'}
           </Text>
 
@@ -457,17 +467,17 @@ export const EstablishmentBookingExperience = () => {
             {barbershop?.bannerUrl ? (
               <Image source={{ uri: barbershop.bannerUrl }} style={styles.heroImg} contentFit="cover" />
             ) : (
-              <View style={styles.heroFallback}>
-                <Scissors size={28} color="#113939" />
+              <View style={[styles.heroFallback, iconSoftBackground(theme)]}>
+                <Scissors size={28} color={theme.primary} />
               </View>
             )}
 
             <View style={styles.heroInfoRow}>
-              <View style={styles.heroLogoCircle}>
+              <View style={[styles.heroLogoCircle, logoRing(theme)]}>
                 {barbershop?.logoUrl ? (
                   <Image source={{ uri: barbershop.logoUrl }} style={styles.logoImg} contentFit="cover" />
                 ) : (
-                  <Scissors size={20} color="#113939" />
+                  <Scissors size={20} color={theme.primary} />
                 )}
               </View>
 
@@ -520,7 +530,7 @@ export const EstablishmentBookingExperience = () => {
                   return (
                     <Pressable
                       key={srv.id}
-                      style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
+                      style={[styles.serviceCard, isSelected && selectedSurface(theme)]}
                       onPress={() => {
                         tapLight();
                         setSelectedService(srv.id);
@@ -533,8 +543,8 @@ export const EstablishmentBookingExperience = () => {
                         animateStep(2);
                       }}
                     >
-                      <View style={styles.serviceIconBox}>
-                        <Scissors size={16} color={isSelected ? '#113939' : colors.textMuted} />
+                      <View style={[styles.serviceIconBox, isSelected && iconSoftBackground(theme)]}>
+                        <Scissors size={16} color={isSelected ? theme.primary : colors.textMuted} />
                       </View>
 
                       <View style={{ flex: 1, gap: 2 }}>
@@ -544,8 +554,8 @@ export const EstablishmentBookingExperience = () => {
                         </Text>
                       </View>
 
-                      <View style={styles.priceTag}>
-                        <Text style={styles.priceTagText}>R$ {Number(srv.price).toFixed(2)}</Text>
+                      <View style={[styles.priceTag, outlineSurface(theme)]}>
+                        <Text style={[styles.priceTagText, accentText(theme)]}>R$ {Number(srv.price).toFixed(2)}</Text>
                       </View>
 
                       <ChevronRight size={16} color={colors.textMuted} />
@@ -565,7 +575,7 @@ export const EstablishmentBookingExperience = () => {
                 <Text style={styles.stepEyebrow}>PASSO 2 DE 4</Text>
                 <Text style={styles.stepTitle}>Com qual especialista prefere ser atendido?</Text>
                 <Text style={styles.stepSubtitle}>
-                  Serviço selecionado: <Text style={{ fontFamily: typography.bodyStrong, color: '#113939' }}>{activeServiceObj?.name}</Text>
+                  Serviço selecionado: <Text style={{ fontFamily: typography.bodyStrong, ...accentText(theme) }}>{activeServiceObj?.name}</Text>
                 </Text>
               </View>
 
@@ -584,7 +594,7 @@ export const EstablishmentBookingExperience = () => {
                     return (
                       <Pressable
                         key={barber.id}
-                        style={[styles.barberCard, isSelected && styles.barberCardSelected]}
+                        style={[styles.barberCard, isSelected && selectedSurface(theme)]}
                         onPress={() => {
                           tapLight();
                           setSelectedBarber(barber.id);
@@ -593,11 +603,11 @@ export const EstablishmentBookingExperience = () => {
                           animateStep(3);
                         }}
                       >
-                        <View style={styles.barberAvatar}>
+                        <View style={[styles.barberAvatar, iconSoftBackground(theme)]}>
                           {barber.avatarUrl ? (
                             <Image source={{ uri: barber.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
                           ) : (
-                            <UserRound size={18} color="#113939" />
+                            <UserRound size={18} color={theme.primary} />
                           )}
                         </View>
 
@@ -636,7 +646,7 @@ export const EstablishmentBookingExperience = () => {
                 <Text style={styles.stepTitle}>Escolha a Data e o Horário</Text>
                 <Text style={styles.stepSubtitle}>
                   Atendimento com{' '}
-                  <Text style={{ fontFamily: typography.bodyStrong, color: '#113939' }}>
+                  <Text style={{ fontFamily: typography.bodyStrong, ...accentText(theme) }}>
                     {activeBarberObj?.name || 'Profissional'}
                   </Text>
                 </Text>
@@ -659,11 +669,11 @@ export const EstablishmentBookingExperience = () => {
                             setSelectedDate(new Date(`${option.localDate}T12:00:00`));
                             setSelectedTime(null);
                           }}
-                          style={[styles.quickDate, selected && styles.quickDateSelected]}
+                          style={[styles.quickDate, selected && selectedChip(theme)]}
                         >
-                          <Text style={[styles.quickDateWeekday, selected && styles.quickDateTextSelected]}>{option.isToday ? 'Hoje' : option.weekdayLabel}</Text>
-                          <Text style={[styles.quickDateDay, selected && styles.quickDateTextSelected]}>{option.dayLabel}</Text>
-                          <Text style={[styles.quickDateMonth, selected && styles.quickDateTextSelected]}>{option.monthLabel}</Text>
+                          <Text style={[styles.quickDateWeekday, selected && selectedChipText(theme)]}>{option.isToday ? 'Hoje' : option.weekdayLabel}</Text>
+                          <Text style={[styles.quickDateDay, selected && selectedChipText(theme)]}>{option.dayLabel}</Text>
+                          <Text style={[styles.quickDateMonth, selected && selectedChipText(theme)]}>{option.monthLabel}</Text>
                         </Pressable>
                       );
                     })}
@@ -715,7 +725,7 @@ export const EstablishmentBookingExperience = () => {
                             style={[
                               styles.dayCell,
                               !selectable && styles.dayCellDisabled,
-                              isSelected && styles.dayCellSelected,
+                              isSelected && selectedChip(theme),
                             ]}
                             onPress={() => {
                               tapLight();
@@ -727,7 +737,7 @@ export const EstablishmentBookingExperience = () => {
                               style={[
                                 styles.dayCellText,
                                 !selectable && styles.dayCellTextDisabled,
-                                isSelected && styles.dayCellTextSelected,
+                                isSelected && selectedChipText(theme),
                               ]}
                             >
                               {date.getDate()}
@@ -749,7 +759,7 @@ export const EstablishmentBookingExperience = () => {
                   </Text>
 
                   {availabilityLoading ? (
-                    <ActivityIndicator color="#113939" style={{ marginVertical: 20 }} />
+                    <ActivityIndicator color={theme.primary} style={{ marginVertical: 20 }} />
                   ) : availabilityError ? (
                     <InlineNotice tone="danger" message={availabilityError} />
                   ) : availableSlots.length === 0 ? (
@@ -758,20 +768,20 @@ export const EstablishmentBookingExperience = () => {
                     <View style={styles.timeSlotsContainer}>
                       {groupedSlots.morning.length > 0 && (
                         <View style={styles.periodGroup}>
-                          <Text style={styles.periodLabel}>🌅 Manhã</Text>
+                          <Text style={[styles.periodLabel, accentText(theme)]}>🌅 Manhã</Text>
                           <View style={styles.timeGrid}>
                             {groupedSlots.morning.map((slot) => {
                               const isSelected = selectedTime === slot.localTime;
                               return (
                                 <Pressable
                                   key={slot.startsAt}
-                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  style={[styles.timeChip, isSelected && selectedChip(theme)]}
                                   onPress={() => {
                                     tapLight();
                                     setSelectedTime(slot.localTime);
                                   }}
                                 >
-                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                  <Text style={[styles.timeChipText, isSelected && selectedChipText(theme)]}>
                                     {slot.localTime}
                                   </Text>
                                 </Pressable>
@@ -783,20 +793,20 @@ export const EstablishmentBookingExperience = () => {
 
                       {groupedSlots.afternoon.length > 0 && (
                         <View style={styles.periodGroup}>
-                          <Text style={styles.periodLabel}>☀️ Tarde</Text>
+                          <Text style={[styles.periodLabel, accentText(theme)]}>☀️ Tarde</Text>
                           <View style={styles.timeGrid}>
                             {groupedSlots.afternoon.map((slot) => {
                               const isSelected = selectedTime === slot.localTime;
                               return (
                                 <Pressable
                                   key={slot.startsAt}
-                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  style={[styles.timeChip, isSelected && selectedChip(theme)]}
                                   onPress={() => {
                                     tapLight();
                                     setSelectedTime(slot.localTime);
                                   }}
                                 >
-                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                  <Text style={[styles.timeChipText, isSelected && selectedChipText(theme)]}>
                                     {slot.localTime}
                                   </Text>
                                 </Pressable>
@@ -808,20 +818,20 @@ export const EstablishmentBookingExperience = () => {
 
                       {groupedSlots.evening.length > 0 && (
                         <View style={styles.periodGroup}>
-                          <Text style={styles.periodLabel}>🌙 Noite</Text>
+                          <Text style={[styles.periodLabel, accentText(theme)]}>🌙 Noite</Text>
                           <View style={styles.timeGrid}>
                             {groupedSlots.evening.map((slot) => {
                               const isSelected = selectedTime === slot.localTime;
                               return (
                                 <Pressable
                                   key={slot.startsAt}
-                                  style={[styles.timeChip, isSelected && styles.timeChipSelected]}
+                                  style={[styles.timeChip, isSelected && selectedChip(theme)]}
                                   onPress={() => {
                                     tapLight();
                                     setSelectedTime(slot.localTime);
                                   }}
                                 >
-                                  <Text style={[styles.timeChipText, isSelected && styles.timeChipTextSelected]}>
+                                  <Text style={[styles.timeChipText, isSelected && selectedChipText(theme)]}>
                                     {slot.localTime}
                                   </Text>
                                 </Pressable>
@@ -841,6 +851,8 @@ export const EstablishmentBookingExperience = () => {
                 <AppButton
                   label="Avançar para Revisão →"
                   disabled={!selectedDate || !selectedTime}
+                  style={primaryButton(theme)}
+                  foregroundColor={theme.onPrimary}
                   onPress={() => animateStep(4)}
                 />
               </View>
@@ -895,7 +907,7 @@ export const EstablishmentBookingExperience = () => {
 
                 <View style={styles.summaryTotalRow}>
                   <Text style={styles.summaryTotalLabel}>Valor Total:</Text>
-                  <Text style={styles.summaryTotalValue}>R$ {summaryPrice.toFixed(2)}</Text>
+                  <Text style={[styles.summaryTotalValue, accentText(theme)]}>R$ {summaryPrice.toFixed(2)}</Text>
                 </View>
               </View>
 
@@ -904,7 +916,8 @@ export const EstablishmentBookingExperience = () => {
 
                 <AppButton
                   label={bookingLoading ? 'Confirmando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
-                  style={styles.confirmBtn}
+                  style={[styles.confirmBtn, primaryButton(theme)]}
+                  foregroundColor={theme.onPrimary}
                   disabled={bookingLoading}
                   onPress={handleConfirmBooking}
                 />
@@ -997,7 +1010,6 @@ const styles = StyleSheet.create({
   topbarTitle: {
     fontSize: 15,
     fontFamily: typography.display,
-    color: '#113939',
   },
   scroll: {
     paddingBottom: 80,
@@ -1025,7 +1037,6 @@ const styles = StyleSheet.create({
   },
   heroFallback: {
     height: 90,
-    backgroundColor: '#F0ECE0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1039,9 +1050,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.pill,
-    backgroundColor: '#F0ECE0',
     borderWidth: 1,
-    borderColor: '#E4E5DF',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1092,8 +1101,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepPillActive: {
-    borderColor: '#113939',
-    backgroundColor: '#F4F7F5',
     borderWidth: 1.5,
   },
   stepPillDone: {
@@ -1107,7 +1114,6 @@ const styles = StyleSheet.create({
   },
   stepPillTextActive: {
     fontFamily: typography.bodyStrong,
-    color: '#113939',
   },
 
   /* Step Section */
@@ -1153,11 +1159,6 @@ const styles = StyleSheet.create({
     borderColor: '#E4E5DF',
     padding: 14,
   },
-  serviceCardSelected: {
-    borderColor: '#113939',
-    borderWidth: 2,
-    backgroundColor: '#F4F7F5',
-  },
   serviceIconBox: {
     width: 34,
     height: 34,
@@ -1179,15 +1180,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   priceTag: {
-    backgroundColor: '#F0ECE0',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radii.pill,
+    borderWidth: 1,
   },
   priceTagText: {
     fontSize: 12,
     fontFamily: typography.bodyStrong,
-    color: '#113939',
   },
 
   /* Barbers Grid */
@@ -1204,16 +1204,10 @@ const styles = StyleSheet.create({
     borderColor: '#E4E5DF',
     padding: 12,
   },
-  barberCardSelected: {
-    borderColor: '#113939',
-    borderWidth: 2,
-    backgroundColor: '#F4F7F5',
-  },
   barberAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F0ECE0',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1267,11 +1261,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  quickDateSelected: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
   quickDateWeekday: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'capitalize' },
   quickDateDay: { color: colors.text, fontFamily: typography.display, fontSize: 20, marginVertical: 2 },
   quickDateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, textTransform: 'capitalize' },
-  quickDateTextSelected: { color: colors.white },
   calendarTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1333,9 +1325,6 @@ const styles = StyleSheet.create({
   dayCellDisabled: {
     opacity: 0.3,
   },
-  dayCellSelected: {
-    backgroundColor: '#113939',
-  },
   dayCellText: {
     fontSize: 12,
     fontFamily: typography.body,
@@ -1343,10 +1332,6 @@ const styles = StyleSheet.create({
   },
   dayCellTextDisabled: {
     color: colors.textMuted,
-  },
-  dayCellTextSelected: {
-    fontFamily: typography.bodyStrong,
-    color: '#FFFFFF',
   },
 
   /* Time Slots */
@@ -1368,7 +1353,6 @@ const styles = StyleSheet.create({
   periodLabel: {
     fontSize: 11,
     fontFamily: typography.bodyStrong,
-    color: '#113939',
   },
   timeGrid: {
     flexDirection: 'row',
@@ -1388,17 +1372,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   selectionHint: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, textAlign: 'right' },
-  timeChipSelected: {
-    backgroundColor: '#113939',
-    borderColor: '#113939',
-  },
   timeChipText: {
     fontSize: 12,
     fontFamily: typography.bodyStrong,
     color: '#1A1A1E',
-  },
-  timeChipTextSelected: {
-    color: '#FFFFFF',
   },
 
   /* Nav Buttons Row */
@@ -1456,10 +1433,8 @@ const styles = StyleSheet.create({
   summaryTotalValue: {
     fontSize: 18,
     fontFamily: typography.display,
-    color: '#113939',
   },
   confirmBtn: {
-    backgroundColor: '#113939',
     paddingHorizontal: 24,
   },
 });

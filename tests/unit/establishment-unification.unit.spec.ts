@@ -41,3 +41,15 @@ test('perfil público aplica tema da marca nos pontos visuais', () => {
   expect(profile).toContain('barbershop-professional-book-button');
   expect(profile).toContain('primaryButton(theme)');
 });
+
+test('booking aplica tema da marca nos pontos visuais', () => {
+  const booking = readSource('apps/web/src/components/establishment/EstablishmentBookingExperience.tsx');
+
+  expect(booking).toContain('EstablishmentThemeProvider');
+  expect(booking).toContain('selectedSurface(theme)');
+  expect(booking).toContain('selectedChip(theme)');
+  expect(booking).toContain('accentText(theme)');
+  expect(booking).toContain('primaryButton(theme)');
+  expect(booking).not.toContain('#113939');
+  expect(booking).not.toContain('colors.brandPrimary');
+});
