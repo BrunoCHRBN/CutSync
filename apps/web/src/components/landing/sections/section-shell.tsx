@@ -49,10 +49,28 @@ export const LandingSectionShell = ({
 );
 
 const styles = StyleSheet.create({
-  section: { gap: 40 },
-  heading: { flexShrink: 1, minWidth: 0, maxWidth: landingLayout.copyWidth, gap: 12 },
-  eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.7 },
-  title: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 40, lineHeight: 46, letterSpacing: -1.5 },
-  titleCompact: { fontSize: 31, lineHeight: 37, letterSpacing: -1.1 },
-  description: { maxWidth: 620, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
+  section: { gap: 48 },
+  heading: { maxWidth: landingLayout.copyWidth, gap: 14 },
+  eyebrow: {
+    color: landingColors.brand,
+    fontFamily: landingTypography.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: landingColors.ink,
+    fontFamily: landingTypography.displaySemiBold,
+    fontSize: 44,
+    lineHeight: 50,
+    letterSpacing: -1.7,
+  },
+  titleCompact: { fontSize: 32, lineHeight: 38, letterSpacing: -1.1 },
+  description: {
+    maxWidth: 620,
+    color: landingColors.inkSecondary,
+    fontFamily: landingTypography.body,
+    fontSize: 16,
+    lineHeight: 27,
+  },
 });

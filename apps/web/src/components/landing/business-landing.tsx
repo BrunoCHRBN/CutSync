@@ -32,6 +32,7 @@ import { DeviceShowcase } from './sections/device-showcase';
 import { EditorialScene } from './sections/editorial-scene';
 import { FaqSection } from './sections/faq-section';
 import { FutureVision } from './sections/future-vision';
+import { HeroAtmosphere } from './sections/hero-atmosphere';
 import { HowToStart } from './sections/how-to-start';
 import { LandingFooter } from './sections/landing-footer';
 import { LandingNav } from './sections/landing-nav';
@@ -186,9 +187,17 @@ const BusinessLandingContent = () => {
 
       <ScrollView ref={scrollRef} onScroll={trackScrollDepth} scrollEventThrottle={32} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.heroOuter}>
+          <HeroAtmosphere
+            audience="business"
+            wash="brand"
+            alternativeText="Recepção contemporânea de salão brasileiro com luz suave e mesa de atendimento, criada para o CutSync."
+          />
           <SpotlightSection style={[styles.hero, !isDesktop && styles.heroStacked]}>
             <View style={[styles.heroCopy, !isDesktop && styles.fullWidth]}>
-              <SectionReveal delay={0}><View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>{hero.badge}</Text></View></SectionReveal>
+              <SectionReveal delay={0}>
+                <Text testID="landing-business-hero-brand" style={styles.heroBrand}>CutSync</Text>
+              </SectionReveal>
+              <SectionReveal delay={40}><View style={styles.heroBadge}><Sparkles size={14} color={landingColors.accent} /><Text style={styles.heroBadgeText}>{hero.badge}</Text></View></SectionReveal>
               <MaskedReveal delay={70}>
                 <Text accessibilityRole="header" style={[styles.heroTitle, !isDesktop && styles.heroTitleCompact]}>{hero.title}</Text>
               </MaskedReveal>
@@ -454,14 +463,15 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(41,75,58,0.14)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.68)' },
   accountButtonText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   scroll: { paddingBottom: 36 },
-  heroOuter: { backgroundColor: landingColors.brandStrong },
-  hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 720, paddingHorizontal: 34, paddingVertical: 104, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 96 },
+  heroOuter: { position: 'relative', overflow: 'hidden', backgroundColor: landingColors.brandStrong },
+  hero: { width: '100%', maxWidth: landingLayout.maxWidth, minHeight: 760, paddingHorizontal: 34, paddingVertical: 112, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 96, zIndex: 2 },
   heroStacked: { minHeight: 0, paddingVertical: 88, flexDirection: 'column', alignItems: 'stretch' },
-  heroCopy: { flex: 1, minWidth: 280, gap: 22, zIndex: 2 },
+  heroCopy: { flex: 1, minWidth: 280, gap: 20, zIndex: 2 },
+  heroBrand: { color: landingColors.white, fontFamily: landingTypography.displayBold, fontSize: 40, lineHeight: 44, letterSpacing: -1.4 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
-  heroBadgeText: { color: landingColors.onBrand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
-  heroTitle: { maxWidth: 650, color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 68, lineHeight: 72, letterSpacing: -3.4 },
-  heroTitleCompact: { fontSize: 48, lineHeight: 54, letterSpacing: -2.2 },
+  heroBadgeText: { color: landingColors.onBrand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
+  heroTitle: { maxWidth: 650, color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 64, lineHeight: 70, letterSpacing: -2.8 },
+  heroTitleCompact: { fontSize: 42, lineHeight: 48, letterSpacing: -1.8 },
   heroDescription: { maxWidth: 540, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   heroSecondaryButton: { minHeight: 54, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: landingRadii.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(255,255,255,0.05)' },
@@ -510,7 +520,7 @@ const styles = StyleSheet.create({
   comparisonFragment: { maxWidth: '82%', paddingVertical: 7, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: landingRadii.sm, backgroundColor: landingColors.canvasWarm },
   comparisonFragmentOffset: { alignSelf: 'flex-end' },
   comparisonFragmentDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: landingColors.borderStrong },
-  comparisonFragmentText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 10 },
+  comparisonFragmentText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 11 },
   comparisonArrow: { position: 'absolute', top: 123, alignSelf: 'center', width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.surface, borderWidth: 1, borderColor: landingColors.border },
   comparisonAfterPanel: { minHeight: 72, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: landingRadii.md, backgroundColor: landingColors.brand },
   comparisonAfter: { flex: 1, color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 13, lineHeight: 19 },

@@ -55,10 +55,23 @@ test('mantém os tokens claros e os pares principais em contraste AA', () => {
   expect(contrast('#FFFFFF', '#294B3A')).toBeGreaterThanOrEqual(4.5);
 });
 
+test('mantém tipografia editorial Fraunces/Geist nas landings', () => {
+  expect(tokens).toContain("displaySemiBold: 'Fraunces_600SemiBold'");
+  expect(tokens).toContain("displayBold: 'Fraunces_700Bold'");
+  expect(tokens).toContain("body: 'Geist_400Regular'");
+  expect(tokens).toContain("bodyMedium: 'Geist_500Medium'");
+  expect(tokens).toContain("bodySemiBold: 'Geist_600SemiBold'");
+  expect(tokens).toContain("mono: 'GeistMono_500Medium'");
+  expect(clientLanding).toContain('<HeroAtmosphere');
+  expect(businessLanding).toContain('<HeroAtmosphere');
+  expect(clientLanding).toContain('landing-client-hero-brand');
+  expect(businessLanding).toContain('landing-business-hero-brand');
+});
+
 test('aplica a hierarquia de superfícies sem transformar tudo em cards', () => {
   expect(clientLanding).toContain('searchPanel:');
   expect(clientLanding).toContain('resultsSection: { paddingVertical: 48, gap: 40 }');
-  expect(businessLanding).toContain('heroOuter: { backgroundColor: landingColors.brandStrong }');
+  expect(businessLanding).toContain("heroOuter: { position: 'relative', overflow: 'hidden', backgroundColor: landingColors.brandStrong }");
   expect(businessLanding).toContain('sandboxSection: { paddingVertical: 24, gap: 40 }');
   expect(businessLanding).toContain("roleSection: { paddingVertical: 72, paddingHorizontal: 48, flexDirection: 'row', alignItems: 'center', gap: 72");
 });

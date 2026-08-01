@@ -35,7 +35,6 @@ import { trackLandingEvent } from './landing-analytics';
 import { EstablishmentMedia } from './landing-primitives';
 import { GlassSurface, MagneticButton, MaskedReveal, RevealOnScroll, SectionReveal, SpotlightSection, StaggerGroup, StaggerItem } from './motion/landing-effects';
 import { LandingMotionProvider, useLandingMotion, useReducedMotion } from './motion/landing-motion';
-import { ProductPreview } from './product-preview';
 import { AccessPath, AccessPathModal } from './access-path-modal';
 import { LANDING_CLIENT_DISCOVERY, LandingSectionId } from './landing-content';
 import { ConnectedEcosystem } from './sections/connected-ecosystem';
@@ -44,6 +43,7 @@ import { DeviceShowcase } from './sections/device-showcase';
 import { EditorialScene } from './sections/editorial-scene';
 import { FaqSection } from './sections/faq-section';
 import { FutureVision } from './sections/future-vision';
+import { HeroAtmosphere } from './sections/hero-atmosphere';
 import { HowToStart } from './sections/how-to-start';
 import { LandingFooter } from './sections/landing-footer';
 import { LandingNav } from './sections/landing-nav';
@@ -310,105 +310,108 @@ const ClientLandingContent = () => {
       </GlassSurface>
 
       <ScrollView ref={scrollRef} onScroll={trackScrollDepth} scrollEventThrottle={32} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <SpotlightSection style={[styles.heroSection, !isDesktop && styles.heroSectionStacked]}>
-          <View style={styles.heroCopy}>
-            <SectionReveal delay={0} style={styles.heroBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.heroBadgeText}>{hero.badge}</Text>
-            </SectionReveal>
-            <MaskedReveal delay={70}>
-              <Text accessibilityRole="header" style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>{hero.title}</Text>
-            </MaskedReveal>
-            <SectionReveal delay={210}><Text style={styles.heroDescription}>{hero.description}</Text></SectionReveal>
-            <SectionReveal delay={280}>
-              <GlassSurface variant="search" style={[styles.searchPanel, inlineSearch && styles.searchPanelInline, !isDesktop && styles.searchPanelConstrained]}>
-                <View style={[styles.searchFields, !inlineSearch && styles.searchFieldsStacked]}>
-                  <View style={styles.searchField}>
-                    <Search size={18} color={landingColors.inkMuted} />
-                    <TextInput
-                      testID="landing-search-input"
-                      accessibilityLabel="Buscar por estabelecimento ou serviço"
-                      value={query}
-                      onChangeText={(value) => {
-                        if (value) reportSearchStarted(locationQuery ? 2 : 1);
-                        setQuery(value);
-                      }}
-                      onSubmitEditing={() => scrollToSection('search')}
-                      returnKeyType="search"
-                      placeholder={hero.searchPlaceholder}
-                      placeholderTextColor={landingColors.inkMuted}
-                      style={styles.input}
-                    />
-                  </View>
-                  <View style={[styles.searchDivider, !inlineSearch && styles.searchDividerStacked]} />
-                  <View style={styles.searchField}>
-                    <MapPin size={18} color={landingColors.inkMuted} />
-                    <TextInput
-                      testID="landing-location-input"
-                      accessibilityLabel="Filtrar por bairro ou cidade"
-                      value={locationQuery}
-                      onChangeText={(value) => {
-                        if (value) reportSearchStarted(query ? 2 : 1);
-                        setLocationQuery(value);
-                      }}
-                      onSubmitEditing={() => scrollToSection('search')}
-                      returnKeyType="search"
-                      placeholder={hero.locationPlaceholder}
-                      placeholderTextColor={landingColors.inkMuted}
-                      style={styles.input}
-                    />
-                  </View>
-                  <Pressable
-                    testID="landing-search-submit"
-                    accessibilityRole="button"
-                    accessibilityLabel="Ver estabelecimentos encontrados"
-                    onPress={() => scrollToResults('hero_primary')}
-                    style={({ pressed }) => [styles.searchSubmit, !inlineSearch && styles.searchSubmitStacked, pressed && styles.pressed]}
-                  >
-                    <Search size={17} color={landingColors.white} />
-                    <Text style={styles.searchSubmitText}>{hero.submitLabel}</Text>
-                  </Pressable>
-                </View>
-              </GlassSurface>
-            </SectionReveal>
-            <SectionReveal delay={340}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {availableServiceGroups.map((group) => {
-                  const selected = group.id === serviceGroup;
-                  const Icon = group.icon;
-                  return (
+        <View style={styles.heroOuter}>
+          <HeroAtmosphere
+            audience="client"
+            wash="light"
+            alternativeText="Interior iluminado de salão brasileiro com cadeira de atendimento e plantas, criado para o CutSync."
+          />
+          <SpotlightSection style={[styles.heroSection, !isDesktop && styles.heroSectionStacked]}>
+            <View style={styles.heroCopy}>
+              <SectionReveal delay={0}>
+                <Text testID="landing-client-hero-brand" style={styles.heroBrand}>CutSync</Text>
+              </SectionReveal>
+              <SectionReveal delay={40} style={styles.heroBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.heroBadgeText}>{hero.badge}</Text>
+              </SectionReveal>
+              <MaskedReveal delay={70}>
+                <Text accessibilityRole="header" style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>{hero.title}</Text>
+              </MaskedReveal>
+              <SectionReveal delay={210}><Text style={styles.heroDescription}>{hero.description}</Text></SectionReveal>
+              <SectionReveal delay={280}>
+                <GlassSurface variant="search" style={[styles.searchPanel, inlineSearch && styles.searchPanelInline, !isDesktop && styles.searchPanelConstrained]}>
+                  <View style={[styles.searchFields, !inlineSearch && styles.searchFieldsStacked]}>
+                    <View style={styles.searchField}>
+                      <Search size={18} color={landingColors.inkMuted} />
+                      <TextInput
+                        testID="landing-search-input"
+                        accessibilityLabel="Buscar por estabelecimento ou serviço"
+                        value={query}
+                        onChangeText={(value) => {
+                          if (value) reportSearchStarted(locationQuery ? 2 : 1);
+                          setQuery(value);
+                        }}
+                        onSubmitEditing={() => scrollToSection('search')}
+                        returnKeyType="search"
+                        placeholder={hero.searchPlaceholder}
+                        placeholderTextColor={landingColors.inkMuted}
+                        style={styles.input}
+                      />
+                    </View>
+                    <View style={[styles.searchDivider, !inlineSearch && styles.searchDividerStacked]} />
+                    <View style={styles.searchField}>
+                      <MapPin size={18} color={landingColors.inkMuted} />
+                      <TextInput
+                        testID="landing-location-input"
+                        accessibilityLabel="Filtrar por bairro ou cidade"
+                        value={locationQuery}
+                        onChangeText={(value) => {
+                          if (value) reportSearchStarted(query ? 2 : 1);
+                          setLocationQuery(value);
+                        }}
+                        onSubmitEditing={() => scrollToSection('search')}
+                        returnKeyType="search"
+                        placeholder={hero.locationPlaceholder}
+                        placeholderTextColor={landingColors.inkMuted}
+                        style={styles.input}
+                      />
+                    </View>
                     <Pressable
-                      key={group.id}
-                      testID={`landing-service-filter-${group.id}`}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      onPress={() => {
-                        if (group.id !== 'all') reportSearchStarted((query ? 1 : 0) + (locationQuery ? 1 : 0) + 1);
-                        setServiceGroup(group.id);
-                      }}
-                      style={[styles.chip, selected && styles.chipSelected]}
+                      testID="landing-search-submit"
+                      accessibilityRole="button"
+                      accessibilityLabel="Ver estabelecimentos encontrados"
+                      onPress={() => scrollToResults('hero_primary')}
+                      style={({ pressed }) => [styles.searchSubmit, !inlineSearch && styles.searchSubmitStacked, pressed && styles.pressed]}
                     >
-                      <Icon size={15} color={selected ? landingColors.white : landingColors.inkSecondary} />
-                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group.label}</Text>
+                      <Search size={17} color={landingColors.white} />
+                      <Text style={styles.searchSubmitText}>{hero.submitLabel}</Text>
                     </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </SectionReveal>
-            <SectionReveal delay={390} style={styles.heroActions}>
-              <MagneticButton label={hero.primaryCta} onPress={() => scrollToResults('hero_primary')} testID="landing-hero-client-cta" />
-              <MagneticButton label={hero.secondaryCta} secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
-              {!isDesktop && <MagneticButton label={hero.businessCta} secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
-            </SectionReveal>
-          </View>
-          {isDesktop && (
-            <MaskedReveal delay={470} style={styles.heroPreview}><ProductPreview
-              variant="client"
-              accessibilityLabel="Demonstração ilustrativa do fluxo de agendamento do CutSync"
-              style={{ width: '100%' }}
-            /></MaskedReveal>
-          )}
-        </SpotlightSection>
+                  </View>
+                </GlassSurface>
+              </SectionReveal>
+              <SectionReveal delay={340}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                  {availableServiceGroups.map((group) => {
+                    const selected = group.id === serviceGroup;
+                    const Icon = group.icon;
+                    return (
+                      <Pressable
+                        key={group.id}
+                        testID={`landing-service-filter-${group.id}`}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        onPress={() => {
+                          if (group.id !== 'all') reportSearchStarted((query ? 1 : 0) + (locationQuery ? 1 : 0) + 1);
+                          setServiceGroup(group.id);
+                        }}
+                        style={[styles.chip, selected && styles.chipSelected]}
+                      >
+                        <Icon size={15} color={selected ? landingColors.white : landingColors.inkSecondary} />
+                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </SectionReveal>
+              <SectionReveal delay={390} style={styles.heroActions}>
+                <MagneticButton label={hero.primaryCta} onPress={() => scrollToResults('hero_primary')} testID="landing-hero-client-cta" />
+                <MagneticButton label={hero.secondaryCta} secondary onPress={scrollToJourney} testID="landing-hero-client-secondary-cta" />
+                {!isDesktop && <MagneticButton label={hero.businessCta} secondary testID="landing-business-link" onPress={() => router.push('/para-estabelecimentos' as never)} />}
+              </SectionReveal>
+            </View>
+          </SpotlightSection>
+        </View>
 
         <View testID="landing-client-credibility" style={styles.credibilityBand}>
           {trust.map((label, index) => (
@@ -601,17 +604,18 @@ const styles = StyleSheet.create({
   accountButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(41,75,58,0.14)', borderRadius: landingRadii.md, backgroundColor: 'rgba(255,254,250,0.68)' },
   accountButtonText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 13 },
   scroll: { paddingBottom: 36 },
-  heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 760, paddingHorizontal: 28, paddingTop: 88, paddingBottom: 112, flexDirection: 'row', alignItems: 'center', gap: 64 },
-  heroSectionStacked: { minHeight: 0, paddingTop: 56, paddingBottom: 72, flexDirection: 'column', alignItems: 'stretch' },
-  heroCopy: { flex: 1.08, minWidth: 280, gap: 18, zIndex: 2 },
+  heroOuter: { position: 'relative', width: '100%', overflow: 'hidden', backgroundColor: landingColors.canvasWarm },
+  heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 780, paddingHorizontal: 28, paddingTop: 96, paddingBottom: 120, flexDirection: 'row', alignItems: 'center', gap: 64, zIndex: 2 },
+  heroSectionStacked: { minHeight: 0, paddingTop: 64, paddingBottom: 80, flexDirection: 'column', alignItems: 'stretch' },
+  heroCopy: { flex: 1, maxWidth: 720, minWidth: 280, gap: 18, zIndex: 2 },
+  heroBrand: { color: landingColors.brand, fontFamily: landingTypography.displayBold, fontSize: 42, lineHeight: 46, letterSpacing: -1.6 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
-  heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 0.8 },
-  heroTitle: { maxWidth: 650, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 68, lineHeight: 72, letterSpacing: -3.4 },
-  heroTitleMobile: { fontSize: 40, lineHeight: 45, letterSpacing: -1.9 },
-  heroDescription: { maxWidth: 545, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
+  heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
+  heroTitle: { maxWidth: 680, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 64, lineHeight: 70, letterSpacing: -2.8 },
+  heroTitleMobile: { fontSize: 38, lineHeight: 44, letterSpacing: -1.6 },
+  heroDescription: { maxWidth: 540, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
   heroActions: { paddingTop: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  heroPreview: { width: '49%', maxWidth: 620 },
 
   // Busca unificada: um único controle no desktop, campos empilhados abaixo do breakpoint.
   searchPanel: { padding: 8, gap: 8, borderRadius: landingRadii.lg, backgroundColor: 'rgba(255,254,250,0.94)' },

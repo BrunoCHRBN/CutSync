@@ -182,11 +182,18 @@ test('usa cenas ilustrativas em WebP com texto alternativo e expo-image', () => 
   expect(editorialScene).toContain('landing-business-scene.webp');
   expect(editorialScene).toContain('cachePolicy="memory-disk"');
   expect(editorialScene).toContain('alt={alternativeText}');
-  for (const asset of ['landing-client-scene.webp', 'landing-business-scene.webp']) {
+  for (const asset of [
+    'landing-client-scene.webp',
+    'landing-business-scene.webp',
+    'landing-client-hero.webp',
+    'landing-business-hero.webp',
+  ]) {
     expect(fs.existsSync(path.join(root, 'apps/web/assets/images/landing', asset))).toBe(true);
   }
   expect(clientLanding).toContain('Cena ilustrativa');
   expect(businessLanding).toContain('Cena ilustrativa');
+  expect(clientLanding).toContain('HeroAtmosphere');
+  expect(businessLanding).toContain('HeroAtmosphere');
 });
 
 test('atualiza SEO e headings das duas rotas', () => {
