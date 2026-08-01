@@ -57,35 +57,42 @@ export const radii = {
 };
 
 export const typography = {
-  display: 'Montserrat_700Bold',
-  body: 'Inter_400Regular',
-  bodyStrong: 'Inter_600SemiBold',
-  serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, "Times New Roman", serif' }) as string,
+  display: 'Fraunces_700Bold',
+  displaySemiBold: 'Fraunces_600SemiBold',
+  body: 'Geist_400Regular',
+  bodyMedium: 'Geist_500Medium',
+  bodyStrong: 'Geist_600SemiBold',
+  mono: 'GeistMono_500Medium',
+  serif: 'Fraunces_600SemiBold',
 };
 
 export const typeScale = {
-  displayLarge: { fontFamily: typography.display, fontSize: 34, lineHeight: 40, letterSpacing: -1.4 },
-  pageTitle: { fontFamily: typography.display, fontSize: 30, lineHeight: 36, letterSpacing: -1.1 },
-  sectionTitle: { fontFamily: typography.display, fontSize: 22, lineHeight: 28, letterSpacing: -0.7 },
+  displayLarge: { fontFamily: typography.displaySemiBold, fontSize: 40, lineHeight: 46, letterSpacing: -1.6 },
+  pageTitle: { fontFamily: typography.displaySemiBold, fontSize: 32, lineHeight: 38, letterSpacing: -1.2 },
+  sectionTitle: { fontFamily: typography.displaySemiBold, fontSize: 24, lineHeight: 30, letterSpacing: -0.8 },
   cardTitle: { fontFamily: typography.bodyStrong, fontSize: 16, lineHeight: 22 },
-  body: { fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
-  bodyStrong: { fontFamily: typography.bodyStrong, fontSize: 14, lineHeight: 21 },
+  body: { fontFamily: typography.body, fontSize: 14, lineHeight: 22 },
+  bodyStrong: { fontFamily: typography.bodyStrong, fontSize: 14, lineHeight: 22 },
   small: { fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
   smallStrong: { fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 17 },
-  label: { fontFamily: typography.bodyStrong, fontSize: 11, lineHeight: 14, letterSpacing: 0.3 },
-  metric: { fontFamily: typography.display, fontSize: 30, lineHeight: 34, letterSpacing: -1, fontVariant: ['tabular-nums'] as const },
+  label: { fontFamily: typography.bodyStrong, fontSize: 11, lineHeight: 14, letterSpacing: 1.6 },
+  metric: { fontFamily: typography.displaySemiBold, fontSize: 30, lineHeight: 34, letterSpacing: -1, fontVariant: ['tabular-nums'] as const },
 };
 
 export const elevations = {
   flat: {} as any,
-  panel: { boxShadow: '0 1px 2px rgba(24,32,27,0.05)' } as any,
-  overlay: { boxShadow: '0 18px 48px rgba(24,32,27,0.14)' } as any,
+  panel: { boxShadow: '0 8px 28px rgba(24,32,27,0.06)' } as any,
+  overlay: { boxShadow: '0 24px 60px rgba(24,32,27,0.12)' } as any,
 };
 
 export const atmosphericShadow = elevations.panel;
 
 export const glassSurface = Platform.select({
-  web: { backgroundColor: 'rgba(255, 255, 255, 0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any,
+  web: {
+    backgroundColor: 'rgba(255, 254, 250, 0.78)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+  } as any,
   default: { backgroundColor: 'rgba(255, 255, 255, 0.94)' },
 });
 
@@ -93,10 +100,10 @@ export const glassHeader = Platform.select({
   web: {
     position: 'sticky' as any,
     top: 0,
-    backgroundColor: 'rgba(245, 245, 242, 0.78)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    boxShadow: '0 4px 20px rgba(24, 32, 27, 0.04)',
+    backgroundColor: 'rgba(245, 245, 242, 0.82)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+    boxShadow: '0 1px 0 rgba(24, 32, 27, 0.06)',
   } as any,
   default: { backgroundColor: 'rgba(245, 245, 242, 0.95)' },
 });

@@ -88,9 +88,8 @@ export const ClientShell = ({ children, activeRoute, userName, onSignOut, testID
               return (
                 <Pressable key={key} testID={`client-nav-${key}`} accessibilityRole="tab" accessibilityState={{ selected: active }} aria-selected={active} onPress={() => { tapLight(); router.replace(path as never); }} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}>
                   <Icon color={active ? colors.ink : colors.textSecondary} size={15} strokeWidth={1.8} />
-                  <Text style={[styles.navLabel, active && styles.navLabelActive]}>
-                    {label} <Text style={active ? styles.shortcutHintActive : styles.shortcutHint}>[{shortcut}]</Text>
-                  </Text>
+                  <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
+                  <Text style={[styles.shortcutHint, active && styles.shortcutHintActive]}>{shortcut}</Text>
                 </Pressable>
               );
             })}
@@ -136,17 +135,29 @@ const styles = StyleSheet.create({
     zIndex: 100,
     ...glassHeader,
   },
-  desktopNav: { flexDirection: 'row', gap: 5, marginLeft: 22 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 14, borderRadius: radii.pill },
-  navItemActive: { backgroundColor: colors.accent },
-  navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  desktopNav: { flexDirection: 'row', gap: 4, marginLeft: 22 },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40, paddingHorizontal: 14, borderRadius: radii.md },
+  navItemActive: { backgroundColor: colors.brandPrimary },
+  navLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 13 },
   navLabelActive: { color: colors.ink },
-  shortcutHint: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body },
-  shortcutHintActive: { color: colors.brandSecondary, fontSize: 11, fontFamily: typography.bodyStrong },
+  shortcutHint: {
+    minWidth: 18,
+    minHeight: 18,
+    paddingHorizontal: 5,
+    borderRadius: 5,
+    overflow: 'hidden',
+    color: colors.textMuted,
+    fontFamily: typography.mono,
+    fontSize: 11,
+    lineHeight: 18,
+    textAlign: 'center',
+    backgroundColor: 'rgba(24,32,27,0.05)',
+  },
+  shortcutHintActive: { color: colors.brandSecondary, backgroundColor: 'rgba(255,255,255,0.12)' },
   headerSpacer: { flex: 1 },
-  identity: { flex: 1, alignItems: 'flex-end', minWidth: 0 },
-  identityLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
-  identityName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 2 },
+  identity: { alignItems: 'flex-end', minWidth: 0, marginRight: 4 },
+  identityLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.6 },
+  identityName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 2 },
   iconButton: {
     width: 44,
     height: 44,
@@ -155,7 +166,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth,
     borderColor: colors.hairline,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
   },
   content: { flex: 1 },
   bottomNav: {

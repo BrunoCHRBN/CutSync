@@ -13,7 +13,7 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { ClientFilterChip } from '../ui/ClientFilterChip';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
-import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
+import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 import { getOpeningStatus } from '@cutsync/domain';
@@ -90,7 +90,7 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
         </View>
         <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
         <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text></View>
-        <View style={styles.cardFooter}><Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text><View style={styles.openButton}><ArrowUpRight color={colors.textSecondary} size={15} strokeWidth={1.8} /></View></View>
+        <View style={styles.cardFooter}><Text style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text><View style={styles.openButton}><ArrowUpRight color={colors.brandPrimary} size={15} strokeWidth={1.8} /></View></View>
       </View>
     </Pressable>
   );
@@ -327,8 +327,9 @@ export const ExploreExperience = () => {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
+            <Text testID="client-explore-brand" style={styles.heroBrand}>CutSync</Text>
             <Text testID="client-explore-eyebrow" style={styles.eyebrow}>Descubra seu próximo atendimento</Text>
-            <Text testID="client-explore-title" style={styles.title}>Encontre o lugar{`\n`}certo para você.</Text>
+            <Text testID="client-explore-title" style={styles.title}>Encontre o lugar certo para você.</Text>
             <Text testID="client-explore-description" style={styles.description}>Compare estabelecimentos, conheça os serviços e marque sem ligações ou espera.</Text>
           </View>
         </View>
@@ -591,23 +592,24 @@ export const ExploreExperience = () => {
 const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
 
 const styles = StyleSheet.create({
-  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 34, paddingBottom: 120 },
-  hero: { gap: 20, marginBottom: 22 },
-  heroCopy: { flex: 1 },
-  eyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' },
-  title: { color: colors.text, fontFamily: typography.display, fontSize: 34, lineHeight: 40, letterSpacing: -1.4, marginTop: 10 },
-  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21, maxWidth: 560, marginTop: 10 },
-  searchSticky: { backgroundColor: colors.canvas, paddingBottom: 16, paddingTop: 4, zIndex: 4 },
-  searchBox: { width: '100%', maxWidth: 720 },
-  searchLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 8 },
+  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 24, paddingTop: 40, paddingBottom: 120 },
+  hero: { gap: 20, marginBottom: 28 },
+  heroCopy: { flex: 1, maxWidth: 720, gap: 10 },
+  heroBrand: { color: colors.brandPrimary, fontFamily: typography.display, fontSize: 28, lineHeight: 32, letterSpacing: -1 },
+  eyebrow: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' },
+  title: { color: colors.text, fontFamily: typography.displaySemiBold, fontSize: 44, lineHeight: 50, letterSpacing: -1.8, marginTop: 2 },
+  description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 16, lineHeight: 26, maxWidth: 560, marginTop: 4 },
+  searchSticky: { backgroundColor: colors.canvas, paddingBottom: 18, paddingTop: 6, zIndex: 4 },
+  searchBox: { width: '100%', maxWidth: 760 },
+  searchLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 10 },
   searchField: {
-    minHeight: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    borderRadius: radii.pill,
+    borderRadius: radii.lg,
     paddingHorizontal: 18,
     ...glassSurface,
     ...atmosphericShadow,
@@ -615,47 +617,47 @@ const styles = StyleSheet.create({
   searchFieldFocused: {
     borderColor: colors.brandPrimary,
     ...Platform.select({
-      web: { boxShadow: '0 0 0 4px rgba(218,210,182,0.5)' } as any,
+      web: { boxShadow: '0 0 0 4px rgba(44,67,52,0.12)' } as any,
       default: {},
     }),
   },
-  searchInput: { flex: 1, minHeight: 50, color: colors.text, fontFamily: typography.body, fontSize: 14, outlineStyle: 'none' } as any,
-  searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 10 },
+  searchInput: { flex: 1, minHeight: 52, color: colors.text, fontFamily: typography.body, fontSize: 15, outlineStyle: 'none' } as any,
+  searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 12 },
   resultCount: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginLeft: 4 },
   clearAll: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, textDecorationLine: 'underline' },
   activeFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   filterChip: {
     alignItems: 'center',
     borderColor: colors.borderSubtle,
-    borderRadius: radii.pill,
+    borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 7,
     minHeight: 44,
     paddingHorizontal: 14,
-    ...glassBadge,
+    backgroundColor: colors.surface,
   },
-  filterChipSelected: { backgroundColor: colors.brandSecondarySoft, borderColor: colors.brandSecondary },
+  filterChipSelected: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
   filterText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
-  filterTextSelected: { color: colors.brandPrimary },
+  filterTextSelected: { color: colors.ink },
   openDot: { backgroundColor: colors.success, borderRadius: 4, height: 8, width: 8 },
   openDotMuted: { backgroundColor: colors.borderStrong },
   closedDot: { backgroundColor: colors.danger },
   loader: { margin: 50 },
 
   /* Carousel */
-  carouselContainer: { marginTop: 24, gap: 12 },
+  carouselContainer: { marginTop: 28, gap: 14 },
   carouselNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
   carouselPageInfo: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   carouselNavBtns: { flexDirection: 'row', gap: 6 },
-  carouselNavBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  carouselNavBtn: { width: 36, height: 36, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   carouselNavBtnDisabled: { opacity: 0.35 },
   carouselNavBtnText: { fontSize: 22, lineHeight: 26, color: colors.text, fontFamily: typography.bodyStrong },
   carouselNavBtnTextDisabled: { color: colors.textMuted },
   carouselScroll: { overflow: 'hidden' } as any,
-  carouselTrack: { flexDirection: 'row', gap: 16, paddingBottom: 4 },
+  carouselTrack: { flexDirection: 'row', gap: 18, paddingBottom: 4 },
   carouselSlide: { width: 320, flexShrink: 0 },
-  desktopGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  desktopGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
   gridCard: { width: '31.8%', minWidth: 280, flexGrow: 1 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
@@ -667,35 +669,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: hairlineW,
     borderColor: colors.hairline,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     ...atmosphericShadow,
   },
-  visual: { aspectRatio: 1.8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  visual: { aspectRatio: 1.7, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   bannerVisualImage: { width: '100%', height: '100%' },
   shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   shopLogoCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   shopLogoImage: { width: '100%', height: '100%' },
   shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 16, color: colors.textSecondary },
   ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  ratingText: { color: '#EAB308', fontFamily: typography.bodyStrong, fontSize: 12 },
+  ratingText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
   reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   metaDivider: { color: colors.textMuted },
-  priceLevelText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  priceLevelText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
-  shopBody: { padding: 18 },
-  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.5 },
+  shopBody: { padding: 20 },
+  shopName: { color: colors.text, fontFamily: typography.displaySemiBold, fontSize: 18, letterSpacing: -0.5 },
   shopMeta: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 },
   shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 14, marginTop: 16 },
-  footerHint: { flex: 1, color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
-  openButton: { width: 44, height: 44, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSecondarySoft, borderWidth: hairlineW, borderColor: colors.brandSecondary },
+  footerHint: { flex: 1, color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 13, letterSpacing: 0.2 },
+  openButton: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSecondarySoft, borderWidth: hairlineW, borderColor: colors.brandSecondary },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   filterContainer: { marginTop: 12, marginBottom: 4 },
   filterScroll: { gap: 8, paddingBottom: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(24,32,27,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: 20, width: '100%', maxWidth: 320, ...atmosphericShadow },
-  modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16, marginBottom: 16 },
+  modalTitle: { color: colors.text, fontFamily: typography.displaySemiBold, fontSize: 18, marginBottom: 16 },
   modalScroll: { maxHeight: 240 },
   modalItem: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
   modalItemText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14 },
