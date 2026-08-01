@@ -241,7 +241,91 @@ export const BarbershopProfileExperience = () => {
           </View>
         </View>
 
-        {/* Mapa Estético Integrado */}
+        {/* Serviços primeiro — jornada marketplace. */}
+        <View style={styles.section}>
+          <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços" description="" />
+          {services.length === 0 ? (
+            <EmptyState testID="barbershop-services-empty" title="Catálogo" description="O estabelecimento ainda não publicou serviços ativos." icon={<Scissors color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
+          ) : (
+            <View testID="barbershop-services-grid" style={styles.cardsGrid}>
+              {services.map((service) => (
+                <Pressable
+                  key={service.id}
+                  testID={`barbershop-service-${service.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Agendar ${service.name}`}
+                  onPress={() => goBooking({ serviceId: service.id })}
+                  style={({ pressed }) => [styles.serviceCard, pressed && styles.pressedScale]}
+                >
+                  <View style={styles.cardIcon}>
+                    <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
+                  </View>
+                  <View style={styles.serviceCopy}>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
+                  </View>
+                  <Text style={styles.servicePrice}>{currency(service.price)}</Text>
+                  <Text style={styles.serviceBookHint}>Reservar</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Equipe */}
+        <View style={styles.section}>
+          <SectionHeading testID="barbershop-team-heading" eyebrow="Profissionais" title="Nossa equipe" description="" />
+          {barbers.length === 0 ? (
+            <EmptyState testID="barbershop-team-empty" title="Nossa equipe" description="Os profissionais aparecerão aqui em breve." icon={<UsersRound color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
+          ) : (
+            <FlatList
+              data={barbers}
+              keyExtractor={(barber) => barber.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
+              renderItem={({ item }) => {
+                const professionalName = formatDisplayName(item.name);
+                const professionalInstagram = normalizeInstagramHandle(item.instagram);
+                return (
+                  <Pressable
+                    testID={`barbershop-professional-${item.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      item.profileSlug
+                        ? `Ver perfil de ${professionalName}`
+                        : `Agendar com ${professionalName}`
+                    }
+                    onPress={() => openProfessional(item)}
+                    style={({ pressed }) => [styles.professionalCard, pressed && styles.pressedScale]}
+                  >
+                    <View style={styles.avatarCircleSmall}>
+                      {item.avatarUrl ? (
+                        <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                      ) : (
+                        <Text style={styles.avatarInitials}>{initialsOf(professionalName)}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.professionalName}>{professionalName}</Text>
+                    <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
+                    {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
+                    <Text style={styles.barberInstaText}>
+                      {item.profileSlug ? 'Ver perfil →' : 'Agendar →'}
+                    </Text>
+                    {!item.profileSlug && !!professionalInstagram && (
+                      <View style={styles.barberInstaBtn}>
+                        <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
+                        <Text style={styles.barberInstaText}>@{professionalInstagram}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              }}
+            />
+          )}
+        </View>
+
+        {/* Mapa depois da decisão de serviço/equipe */}
         {!!barbershop.address && (
           <View style={styles.mapCard}>
             <View style={{ flex: 1, height: 180 }}>
@@ -295,91 +379,6 @@ export const BarbershopProfileExperience = () => {
           </View>
         )}
 
-        {/* Serviços */}
-        <View style={styles.section}>
-          <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços" description="" />
-          {services.length === 0 ? (
-            <EmptyState testID="barbershop-services-empty" title="Catálogo" description="O estabelecimento ainda não publicou serviços ativos." icon={<Scissors color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
-          ) : (
-            <View testID="barbershop-services-grid" style={styles.cardsGrid}>
-              {services.map((service) => (
-                <Pressable
-                  key={service.id}
-                  testID={`barbershop-service-${service.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Agendar ${service.name}`}
-                  onPress={() => goBooking({ serviceId: service.id })}
-                  style={({ pressed }) => [styles.serviceCard, pressed && styles.pressedScale]}
-                >
-                  <View style={styles.cardIcon}>
-                    <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
-                  </View>
-                  <View style={styles.serviceCopy}>
-                    <Text style={styles.serviceName}>{service.name}</Text>
-                    <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
-                  </View>
-                  <Text style={styles.servicePrice}>{currency(service.price)}</Text>
-                  <Text style={styles.serviceBookHint}>Reservar</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Equipe (LGPD Safe) */}
-        <View style={styles.section}>
-          <SectionHeading testID="barbershop-team-heading" eyebrow="Profissionais" title="Nossa equipe" description="" />
-          {barbers.length === 0 ? (
-            <EmptyState testID="barbershop-team-empty" title="Nossa equipe" description="Os profissionais aparecerão aqui em breve." icon={<UsersRound color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
-          ) : (
-            <FlatList
-              data={barbers}
-              keyExtractor={(barber) => barber.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
-              renderItem={({ item }) => {
-                const professionalName = formatDisplayName(item.name);
-                const professionalInstagram = normalizeInstagramHandle(item.instagram);
-                return (
-                  <Pressable
-                    testID={`barbershop-professional-${item.id}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      item.profileSlug
-                        ? `Ver perfil de ${professionalName}`
-                        : `Agendar com ${professionalName}`
-                    }
-                    onPress={() => openProfessional(item)}
-                    style={({ pressed }) => [styles.professionalCard, pressed && styles.pressedScale]}
-                  >
-                    <View style={styles.avatarCircleSmall}>
-                      {item.avatarUrl ? (
-                        <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                      ) : (
-                        <Text style={styles.avatarInitials}>{initialsOf(professionalName)}</Text>
-                      )}
-                    </View>
-                    <Text style={styles.professionalName}>{professionalName}</Text>
-                    <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
-                    {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                    <Text style={styles.barberInstaText}>
-                      {item.profileSlug ? 'Ver perfil →' : 'Agendar →'}
-                    </Text>
-                    {!item.profileSlug && !!professionalInstagram && (
-                      <View style={styles.barberInstaBtn}>
-                        <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
-                        <Text style={styles.barberInstaText}>@{professionalInstagram}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              }}
-            />
-          )}
-        </View>
-
-        {/* Galerias vazias não ocupam espaço na jornada do cliente. */}
         {galleryPhotos.length > 0 ? (
           <View style={styles.section}>
             <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
@@ -453,7 +452,7 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusLabelText: { fontSize: 11, fontFamily: typography.bodyStrong },
-  mapCard: { marginHorizontal: 20, marginTop: 24, borderRadius: radii.xl, borderWidth: hairlineW, borderColor: colors.hairline, overflow: 'hidden', backgroundColor: colors.surface, ...atmosphericShadow },
+  mapCard: { marginHorizontal: 20, marginTop: 32, borderRadius: radii.xl, borderWidth: hairlineW, borderColor: colors.hairline, overflow: 'hidden', backgroundColor: colors.surface, ...atmosphericShadow },
   mapThumbnail: { width: '100%', height: '100%' },
   mapPlaceholder: { alignItems: 'center', backgroundColor: colors.surfaceMuted, flex: 1, gap: 8, justifyContent: 'center', padding: 20 },
   mapPlaceholderTitle: { color: colors.textPrimary, fontFamily: typography.bodyStrong, fontSize: 14 },

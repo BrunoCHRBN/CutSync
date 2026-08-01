@@ -50,18 +50,23 @@ test('adensa o Client web explore→detalhe→booking no padrão marketplace', (
   const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
   const detail = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
   const booking = readSource('apps/web/src/components/screens/BookingExperience.tsx');
+  const slots = readSource('apps/web/src/hooks/useAvailableSlots.ts');
 
   expect(explore).toContain('Onde você quer marcar?');
   expect(explore).toContain("lugar' : 'lugares'");
   expect(explore).not.toContain('Seleção CutSync');
-  expect(explore).toContain('aspectRatio: 2.6');
+  expect(explore).toContain('denseCard');
+  expect(explore).not.toContain('estabelecimento encontrado');
   expect(detail).toContain('barbershop-profile-rating');
   expect(detail).toContain('goBooking({ serviceId: service.id })');
-  expect(detail).toContain('Reservar');
+  expect(detail).toContain('Serviços primeiro');
   expect(detail).not.toContain('Moeda oficial');
   expect(booking).toContain('formatEstablishmentDisplayName(barbershop?.name, barbershop?.slug)');
-  expect(booking).toContain('initialServiceId');
-  expect(booking).toContain('setWizardStep(3)');
+  expect(booking).toContain("const ANY_PROFESSIONAL = 'any'");
+  expect(booking).toContain('client-booking-professional-any');
+  expect(booking).toContain('wizardStep > 1 && Boolean(selectedService)');
+  expect(slots).toContain('professionalIds');
+  expect(slots).toContain('MERGED_PROFESSIONAL_LIMIT');
 });
 
 test('normaliza a busca e rejeita emoji, SVG e excesso de caracteres', () => {

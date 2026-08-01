@@ -53,21 +53,56 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
-const ShopCard = ({ shop, onOpen, desktop = false }: {
+const ShopCard = ({ shop, onOpen, dense = false }: {
   shop: Establishment;
   onOpen: (id: string) => void;
-  desktop?: boolean;
+  dense?: boolean;
 }) => {
   const accent = shop.primaryColor || colors.accent;
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
   const displayName = formatEstablishmentDisplayName(shop.name, shop.slug);
+  const ratingLabel = shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo';
+  const hoursLabel = opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil';
+
+  if (dense) {
+    return (
+      <Pressable
+        testID={`client-shop-card-${shop.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver ${displayName}`}
+        onPress={() => { tapLight(); onOpen(shop.id); }}
+        style={({ pressed }) => [styles.denseCard, pressed && styles.pressed]}
+      >
+        <View style={styles.denseThumb}>
+          <EstablishmentMedia name={displayName} uri={shop.bannerUrl || shop.logoUrl} color={accent} category="Estabelecimento" style={styles.denseThumbImage} />
+        </View>
+        <View style={styles.denseBody}>
+          <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
+          <Text numberOfLines={1} style={styles.denseMeta}>
+            ★ {ratingLabel}
+            {!!shop.reviewCount ? ` (${shop.reviewCount})` : ''}
+            {' · '}
+            {'$'.repeat(shop.priceLevel || 1)}
+            {' · '}
+            {hoursLabel}
+          </Text>
+          <Text numberOfLines={1} style={styles.denseAddress}>{shop.address || 'Endereço ainda não informado'}</Text>
+        </View>
+        <View style={styles.denseCta}>
+          <Text style={styles.footerHint}>Agendar</Text>
+          <View style={styles.openButton}><ArrowUpRight color={colors.canvas} size={14} strokeWidth={1.8} /></View>
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       testID={`client-shop-card-${shop.id}`}
       accessibilityRole="button"
       accessibilityLabel={`Ver ${displayName}`}
       onPress={() => { tapLight(); onOpen(shop.id); }}
-      style={({ pressed }) => [styles.shopCard, desktop ? styles.gridCard : styles.carouselSlide, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.shopCard, styles.carouselSlide, pressed && styles.pressed]}
     >
       <View style={styles.visual}>
         <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
@@ -81,7 +116,7 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
             <View style={styles.ratingPriceRow}>
-              <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
+              <Text style={styles.ratingText}>★ {ratingLabel}</Text>
               {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
               <Text style={styles.metaDivider}>·</Text>
               <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
@@ -89,7 +124,7 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
           </View>
         </View>
         <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
-        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil'}</Text></View>
+        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text></View>
         <View style={styles.cardFooter}><Text style={styles.footerHint}>Agendar →</Text><View style={styles.openButton}><ArrowUpRight color={colors.canvas} size={15} strokeWidth={1.8} /></View></View>
       </View>
     </Pressable>
@@ -129,13 +164,16 @@ function ShopCarousel({
 
   const startIdx = currentPage * cardsPerPage;
   const endIdx = Math.min(startIdx + cardsPerPage, shops.length);
-  const cards = shops.map((shop) => <ShopCard key={shop.id} shop={shop} onOpen={onOpen} desktop={winWidth >= layout.desktopBreakpoint} />);
+  const cards = shops.map((shop) => <ShopCard key={shop.id} shop={shop} onOpen={onOpen} />);
 
   if (winWidth >= layout.desktopBreakpoint) {
     return (
       <View testID="client-shops-grid" style={styles.carouselContainer}>
-        <Text style={styles.carouselPageInfo}>{shops.length} {shops.length === 1 ? 'estabelecimento' : 'estabelecimentos'}</Text>
-        <View style={styles.desktopGrid}>{cards}</View>
+        <View style={styles.denseList}>
+          {shops.map((shop) => (
+            <ShopCard key={shop.id} shop={shop} onOpen={onOpen} dense />
+          ))}
+        </View>
       </View>
     );
   }
@@ -388,10 +426,13 @@ export const ExploreExperience = () => {
               </Pressable>
             </ScrollView>
 
-            <View style={styles.searchMeta}>
-              <Text testID="client-search-result-count" style={styles.resultCount}>{filtered.length} {filtered.length === 1 ? 'estabelecimento encontrado' : 'estabelecimentos encontrados'}</Text>
-              {hasActiveFilters ? <Pressable testID="client-filters-clear-all" accessibilityRole="button" onPress={clearFilters}><Text style={styles.clearAll}>Limpar todos</Text></Pressable> : null}
-            </View>
+            {(hasActiveFilters) ? (
+              <View style={styles.searchMeta}>
+                <Pressable testID="client-filters-clear-all" accessibilityRole="button" onPress={clearFilters}>
+                  <Text style={styles.clearAll}>Limpar filtros</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {hasActiveFilters ? (
               <View testID="client-active-filters" style={styles.activeFilters}>
                 {openOnly ? <ClientFilterChip label="Aberto agora" active removable onPress={() => setOpenOnly(false)} /> : null}
@@ -404,7 +445,7 @@ export const ExploreExperience = () => {
         </View>
 
         <View testID="client-shops-heading" style={styles.listHeading}>
-          <Text style={styles.listHeadingTitle}>
+          <Text testID="client-search-result-count" style={styles.listHeadingTitle}>
             {filtered.length} {filtered.length === 1 ? 'lugar' : 'lugares'}
           </Text>
           <Text style={styles.listHeadingHint}>Toque para ver serviços e horários.</Text>
@@ -621,8 +662,7 @@ const styles = StyleSheet.create({
   listHeading: { gap: 4, marginTop: 8, marginBottom: 4 },
   listHeadingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 22, letterSpacing: -0.6 },
   listHeadingHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
-  searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 10 },
-  resultCount: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginLeft: 4 },
+  searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
   clearAll: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, textDecorationLine: 'underline' },
   activeFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   filterChip: {
@@ -656,8 +696,25 @@ const styles = StyleSheet.create({
   carouselScroll: { overflow: 'hidden' } as any,
   carouselTrack: { flexDirection: 'row', gap: 14, paddingBottom: 4 },
   carouselSlide: { width: 300, flexShrink: 0 },
-  desktopGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  gridCard: { width: '31.8%', minWidth: 260, flexGrow: 1 },
+  denseList: { gap: 10 },
+  denseCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: colors.surface,
+    borderWidth: hairlineW,
+    borderColor: colors.hairline,
+    borderRadius: radii.lg,
+    padding: 12,
+    ...atmosphericShadow,
+  },
+  denseThumb: { width: 88, height: 88, borderRadius: radii.md, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  denseThumbImage: { width: '100%', height: '100%' },
+  denseBody: { flex: 1, minWidth: 0, gap: 4 },
+  denseMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
+  denseAddress: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
+  denseCta: { alignItems: 'center', gap: 8 },
   dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
   dotActive: { backgroundColor: colors.brandPrimary, width: 20 },
