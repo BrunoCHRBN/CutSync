@@ -14,7 +14,12 @@ import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf, readableForeground } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
-import { getOpeningStatus } from '@cutsync/domain';
+import {
+  formatDisplayName,
+  formatEstablishmentDisplayName,
+  getOpeningStatus,
+  normalizeInstagramHandle,
+} from '@cutsync/domain';
 
 function BarbershopProfileSkeleton() {
   return (
@@ -105,7 +110,23 @@ export const BarbershopProfileExperience = () => {
 
   const accent = barbershop.primaryColor || colors.accent;
   const accentFg = readableForeground(accent);
-  const goBooking = () => { tapLight(); router.push(`/(client)/booking?barbershopId=${barbershopId}`); };
+  const displayName = formatEstablishmentDisplayName(barbershop.name, barbershop.slug);
+  const instagramHandle = normalizeInstagramHandle(barbershop.instagram);
+  const goBooking = (professionalId?: string) => {
+    tapLight();
+    const query = professionalId
+      ? `barbershopId=${barbershopId}&professionalId=${professionalId}`
+      : `barbershopId=${barbershopId}`;
+    router.push(`/(client)/booking?${query}`);
+  };
+  const openProfessional = (professional: (typeof barbers)[number]) => {
+    tapLight();
+    if (professional.profileSlug) {
+      router.push(`/profile/${professional.profileSlug}`);
+      return;
+    }
+    goBooking(professional.id);
+  };
 
   return (
     <ScreenBackground testID="barbershop-profile-screen">
@@ -114,7 +135,7 @@ export const BarbershopProfileExperience = () => {
           <ArrowLeft color={colors.text} size={18} strokeWidth={1.8} />
         </Pressable>
         <Text testID="barbershop-profile-topbar-title" numberOfLines={1} style={styles.topbarTitle}>
-          {barbershop.name}
+          {displayName}
         </Text>
         {!!statusInfo.text && (
           <View style={styles.topbarStatus}>
@@ -129,7 +150,7 @@ export const BarbershopProfileExperience = () => {
         <View style={styles.heroContainer}>
           <EstablishmentMedia
             testID="barbershop-profile-banner"
-            name={barbershop.name}
+            name={displayName}
             uri={barbershop.bannerUrl}
             color={accent}
             category="Perfil do estabelecimento"
@@ -150,19 +171,19 @@ export const BarbershopProfileExperience = () => {
               {barbershop.logoUrl ? (
                 <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} />
               ) : (
-                <Text style={styles.logoLetter}>{initialsOf(barbershop.name)}</Text>
+                <Text style={styles.logoLetter}>{initialsOf(displayName)}</Text>
               )}
             </View>
             <View style={styles.titleInfo}>
               <View style={styles.titleRow}>
-                <Text testID="barbershop-profile-name" style={styles.title}>{barbershop.name}</Text>
-                {!!barbershop.instagram && (
+                <Text testID="barbershop-profile-name" style={styles.title}>{displayName}</Text>
+                {!!instagramHandle && (
                   <Pressable 
-                    onPress={() => Linking.openURL(`https://instagram.com/${barbershop.instagram}`)}
+                    onPress={() => Linking.openURL(`https://instagram.com/${instagramHandle}`)}
                     style={({ pressed }) => [styles.instagramBadge, pressed && styles.pressedScale]}
                   >
                     <Camera color={colors.textSecondary} size={12} strokeWidth={1.8} />
-                    <Text style={styles.instagramBadgeText}>@{barbershop.instagram}</Text>
+                    <Text style={styles.instagramBadgeText}>@{instagramHandle}</Text>
                   </Pressable>
                 )}
               </View>
@@ -294,29 +315,43 @@ export const BarbershopProfileExperience = () => {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
-              renderItem={({ item }) => (
-                <View testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
-                  <View style={styles.avatarCircleSmall}>
-                    {item.avatarUrl ? (
-                      <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                    ) : (
-                      <Text style={styles.avatarInitials}>{initialsOf(item.name)}</Text>
+              renderItem={({ item }) => {
+                const professionalName = formatDisplayName(item.name);
+                const professionalInstagram = normalizeInstagramHandle(item.instagram);
+                return (
+                  <Pressable
+                    testID={`barbershop-professional-${item.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      item.profileSlug
+                        ? `Ver perfil de ${professionalName}`
+                        : `Agendar com ${professionalName}`
+                    }
+                    onPress={() => openProfessional(item)}
+                    style={({ pressed }) => [styles.professionalCard, pressed && styles.pressedScale]}
+                  >
+                    <View style={styles.avatarCircleSmall}>
+                      {item.avatarUrl ? (
+                        <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                      ) : (
+                        <Text style={styles.avatarInitials}>{initialsOf(professionalName)}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.professionalName}>{professionalName}</Text>
+                    <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
+                    {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
+                    {!!item.profileSlug && (
+                      <Text style={styles.barberInstaText}>Ver perfil público →</Text>
                     )}
-                  </View>
-                  <Text style={styles.professionalName}>{item.name}</Text>
-                  <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
-                  {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                  {!!item.instagram && (
-                    <Pressable 
-                      onPress={() => Linking.openURL(`https://instagram.com/${item.instagram}`)}
-                      style={({ pressed }) => [styles.barberInstaBtn, pressed && styles.pressedScale]}
-                    >
-                      <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
-                      <Text style={styles.barberInstaText}>@{item.instagram}</Text>
-                    </Pressable>
-                  )}
-                </View>
-              )}
+                    {!item.profileSlug && !!professionalInstagram && (
+                      <View style={styles.barberInstaBtn}>
+                        <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
+                        <Text style={styles.barberInstaText}>@{professionalInstagram}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              }}
             />
           )}
         </View>
@@ -348,7 +383,7 @@ export const BarbershopProfileExperience = () => {
           </View>
           <Pressable
             testID="barbershop-profile-book-button"
-            onPress={goBooking}
+            onPress={() => goBooking()}
             style={({ pressed }) => [styles.floatingButton, { backgroundColor: accent }, pressed && styles.pressedScale]}
           >
             <Text style={[styles.floatingButtonText, { color: accentFg }]}>Agendar agora</Text>

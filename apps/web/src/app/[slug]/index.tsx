@@ -12,7 +12,12 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ScreenBackground } from '../../components/ui/ScreenBackground';
 import { SectionHeading } from '../../components/ui/SectionHeading';
 import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
-import { getOpeningStatus } from '@cutsync/domain';
+import {
+  formatDisplayName,
+  formatEstablishmentDisplayName,
+  getOpeningStatus,
+  normalizeInstagramHandle,
+} from '@cutsync/domain';
 import { initialsOf, readableForeground } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 
@@ -122,7 +127,17 @@ export default function BarbershopSlugScreen() {
 
   const accent = barbershop.primaryColor || colors.accent;
   const accentFg = readableForeground(accent);
+  const displayName = formatEstablishmentDisplayName(barbershop.name, barbershop.slug);
+  const instagramHandle = normalizeInstagramHandle(barbershop.instagram);
   const goBooking = () => { tapLight(); router.push(`/${slug}/booking` as never); };
+  const openProfessional = (professional: ProfileRecord) => {
+    tapLight();
+    if (professional.profileSlug) {
+      router.push(`/profile/${professional.profileSlug}` as never);
+      return;
+    }
+    setSelectedTeamMember(professional);
+  };
 
   return (
     <ScreenBackground testID="barbershop-profile-screen">
@@ -131,7 +146,7 @@ export default function BarbershopSlugScreen() {
           <ArrowLeft color={colors.text} size={18} strokeWidth={1.8} />
         </Pressable>
         <Text testID="barbershop-profile-topbar-title" numberOfLines={1} style={styles.topbarTitle}>
-          {barbershop.name}
+          {displayName}
         </Text>
         {!!statusInfo.text && (
           <View style={styles.topbarStatus}>
@@ -151,7 +166,7 @@ export default function BarbershopSlugScreen() {
               resizeMode="cover"
             />
           ) : (
-            <View accessibilityRole="image" accessibilityLabel={`Identidade visual de ${barbershop.name}`} style={styles.bannerFallback}>
+            <View accessibilityRole="image" accessibilityLabel={`Identidade visual de ${displayName}`} style={styles.bannerFallback}>
               <Store color={colors.brand} size={34} strokeWidth={1.5} />
             </View>
           )}
@@ -170,19 +185,19 @@ export default function BarbershopSlugScreen() {
               {barbershop.logoUrl ? (
                 <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} resizeMode="contain" />
               ) : (
-                <Text style={styles.logoLetter}>{initialsOf(barbershop.name)}</Text>
+                <Text style={styles.logoLetter}>{initialsOf(displayName)}</Text>
               )}
             </View>
             <View style={styles.titleInfo}>
               <View style={styles.titleRow}>
-                <Text testID="barbershop-profile-name" style={styles.title}>{barbershop.name}</Text>
-                {!!barbershop.instagram && (
+                <Text testID="barbershop-profile-name" style={styles.title}>{displayName}</Text>
+                {!!instagramHandle && (
                   <Pressable 
-                    onPress={() => Linking.openURL(`https://instagram.com/${barbershop.instagram}`)}
+                    onPress={() => Linking.openURL(`https://instagram.com/${instagramHandle}`)}
                     style={({ pressed }) => [styles.instagramBadge, pressed && styles.pressedScale]}
                   >
                     <Camera color={colors.textSecondary} size={12} strokeWidth={1.8} />
-                    <Text style={styles.instagramBadgeText}>@{barbershop.instagram}</Text>
+                    <Text style={styles.instagramBadgeText}>@{instagramHandle}</Text>
                   </Pressable>
                 )}
               </View>
@@ -339,28 +354,38 @@ export default function BarbershopSlugScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
-              renderItem={({ item }) => (
-                <Pressable onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
-                  <View testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
-                    <View style={styles.avatarCircleSmall}>
-                      {item.avatarUrl ? (
-                        <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                      ) : (
-                        <Text style={styles.avatarInitials}>{initialsOf(item.name)}</Text>
+              renderItem={({ item }) => {
+                const professionalName = formatDisplayName(item.name);
+                const professionalInstagram = normalizeInstagramHandle(item.instagram);
+                return (
+                  <Pressable
+                    onPress={() => openProfessional(item)}
+                    style={({ pressed }) => [pressed && styles.pressedScale]}
+                  >
+                    <View testID={`barbershop-professional-${item.id}`} style={styles.professionalCard}>
+                      <View style={styles.avatarCircleSmall}>
+                        {item.avatarUrl ? (
+                          <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                        ) : (
+                          <Text style={styles.avatarInitials}>{initialsOf(professionalName)}</Text>
+                        )}
+                      </View>
+                      <Text style={styles.professionalName}>{professionalName}</Text>
+                      <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
+                      {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
+                      {!!item.profileSlug && (
+                        <Text style={styles.barberInstaText}>Ver perfil público →</Text>
+                      )}
+                      {!item.profileSlug && !!professionalInstagram && (
+                        <View style={styles.barberInstaBtn}>
+                          <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
+                          <Text style={styles.barberInstaText}>@{professionalInstagram}</Text>
+                        </View>
                       )}
                     </View>
-                    <Text style={styles.professionalName}>{item.name}</Text>
-                    <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
-                    {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                    {!!item.instagram && (
-                      <View style={styles.barberInstaBtn}>
-                        <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
-                        <Text style={styles.barberInstaText}>@{item.instagram}</Text>
-                      </View>
-                    )}
-                  </View>
-                </Pressable>
-              )}
+                  </Pressable>
+                );
+              }}
             />
           )}
         </View>
@@ -398,7 +423,7 @@ export default function BarbershopSlugScreen() {
                         )}
                       </View>
 
-                      <Text style={styles.profName}>{selectedTeamMember.name}</Text>
+                      <Text style={styles.profName}>{formatDisplayName(selectedTeamMember.name)}</Text>
                       <Text style={styles.profRoleTitle}>
                         {selectedTeamMember.tituloProfissional || (selectedTeamMember.role === 'admin' ? 'Proprietário & Specialist' : 'Especialista em Visagismo')}
                       </Text>

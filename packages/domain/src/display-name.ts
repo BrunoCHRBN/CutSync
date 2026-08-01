@@ -28,3 +28,18 @@ export const formatDisplayName = (value: string | null | undefined) => {
     })
     .join(' ');
 };
+
+// When the persisted name was saved equal to the slug (ex.: barbearia-do-bruno),
+// treat hyphens as spaces so title-case reads as a real establishment name.
+export const formatEstablishmentDisplayName = (
+  name: string | null | undefined,
+  slug?: string | null,
+) => {
+  const trimmed = name?.trim() ?? '';
+  if (!trimmed) return '';
+  const normalizedSlug = slug?.trim().toLowerCase() ?? '';
+  const source = normalizedSlug && trimmed.toLowerCase() === normalizedSlug
+    ? trimmed.replace(/-/g, ' ')
+    : trimmed;
+  return formatDisplayName(source);
+};

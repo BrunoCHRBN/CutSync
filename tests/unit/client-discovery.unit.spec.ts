@@ -4,7 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
-import { formatDisplayName } from '../../packages/domain/src/display-name';
+import {
+  formatDisplayName,
+  formatEstablishmentDisplayName,
+} from '../../packages/domain/src/display-name';
+import { normalizeInstagramHandle } from '../../packages/domain/src/instagram-handle';
 import {
   CLIENT_DISCOVERY_QUERY_MAX_LENGTH,
   normalizeClientDiscoveryQuery,
@@ -19,6 +23,27 @@ test('formata nomes de exibição em title case pt-BR sem alterar partículas', 
   expect(formatDisplayName('BRUNO VINICIUS DA SILVA SANTOS')).toBe('Bruno Vinicius da Silva Santos');
   expect(formatDisplayName('barbearia do bruno')).toBe('Barbearia do Bruno');
   expect(formatDisplayName('ana-clara de sousa')).toBe('Ana-Clara de Sousa');
+});
+
+test('normaliza nome de estabelecimento igual ao slug e handles de Instagram', () => {
+  expect(formatEstablishmentDisplayName('barbearia-do-bruno', 'barbearia-do-bruno')).toBe('Barbearia do Bruno');
+  expect(formatEstablishmentDisplayName('Studio Corte', 'studio-corte')).toBe('Studio Corte');
+  expect(normalizeInstagramHandle('@@barbeariadobruno')).toBe('barbeariadobruno');
+  expect(normalizeInstagramHandle('https://instagram.com/@barbeariadobruno/')).toBe('barbeariadobruno');
+  expect(normalizeInstagramHandle('')).toBeNull();
+});
+
+test('aplica tipografia e Instagram no Client web explore/detalhe', () => {
+  const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
+  const detail = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
+  const models = readSource('packages/database/src/models.ts');
+
+  expect(explore).toContain('formatEstablishmentDisplayName');
+  expect(detail).toContain('normalizeInstagramHandle');
+  expect(detail).toContain('Ver perfil público →');
+  expect(detail).toContain('/profile/${professional.profileSlug}');
+  expect(models).toContain('professional_profile_slug');
+  expect(models).toContain('profileSlug');
 });
 
 test('normaliza a busca e rejeita emoji, SVG e excesso de caracteres', () => {

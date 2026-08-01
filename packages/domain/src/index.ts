@@ -5,6 +5,7 @@ export * from './client-appointments';
 export * from './client-notifications';
 export * from './date-time';
 export * from './display-name';
+export * from './instagram-handle';
 export * from './schedule';
 export * from './support';
 export * from './totp-enrollment';

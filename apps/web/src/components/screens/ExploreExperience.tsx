@@ -16,7 +16,7 @@ import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
-import { getOpeningStatus } from '@cutsync/domain';
+import { formatEstablishmentDisplayName, getOpeningStatus } from '@cutsync/domain';
 
 const ShopCardSkeleton = () => {
   return (
@@ -61,25 +61,26 @@ const ShopCard = ({ shop, onOpen, desktop = false }: {
 }) => {
   const accent = shop.primaryColor || colors.accent;
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
+  const displayName = formatEstablishmentDisplayName(shop.name, shop.slug);
   return (
     <Pressable
       testID={`client-shop-card-${shop.id}`}
       accessibilityRole="button"
-      accessibilityLabel={`Ver ${shop.name}`}
+      accessibilityLabel={`Ver ${displayName}`}
       onPress={() => { tapLight(); onOpen(shop.id); }}
       style={({ pressed }) => [styles.shopCard, desktop ? styles.gridCard : styles.carouselSlide, pressed && styles.pressed]}
     >
       <View style={styles.visual}>
-        <EstablishmentMedia name={shop.name} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
+        <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={accent} category="Estabelecimento" style={styles.bannerVisualImage} />
         <View style={[styles.visualLine, { backgroundColor: `${accent}59` }]} />
       </View>
       <View style={styles.shopBody}>
         <View style={styles.shopHeaderRow}>
           <View style={styles.shopLogoCircle}>
-            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={styles.shopLogoLetter}>{initialsOf(shop.name)}</Text>}
+            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={styles.shopLogoLetter}>{initialsOf(displayName)}</Text>}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{shop.name}</Text>
+            <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
             <View style={styles.ratingPriceRow}>
               <Text style={styles.ratingText}>★ {shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo'}</Text>
               {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}

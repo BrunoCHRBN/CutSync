@@ -169,6 +169,7 @@ export interface ProfileRecord {
   rating?: number | null;
   totalReviews?: number | null;
   portfolioUrls?: string[] | null;
+  profileSlug?: string | null;
 }
 
 export interface ServiceRecord {
@@ -281,6 +282,9 @@ export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRe
   rating: 'rating' in row && (row as any).rating != null ? Number((row as any).rating) : 4.9,
   totalReviews: 'total_reviews' in row && (row as any).total_reviews != null ? Number((row as any).total_reviews) : 42,
   portfolioUrls: 'portfolio_urls' in row && Array.isArray((row as any).portfolio_urls) ? (row as any).portfolio_urls : null,
+  profileSlug: 'professional_profile_slug' in row
+    ? ((row as PublicTeamRow).professional_profile_slug ?? null)
+    : null,
 });
 
 export const mapService = (row: ServiceRow): ServiceRecord => ({

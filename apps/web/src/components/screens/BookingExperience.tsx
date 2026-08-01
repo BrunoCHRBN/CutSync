@@ -34,7 +34,12 @@ import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
-import { getBookingDateOptions, getTodayInTimeZone } from '@cutsync/domain';
+import {
+  formatDisplayName,
+  formatEstablishmentDisplayName,
+  getBookingDateOptions,
+  getTodayInTimeZone,
+} from '@cutsync/domain';
 import { InlineNotice } from '../ui/InlineNotice';
 import { AppButton } from '../ui/AppButton';
 import { BookingStepper } from '../ui/BookingStepper';
@@ -42,7 +47,13 @@ import { BookingStepper } from '../ui/BookingStepper';
 export const BookingExperience = () => {
   const { width } = useWindowDimensions();
   const isMobileWeb = width < layout.mobileBreakpoint;
-  const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
+  const { barbershopId, professionalId: professionalIdParam } = useLocalSearchParams<{
+    barbershopId: string;
+    professionalId?: string;
+  }>();
+  const initialProfessionalId = Array.isArray(professionalIdParam)
+    ? professionalIdParam[0]
+    : professionalIdParam;
   const router = useRouter();
   const { user } = useAuth();
 
@@ -88,6 +99,14 @@ export const BookingExperience = () => {
 
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
+  const [didApplyProfessionalPrefill, setDidApplyProfessionalPrefill] = useState(false);
+
+  useEffect(() => {
+    if (didApplyProfessionalPrefill || teamLoading || !initialProfessionalId) return;
+    if (!barbers.some((barber) => barber.id === initialProfessionalId)) return;
+    setSelectedBarber(initialProfessionalId);
+    setDidApplyProfessionalPrefill(true);
+  }, [barbers, didApplyProfessionalPrefill, initialProfessionalId, teamLoading]);
 
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
@@ -409,7 +428,9 @@ export const BookingExperience = () => {
               </View>
 
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.salonName}>{barbershop?.name}</Text>
+                <Text style={styles.salonName}>
+                  {formatEstablishmentDisplayName(barbershop?.name, barbershop?.slug)}
+                </Text>
                 <Text style={styles.salonAddress} numberOfLines={1}>
                   {barbershop?.address || 'Endereço não informado'}
                 </Text>
@@ -537,7 +558,7 @@ export const BookingExperience = () => {
                         </View>
 
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={styles.barberName}>{barber.name}</Text>
+                          <Text style={styles.barberName}>{formatDisplayName(barber.name)}</Text>
                           <Text style={styles.barberRole}>
                             {barber.tituloProfissional || 'Especialista'}
                             {selectedService && customPrice > 0 ? ` • R$ ${customPrice}` : ''}
@@ -797,7 +818,9 @@ export const BookingExperience = () => {
               <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Estabelecimento:</Text>
-                  <Text style={styles.summaryValue}>{barbershop?.name}</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatEstablishmentDisplayName(barbershop?.name, barbershop?.slug)}
+                  </Text>
                 </View>
 
                 <View style={styles.summaryDivider} />
@@ -809,7 +832,7 @@ export const BookingExperience = () => {
 
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Profissional:</Text>
-                  <Text style={styles.summaryValue}>{activeBarberObj?.name}</Text>
+                  <Text style={styles.summaryValue}>{formatDisplayName(activeBarberObj?.name)}</Text>
                 </View>
 
                 <View style={styles.summaryDivider} />
