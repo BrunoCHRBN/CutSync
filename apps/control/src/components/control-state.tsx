@@ -18,7 +18,7 @@ interface ControlStateProps {
 }
 
 export function ControlState({
-  title = 'CutSync Control',
+  title = 'CutSync Cloud',
   message,
   actionLabel,
   onAction,

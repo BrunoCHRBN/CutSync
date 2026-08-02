@@ -37,7 +37,7 @@ const errorMessages: Record<string, string> = {
   access_reason_required: 'Informe uma justificativa entre 10 e 500 caracteres.',
   aal2_required: 'Confirme o autenticador para realizar esta operação.',
   authentication_required: 'Sua sessão expirou. Entre novamente para continuar.',
-  control_aal2_required: 'Confirme o autenticador para acessar o CutSync Control.',
+  control_aal2_required: 'Confirme o autenticador para acessar o CutSync Cloud.',
   forbidden: 'Somente um proprietário ativo pode administrar os acessos.',
   governance_user_not_active: 'Este acesso já está inativo. Atualize a lista e tente novamente.',
   last_owner_protected:

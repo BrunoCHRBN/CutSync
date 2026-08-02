@@ -6,6 +6,8 @@ const viewports = [
   ['desktop-1440', { width: 1440, height: 900 }],
 ] as const;
 
+const useStaticExport = process.env.CUTSYNC_CONTROL_E2E_MODE === 'static';
+
 export default defineConfig({
   testDir: './tests/e2e',
   testMatch: /control-.*\.spec\.ts/,
@@ -29,11 +31,19 @@ export default defineConfig({
   })),
   webServer: process.env.CUTSYNC_CONTROL_E2E_BASE_URL
     ? undefined
-    : {
-        command:
-          'npm --workspace @cutsync/control run start -- --port 8083',
-        url: 'http://127.0.0.1:8083/login',
-        reuseExistingServer: !process.env.CI,
-        timeout: 180_000,
-      },
+    : useStaticExport
+      ? {
+          command:
+            'node scripts/build-and-serve-control-cloud.mjs',
+          url: 'http://127.0.0.1:8083/cloud/login',
+          reuseExistingServer: !process.env.CI,
+          timeout: 300_000,
+        }
+      : {
+          command:
+            'npm --workspace @cutsync/control run start -- --port 8083',
+          url: 'http://127.0.0.1:8083/login',
+          reuseExistingServer: !process.env.CI,
+          timeout: 180_000,
+        },
 });

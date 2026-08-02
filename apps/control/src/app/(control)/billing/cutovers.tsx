@@ -1,10 +1,7 @@
-import { BillingOperations } from '@/components/billing-operations';
-import { RequireControlPermission } from '@/components/require-control-permission';
+import { Redirect } from 'expo-router';
 
-export default function BillingCutoversRoute() {
-  return (
-    <RequireControlPermission permission="control.billing.read">
-      <BillingOperations section="cutovers" />
-    </RequireControlPermission>
-  );
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
+
+export default function LegacyBillingCutoversRedirect() {
+  return <Redirect href={CLOUD_ROUTES.financeiro.conciliacao} />;
 }

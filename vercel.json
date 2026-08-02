@@ -3,6 +3,13 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/cloud/:path*",
+      "destination": "https://cutsync-control.vercel.app/cloud/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

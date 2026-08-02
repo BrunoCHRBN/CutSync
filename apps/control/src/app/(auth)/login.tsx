@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,16 +10,27 @@ import {
 } from '@/components/control-ui';
 import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
+import { resolvePostAuthDestination } from '@/navigation/safe-return-to';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
 export default function LoginRoute() {
   const { status, message, signIn, retry } = useControlAuth();
+  const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
+  const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
+  const destination = resolvePostAuthDestination(returnTo);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   if (status === 'loading') return <ControlState loading message="Validando sessão segura..." />;
-  if (status === 'ready') return <Redirect href="/" />;
-  if (status === 'mfa_required') return <Redirect href="/mfa" />;
+  if (status === 'ready') return <Redirect href={destination} />;
+  if (status === 'mfa_required') {
+    const mfaHref = returnTo
+      ? ({ pathname: CLOUD_ROUTES.mfa, params: { returnTo } } as const)
+      : CLOUD_ROUTES.mfa;
+    return <Redirect href={mfaHref} />;
+  }
+  if (status === 'unauthorized') return <Redirect href={CLOUD_ROUTES.semAcesso} />;
   if (status === 'error') {
     return <ControlState title="Não foi possível validar o acesso" message={message} actionLabel="Tentar novamente" onAction={() => { void retry(); }} />;
   }
@@ -28,7 +39,7 @@ export default function LoginRoute() {
     <View style={styles.page}>
       <ControlCard style={styles.panel}>
         <Text style={styles.eyebrow}>AMBIENTE INTERNO</Text>
-        <Text style={styles.title}>CutSync Control</Text>
+        <Text style={styles.title}>CutSync Cloud</Text>
         <Text style={styles.description}>
           Indicadores, operação e governança em um ambiente separado dos aplicativos públicos.
         </Text>

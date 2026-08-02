@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
 import { subscribeToControlLive } from '@/services/control-live';
 import {
   configureSupportTeamMember,
@@ -512,9 +513,36 @@ export function SupportOperations() {
   const showOverviewPanels = !compact || !selectedTicketId;
   const showList = showQueue && (!compact || !selectedTicketId);
   const showDetail = showQueue && (!compact || Boolean(selectedTicketId));
+  const createTicketAction = resolveCloudActionAvailability({
+    action: 'create_support_ticket',
+    can,
+    allowNewTickets: overview?.capabilities?.allowNewTickets ?? false,
+  });
 
   return (
     <View style={styles.content}>
+      {createTicketAction.visible ? (
+        <View style={styles.setupCard}>
+          <Text style={styles.cardTitle}>Novo atendimento</Text>
+          <Text style={styles.muted}>
+            {createTicketAction.reason
+              ?? 'Criação liberada para operadores com permissão de gestão.'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={!createTicketAction.enabled}
+            onPress={() => {
+              setNotice(createTicketAction.enabled
+                ? 'Fluxo de criação aguarda homologação da integração CutSync → Jira.'
+                : (createTicketAction.reason ?? 'Criação bloqueada.'));
+            }}
+            style={[styles.primaryButton, !createTicketAction.enabled && styles.disabled]}
+          >
+            <Text style={styles.primaryButtonText}>Novo atendimento</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
 
       {overviewLoading && !overview ? (
@@ -573,7 +601,7 @@ export function SupportOperations() {
         <View style={styles.infoCard}>
           <Text style={styles.cardTitle}>Equipe de suporte não vinculada</Text>
           <Text style={styles.muted}>
-            Seu acesso ao Control está ativo, mas a projeção dos chamados exige participação em uma equipe de suporte.
+            Seu acesso ao Cloud está ativo, mas a projeção dos chamados exige participação em uma equipe de suporte.
           </Text>
         </View>
       ) : null}

@@ -1,19 +1,7 @@
-import { PendingIntegration, SectionPage } from '@/components/section-page';
-import { RequireControlPermission } from '@/components/require-control-permission';
+import { Redirect } from 'expo-router';
 
-export default function GovernanceRoute() {
-  return (
-    <RequireControlPermission permission="control.governance.read">
-      <SectionPage
-        eyebrow="GOVERNANÇA"
-        title="Operações de governança"
-        description="A central existente será transferida após paridade funcional e validação da matriz Viewer, Editor e Owner."
-      >
-        <PendingIntegration
-          source="Central de governança existente"
-          detail="As rotas atuais permanecem no Web enquanto a migração para o Control é validada sem perda de funcionalidades."
-        />
-      </SectionPage>
-    </RequireControlPermission>
-  );
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
+
+export default function LegacyGovernanceRedirect() {
+  return <Redirect href={CLOUD_ROUTES.gsp.root} />;
 }

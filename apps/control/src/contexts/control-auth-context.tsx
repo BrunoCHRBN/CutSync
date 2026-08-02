@@ -91,7 +91,7 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
         needsMfa
           ? 'Confirme o autenticador para continuar.'
           : denied
-            ? 'Esta conta não possui acesso ativo ao CutSync Control.'
+            ? 'Esta conta não possui acesso ativo ao CutSync Cloud.'
             : 'Não foi possível carregar o contexto de acesso.',
       );
       setStatus(needsMfa ? 'mfa_required' : denied ? 'unauthorized' : 'error');
@@ -234,7 +234,7 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      const factorState = getTotpFactorState(factors.data?.all, 'CutSync Control');
+      const factorState = getTotpFactorState(factors.data?.all, 'CutSync Cloud');
       if (factorState.verifiedFactorId) {
         setHasVerifiedTotp(true);
         setMessage('Este usuário já possui um autenticador. Informe o código atual.');
@@ -251,7 +251,7 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
 
       const result = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'CutSync Control',
+        friendlyName: 'CutSync Cloud',
       });
       if (result.error) {
         setMessage(getTotpEnrollmentErrorMessage(result.error));
