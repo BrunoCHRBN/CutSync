@@ -28,14 +28,19 @@ const configuredKey = sanitizeEnvironmentValue(process.env[keyKey]);
 
 export const isSupabaseConfigured = Boolean(isHttpUrl(configuredUrl) && configuredKey);
 
+/** Public project host baked into the bundle — useful to confirm Homolog vs wrong env. */
+export const supabaseProjectHost = isHttpUrl(configuredUrl)
+  ? new URL(configuredUrl).host
+  : null;
+
 if (!isSupabaseConfigured) {
   console.warn(
-    `Configure ${urlKey} e ${keyKey} com valores HTTP válidos.`,
+    `Configure ${urlKey} e ${keyKey} com valores HTTP válidos no build da Vercel (Preview/Production).`,
   );
 }
 
-// Placeholder keeps static export and login shell bootable when secrets are absent
-// or malformed in CI. Runtime auth calls still fail closed without real credentials.
+// Placeholder keeps static export bootable when secrets are absent.
+// Auth UI must check isSupabaseConfigured before attempting sign-in.
 const url: string = isHttpUrl(configuredUrl) ? configuredUrl : 'https://example.supabase.co';
 const publishableKey: string = configuredKey && isSupabaseConfigured
   ? configuredKey
