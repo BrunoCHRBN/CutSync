@@ -23,7 +23,7 @@ export type BusinessAccessMode = 'full' | 'read_only' | 'blocked';
 export type BusinessCapability = (typeof BUSINESS_CAPABILITIES)[number];
 export type BusinessMembershipRole = 'admin' | 'professional';
 export type BusinessAgendaScope = 'own' | 'team';
-export type BusinessAgendaStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type BusinessAgendaStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 export type BusinessBillingScope = 'establishment' | 'organization';
 export type BusinessPayerRole = 'owner' | 'finance' | 'billing_owner';
 export type BusinessInvitationRole = 'admin' | 'professional';
@@ -161,7 +161,11 @@ const asPayerRole = (value: unknown): BusinessPayerRole | null | undefined => {
 };
 
 const asAgendaStatus = (value: unknown): BusinessAgendaStatus | null => (
-  value === 'pending' || value === 'confirmed' || value === 'cancelled' || value === 'completed'
+  value === 'pending'
+  || value === 'confirmed'
+  || value === 'cancelled'
+  || value === 'completed'
+  || value === 'no_show'
     ? value
     : null
 );

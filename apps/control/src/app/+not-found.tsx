@@ -1,11 +1,13 @@
 import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
+
 export default function NotFoundRoute() {
   return (
     <View style={styles.page}>
       <Text style={styles.title}>Página não encontrada</Text>
-      <Link href="/" style={styles.link}>Voltar à visão geral</Link>
+      <Link href={CLOUD_ROUTES.central} style={styles.link}>Voltar à Central</Link>
     </View>
   );
 }

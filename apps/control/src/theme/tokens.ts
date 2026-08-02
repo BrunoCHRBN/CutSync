@@ -55,11 +55,12 @@ export const controlRadii = {
 } as const;
 
 export const controlType = {
+  // Cloud V5 floor: no type style below 12px except uppercase eyebrows.
   eyebrow: {
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '800' as const,
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
   pageTitle: {
     fontSize: 30,

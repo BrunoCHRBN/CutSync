@@ -73,7 +73,7 @@ const errorMessages: Record<string, string> = {
   cutover_not_due: 'A data programada para esta transição ainda não chegou.',
   cutover_request_not_found: 'A transição de cobrança não foi encontrada.',
   cutover_request_not_pending: 'Esta transição já foi concluída ou cancelada.',
-  control_aal2_required: 'Confirme o autenticador para acessar o CutSync Control.',
+  control_aal2_required: 'Confirme o autenticador para acessar o CutSync Cloud.',
   duplicate_invoice: 'Já existe uma fatura para este período.',
   forbidden: 'Seu nível de acesso não permite realizar esta operação.',
   individual_subscription_still_live:

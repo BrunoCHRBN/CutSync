@@ -9,7 +9,7 @@ apps/
   web/        CutSync Web: aquisição, booking público e operação web completa
   client/     CutSync: aplicativo mobile do cliente
   business/   CutSync Business: aplicativo mobile operacional
-  control/    CutSync Control: ambiente web privado de operação e governança
+  control/    CutSync Cloud: ambiente web privado de operação e governança (pacote @cutsync/control)
 packages/
   brand/      identidade básica e metadados dos produtos
   database/   tipos gerados do Supabase e modelos compartilhados
@@ -55,7 +55,7 @@ Copy-Item apps/client/.env.example apps/client/.env
 
 O arquivo local é ignorado pelo Git. Nunca adicione uma chave `service_role` ou credenciais de usuários ao aplicativo.
 
-O Control usa sessão volátil, TOTP/AAL2 e somente a URL e a chave pública do Supabase no bundle. Consulte `docs/control-rollout.md` antes de conectar uma homologação.
+O Cloud usa sessão volátil, TOTP/AAL2 e somente a URL e a chave pública do Supabase no bundle. Consulte `docs/cloud-rollout.md` antes de conectar uma homologação.
 
 ## Validação
 
@@ -95,6 +95,6 @@ Tokens e credenciais permanecem apenas em variáveis de ambiente e nunca devem s
 - `docs/architecture/MULTI_APP_BACKEND_READINESS.md`: contratos e validações do backend compartilhado.
 - `docs/architecture/MONOREPO_FOUNDATION.md`: estrutura, validações e pendências da Fase 2.
 - `docs/architecture/CLIENT_MVP_PROGRESS.md`: andamento, limites e próximas fatias da Fase 3.
-- `docs/control-rollout.md`: implantação segura e validação do Control.
+- `docs/cloud-rollout.md`: implantação segura e validação do CutSync Cloud.
 - `docs/architecture/ESTABLISHMENT_CLIENTS_PLAN.md`: consolidação da carteira de clientes por estabelecimento.
 - `docs/architecture/DATA_IMPORT_MIGRATION_PLAN.md`: motor de importação e migração entre plataformas.

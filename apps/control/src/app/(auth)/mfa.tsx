@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +10,8 @@ import {
 } from '@/components/control-ui';
 import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
+import { resolvePostAuthDestination } from '@/navigation/safe-return-to';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
 export default function MfaRoute() {
@@ -23,12 +25,16 @@ export default function MfaRoute() {
     verifyMfa,
     signOut,
   } = useControlAuth();
+  const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
+  const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
+  const destination = resolvePostAuthDestination(returnTo);
   const [code, setCode] = useState('');
 
   if (status === 'loading') return <ControlState loading message="Validando o autenticador..." />;
-  if (status === 'signed_out') return <Redirect href="/login" />;
-  if (status === 'ready') return <Redirect href="/" />;
-  if (status === 'unauthorized' || status === 'error') return <Redirect href="/" />;
+  if (status === 'signed_out') return <Redirect href={CLOUD_ROUTES.login} />;
+  if (status === 'ready') return <Redirect href={destination} />;
+  if (status === 'unauthorized') return <Redirect href={CLOUD_ROUTES.semAcesso} />;
+  if (status === 'error') return <Redirect href={CLOUD_ROUTES.root} />;
 
   return (
     <View style={styles.page}>
@@ -36,7 +42,7 @@ export default function MfaRoute() {
         <Text style={styles.eyebrow}>SEGUNDA ETAPA</Text>
         <Text style={styles.title}>Confirme seu autenticador</Text>
         <Text style={styles.description}>
-          O CutSync Control exige TOTP e uma sessão AAL2 para liberar qualquer dado interno.
+          O CutSync Cloud exige TOTP e uma sessão AAL2 para liberar qualquer dado interno.
         </Text>
 
         {enrollment ? (

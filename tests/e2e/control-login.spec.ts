@@ -1,9 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('exibe o acesso privado sem overflow horizontal', async ({ page }) => {
-  await page.goto('/login');
+const loginPath = process.env.CUTSYNC_CONTROL_E2E_MODE === 'static'
+  ? '/cloud/login'
+  : '/login';
 
-  await expect(page.getByText('CutSync Control', { exact: true })).toBeVisible();
+test('exibe o acesso privado Cloud sem overflow horizontal', async ({ page }) => {
+  await page.goto(loginPath);
+
+  await expect(page.getByText('CutSync Cloud', { exact: true })).toBeVisible();
 
   const emailInput = page.getByPlaceholder('voce@empresa.com');
   const passwordInput = page.getByPlaceholder('Sua senha');

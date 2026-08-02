@@ -26,6 +26,7 @@ import type {
 import { ControlNotice } from '@/components/control-ui';
 import { SectionPage } from '@/components/section-page';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
 import {
   activateControlSubscription,
   configureControlPlan,
@@ -49,10 +50,20 @@ function formatCurrencyInput(value: string): number | null {
   return Math.round(amount * 100);
 }
 
-export function BillingOperations({ section }: { section: BillingSection }) {
+export function BillingOperations({
+  section,
+  hideChrome = false,
+}: {
+  section: BillingSection;
+  hideChrome?: boolean;
+}) {
   const { can, context } = useControlAuth();
-  const canManage = can('control.billing.manage');
-  const isOwner = context?.role === 'SaaS_Owner';
+  const financeWrite = resolveCloudActionAvailability({
+    action: 'finance_write',
+    can,
+  });
+  const canManage = financeWrite.enabled;
+  const isOwner = context?.role === 'SaaS_Owner' && financeWrite.enabled;
   const [snapshot, setSnapshot] = useState<ControlBillingSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -199,85 +210,95 @@ export function BillingOperations({ section }: { section: BillingSection }) {
 
   const meta = billingSectionMetadata[section];
 
+  const body = (
+    <>
+      {!hideChrome ? <BillingNavigation /> : null}
+
+      {notice ? (
+        <ControlNotice
+          title={notice.title}
+          message={notice.message}
+          tone={notice.tone}
+          action={notice.title === 'Dados indisponíveis'
+            ? { label: 'Tentar novamente', onPress: () => { void load(); } }
+            : undefined}
+        />
+      ) : null}
+
+      {loading && !snapshot ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.brandPrimary} />
+          <Text style={styles.bodyText}>Atualizando dados de cobrança...</Text>
+        </View>
+      ) : null}
+
+      {pendingAction && confirmationCopy ? (
+        <BillingConfirmation
+          copy={confirmationCopy}
+          reason={reason}
+          busy={busy}
+          onReasonChange={setReason}
+          onConfirm={() => { void executePendingAction(); }}
+          onCancel={() => {
+            setPendingAction(null);
+            setReason('');
+          }}
+        />
+      ) : null}
+
+      {snapshot && section === 'overview' ? <OverviewSection snapshot={snapshot} /> : null}
+      {snapshot && section === 'plans' ? (
+        <PlansSection
+          isOwner={isOwner}
+          planCode={planCode}
+          setPlanCode={setPlanCode}
+          basePrice={basePrice}
+          setBasePrice={setBasePrice}
+          plans={snapshot.plans}
+          onConfigure={openPlanConfirmation}
+        />
+      ) : null}
+      {snapshot && section === 'accounts' ? (
+        <AccountsSection
+          accounts={snapshot.accounts}
+          canManage={canManage}
+          isOwner={isOwner}
+          activationPlanCode={activationPlanCode}
+          setActivationPlanCode={setActivationPlanCode}
+          plans={snapshot.plans}
+          onAction={setPendingAction}
+        />
+      ) : null}
+      {snapshot && section === 'cutovers' ? (
+        <CutoversSection
+          cutovers={snapshot.cutovers}
+          canManage={canManage}
+          onAction={setPendingAction}
+        />
+      ) : null}
+      {snapshot && section === 'conflicts' ? (
+        <ConflictsSection
+          conflicts={snapshot.conflicts}
+          canManage={canManage}
+          onAction={setPendingAction}
+        />
+      ) : null}
+    </>
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
-      <SectionPage
-        eyebrow={meta.eyebrow}
-        title={meta.title}
-        description={meta.description}
-      >
-        <BillingNavigation />
-
-        {notice ? (
-          <ControlNotice
-            title={notice.title}
-            message={notice.message}
-            tone={notice.tone}
-            action={notice.title === 'Dados indisponíveis'
-              ? { label: 'Tentar novamente', onPress: () => { void load(); } }
-              : undefined}
-          />
-        ) : null}
-
-        {loading && !snapshot ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.brandPrimary} />
-            <Text style={styles.bodyText}>Atualizando dados de cobrança...</Text>
-          </View>
-        ) : null}
-
-        {pendingAction && confirmationCopy ? (
-          <BillingConfirmation
-            copy={confirmationCopy}
-            reason={reason}
-            busy={busy}
-            onReasonChange={setReason}
-            onConfirm={() => { void executePendingAction(); }}
-            onCancel={() => {
-              setPendingAction(null);
-              setReason('');
-            }}
-          />
-        ) : null}
-
-        {snapshot && section === 'overview' ? <OverviewSection snapshot={snapshot} /> : null}
-        {snapshot && section === 'plans' ? (
-          <PlansSection
-            isOwner={isOwner}
-            planCode={planCode}
-            setPlanCode={setPlanCode}
-            basePrice={basePrice}
-            setBasePrice={setBasePrice}
-            plans={snapshot.plans}
-            onConfigure={openPlanConfirmation}
-          />
-        ) : null}
-        {snapshot && section === 'accounts' ? (
-          <AccountsSection
-            accounts={snapshot.accounts}
-            canManage={canManage}
-            isOwner={isOwner}
-            activationPlanCode={activationPlanCode}
-            setActivationPlanCode={setActivationPlanCode}
-            plans={snapshot.plans}
-            onAction={setPendingAction}
-          />
-        ) : null}
-        {snapshot && section === 'cutovers' ? (
-          <CutoversSection
-            cutovers={snapshot.cutovers}
-            canManage={canManage}
-            onAction={setPendingAction}
-          />
-        ) : null}
-        {snapshot && section === 'conflicts' ? (
-          <ConflictsSection
-            conflicts={snapshot.conflicts}
-            canManage={canManage}
-            onAction={setPendingAction}
-          />
-        ) : null}
-      </SectionPage>
+      {hideChrome ? (
+        <View style={{ gap: 16, padding: 24 }}>{body}</View>
+      ) : (
+        <SectionPage
+          eyebrow={meta.eyebrow}
+          title={meta.title}
+          description={meta.description}
+        >
+          {body}
+        </SectionPage>
+      )}
     </ScrollView>
   );
 }

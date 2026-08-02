@@ -28,7 +28,7 @@ function sameScope(left: ControlMetricScopeOption, right: ControlMetricScopeOpti
   return left.type === right.type && left.id === right.id;
 }
 
-export default function DashboardRoute() {
+export function OperationOverviewScreen() {
   const [snapshot, setSnapshot] = useState<ControlExecutiveDashboard | null>(null);
   const [scopes, setScopes] = useState<ControlMetricScopeOption[]>([globalScope]);
   const [selectedScope, setSelectedScope] = useState<ControlMetricScopeOption>(globalScope);

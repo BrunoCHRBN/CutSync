@@ -1,17 +1,7 @@
-import { LiveOperations } from '@/components/live-operations';
-import { RequireControlPermission } from '@/components/require-control-permission';
-import { SectionPage } from '@/components/section-page';
+import { Redirect } from 'expo-router';
 
-export default function LiveRoute() {
-  return (
-    <RequireControlPermission permission="control.live.read">
-      <SectionPage
-        eyebrow="OPERAÇÃO"
-        title="Tempo real"
-        description="Acompanhamento operacional por snapshots autoritativos. Eventos privados apenas solicitam a atualização dos dados."
-      >
-        <LiveOperations />
-      </SectionPage>
-    </RequireControlPermission>
-  );
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
+
+export default function LegacyLiveRedirect() {
+  return <Redirect href={CLOUD_ROUTES.operacao.tempoReal} />;
 }

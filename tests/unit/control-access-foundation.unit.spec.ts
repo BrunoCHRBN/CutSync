@@ -46,13 +46,20 @@ const supabaseClient = fs.readFileSync(
   'utf8',
 ).replace(/\r\n/g, '\n');
 const controlShell = fs.readFileSync(
-  path.join(root, 'apps/control/src/components/control-shell.tsx'),
+  path.join(root, 'apps/control/src/components/cloud/cloud-sidebar.tsx'),
   'utf8',
 ).replace(/\r\n/g, '\n');
 const routes = [
+  'index.tsx',
   '(auth)/login.tsx',
   '(auth)/mfa.tsx',
-  '(control)/index.tsx',
+  '(cloud)/central/index.tsx',
+  '(cloud)/operacao/tempo-real.tsx',
+  '(cloud)/suporte/index.tsx',
+  '(cloud)/financeiro/index.tsx',
+  '(cloud)/gsp/index.tsx',
+  '(cloud)/gsp/conhecimento.tsx',
+  '(cloud)/gsp/acessos.tsx',
   '(control)/live.tsx',
   '(control)/support.tsx',
   '(control)/billing.tsx',

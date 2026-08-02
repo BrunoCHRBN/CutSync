@@ -1,5 +1,25 @@
 {
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/login", "destination": "/cloud/login", "permanent": false },
+    { "source": "/mfa", "destination": "/cloud/mfa", "permanent": false },
+    { "source": "/live", "destination": "/cloud/operacao/tempo-real", "permanent": false },
+    { "source": "/data-quality", "destination": "/cloud/operacao/saude-dos-dados", "permanent": false },
+    { "source": "/support", "destination": "/cloud/suporte", "permanent": false },
+    { "source": "/governance", "destination": "/cloud/gsp", "permanent": false },
+    { "source": "/knowledge", "destination": "/cloud/gsp/conhecimento", "permanent": false },
+    { "source": "/access", "destination": "/cloud/gsp/acessos", "permanent": false },
+    { "source": "/billing", "destination": "/cloud/financeiro", "permanent": false },
+    { "source": "/billing/plans", "destination": "/cloud/financeiro/assinaturas", "permanent": false },
+    { "source": "/billing/accounts", "destination": "/cloud/financeiro/cobrancas", "permanent": false },
+    { "source": "/billing/cutovers", "destination": "/cloud/financeiro/conciliacao", "permanent": false },
+    { "source": "/billing/conflicts", "destination": "/cloud/financeiro/conciliacao", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/cloud", "destination": "/index.html" },
+    { "source": "/cloud/", "destination": "/index.html" },
+    { "source": "/cloud/:path*", "destination": "/:path*" }
+  ]
 }
