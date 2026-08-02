@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Text, View } from 'react-native';
 
 import {
   BillingConfirmation,
@@ -27,6 +27,7 @@ import { ControlNotice } from '@/components/control-ui';
 import { SectionPage } from '@/components/section-page';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
+import { formatMoneyInputToCents } from '@/modules/finance/presentation';
 import {
   activateControlSubscription,
   configureControlPlan,
@@ -41,14 +42,6 @@ import {
 import { colors } from '@/theme/tokens';
 
 export type { BillingSection } from '@/components/billing/billing-types';
-
-function formatCurrencyInput(value: string): number | null {
-  const normalized = value.trim().replace(/\./g, '').replace(',', '.');
-  if (!normalized) return null;
-  const amount = Number(normalized);
-  if (!Number.isFinite(amount) || amount < 0) return null;
-  return Math.round(amount * 100);
-}
 
 export function BillingOperations({
   section,
@@ -73,12 +66,14 @@ export function BillingOperations({
   const [basePrice, setBasePrice] = useState('');
   const [reason, setReason] = useState('');
   const [pendingAction, setPendingAction] = useState<PendingBillingAction | null>(null);
+  const [loadedAt, setLoadedAt] = useState<string | null>(null);
 
   const load = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
       const nextSnapshot = await getControlBillingSnapshot();
       setSnapshot(nextSnapshot);
+      setLoadedAt(new Date().toISOString());
       setPlanCode((current) => (
         nextSnapshot.plans.some((plan) => plan.code === current)
           ? current
@@ -115,7 +110,7 @@ export function BillingOperations({
   );
 
   const openPlanConfirmation = () => {
-    const cents = formatCurrencyInput(basePrice);
+    const cents = formatMoneyInputToCents(basePrice);
     if (cents === null) {
       setNotice({
         tone: 'warning',
@@ -232,30 +227,56 @@ export function BillingOperations({
         </View>
       ) : null}
 
-      {pendingAction && confirmationCopy ? (
-        <BillingConfirmation
-          copy={confirmationCopy}
-          reason={reason}
-          busy={busy}
-          onReasonChange={setReason}
-          onConfirm={() => { void executePendingAction(); }}
-          onCancel={() => {
-            setPendingAction(null);
-            setReason('');
-          }}
+      <Modal
+        visible={Boolean(pendingAction && confirmationCopy)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (busy) return;
+          setPendingAction(null);
+          setReason('');
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          {pendingAction && confirmationCopy ? (
+            <View style={styles.modalCard}>
+              <BillingConfirmation
+                copy={confirmationCopy}
+                reason={reason}
+                busy={busy}
+                onReasonChange={setReason}
+                onConfirm={() => { void executePendingAction(); }}
+                onCancel={() => {
+                  setPendingAction(null);
+                  setReason('');
+                }}
+              />
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+
+      {snapshot && section === 'overview' ? (
+        <OverviewSection
+          snapshot={snapshot}
+          loadedAt={loadedAt}
+          onRefresh={() => { void load(); }}
         />
       ) : null}
-
-      {snapshot && section === 'overview' ? <OverviewSection snapshot={snapshot} /> : null}
       {snapshot && section === 'plans' ? (
         <PlansSection
           isOwner={isOwner}
+          canManage={canManage}
           planCode={planCode}
           setPlanCode={setPlanCode}
           basePrice={basePrice}
           setBasePrice={setBasePrice}
           plans={snapshot.plans}
+          accounts={snapshot.accounts}
+          activationPlanCode={activationPlanCode}
+          setActivationPlanCode={setActivationPlanCode}
           onConfigure={openPlanConfirmation}
+          onAction={setPendingAction}
         />
       ) : null}
       {snapshot && section === 'accounts' ? (

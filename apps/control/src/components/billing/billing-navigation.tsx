@@ -14,34 +14,34 @@ export interface BillingSectionMeta {
 
 export const billingSectionMetadata: Record<BillingSection, BillingSectionMeta> = {
   overview: {
-    eyebrow: 'FINANCEIRO',
-    title: 'Visão geral',
+    eyebrow: 'FINANCEIRO / VISÃO GERAL',
+    title: 'Controle financeiro',
     description:
-      'Recebido, pendências, conciliação e previsto da cobrança da plataforma. Pagamentos de serviços de clientes permanecem fora deste módulo.',
+      'Recebimentos, pendências, previsões e conciliação financeira da plataforma.',
   },
   plans: {
-    eyebrow: 'FINANCEIRO',
+    eyebrow: 'FINANCEIRO / ASSINATURAS',
     title: 'Assinaturas',
     description:
-      'Planos e preço-base usados em novas assinaturas e faturas futuras. Faturas já emitidas preservam seus valores.',
+      'Acompanhe contratos vigentes e a configuração do catálogo de preços.',
   },
   accounts: {
-    eyebrow: 'FINANCEIRO',
-    title: 'Cobranças',
+    eyebrow: 'FINANCEIRO / COBRANÇAS',
+    title: 'Contas de cobrança',
     description:
-      'Contas, assinaturas e mudanças auditadas de status, fatura e bloqueio.',
+      'Gerencie plano, estado da cobrança e bloqueios operacionais.',
   },
   cutovers: {
-    eyebrow: 'FINANCEIRO',
+    eyebrow: 'FINANCEIRO / CONCILIAÇÃO',
     title: 'Conciliação',
     description:
-      'Transições e cortes de cobrança após reconciliar assinaturas individuais vigentes.',
+      'Revise alterações financeiras antes de aplicar os cortes de cobrança.',
   },
   conflicts: {
-    eyebrow: 'FINANCEIRO',
-    title: 'Conflitos cadastrais',
+    eyebrow: 'FINANCEIRO / CONCILIAÇÃO',
+    title: 'Conciliação',
     description:
-      'Analise registros mascarados e documente decisões sem expor documentos pessoais.',
+      'Revise conflitos cadastrais mascarados antes de aplicar decisões.',
   },
 };
 

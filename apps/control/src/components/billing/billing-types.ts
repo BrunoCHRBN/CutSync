@@ -31,10 +31,4 @@ export type PendingBillingAction =
     resolution: IdentityConflictResolution;
   };
 
-export const subscriptionStatusLabels: Record<BillingSubscriptionStatus, string> = {
-  trialing: 'Em avaliação',
-  active: 'Ativa',
-  past_due: 'Em atraso',
-  suspended: 'Suspensa',
-  canceled: 'Cancelada',
-};
+export { subscriptionStatusLabels } from '@/modules/finance/presentation';

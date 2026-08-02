@@ -1,8 +1,12 @@
 import React from 'react';
 
 import type { PendingBillingAction } from '@/components/billing/billing-types';
-import { subscriptionStatusLabels } from '@/components/billing/billing-types';
 import { ControlConfirmPanel, ControlField } from '@/components/control-ui';
+import {
+  formatMoneyCents,
+  labelForPlanCode,
+  subscriptionStatusLabels,
+} from '@/modules/finance/presentation';
 
 export interface BillingConfirmationCopy {
   title: string;
@@ -20,7 +24,7 @@ export function getBillingConfirmationCopy(
       return {
         title: 'Confirmar preço-base',
         description:
-          `O plano ${action.planCode} passará a usar R$ ${(action.basePriceCents / 100).toFixed(2).replace('.', ',')} em operações futuras.`,
+          `O plano ${labelForPlanCode(action.planCode)} passará a usar ${formatMoneyCents(action.basePriceCents)} em operações futuras.`,
         confirmLabel: 'Salvar preço-base',
         tone: 'default',
         requiresReason: false,
@@ -29,7 +33,7 @@ export function getBillingConfirmationCopy(
       return {
         title: 'Confirmar ativação',
         description:
-          `${action.account.organizationName} será ativada no plano ${action.planCode}.`,
+          `${action.account.organizationName} será ativada no plano ${labelForPlanCode(action.planCode)}.`,
         confirmLabel: 'Ativar assinatura',
         tone: 'default',
         requiresReason: false,
@@ -40,7 +44,7 @@ export function getBillingConfirmationCopy(
         description:
           `${action.account.organizationName} passará para ${subscriptionStatusLabels[action.status].toLocaleLowerCase('pt-BR')}.`,
         confirmLabel: 'Alterar status',
-        tone: action.status === 'suspended' || action.status === 'canceled' ? 'danger' : 'default',
+        tone: action.status === 'canceled' ? 'danger' : 'default',
         requiresReason: true,
       };
     case 'issue_invoice':
@@ -64,10 +68,10 @@ export function getBillingConfirmationCopy(
       };
     case 'finalize_cutover':
       return {
-        title: 'Finalizar transição de cobrança',
+        title: 'Finalizar conciliação?',
         description:
-          `Confirme que as assinaturas individuais de ${action.cutover.organizationName} já foram reconciliadas no provedor.`,
-        confirmLabel: 'Reconciliar e aplicar',
+          `Esta ação alterará o estado financeiro de ${action.cutover.organizationName} (${action.cutover.unitCount} unidade(s), corte em ${new Date(action.cutover.cutoverAt).toLocaleDateString('pt-BR')}) e será registrada na auditoria.`,
+        confirmLabel: 'Conciliar e aplicar',
         tone: 'default',
         requiresReason: false,
       };
