@@ -32,8 +32,7 @@ function getEnvironmentLabel(): string {
 
   if (configured) return labels[configured] ?? configured.toUpperCase();
 
-  const supabaseUrlKey = ['EXPO', 'PUBLIC', 'SUPABASE', 'URL'].join('_');
-  const supabaseUrl = process.env[supabaseUrlKey]?.toLowerCase() ?? '';
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.toLowerCase() ?? ''; // pragma: allowlist secret
   if (supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')) return 'LOCAL';
   return process.env.NODE_ENV === 'production' ? 'PRODUÇÃO' : 'DESENVOLVIMENTO';
 }
