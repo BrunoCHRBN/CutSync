@@ -91,6 +91,7 @@ Tokens e credenciais permanecem apenas em variáveis de ambiente e nunca devem s
 ## Documentação da separação
 
 - `docs/architecture/MULTI_APP_PRODUCT_CONTRACT.md`: responsabilidades de Web, Client e Business.
+- `docs/architecture/DOMAIN_VOCABULARY.md`: glossário canônico estabelecimento/profissional e checklist de renomeação do legado barbershop/barbeiro.
 - `docs/architecture/MULTI_APP_BACKEND_READINESS.md`: contratos e validações do backend compartilhado.
 - `docs/architecture/MONOREPO_FOUNDATION.md`: estrutura, validações e pendências da Fase 2.
 - `docs/architecture/CLIENT_MVP_PROGRESS.md`: andamento, limites e próximas fatias da Fase 3.
