@@ -290,7 +290,7 @@ const ClientLandingContent = () => {
       <GlassSurface variant="header" style={styles.header}>
         <View style={styles.headerInner}>
           <Pressable testID="client-brand-home-link" accessibilityRole="link" onPress={() => router.replace('/' as never)} style={styles.brandRow}>
-            <View style={styles.brandMark}><Sparkles size={17} color={landingColors.white} /></View>
+            <View style={styles.brandMark}><Scissors size={17} color={landingColors.white} /></View>
             <Text style={styles.brand}>CutSync</Text>
           </Pressable>
           {isDesktop && <LandingNav audience="client" onNavigate={navigateToSection} />}
