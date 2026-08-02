@@ -276,7 +276,7 @@ export const AppointmentsExperience = () => {
       return;
     }
     tapLight();
-    const params: Record<string, string> = { barbershopId: item.shopId };
+    const params: Record<string, string> = { establishmentId: item.shopId };
     if (item.serviceId) params.serviceId = item.serviceId;
     router.push({ pathname: '/(client)/booking', params });
   };

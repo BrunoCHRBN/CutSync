@@ -75,6 +75,26 @@ test('adensa o Client web explore→detalhe→booking no padrão marketplace', (
   expect(slots).toContain('MERGED_PROFESSIONAL_LIMIT');
 });
 
+test('usa rota Client canônica de estabelecimento com alias legado barbershop', () => {
+  const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
+  const detail = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
+  const canonicalRoute = readSource('apps/web/src/app/(client)/establishment.tsx');
+  const legacyRoute = readSource('apps/web/src/app/(client)/barbershop.tsx');
+  const routeParams = readSource('apps/web/src/hooks/use-establishment-route-params.ts');
+  const vocabulary = readSource('docs/architecture/DOMAIN_VOCABULARY.md');
+
+  expect(explore).toContain("pathname: '/(client)/establishment'");
+  expect(explore).toContain('establishmentId: id');
+  expect(detail).toContain('establishmentId');
+  expect(detail).toContain('establishmentId: String(establishmentId)');
+  expect(canonicalRoute).toContain('BarbershopProfileExperience');
+  expect(legacyRoute).toContain("pathname: '/(client)/establishment'");
+  expect(legacyRoute).toContain('LegacyClientBarbershopRedirect');
+  expect(routeParams).toContain('@deprecated Prefer `establishmentId`');
+  expect(vocabulary).toContain('establishmentId');
+  expect(vocabulary).toContain('barbershopId');
+});
+
 test('expõe favoritos do Client web com contrato autenticado no Supabase', () => {
   const migration = readSource('supabase/migrations/20260807000000_client_favorites.sql');
   const sqlTest = readSource('supabase/tests/client_favorites.sql');
