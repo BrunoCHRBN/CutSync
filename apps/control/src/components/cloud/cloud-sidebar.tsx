@@ -10,8 +10,22 @@ import {
   navItemsForModule,
   rememberLastModule,
   resolveActiveNavModule,
+  type CloudNavItem,
 } from '@/navigation/module-nav';
 import { cloudTheme } from '@/theme/cloud-components';
+
+function withGroupBreaks(items: CloudNavItem[]) {
+  const nodes: { key: string; group?: string; item?: CloudNavItem }[] = [];
+  let lastGroup: string | undefined;
+  for (const item of items) {
+    if (item.group && item.group !== lastGroup) {
+      nodes.push({ key: `group-${item.group}`, group: item.group });
+      lastGroup = item.group;
+    }
+    nodes.push({ key: item.id, item });
+  }
+  return nodes;
+}
 
 export function CloudSidebar({
   compact = false,
@@ -27,22 +41,31 @@ export function CloudSidebar({
   const activeModule = resolveActiveNavModule(pathname);
   const items = navItemsForModule(activeModule.id, can);
   const environmentLabel = getCloudEnvironmentLabel();
+  const supportModule = activeModule.id === 'support';
+  const operationModule = activeModule.id === 'operation';
+  const quietModule = supportModule || operationModule;
 
   React.useEffect(() => {
     rememberLastModule(activeModule.id);
   }, [activeModule.id]);
 
-  const supportModule = activeModule.id === 'support';
-
   return (
-    <View style={[styles.sidebar, compact && styles.sidebarCompact, supportModule && styles.sidebarSupport]}>
+    <View style={[styles.sidebar, compact && styles.sidebarCompact, quietModule && styles.sidebarQuiet]}>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>MÓDULO</Text>
         <Text style={styles.moduleTitle}>{activeModule.label}</Text>
       </View>
 
-      <View style={[styles.nav, supportModule && styles.navSupport]}>
-        {items.map((item) => {
+      <View style={[styles.nav, quietModule && styles.navQuiet]}>
+        {withGroupBreaks(items).map((node) => {
+          if (node.group) {
+            return (
+              <Text key={node.key} style={styles.groupLabel}>
+                {node.group}
+              </Text>
+            );
+          }
+          const item = node.item!;
           const selected = isNavItemSelected(pathname, item, section);
           return (
             <Link key={item.id} href={navItemHref(item) as never} asChild>
@@ -52,15 +75,15 @@ export function CloudSidebar({
                 onPress={onNavigate}
                 style={StyleSheet.flatten([
                   styles.item,
-                  supportModule && styles.itemSupport,
-                  selected && (supportModule ? styles.itemSelectedSupport : styles.itemSelected),
+                  quietModule && styles.itemQuiet,
+                  selected && (quietModule ? styles.itemSelectedQuiet : styles.itemSelected),
                 ])}
               >
                 <View style={[styles.marker, selected && styles.markerSelected]} />
                 <Text style={[
                   styles.itemText,
-                  supportModule && styles.itemTextSupport,
-                  selected && (supportModule ? styles.itemTextSelectedSupport : styles.itemTextSelected),
+                  quietModule && styles.itemTextQuiet,
+                  selected && (quietModule ? styles.itemTextSelectedQuiet : styles.itemTextSelected),
                 ]}
                 >
                   {item.label}
@@ -123,14 +146,24 @@ const styles = StyleSheet.create({
     borderRadius: cloudTheme.radii.md,
   },
   itemSelected: { backgroundColor: cloudTheme.colors.brandPanel },
-  sidebarSupport: { gap: cloudTheme.spacing.md },
-  navSupport: { gap: 0 },
-  itemSupport: {
+  sidebarQuiet: { gap: cloudTheme.spacing.md },
+  navQuiet: { gap: 0 },
+  itemQuiet: {
     minHeight: 40,
     borderRadius: 6,
   },
-  itemSelectedSupport: {
+  itemSelectedQuiet: {
     backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  groupLabel: {
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: cloudTheme.spacing.sm,
+    color: cloudTheme.colors.sidebarTextMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
   },
   marker: {
     width: 3,
@@ -141,8 +174,8 @@ const styles = StyleSheet.create({
   markerSelected: { backgroundColor: '#FFFFFF' },
   itemText: { flex: 1, color: cloudTheme.colors.sidebarText, fontWeight: '600', fontSize: 14 },
   itemTextSelected: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '800' },
-  itemTextSupport: { fontWeight: '500', fontSize: 13 },
-  itemTextSelectedSupport: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '700' },
+  itemTextQuiet: { fontWeight: '500', fontSize: 13 },
+  itemTextSelectedQuiet: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '700' },
   footer: {
     gap: 4,
     paddingTop: cloudTheme.spacing.md,

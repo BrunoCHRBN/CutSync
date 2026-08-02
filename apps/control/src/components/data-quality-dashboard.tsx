@@ -3,26 +3,29 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import {
   ControlButton,
-  ControlCard,
-  ControlEmptyState,
   ControlField,
-  ControlMetricCard,
   ControlNotice,
-  ControlStatusBadge,
-  type ControlTone,
 } from '@/components/control-ui';
+import {
+  OpsCell,
+  OpsHeadCell,
+  OpsInlineNotice,
+  OpsPanel,
+  OpsSecondaryButton,
+  OpsStrip,
+  OpsTableHead,
+  OpsTableRow,
+  OpsTableShell,
+  OpsTextAction,
+  opsGridStyle,
+} from '@/modules/operation/ops-console';
 import {
   ControlAnalyticsHealthApiError,
   type ControlAnalyticsHealth,
   type ControlAnalyticsRunStatus,
   type ControlAnalyticsSourceStatus,
 } from '@/services/control-analytics-health';
-import {
-  controlColors,
-  controlLayout,
-  controlSpacing,
-  controlType,
-} from '@/theme/tokens';
+import { cloudTheme } from '@/theme/cloud-components';
 
 interface DataQualityDashboardProps {
   health: ControlAnalyticsHealth;
@@ -36,40 +39,58 @@ interface DataQualityDashboardProps {
 }
 
 function formatDate(value: string | null): string {
-  return value ? value.split('-').reverse().join('/') : 'Ainda indisponível';
+  return value ? value.split('-').reverse().join('/') : '—';
 }
 
-function sourceTone(status: ControlAnalyticsSourceStatus): ControlTone {
-  if (status === 'available') return 'success';
-  if (status === 'partial') return 'warning';
-  return 'danger';
+function formatDateTime(value: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
-function sourceStatusLabel(status: ControlAnalyticsSourceStatus): string {
-  const labels = {
-    available: 'DISPONÍVEL',
-    partial: 'PARCIAL',
-    unavailable: 'INDISPONÍVEL',
-  } as const;
-  return labels[status];
+function sourceState(status: ControlAnalyticsSourceStatus): {
+  label: string;
+  tone?: 'warning' | 'danger';
+} {
+  if (status === 'available') return { label: 'Atualizada' };
+  if (status === 'partial') return { label: 'Parcial', tone: 'warning' };
+  return { label: 'Indisponível', tone: 'danger' };
 }
 
-function runTone(status: ControlAnalyticsRunStatus): ControlTone {
-  if (status === 'succeeded') return 'success';
-  if (status === 'failed') return 'danger';
-  if (status === 'running') return 'info';
-  return 'warning';
+function runTypeLabel(runType: string): string {
+  if (runType === 'daily') return 'Finalização diária';
+  if (runType === 'backfill') return 'Carga histórica';
+  return 'Reprocessamento manual';
 }
 
-function runStatusLabel(status: ControlAnalyticsRunStatus): string {
-  const labels = {
-    pending: 'PENDENTE',
-    running: 'EM EXECUÇÃO',
-    succeeded: 'CONCLUÍDO',
-    failed: 'FALHOU',
-  } as const;
-  return labels[status];
+function runStatusLabel(status: ControlAnalyticsRunStatus): {
+  label: string;
+  tone?: 'warning' | 'danger';
+} {
+  if (status === 'succeeded') return { label: 'Concluído' };
+  if (status === 'failed') return { label: 'Falhou', tone: 'danger' };
+  if (status === 'running') return { label: 'Em execução', tone: 'warning' };
+  return { label: 'Pendente', tone: 'warning' };
 }
+
+function durationLabel(startedAt: string, finishedAt: string | null): string {
+  const start = Date.parse(startedAt);
+  const end = finishedAt ? Date.parse(finishedAt) : Date.now();
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return '—';
+  const minutes = Math.round((end - start) / 60000);
+  if (minutes < 1) return '< 1 min';
+  return `${minutes} min`;
+}
+
+const sourceGrid = opsGridStyle('minmax(220px, 2fr) 120px 130px 120px');
+const periodGrid = opsGridStyle('100px minmax(220px, 2fr) 140px');
+const runGrid = opsGridStyle('minmax(160px, 1.4fr) minmax(140px, 1.2fr) 140px 90px 110px');
 
 export function DataQualityDashboard({
   health,
@@ -78,13 +99,11 @@ export function DataQualityDashboard({
   onReprocess,
 }: DataQualityDashboardProps) {
   const { width } = useWindowDimensions();
+  const [adminOpen, setAdminOpen] = useState(false);
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [reason, setReason] = useState('');
   const [formError, setFormError] = useState('');
-  const metricStyle = width < controlLayout.mobileBreakpoint
-    ? { width: '100%' as const }
-    : { minWidth: 190, flexGrow: 1, flexBasis: 220 };
 
   const submit = async () => {
     setFormError('');
@@ -101,6 +120,7 @@ export function DataQualityDashboard({
       setStart('');
       setEnd('');
       setReason('');
+      setAdminOpen(false);
     } catch (error) {
       setFormError(
         error instanceof ControlAnalyticsHealthApiError
@@ -110,248 +130,243 @@ export function DataQualityDashboard({
     }
   };
 
+  const previousDate = health.latestCompleteDate
+    ? (() => {
+        const date = new Date(`${health.latestCompleteDate}T12:00:00Z`);
+        date.setUTCDate(date.getUTCDate() - 1);
+        return date.toISOString().slice(0, 10);
+      })()
+    : null;
+
   return (
     <View style={styles.dashboard}>
-      <View style={styles.metricGrid}>
-        <ControlMetricCard
-          detail="Primeiro dia com todas as famílias disponíveis"
-          label="Cobertura integral"
-          style={metricStyle}
-          value={formatDate(health.coverageStartDate)}
-        />
-        <ControlMetricCard
-          detail="Último snapshot global finalizado"
-          label="Dados reconciliados até"
-          style={metricStyle}
-          tone={health.latestCompleteDate ? 'success' : 'warning'}
-          value={formatDate(health.latestCompleteDate)}
-        />
-        <ControlMetricCard
-          detail="Nos últimos 180 dias cobertos"
-          label="Dias ausentes"
-          style={metricStyle}
-          tone={health.missingDates.length ? 'warning' : 'success'}
-          value={health.missingDates.length}
-        />
-        <ControlMetricCard
-          detail={`${health.queue.running} em execução · ${health.queue.failed} com falha`}
-          label="Fila pendente"
-          style={metricStyle}
-          tone={health.queue.failed ? 'danger' : health.queue.pending ? 'warning' : 'success'}
-          value={health.queue.pending}
-        />
-      </View>
-
-      <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>Cobertura por fonte</Text>
-        <Text style={styles.sectionDescription}>
-          Zero só é exibido quando a fonte já existia e o dia foi finalizado.
-        </Text>
-      </View>
-      <View style={styles.sourceGrid}>
-        {health.sourceCoverage.map((source) => (
-          <ControlCard key={source.family} style={styles.sourceCard}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>{source.label}</Text>
-              <ControlStatusBadge
-                label={sourceStatusLabel(source.status)}
-                tone={sourceTone(source.status)}
-              />
-            </View>
-            <Text style={styles.meta}>
-              Cobertura desde {formatDate(source.availableFrom)}
-            </Text>
-          </ControlCard>
-        ))}
-      </View>
-
-      <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>Comparações históricas</Text>
-        <Text style={styles.sectionDescription}>
-          Cada janela exige o período atual e o período anterior integralmente cobertos.
-        </Text>
-      </View>
-      <View style={styles.comparisonGrid}>
-        {health.comparisonAvailability.map((comparison) => (
-          <ControlCard key={comparison.rangeDays} style={styles.comparisonCard}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>{comparison.rangeDays} dias</Text>
-              <ControlStatusBadge
-                label={comparison.available ? 'DISPONÍVEL' : 'AGUARDANDO BASE'}
-                tone={comparison.available ? 'success' : 'warning'}
-              />
-            </View>
-            <Text style={styles.meta}>
-              {comparison.available
-                ? 'A comparação equivalente já pode ser utilizada.'
-                : `Disponibilidade estimada: ${formatDate(comparison.availableOn)}`}
-            </Text>
-          </ControlCard>
-        ))}
-      </View>
+      <OpsStrip
+        items={[
+          {
+            label: 'Última data',
+            value: formatDate(health.latestCompleteDate),
+            tone: health.latestCompleteDate ? undefined : 'warning',
+          },
+          {
+            label: 'Data anterior',
+            value: formatDate(previousDate),
+          },
+          {
+            label: 'Dias ausentes',
+            value: String(health.missingDates.length),
+            tone: health.missingDates.length ? 'warning' : undefined,
+          },
+          {
+            label: 'Fila pendente',
+            value: String(health.queue.pending),
+            detail: `${health.queue.running} exec · ${health.queue.failed} falha`,
+            tone: health.queue.failed
+              ? 'danger'
+              : health.queue.pending
+                ? 'warning'
+                : undefined,
+          },
+        ]}
+      />
 
       {health.missingDates.length ? (
-        <ControlNotice
-          message={health.missingDates.map(formatDate).join(', ')}
-          title="Datas sem snapshot global"
+        <OpsInlineNotice
           tone="warning"
+          message={`△ Snapshot global com lacunas: ${health.missingDates.map(formatDate).join(', ')}. Os dados por fonte continuam disponíveis.`}
         />
       ) : (
-        <ControlNotice
-          message="Não há lacunas dentro da janela integral atualmente monitorada."
-          title="Continuidade dos snapshots"
+        <OpsInlineNotice
           tone="success"
+          message="Snapshot global contínuo na janela monitorada. Os dados por fonte seguem disponíveis."
         />
       )}
 
-      <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>Processamentos recentes</Text>
-        <Text style={styles.sectionDescription}>
-          A fila processa no máximo três dias por execução para manter o trabalho limitado.
-        </Text>
-      </View>
-      {health.recentRuns.length ? (
-        <View style={styles.runList}>
-          {health.recentRuns.map((run) => (
-            <ControlCard key={run.id} style={styles.runCard}>
-              <View style={styles.rowBetween}>
-                <View style={styles.runCopy}>
-                  <Text style={styles.cardTitle}>
-                    {run.runType === 'daily'
-                      ? 'Finalização diária'
-                      : run.runType === 'backfill'
-                        ? 'Carga histórica'
-                        : 'Reprocessamento manual'}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {formatDate(run.start)} a {formatDate(run.end)} · {run.processedDays}/{run.totalDays} dia(s)
-                  </Text>
-                </View>
-                <ControlStatusBadge
-                  label={runStatusLabel(run.status)}
-                  tone={runTone(run.status)}
-                />
-              </View>
-              {run.errorCode ? (
-                <Text selectable style={styles.errorCode}>
-                  Código seguro: {run.errorCode}
-                </Text>
-              ) : null}
-            </ControlCard>
+      <OpsPanel title="Cobertura por fonte">
+        <OpsTableShell>
+          <OpsTableHead gridStyle={sourceGrid}>
+            <OpsHeadCell>Fonte</OpsHeadCell>
+            <OpsHeadCell>Cobertura</OpsHeadCell>
+            <OpsHeadCell>Última carga</OpsHeadCell>
+            <OpsHeadCell>Estado</OpsHeadCell>
+          </OpsTableHead>
+          {health.sourceCoverage.map((source) => {
+            const state = sourceState(source.status);
+            return (
+              <OpsTableRow key={source.family} gridStyle={sourceGrid} accent={Boolean(state.tone)}>
+                <OpsCell strong numberOfLines={2}>{source.label}</OpsCell>
+                <OpsCell>Disponível</OpsCell>
+                <OpsCell muted>{formatDate(source.availableFrom)}</OpsCell>
+                <OpsCell tone={state.tone}>{state.label}</OpsCell>
+              </OpsTableRow>
+            );
+          })}
+        </OpsTableShell>
+      </OpsPanel>
+
+      <OpsPanel title="Comparações históricas">
+        <OpsTableShell>
+          <OpsTableHead gridStyle={periodGrid}>
+            <OpsHeadCell>Período</OpsHeadCell>
+            <OpsHeadCell>Disponibilidade</OpsHeadCell>
+            <OpsHeadCell>Estado</OpsHeadCell>
+          </OpsTableHead>
+          {health.comparisonAvailability.map((comparison) => (
+            <OpsTableRow
+              key={comparison.rangeDays}
+              gridStyle={periodGrid}
+              accent={!comparison.available}
+            >
+              <OpsCell strong>{comparison.rangeDays} dias</OpsCell>
+              <OpsCell numberOfLines={2}>
+                {comparison.available
+                  ? 'Disponível para comparação equivalente'
+                  : `Disponível até ${formatDate(comparison.availableOn)}`}
+              </OpsCell>
+              <OpsCell tone={comparison.available ? undefined : 'warning'}>
+                {comparison.available ? 'Pronto' : 'Acompanhando'}
+              </OpsCell>
+            </OpsTableRow>
           ))}
-        </View>
-      ) : (
-        <ControlEmptyState
-          description="As finalizações diárias e solicitações manuais aparecerão aqui."
-          title="Nenhum processamento registrado"
-        />
-      )}
+        </OpsTableShell>
+      </OpsPanel>
 
-      {canReprocess ? (
-        <ControlCard style={styles.reprocessCard} tone="warning">
-          <View style={styles.sectionCopy}>
-            <Text style={styles.sectionTitle}>Reprocessar snapshots</Text>
-            <Text style={styles.sectionDescription}>
+      <OpsPanel
+        title="Processamentos recentes"
+        meta={canReprocess ? (
+          <OpsTextAction
+            label={adminOpen ? 'Ocultar ações ▴' : 'Ações administrativas ▾'}
+            onPress={() => setAdminOpen((current) => !current)}
+          />
+        ) : undefined}
+      >
+        {health.recentRuns.length ? (
+          <OpsTableShell>
+            <OpsTableHead gridStyle={runGrid}>
+              <OpsHeadCell>Execução</OpsHeadCell>
+              <OpsHeadCell>Tipo</OpsHeadCell>
+              <OpsHeadCell>Início</OpsHeadCell>
+              <OpsHeadCell>Duração</OpsHeadCell>
+              <OpsHeadCell>Estado</OpsHeadCell>
+            </OpsTableHead>
+            {health.recentRuns.map((run) => {
+              const status = runStatusLabel(run.status);
+              return (
+                <OpsTableRow key={run.id} gridStyle={runGrid} accent={Boolean(status.tone)}>
+                  <OpsCell strong numberOfLines={2}>
+                    {formatDate(run.start)} → {formatDate(run.end)}
+                  </OpsCell>
+                  <OpsCell numberOfLines={2}>{runTypeLabel(run.runType)}</OpsCell>
+                  <OpsCell muted>{formatDateTime(run.createdAt)}</OpsCell>
+                  <OpsCell muted>{durationLabel(run.createdAt, run.completedAt)}</OpsCell>
+                  <OpsCell tone={status.tone}>{status.label}</OpsCell>
+                </OpsTableRow>
+              );
+            })}
+          </OpsTableShell>
+        ) : (
+          <OpsInlineNotice message="Nenhum processamento registrado nesta sessão." />
+        )}
+
+        {canReprocess && adminOpen ? (
+          <View style={[styles.adminPanel, width < 720 && styles.adminPanelCompact]}>
+            <Text style={styles.adminTitle}>Reprocessar snapshot</Text>
+            <Text style={styles.adminHint}>
               Ação exclusiva do proprietário. Use apenas para dias completos, por no máximo 14 dias.
             </Text>
-          </View>
-          <View style={styles.dateFields}>
+            <View style={styles.dateFields}>
+              <ControlField
+                containerStyle={styles.dateField}
+                editable={!reprocessing}
+                label="Data inicial"
+                maxLength={10}
+                onChangeText={(value) => {
+                  setStart(value);
+                  setFormError('');
+                }}
+                placeholder="AAAA-MM-DD"
+                testID="control-analytics-reprocess-start"
+                value={start}
+              />
+              <ControlField
+                containerStyle={styles.dateField}
+                editable={!reprocessing}
+                label="Data final"
+                maxLength={10}
+                onChangeText={(value) => {
+                  setEnd(value);
+                  setFormError('');
+                }}
+                placeholder="AAAA-MM-DD"
+                testID="control-analytics-reprocess-end"
+                value={end}
+              />
+            </View>
             <ControlField
-              containerStyle={styles.dateField}
               editable={!reprocessing}
-              label="Data inicial"
-              maxLength={10}
+              helper={`${reason.trim().length}/500 caracteres`}
+              label="Justificativa auditável"
+              maxLength={500}
+              multiline
               onChangeText={(value) => {
-                setStart(value);
+                setReason(value);
                 setFormError('');
               }}
-              placeholder="AAAA-MM-DD"
-              testID="control-analytics-reprocess-start"
-              value={start}
+              placeholder="Explique por que este intervalo precisa ser recalculado."
+              testID="control-analytics-reprocess-reason"
+              value={reason}
             />
-            <ControlField
-              containerStyle={styles.dateField}
-              editable={!reprocessing}
-              label="Data final"
-              maxLength={10}
-              onChangeText={(value) => {
-                setEnd(value);
-                setFormError('');
-              }}
-              placeholder="AAAA-MM-DD"
-              testID="control-analytics-reprocess-end"
-              value={end}
-            />
+            {formError ? (
+              <ControlNotice
+                message={formError}
+                testID="control-analytics-reprocess-error"
+                tone="danger"
+              />
+            ) : null}
+            <View style={styles.adminActions}>
+              <OpsSecondaryButton
+                label="Cancelar"
+                onPress={() => setAdminOpen(false)}
+                disabled={reprocessing}
+              />
+              <ControlButton
+                busy={reprocessing}
+                disabled={reprocessing}
+                label="Solicitar reprocessamento"
+                onPress={() => { void submit(); }}
+                testID="control-analytics-reprocess-submit"
+              />
+            </View>
           </View>
-          <ControlField
-            editable={!reprocessing}
-            helper={`${reason.trim().length}/500 caracteres`}
-            label="Justificativa auditável"
-            maxLength={500}
-            multiline
-            onChangeText={(value) => {
-              setReason(value);
-              setFormError('');
-            }}
-            placeholder="Explique por que este intervalo precisa ser recalculado."
-            testID="control-analytics-reprocess-reason"
-            value={reason}
-          />
-          {formError ? (
-            <ControlNotice
-              message={formError}
-              testID="control-analytics-reprocess-error"
-              tone="danger"
-            />
-          ) : null}
-          <ControlButton
-            busy={reprocessing}
-            disabled={reprocessing}
-            label="Solicitar reprocessamento"
-            onPress={() => { void submit(); }}
-            testID="control-analytics-reprocess-submit"
-          />
-        </ControlCard>
-      ) : (
-        <ControlNotice
-          message="Seu papel pode consultar cobertura e histórico. Reprocessamentos exigem uma sessão AAL2 do proprietário."
-          title="Consulta somente leitura"
-          tone="info"
-        />
-      )}
+        ) : null}
+
+        {!canReprocess ? (
+          <OpsInlineNotice message="Consulta somente leitura. Reprocessamentos exigem sessão AAL2 do proprietário." />
+        ) : null}
+      </OpsPanel>
 
       <Text style={styles.freshness}>
         Verificado em {new Date(health.generatedAt).toLocaleString('pt-BR')} · {health.timezone}
+        {' · '}
+        cobertura integral desde {formatDate(health.coverageStartDate)}
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  dashboard: { width: '100%', gap: controlSpacing.xl },
-  metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: controlSpacing.md },
-  sectionCopy: { gap: controlSpacing.xxs },
-  sectionTitle: { ...controlType.sectionTitle, color: controlColors.text },
-  sectionDescription: { ...controlType.small, color: controlColors.textSecondary },
-  sourceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: controlSpacing.md },
-  sourceCard: { minWidth: 220, flexGrow: 1, flexBasis: 260 },
-  comparisonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: controlSpacing.md },
-  comparisonCard: { minWidth: 220, flexGrow: 1, flexBasis: 280 },
-  rowBetween: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: controlSpacing.sm,
+  dashboard: { width: '100%', gap: 18 },
+  adminPanel: {
+    gap: 12,
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: cloudTheme.colors.border,
   },
-  cardTitle: { ...controlType.cardTitle, color: controlColors.text },
-  meta: { ...controlType.small, color: controlColors.textSecondary },
-  runList: { gap: controlSpacing.sm },
-  runCard: { gap: controlSpacing.sm },
-  runCopy: { minWidth: 200, flex: 1, gap: controlSpacing.xxs },
-  errorCode: { ...controlType.smallStrong, color: controlColors.danger },
-  reprocessCard: { gap: controlSpacing.lg },
-  dateFields: { flexDirection: 'row', flexWrap: 'wrap', gap: controlSpacing.md },
+  adminPanelCompact: {},
+  adminTitle: { color: cloudTheme.colors.text, fontSize: 14, fontWeight: '800' },
+  adminHint: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  dateFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   dateField: { minWidth: 220, flex: 1 },
-  freshness: { ...controlType.small, color: controlColors.textMuted },
+  adminActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  freshness: { color: cloudTheme.colors.textMuted, fontSize: 12 },
 });

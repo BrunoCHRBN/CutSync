@@ -1,24 +1,23 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { ControlButton } from '@/components/control-ui';
-import { DataTable } from '@/components/cloud/data-table';
-import { FeedbackState } from '@/components/cloud/feedback-state';
-import { MetricCard } from '@/components/cloud/metric-card';
-import { StatusBadge } from '@/components/cloud/status-badge';
-import { SectionPage } from '@/components/section-page';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
+import {
+  OpsHeadCell,
+  OpsHeader,
+  OpsInlineNotice,
+  OpsPage,
+  OpsPanel,
+  OpsPrimaryButton,
+  OpsStrip,
+  OpsTableHead,
+  OpsTableShell,
+  opsGridStyle,
+} from '@/modules/operation/ops-console';
 import { cloudTheme } from '@/theme/cloud-components';
 
-type IncidentRow = {
-  id: string;
-  service: string;
-  impact: string;
-  status: string;
-};
-
-const placeholderIncidents: IncidentRow[] = [];
+const incidentGrid = opsGridStyle('120px minmax(200px, 2fr) 110px 110px 100px 120px');
 
 export function IncidentsScreen() {
   const { can } = useControlAuth();
@@ -28,52 +27,65 @@ export function IncidentsScreen() {
   });
 
   return (
-    <SectionPage
-      eyebrow="OPERAÇÃO"
-      title="Incidentes"
-      description="Alertas ordenados por impacto e histórico operacional. A escrita permanece bloqueada até existir RPC e permissão próprias."
-    >
-      <View style={styles.metrics}>
-        <MetricCard label="Abertos" value="0" detail="Sem incidentes ativos nesta sessão" />
-        <MetricCard label="Impacto alto" value="0" tone="warning" />
-        <MetricCard label="Últimas 24h" value="0" tone="info" />
-      </View>
+    <OpsPage>
+      <OpsHeader
+        kicker="OPERAÇÃO / INCIDENTES"
+        title="Incidentes"
+        description="Registro, impacto e acompanhamento operacional. A escrita permanece bloqueada até existir RPC e permissão próprias."
+        actions={action.visible ? (
+          <View style={styles.actionBlock}>
+            <OpsPrimaryButton
+              label={action.enabled ? 'Abrir incidente' : 'Abrir incidente — indisponível'}
+              disabled={!action.enabled}
+              onPress={() => undefined}
+            />
+            {action.reason ? (
+              <Text style={styles.hint}>{action.reason}</Text>
+            ) : null}
+          </View>
+        ) : undefined}
+      />
 
-      <View style={styles.actions}>
-        {action.visible ? (
-          <ControlButton
-            disabled={!action.enabled}
-            label="Abrir incidente"
-            onPress={() => undefined}
-            accessibilityLabel={action.reason ?? 'Abrir incidente'}
-          />
-        ) : null}
-        {action.reason ? <Text style={styles.hint}>{action.reason}</Text> : null}
-      </View>
+      <OpsStrip
+        items={[
+          { label: 'Ativos', value: '0' },
+          { label: 'Impacto alto', value: '0' },
+          { label: 'Últimas 24 h', value: '0' },
+          { label: 'MTTR', value: '—' },
+        ]}
+      />
 
-      {placeholderIncidents.length === 0 ? (
-        <FeedbackState
-          kind="empty"
-          title="Nenhum incidente registrado"
-          message="Quando a capacidade de incidentes for homologada, o histórico e a abertura aparecerão aqui."
-        />
-      ) : (
-        <DataTable
-          columns={[
-            { key: 'service', header: 'Serviço', render: (row) => row.service },
-            { key: 'impact', header: 'Impacto', render: (row) => <StatusBadge label={row.impact} tone="warning" /> },
-            { key: 'status', header: 'Status', render: (row) => row.status },
-          ]}
-          rows={placeholderIncidents}
-          rowKey={(row) => row.id}
-        />
-      )}
-    </SectionPage>
+      <OpsPanel title="Incidentes">
+        <OpsTableShell>
+          <OpsTableHead gridStyle={incidentGrid}>
+            <OpsHeadCell>Início</OpsHeadCell>
+            <OpsHeadCell>Título</OpsHeadCell>
+            <OpsHeadCell>Impacto</OpsHeadCell>
+            <OpsHeadCell>Estado</OpsHeadCell>
+            <OpsHeadCell>Duração</OpsHeadCell>
+            <OpsHeadCell>Responsável</OpsHeadCell>
+          </OpsTableHead>
+          <View style={styles.emptyBlock}>
+            <Text style={styles.emptyTitle}>✓ Nenhum incidente ativo</Text>
+            <Text style={styles.emptyBody}>
+              A operação está dentro dos parâmetros monitorados. Quando a capacidade de incidentes for homologada, o histórico e o detalhe lateral aparecerão aqui.
+            </Text>
+          </View>
+        </OpsTableShell>
+        <OpsInlineNotice message="Lista e detalhe lateral seguirão o padrão da fila de Suporte assim que a fonte existir." />
+      </OpsPanel>
+    </OpsPage>
   );
 }
 
 const styles = StyleSheet.create({
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: cloudTheme.spacing.md },
-  actions: { gap: cloudTheme.spacing.xs },
-  hint: { ...cloudTheme.type.small, color: cloudTheme.colors.textMuted },
+  actionBlock: { alignItems: 'flex-end', gap: 4, maxWidth: 320 },
+  hint: { ...cloudTheme.type.small, color: cloudTheme.colors.textMuted, textAlign: 'right' },
+  emptyBlock: {
+    gap: 6,
+    paddingVertical: 20,
+    paddingHorizontal: 4,
+  },
+  emptyTitle: { color: cloudTheme.colors.text, fontSize: 14, fontWeight: '700' },
+  emptyBody: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 19, maxWidth: 640 },
 });

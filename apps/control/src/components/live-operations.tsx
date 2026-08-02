@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -9,161 +8,161 @@ import {
 } from 'react-native';
 
 import { useControlLive } from '@/hooks/use-control-live';
+import {
+  OpsCell,
+  OpsDefList,
+  OpsGrid,
+  OpsHeadCell,
+  OpsHeader,
+  OpsInlineNotice,
+  OpsMainCol,
+  OpsPage,
+  OpsPanel,
+  OpsSecondaryButton,
+  OpsSideCol,
+  OpsStrip,
+  OpsTableHead,
+  OpsTableRow,
+  OpsTableShell,
+  opsGridStyle,
+} from '@/modules/operation/ops-console';
 import type {
   ControlLiveAppointments,
   ControlLiveEstablishments,
   ControlLiveSupport,
 } from '@/services/control-live';
+import { cloudTheme } from '@/theme/cloud-components';
 
 const connectionLabels = {
-  connecting: 'Conectando',
-  connected: 'Ao vivo',
-  reconnecting: 'Reconectando',
-  stale: 'Dados desatualizados',
+  connecting: '○ Conectando',
+  connected: '● Conectado',
+  reconnecting: '○ Reconectando ao canal em tempo real…',
+  stale: '△ Dados desatualizados',
 } as const;
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  tone = 'default',
-  compact,
-}: {
+const matrixGrid = opsGridStyle('minmax(200px, 2fr) 100px 120px');
+const watchGrid = opsGridStyle('minmax(140px, 1.4fr) minmax(160px, 2fr) 100px');
+
+function formatRelative(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return '—';
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return '—';
+  const seconds = Math.max(0, Math.floor((now - ts) / 1000));
+  if (seconds < 45) return 'agora';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `há ${hours} h`;
+  return `há ${Math.floor(hours / 24)} d`;
+}
+
+type MatrixRow = {
+  id: string;
   label: string;
   value: number;
-  detail: string;
-  tone?: 'default' | 'warning' | 'danger';
-  compact: boolean;
-}) {
-  return (
-    <View style={[
-      styles.metricCard,
-      compact && styles.metricCardCompact,
-      tone === 'warning' && styles.warningCard,
-      tone === 'danger' && styles.dangerCard,
-    ]}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={[
-        styles.metricValue,
-        tone === 'warning' && styles.warningText,
-        tone === 'danger' && styles.dangerText,
-      ]}>
-        {value.toLocaleString('pt-BR')}
-      </Text>
-      <Text style={styles.metricDetail}>{detail}</Text>
-    </View>
-  );
+  state: string;
+  tone?: 'warning' | 'danger';
+};
+
+type WatchRow = {
+  id: string;
+  entity: string;
+  reason: string;
+  state: string;
+  tone?: 'warning' | 'danger';
+};
+
+function buildAgendaRows(appointments: ControlLiveAppointments): MatrixRow[] {
+  return [
+    { id: 'total', label: 'Agendamentos previstos', value: appointments.todayTotal, state: 'Normal' },
+    { id: 'next', label: 'Próximos 60 min', value: appointments.next60Minutes, state: 'Normal' },
+    {
+      id: 'pending',
+      label: 'Pendências',
+      value: appointments.pending,
+      state: appointments.pending > 0 ? 'Atenção' : 'Normal',
+      tone: appointments.pending > 0 ? 'warning' : undefined,
+    },
+    { id: 'confirmed', label: 'Confirmações', value: appointments.confirmed, state: 'Normal' },
+    { id: 'completed', label: 'Concluídos', value: appointments.completed, state: 'Normal' },
+    {
+      id: 'cancelled',
+      label: 'Cancelamentos',
+      value: appointments.cancelled,
+      state: appointments.cancelled > 0 ? 'Atenção' : 'Normal',
+      tone: appointments.cancelled > 0 ? 'warning' : undefined,
+    },
+  ];
 }
 
-function AgendaSection({
-  appointments,
-  compact,
-}: {
-  appointments: ControlLiveAppointments;
-  compact: boolean;
-}) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeading}>
-        <Text style={styles.sectionEyebrow}>AGENDA GLOBAL</Text>
-        <Text style={styles.sectionTitle}>Operação de hoje</Text>
-      </View>
-      <View style={styles.metrics}>
-        <MetricCard compact={compact} label="Agendamentos" value={appointments.todayTotal} detail="Total no dia corrente" />
-        <MetricCard compact={compact} label="Próximos 60 min" value={appointments.next60Minutes} detail="Pendentes ou confirmados" />
-        <MetricCard compact={compact} label="Pendentes" value={appointments.pending} detail="Aguardando confirmação" />
-        <MetricCard compact={compact} label="Confirmados" value={appointments.confirmed} detail="Prontos para atendimento" />
-        <MetricCard compact={compact} label="Concluídos" value={appointments.completed} detail="Finalizados hoje" />
-        <MetricCard compact={compact} label="Cancelados" value={appointments.cancelled} detail="Cancelamentos no dia" tone={appointments.cancelled > 0 ? 'warning' : 'default'} />
-      </View>
-    </View>
-  );
-}
-
-function EstablishmentSection({
-  establishments,
-  compact,
-}: {
-  establishments: ControlLiveEstablishments;
-  compact: boolean;
-}) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeading}>
-        <Text style={styles.sectionEyebrow}>PLATAFORMA</Text>
-        <Text style={styles.sectionTitle}>Estabelecimentos</Text>
-      </View>
-      <View style={styles.metrics}>
-        <MetricCard compact={compact} label="Ativos" value={establishments.active} detail="Operação liberada" />
-        <MetricCard
-          compact={compact}
-          label="Solicitações pendentes"
-          value={establishments.pendingRequests}
-          detail="Aguardando análise"
-          tone={establishments.pendingRequests > 0 ? 'warning' : 'default'}
-        />
-      </View>
-    </View>
-  );
-}
-
-function SupportSection({
-  support,
-  compact,
-}: {
-  support: ControlLiveSupport | null;
-  compact: boolean;
-}) {
-  if (!support) {
-    return (
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Equipe de suporte não vinculada</Text>
-        <Text style={styles.metricDetail}>
-          Vincule seu acesso à equipe SUPORTE_GERAL na página Suporte para visualizar a operação.
-        </Text>
-      </View>
-    );
+function buildWatchRows(
+  appointments: ControlLiveAppointments,
+  establishments: ControlLiveEstablishments,
+  support: ControlLiveSupport | null,
+): WatchRow[] {
+  const rows: WatchRow[] = [];
+  if (appointments.pending > 0) {
+    rows.push({
+      id: 'pending',
+      entity: 'Agenda',
+      reason: `${appointments.pending} confirmação(ões) pendente(s)`,
+      state: 'Pendente',
+      tone: 'warning',
+    });
   }
-
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeadingRow}>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionEyebrow}>SUPORTE OFICIAL</Text>
-          <Text style={styles.sectionTitle}>Fila e sincronização</Text>
-        </View>
-        <View style={styles.runtimeRow}>
-          <Text style={[styles.runtimeBadge, support.runtimeEnabled && styles.runtimeBadgeActive]}>
-            Módulo {support.runtimeEnabled ? 'ativo' : 'pausado'}
-          </Text>
-          <Text style={[styles.runtimeBadge, support.syncEnabled && styles.runtimeBadgeActive]}>
-            Sync {support.syncEnabled ? 'ativo' : 'pausado'}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.metrics}>
-        <MetricCard compact={compact} label="Fila aberta" value={support.openQueue} detail="Novos e em atendimento" />
-        <MetricCard compact={compact} label="Aguardando usuário" value={support.waitingUser} detail="Resposta solicitada" />
-        <MetricCard compact={compact} label="Críticos" value={support.criticalOpen} detail="Incidentes não resolvidos" tone={support.criticalOpen > 0 ? 'danger' : 'default'} />
-        <MetricCard compact={compact} label="Risco de SLA" value={support.slaAtRisk} detail="Vencido ou a menos de 1 hora" tone={support.slaAtRisk > 0 ? 'warning' : 'default'} />
-        <MetricCard compact={compact} label="Falhas de sync" value={support.syncFailed} detail="Exigem investigação" tone={support.syncFailed > 0 ? 'danger' : 'default'} />
-        <MetricCard
-          compact={compact}
-          label="Operações pendentes"
-          value={support.pendingOperations}
-          detail={support.oldestPendingMinutes === null
-            ? 'Nenhuma operação aguardando'
-            : `Mais antiga há ${support.oldestPendingMinutes} min`}
-          tone={support.oldestPendingMinutes !== null && support.oldestPendingMinutes >= 5 ? 'warning' : 'default'}
-        />
-      </View>
-    </View>
-  );
+  if (establishments.pendingRequests > 0) {
+    rows.push({
+      id: 'est-pending',
+      entity: 'Estabelecimentos',
+      reason: `${establishments.pendingRequests} solicitação(ões) aguardando análise`,
+      state: 'Atenção',
+      tone: 'warning',
+    });
+  }
+  if (support) {
+    if (support.slaAtRisk > 0) {
+      rows.push({
+        id: 'sla',
+        entity: 'Suporte',
+        reason: `${support.slaAtRisk} chamado(s) com risco de SLA`,
+        state: 'Atenção',
+        tone: 'warning',
+      });
+    }
+    if (support.criticalOpen > 0) {
+      rows.push({
+        id: 'critical',
+        entity: 'Suporte',
+        reason: `${support.criticalOpen} crítico(s) abertos`,
+        state: 'Crítico',
+        tone: 'danger',
+      });
+    }
+    if (support.syncFailed > 0) {
+      rows.push({
+        id: 'sync',
+        entity: 'Sincronização',
+        reason: `${support.syncFailed} falha(s) de sync`,
+        state: 'Atenção',
+        tone: 'danger',
+      });
+    }
+    if (support.oldestPendingMinutes !== null && support.oldestPendingMinutes >= 5) {
+      rows.push({
+        id: 'ops',
+        entity: 'Operações',
+        reason: `Operação pendente há ${support.oldestPendingMinutes} min`,
+        state: 'Atenção',
+        tone: 'warning',
+      });
+    }
+  }
+  return rows;
 }
 
 export function LiveOperations() {
   const { width } = useWindowDimensions();
-  const compact = width < 720;
+  const compact = width < 960;
   const {
     snapshot,
     connectionState,
@@ -173,161 +172,208 @@ export function LiveOperations() {
     refresh,
   } = useControlLive();
 
+  const agendaRows = useMemo(
+    () => (snapshot ? buildAgendaRows(snapshot.appointments) : []),
+    [snapshot],
+  );
+  const watchRows = useMemo(
+    () => (snapshot
+      ? buildWatchRows(snapshot.appointments, snapshot.establishments, snapshot.support)
+      : []),
+    [snapshot],
+  );
+
+  const stripItems = snapshot
+    ? [
+        {
+          label: 'Canal',
+          value: connectionLabels[connectionState],
+          tone: connectionState === 'connected'
+            ? undefined
+            : connectionState === 'stale'
+              ? 'danger' as const
+              : 'warning' as const,
+        },
+        {
+          label: 'Agendados',
+          value: snapshot.appointments.todayTotal.toLocaleString('pt-BR'),
+        },
+        {
+          label: 'Em andamento',
+          value: snapshot.appointments.confirmed.toLocaleString('pt-BR'),
+        },
+        {
+          label: 'Pendências',
+          value: snapshot.appointments.pending.toLocaleString('pt-BR'),
+          tone: snapshot.appointments.pending > 0 ? 'warning' as const : undefined,
+        },
+        {
+          label: 'Fila suporte',
+          value: snapshot.support
+            ? snapshot.support.openQueue.toLocaleString('pt-BR')
+            : '—',
+        },
+      ]
+    : [
+        {
+          label: 'Canal',
+          value: connectionLabels[connectionState],
+          tone: 'warning' as const,
+        },
+      ];
+
   return (
-    <View style={styles.content}>
-      <View style={styles.toolbar}>
-        <View>
-          <Text style={[
-            styles.connectionBadge,
-            connectionState === 'connected' && styles.connectionBadgeConnected,
-            connectionState === 'stale' && styles.connectionBadgeStale,
-          ]}>
-            {connectionLabels[connectionState]}
-          </Text>
-          <Text style={styles.timestamp}>
+    <OpsPage>
+      <OpsHeader
+        kicker="OPERAÇÃO / TEMPO REAL"
+        title="Acompanhamento ao vivo"
+        description="Painel vivo a partir de snapshots autoritativos. Eventos privados apenas solicitam a atualização dos dados."
+        meta={(
+          <Text style={styles.meta}>
             {snapshot
-              ? `Snapshot de ${new Date(snapshot.generatedAt).toLocaleString('pt-BR')} · ${snapshot.timezone}`
-              : 'Aguardando o primeiro snapshot autoritativo'}
+              ? `Último snapshot ${formatRelative(snapshot.generatedAt)} · ${snapshot.timezone}`
+              : 'Aguardando primeiro snapshot'}
           </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          disabled={refreshing}
-          onPress={() => { void refresh(true); }}
-          style={[styles.refreshButton, refreshing && styles.disabled]}
-        >
-          {refreshing ? <ActivityIndicator color="#ffffff" size="small" /> : null}
-          <Text style={styles.refreshButtonText}>
-            {refreshing ? 'Atualizando' : 'Atualizar agora'}
-          </Text>
-        </Pressable>
-      </View>
+        )}
+        actions={(
+          <OpsSecondaryButton
+            label={refreshing ? 'Atualizando…' : 'Atualizar agora'}
+            disabled={refreshing}
+            onPress={() => { void refresh(true); }}
+          />
+        )}
+      />
+
+      <OpsStrip items={stripItems} />
 
       {loading && !snapshot ? (
-        <View style={styles.loadingLine}>
-          <ActivityIndicator color="#173d2b" />
-          <Text style={styles.metricDetail}>Carregando a operação...</Text>
+        <View style={styles.loading}>
+          <ActivityIndicator color={cloudTheme.colors.brand} />
+          <Text style={styles.muted}>{connectionLabels.reconnecting}</Text>
         </View>
       ) : null}
 
       {error ? (
-        <View style={styles.errorCard}>
-          <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>
-          <Text style={styles.metricDetail}>
-            {snapshot
-              ? 'O último snapshot válido foi preservado.'
-              : 'Use a atualização manual para tentar novamente.'}
-          </Text>
-        </View>
+        <OpsInlineNotice
+          tone="danger"
+          message={
+            snapshot
+              ? `${error} O último snapshot válido foi preservado.`
+              : error
+          }
+        />
       ) : null}
 
       {snapshot ? (
-        <>
-          <AgendaSection appointments={snapshot.appointments} compact={compact} />
-          <EstablishmentSection establishments={snapshot.establishments} compact={compact} />
-          <SupportSection support={snapshot.support} compact={compact} />
-        </>
+        <OpsGrid compact={compact}>
+          <OpsMainCol>
+            <OpsPanel title="Operação de hoje">
+              <OpsTableShell>
+                <OpsTableHead gridStyle={matrixGrid}>
+                  <OpsHeadCell>Indicador</OpsHeadCell>
+                  <OpsHeadCell>Atual</OpsHeadCell>
+                  <OpsHeadCell>Estado</OpsHeadCell>
+                </OpsTableHead>
+                {agendaRows.map((row) => (
+                  <OpsTableRow key={row.id} gridStyle={matrixGrid} accent={Boolean(row.tone)}>
+                    <OpsCell strong>{row.label}</OpsCell>
+                    <OpsCell strong>{row.value.toLocaleString('pt-BR')}</OpsCell>
+                    <OpsCell tone={row.tone}>{row.state}</OpsCell>
+                  </OpsTableRow>
+                ))}
+              </OpsTableShell>
+            </OpsPanel>
+
+            <OpsPanel title="Estabelecimentos">
+              <OpsTableShell>
+                <OpsTableHead gridStyle={matrixGrid}>
+                  <OpsHeadCell>Indicador</OpsHeadCell>
+                  <OpsHeadCell>Atual</OpsHeadCell>
+                  <OpsHeadCell>Estado</OpsHeadCell>
+                </OpsTableHead>
+                <OpsTableRow gridStyle={matrixGrid}>
+                  <OpsCell strong>Ativos</OpsCell>
+                  <OpsCell strong>{snapshot.establishments.active.toLocaleString('pt-BR')}</OpsCell>
+                  <OpsCell>Normal</OpsCell>
+                </OpsTableRow>
+                <OpsTableRow
+                  gridStyle={matrixGrid}
+                  accent={snapshot.establishments.pendingRequests > 0}
+                >
+                  <OpsCell strong>Solicitações pendentes</OpsCell>
+                  <OpsCell strong>
+                    {snapshot.establishments.pendingRequests.toLocaleString('pt-BR')}
+                  </OpsCell>
+                  <OpsCell tone={snapshot.establishments.pendingRequests > 0 ? 'warning' : undefined}>
+                    {snapshot.establishments.pendingRequests > 0 ? 'Atenção' : 'Normal'}
+                  </OpsCell>
+                </OpsTableRow>
+              </OpsTableShell>
+            </OpsPanel>
+          </OpsMainCol>
+
+          <OpsSideCol sticky={!compact}>
+            <OpsPanel title="Fila de observação">
+              {watchRows.length === 0 ? (
+                <OpsInlineNotice message="Nenhum item exige acompanhamento agora." tone="success" />
+              ) : (
+                <OpsTableShell>
+                  <OpsTableHead gridStyle={watchGrid}>
+                    <OpsHeadCell>Entidade</OpsHeadCell>
+                    <OpsHeadCell>Motivo</OpsHeadCell>
+                    <OpsHeadCell>Estado</OpsHeadCell>
+                  </OpsTableHead>
+                  {watchRows.map((row) => (
+                    <OpsTableRow key={row.id} gridStyle={watchGrid} accent={Boolean(row.tone)}>
+                      <OpsCell strong>{row.entity}</OpsCell>
+                      <OpsCell numberOfLines={2}>{row.reason}</OpsCell>
+                      <OpsCell tone={row.tone}>{row.state}</OpsCell>
+                    </OpsTableRow>
+                  ))}
+                </OpsTableShell>
+              )}
+            </OpsPanel>
+
+            <OpsPanel title="Contexto do canal">
+              {snapshot.support ? (
+                <OpsDefList
+                  rows={[
+                    {
+                      label: 'Runtime suporte',
+                      value: snapshot.support.runtimeEnabled ? 'Ativo' : 'Pausado',
+                    },
+                    {
+                      label: 'Sync JSM',
+                      value: snapshot.support.syncEnabled ? 'Ativo' : 'Pausado',
+                    },
+                    {
+                      label: 'Fila aberta',
+                      value: snapshot.support.openQueue.toLocaleString('pt-BR'),
+                    },
+                    {
+                      label: 'Aguardando usuário',
+                      value: snapshot.support.waitingUser.toLocaleString('pt-BR'),
+                    },
+                    {
+                      label: 'Risco de SLA',
+                      value: snapshot.support.slaAtRisk.toLocaleString('pt-BR'),
+                      tone: snapshot.support.slaAtRisk > 0 ? 'caution' : 'neutral',
+                    },
+                  ]}
+                />
+              ) : (
+                <OpsInlineNotice message="Equipe de suporte não vinculada nesta sessão. A fila oficial permanece no módulo Suporte." />
+              )}
+            </OpsPanel>
+          </OpsSideCol>
+        </OpsGrid>
       ) : null}
-    </View>
+    </OpsPage>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { width: '100%', gap: 26 },
-  toolbar: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-  },
-  connectionBadge: {
-    alignSelf: 'flex-start',
-    color: '#785d2e',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  connectionBadgeConnected: { color: '#247047' },
-  connectionBadgeStale: { color: '#a33a31' },
-  timestamp: { marginTop: 5, color: '#6c786f', fontSize: 12 },
-  refreshButton: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#173d2b',
-  },
-  refreshButtonText: { color: '#ffffff', fontWeight: '800' },
-  disabled: { opacity: 0.6 },
-  loadingLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  errorCard: {
-    gap: 5,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e6c8c4',
-    borderRadius: 12,
-    backgroundColor: '#fff7f6',
-  },
-  errorText: { color: '#913c34', fontWeight: '700' },
-  section: { width: '100%', gap: 14 },
-  sectionHeading: { gap: 4 },
-  sectionHeadingRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  sectionEyebrow: { color: '#347452', fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  sectionTitle: { color: '#17231c', fontSize: 20, fontWeight: '800' },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  metricCard: {
-    width: 190,
-    minHeight: 126,
-    gap: 7,
-    padding: 17,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-  },
-  metricCardCompact: { width: '100%' },
-  warningCard: { borderColor: '#e6d4ad', backgroundColor: '#fffbf1' },
-  dangerCard: { borderColor: '#e6c8c4', backgroundColor: '#fff7f6' },
-  metricLabel: { color: '#526158', fontSize: 12, fontWeight: '700' },
-  metricValue: { color: '#173d2b', fontSize: 29, fontWeight: '800' },
-  metricDetail: { color: '#748078', fontSize: 12, lineHeight: 18 },
-  warningText: { color: '#8b641d' },
-  dangerText: { color: '#a33a31' },
-  runtimeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  runtimeBadge: {
-    color: '#8b5a53',
-    fontSize: 10,
-    fontWeight: '800',
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#f8e8e5',
-  },
-  runtimeBadgeActive: { color: '#286c47', backgroundColor: '#e4f2e9' },
-  infoCard: {
-    gap: 6,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-  },
-  infoTitle: { color: '#17231c', fontSize: 16, fontWeight: '800' },
+  meta: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600' },
+  muted: { color: cloudTheme.colors.textSecondary, fontSize: 13 },
+  loading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 });

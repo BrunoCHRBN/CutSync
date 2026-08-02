@@ -1,12 +1,20 @@
 import React from 'react';
 
-import { RequireControlPermission } from '@/components/require-control-permission';
+import { ControlState } from '@/components/control-state';
+import { useControlAuth } from '@/contexts/control-auth-context';
 import { IncidentsScreen } from '@/modules/operation/incidents-screen';
 
 export default function IncidentesRoute() {
-  return (
-    <RequireControlPermission permission="control.dashboard.read">
-      <IncidentsScreen />
-    </RequireControlPermission>
-  );
+  const { can } = useControlAuth();
+
+  if (!can('control.dashboard.read')) {
+    return (
+      <ControlState
+        title="Acesso restrito"
+        message="Seu papel não permite consultar incidentes operacionais."
+      />
+    );
+  }
+
+  return <IncidentsScreen />;
 }

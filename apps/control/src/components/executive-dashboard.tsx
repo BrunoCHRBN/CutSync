@@ -1,32 +1,30 @@
-import React from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import {
-  ControlCard,
-  ControlNotice,
-  ControlStatusBadge,
-  type ControlTone,
-} from '@/components/control-ui';
+  OpsCell,
+  OpsChip,
+  OpsDefList,
+  OpsGrid,
+  OpsHeadCell,
+  OpsInlineNotice,
+  OpsMainCol,
+  OpsPanel,
+  OpsSecondaryButton,
+  OpsSideCol,
+  OpsStrip,
+  OpsTableHead,
+  OpsTableRow,
+  OpsTableShell,
+  opsGridStyle,
+} from '@/modules/operation/ops-console';
 import type {
   ControlExecutiveDashboard,
   ControlMetricRangeDays,
   ControlMetricScopeOption,
   MetricComparison,
 } from '@/services/control-executive';
-import {
-  controlColors,
-  controlLayout,
-  controlRadii,
-  controlSpacing,
-  controlType,
-} from '@/theme/tokens';
+import { cloudTheme } from '@/theme/cloud-components';
 
 interface ExecutiveDashboardProps {
   snapshot: ControlExecutiveDashboard;
@@ -35,9 +33,12 @@ interface ExecutiveDashboardProps {
   selectedScope: ControlMetricScopeOption;
   onRangeChange: (days: ControlMetricRangeDays) => void;
   onScopeChange: (scope: ControlMetricScopeOption) => void;
+  onRefresh: () => void;
+  refreshing?: boolean;
 }
 
 type MetricFormat = 'integer' | 'percent' | 'days';
+type DomainTab = 'operacao' | 'atendimento' | 'pessoas' | 'qualidade';
 
 function formatValue(value: number | null, format: MetricFormat): string {
   if (value === null) return '—';
@@ -50,91 +51,69 @@ function formatValue(value: number | null, format: MetricFormat): string {
   return value.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
 
-function resolveDelta(metric: MetricComparison, inverse = false): {
-  label: string;
-  tone: ControlTone;
-} {
-  if (metric.comparisonStatus !== 'available' || metric.deltaPercent === null) {
-    const labels = {
-      current_incomplete: 'PERÍODO INCOMPLETO',
-      comparison_unavailable: 'SEM BASE COMPARÁVEL',
-      source_unavailable: 'FONTE AINDA SEM COBERTURA',
-      no_denominator: 'SEM DENOMINADOR',
-      previous_zero: 'BASE ANTERIOR ZERO',
-    } as const;
-    return {
-      label: metric.comparisonStatus === 'available'
-        ? 'SEM VARIAÇÃO PERCENTUAL'
-        : labels[metric.comparisonStatus],
-      tone: metric.comparisonStatus === 'current_incomplete' ? 'warning' : 'neutral',
-    };
-  }
-  const direction = metric.deltaPercent === 0 ? 0 : metric.deltaPercent > 0 ? 1 : -1;
-  const healthy = inverse ? direction < 0 : direction > 0;
-  const label = `${metric.deltaPercent > 0 ? '+' : ''}${metric.deltaPercent.toLocaleString('pt-BR', {
-    maximumFractionDigits: 1,
-  })}%`;
-  return {
-    label,
-    tone: direction === 0 ? 'neutral' : healthy ? 'success' : 'warning',
-  };
+function formatDate(value: string | null): string {
+  return value ? value.split('-').reverse().join('/') : '—';
 }
 
-function MetricComparisonCard({
-  label,
-  metric,
-  detail,
-  format = 'integer',
-  inverse = false,
-  style,
-}: {
+function metricState(metric: MetricComparison, inverse = false): {
+  label: string;
+  tone?: 'warning' | 'danger';
+} {
+  if (metric.value === null) return { label: 'Sem leitura' };
+  if (metric.comparisonStatus === 'source_unavailable') return { label: 'Sem cobertura' };
+  if (metric.comparisonStatus === 'current_incomplete') {
+    return { label: 'Período incompleto', tone: 'warning' };
+  }
+  if (inverse && typeof metric.value === 'number' && metric.value > 0) {
+    return { label: 'Atenção', tone: 'warning' };
+  }
+  return { label: 'Normal' };
+}
+
+function formatRelative(iso: string, now = Date.now()): string {
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return '—';
+  const seconds = Math.max(0, Math.floor((now - ts) / 1000));
+  if (seconds < 45) return 'agora';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `há ${hours} h`;
+  return `há ${Math.floor(hours / 24)} d`;
+}
+
+type IndicatorRow = {
+  id: string;
   label: string;
   metric: MetricComparison;
-  detail: string;
   format?: MetricFormat;
   inverse?: boolean;
-  style?: ViewStyle;
-}) {
-  const delta = resolveDelta(metric, inverse);
-  return (
-    <ControlCard style={style}>
-      <View style={styles.metricHeader}>
-        <Text style={styles.metricLabel}>{label}</Text>
-        <ControlStatusBadge label={delta.label} tone={delta.tone} />
-      </View>
-      <Text selectable style={styles.metricValue}>{formatValue(metric.value, format)}</Text>
-      <Text style={styles.metricDetail}>{detail}</Text>
-      <Text style={styles.metricPrevious}>
-        Período anterior: {formatValue(metric.previous, format)}
-      </Text>
-    </ControlCard>
-  );
-}
+};
 
-function FilterChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
+const indicatorGrid = opsGridStyle('minmax(220px, 2fr) 110px 110px 140px');
+const sourceGrid = opsGridStyle('minmax(180px, 2fr) 110px 120px');
+
+function IndicatorTable({ rows }: { rows: IndicatorRow[] }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.filterChip,
-        selected && styles.filterChipSelected,
-        pressed && styles.filterChipPressed,
-      ]}
-    >
-      <Text numberOfLines={1} style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>
-        {label}
-      </Text>
-    </Pressable>
+    <OpsTableShell>
+      <OpsTableHead gridStyle={indicatorGrid}>
+        <OpsHeadCell>Indicador</OpsHeadCell>
+        <OpsHeadCell>Atual</OpsHeadCell>
+        <OpsHeadCell>Anterior</OpsHeadCell>
+        <OpsHeadCell>Estado</OpsHeadCell>
+      </OpsTableHead>
+      {rows.map((row) => {
+        const state = metricState(row.metric, row.inverse);
+        return (
+          <OpsTableRow key={row.id} gridStyle={indicatorGrid} accent={Boolean(state.tone)}>
+            <OpsCell strong numberOfLines={2}>{row.label}</OpsCell>
+            <OpsCell strong>{formatValue(row.metric.value, row.format ?? 'integer')}</OpsCell>
+            <OpsCell muted>{formatValue(row.metric.previous, row.format ?? 'integer')}</OpsCell>
+            <OpsCell tone={state.tone}>{state.label}</OpsCell>
+          </OpsTableRow>
+        );
+      })}
+    </OpsTableShell>
   );
 }
 
@@ -147,16 +126,7 @@ function TrendBars({ snapshot }: { snapshot: ControlExecutiveDashboard }) {
   const missingDays = series.length - availableValues.length;
 
   return (
-    <ControlCard>
-      <View style={styles.sectionHeading}>
-        <View style={styles.sectionCopy}>
-          <Text style={styles.sectionTitle}>Atendimentos concluídos por dia</Text>
-          <Text style={styles.sectionDescription}>
-            Movimento diário no período selecionado. As barras não representam valores monetários.
-          </Text>
-        </View>
-        <ControlStatusBadge label={`${series.length} DIAS`} tone="info" />
-      </View>
+    <View style={styles.chartBlock}>
       <View
         accessibilityLabel={
           `Série diária de atendimentos concluídos, máximo de ${maxValue}`
@@ -173,7 +143,7 @@ function TrendBars({ snapshot }: { snapshot: ControlExecutiveDashboard }) {
               <View
                 style={[
                   styles.bar,
-                  { height: Math.max(4, Math.round((point.completedAppointments / maxValue) * 72)) },
+                  { height: Math.max(4, Math.round((point.completedAppointments / maxValue) * 88)) },
                 ]}
               />
             )}
@@ -181,10 +151,11 @@ function TrendBars({ snapshot }: { snapshot: ControlExecutiveDashboard }) {
         ))}
       </View>
       <View style={styles.chartAxis}>
-        <Text style={styles.chartAxisText}>{snapshot.period.start.split('-').reverse().join('/')}</Text>
-        <Text style={styles.chartAxisText}>{snapshot.period.end.split('-').reverse().join('/')}</Text>
+        <Text style={styles.chartAxisText}>{formatDate(snapshot.period.start)}</Text>
+        <Text style={styles.chartAxisText}>{series.length} dias · máx. {maxValue.toLocaleString('pt-BR')}</Text>
+        <Text style={styles.chartAxisText}>{formatDate(snapshot.period.end)}</Text>
       </View>
-    </ControlCard>
+    </View>
   );
 }
 
@@ -195,16 +166,12 @@ export function ExecutiveDashboard({
   selectedScope,
   onRangeChange,
   onScopeChange,
+  onRefresh,
+  refreshing = false,
 }: ExecutiveDashboardProps) {
   const { width } = useWindowDimensions();
-  const primaryCardStyle: ViewStyle = width < controlLayout.mobileBreakpoint
-    ? { width: '100%' }
-    : width < controlLayout.compactBreakpoint
-      ? { width: '48%' }
-      : { width: '31%' };
-  const secondaryCardStyle: ViewStyle = width < controlLayout.mobileBreakpoint
-    ? { width: '100%' }
-    : { minWidth: 190, flexGrow: 1, flexBasis: 210 };
+  const compact = width < 960;
+  const [domain, setDomain] = useState<DomainTab>('operacao');
 
   const globalScope = scopes.find((scope) => scope.type === 'global') ?? {
     type: 'global' as const,
@@ -222,150 +189,270 @@ export function ExecutiveDashboard({
     (scope) => scope.type === 'establishment' && scope.parentId === selectedOrganizationId,
   );
 
+  const attentionItems = useMemo(() => {
+    const items: { id: string; label: string; detail: string }[] = [];
+    if (snapshot.dataQuality.missingDays > 0) {
+      items.push({
+        id: 'missing',
+        label: `${snapshot.dataQuality.missingDays} dia(s) sem snapshot`,
+        detail: 'Comparações podem ficar incompletas',
+      });
+    }
+    if (!snapshot.dataQuality.comparisonAvailable) {
+      items.push({
+        id: 'comparison',
+        label: 'Base comparável incompleta',
+        detail: 'Consulte Saúde dos dados',
+      });
+    }
+    if ((snapshot.guardrails.slaAtRisk.value ?? 0) > 0) {
+      items.push({
+        id: 'sla',
+        label: `${snapshot.guardrails.slaAtRisk.value} SLA comprometido`,
+        detail: 'Primeira resposta vencida no período',
+      });
+    }
+    if ((snapshot.guardrails.syncFailed.value ?? 0) > 0) {
+      items.push({
+        id: 'sync',
+        label: `${snapshot.guardrails.syncFailed.value} falhas de sync`,
+        detail: 'Exigem investigação operacional',
+      });
+    }
+    if ((snapshot.guardrails.criticalTickets.value ?? 0) > 0) {
+      items.push({
+        id: 'critical',
+        label: `${snapshot.guardrails.criticalTickets.value} tickets críticos`,
+        detail: 'Criados no período',
+      });
+    }
+    return items;
+  }, [snapshot]);
+
+  const domainRows: Record<DomainTab, IndicatorRow[]> = {
+    operacao: [
+      { id: 'completed', label: 'Atendimentos concluídos', metric: snapshot.kpis.completedAppointments },
+      { id: 'units', label: 'Unidades em operação', metric: snapshot.kpis.operatingEstablishments },
+      { id: 'created', label: 'Agendamentos criados', metric: snapshot.drivers.appointmentsCreated },
+      { id: 'confirmed', label: 'Agendamentos confirmados', metric: snapshot.drivers.appointmentsConfirmed },
+      { id: 'completion', label: 'Taxa de conclusão', metric: snapshot.drivers.completionRate, format: 'percent' },
+      { id: 'approved', label: 'Estabelecimentos aprovados', metric: snapshot.drivers.approvedEstablishments },
+      { id: 'activated', label: 'Ativações em 14 dias', metric: snapshot.drivers.activatedEstablishments14d },
+      { id: 'ttv', label: 'Tempo até valor', metric: snapshot.drivers.averageDaysToFirstCompletion, format: 'days', inverse: true },
+    ],
+    atendimento: [
+      { id: 'completed2', label: 'Atendimentos concluídos', metric: snapshot.kpis.completedAppointments },
+      { id: 'completion2', label: 'Taxa de conclusão', metric: snapshot.drivers.completionRate, format: 'percent' },
+      { id: 'cancel', label: 'Taxa de cancelamento', metric: snapshot.guardrails.cancellationRate, format: 'percent', inverse: true },
+      { id: 'sla', label: 'SLA comprometido', metric: snapshot.guardrails.slaAtRisk, inverse: true },
+      { id: 'critical', label: 'Tickets críticos', metric: snapshot.guardrails.criticalTickets, inverse: true },
+      { id: 'sync', label: 'Falhas de sincronização', metric: snapshot.guardrails.syncFailed, inverse: true },
+    ],
+    pessoas: [
+      { id: 'returning', label: 'Recorrência identificada', metric: snapshot.kpis.returningClientsRate, format: 'percent' },
+      { id: 'new', label: 'Clientes novos', metric: snapshot.drivers.newClients },
+      { id: 'ret', label: 'Clientes recorrentes', metric: snapshot.drivers.returningClients },
+      { id: 'activeClients', label: 'Clientes ativos', metric: snapshot.drivers.activeClients },
+      { id: 'pros', label: 'Profissionais ativos', metric: snapshot.drivers.activeProfessionals },
+      { id: 'owners', label: 'Proprietários ativos', metric: snapshot.drivers.activeOwners },
+      { id: 'idcov', label: 'Cobertura de identificação', metric: snapshot.guardrails.identifiedClientCoverage, format: 'percent' },
+    ],
+    qualidade: [
+      { id: 'cancel2', label: 'Taxa de cancelamento', metric: snapshot.guardrails.cancellationRate, format: 'percent', inverse: true },
+      { id: 'idcov2', label: 'Cobertura de identificação', metric: snapshot.guardrails.identifiedClientCoverage, format: 'percent' },
+      { id: 'critical2', label: 'Tickets críticos', metric: snapshot.guardrails.criticalTickets, inverse: true },
+      { id: 'sla2', label: 'SLA comprometido', metric: snapshot.guardrails.slaAtRisk, inverse: true },
+      { id: 'sync2', label: 'Falhas de sincronização', metric: snapshot.guardrails.syncFailed, inverse: true },
+    ],
+  };
+
+  const stripItems = [
+    {
+      label: 'Estado geral',
+      value: attentionItems.length ? 'Atenção' : 'Operacional',
+      tone: attentionItems.length ? 'warning' as const : 'neutral' as const,
+    },
+    {
+      label: 'Serviços',
+      value: 'Em preparação',
+    },
+    {
+      label: 'Incidentes',
+      value: '0 ativos',
+    },
+    {
+      label: 'Fila / risco',
+      value: String(snapshot.guardrails.slaAtRisk.value ?? '—'),
+      detail: 'SLA',
+      tone: (snapshot.guardrails.slaAtRisk.value ?? 0) > 0 ? 'warning' as const : undefined,
+    },
+    {
+      label: 'Dados',
+      value: snapshot.dataQuality.missingDays > 0 ? 'Lacunas' : 'Atualizados',
+      detail: formatDate(snapshot.dataQuality.latestCompleteDate),
+      tone: snapshot.dataQuality.missingDays > 0 ? 'warning' as const : undefined,
+    },
+  ];
+
   return (
     <View style={styles.dashboard}>
-      <ControlCard style={styles.filters}>
-        <View style={styles.filterGroup}>
-          <Text style={styles.filterLabel}>Período</Text>
-          <View style={styles.filterRow}>
+      <View style={styles.controls}>
+        <View style={styles.controlGroup}>
+          <Text style={styles.controlLabel}>Período</Text>
+          <View style={styles.chipRow}>
             {([7, 28, 90] as const).map((days) => (
-              <FilterChip
+              <OpsChip
                 key={days}
                 label={`${days} dias`}
-                onPress={() => onRangeChange(days)}
                 selected={rangeDays === days}
+                onPress={() => onRangeChange(days)}
               />
             ))}
           </View>
         </View>
-        <View style={styles.filterGroup}>
-          <Text style={styles.filterLabel}>Escopo</Text>
-          <View style={styles.filterRow}>
-            <FilterChip
+        <View style={styles.controlGroup}>
+          <Text style={styles.controlLabel}>Escopo</Text>
+          <View style={styles.chipRow}>
+            <OpsChip
               label={globalScope.label}
-              onPress={() => onScopeChange(globalScope)}
               selected={selectedScope.type === 'global'}
+              onPress={() => onScopeChange(globalScope)}
             />
             {organizations.map((scope) => (
-              <FilterChip
+              <OpsChip
                 key={scope.id}
                 label={scope.label}
-                onPress={() => onScopeChange(scope)}
                 selected={selectedOrganizationId === scope.id}
+                onPress={() => onScopeChange(scope)}
               />
             ))}
           </View>
         </View>
         {establishments.length ? (
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterLabel}>
-              {selectedOrganizationId ? 'Estabelecimento' : 'Estabelecimento independente'}
-            </Text>
-            <View style={styles.filterRow}>
+          <View style={styles.controlGroup}>
+            <Text style={styles.controlLabel}>Estabelecimento</Text>
+            <View style={styles.chipRow}>
               {establishments.map((scope) => (
-                <FilterChip
+                <OpsChip
                   key={scope.id}
                   label={scope.label}
-                  onPress={() => onScopeChange(scope)}
                   selected={selectedScope.type === 'establishment' && selectedScope.id === scope.id}
+                  onPress={() => onScopeChange(scope)}
                 />
               ))}
             </View>
           </View>
         ) : null}
-      </ControlCard>
-
-      <View style={styles.summary}>
-        <View style={styles.sectionCopy}>
-          <Text style={styles.sectionTitle}>Resultados principais</Text>
-          <Text style={styles.sectionDescription}>
-            {snapshot.scope.label} · {snapshot.period.days} dias comparados ao período anterior equivalente.
+        <View style={styles.refreshRow}>
+          <Text style={styles.metaText}>
+            Atualizado {formatRelative(snapshot.generatedAt)} · {snapshot.scope.label}
           </Text>
+          <OpsSecondaryButton
+            label={refreshing ? 'Atualizando…' : 'Atualizar'}
+            disabled={refreshing}
+            onPress={onRefresh}
+          />
         </View>
-        <ControlStatusBadge label={`DEFINIÇÃO V${snapshot.definitionVersion}`} tone="info" />
       </View>
 
-      <View style={styles.metricGrid}>
-        <MetricComparisonCard
-          detail="Valor operacional entregue no período"
-          label="Atendimentos concluídos"
-          metric={snapshot.kpis.completedAppointments}
-          style={primaryCardStyle}
-        />
-        <MetricComparisonCard
-          detail="Unidades distintas com atendimento concluído"
-          label="Unidades em operação"
-          metric={snapshot.kpis.operatingEstablishments}
-          style={primaryCardStyle}
-        />
-        <MetricComparisonCard
-          detail="Clientes identificados que já haviam sido atendidos no mesmo escopo"
-          format="percent"
-          label="Recorrência identificada"
-          metric={snapshot.kpis.returningClientsRate}
-          style={primaryCardStyle}
-        />
-      </View>
+      <OpsStrip items={stripItems} />
 
-      <TrendBars snapshot={snapshot} />
+      <OpsGrid compact={compact}>
+        <OpsMainCol>
+          <OpsPanel
+            title="Tendência operacional"
+            meta={<Text style={styles.metaText}>{snapshot.period.days} dias</Text>}
+          >
+            <Text style={styles.panelHint}>
+              Atendimentos concluídos por dia. Barras não representam valores monetários.
+            </Text>
+            <TrendBars snapshot={snapshot} />
+          </OpsPanel>
 
-      <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>Motores da operação</Text>
-        <Text style={styles.sectionDescription}>Indicadores que ajudam a explicar o movimento dos resultados.</Text>
-      </View>
-      <View style={styles.metricGrid}>
-        <MetricComparisonCard detail="Criados no período" label="Agendamentos criados" metric={snapshot.drivers.appointmentsCreated} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Status confirmado" label="Agendamentos confirmados" metric={snapshot.drivers.appointmentsConfirmed} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Concluídos sobre agenda elegível" format="percent" label="Taxa de conclusão" metric={snapshot.drivers.completionRate} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Solicitações aprovadas" label="Estabelecimentos aprovados" metric={snapshot.drivers.approvedEstablishments} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Primeiro atendimento em até 14 dias" label="Ativações em 14 dias" metric={snapshot.drivers.activatedEstablishments14d} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Da aprovação ao primeiro atendimento" format="days" inverse label="Tempo até valor" metric={snapshot.drivers.averageDaysToFirstCompletion} style={secondaryCardStyle} />
-      </View>
+          <OpsPanel title="Indicadores operacionais">
+            <View style={styles.chipRow}>
+              {([
+                ['operacao', 'Operação'],
+                ['atendimento', 'Atendimento'],
+                ['pessoas', 'Pessoas'],
+                ['qualidade', 'Qualidade'],
+              ] as const).map(([id, label]) => (
+                <OpsChip
+                  key={id}
+                  label={label}
+                  selected={domain === id}
+                  onPress={() => setDomain(id)}
+                />
+              ))}
+            </View>
+            <IndicatorTable rows={domainRows[domain]} />
+          </OpsPanel>
+        </OpsMainCol>
 
-      <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>Pessoas e recorrência</Text>
-        <Text style={styles.sectionDescription}>
-          Os grupos podem se sobrepor e não devem ser somados como identidades distintas.
-        </Text>
-      </View>
-      <View style={styles.metricGrid}>
-        <MetricComparisonCard detail="Primeiro atendimento identificado no escopo" label="Clientes novos" metric={snapshot.drivers.newClients} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Com atendimento anterior no escopo" label="Clientes recorrentes" metric={snapshot.drivers.returningClients} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Vínculos profissionais ativos" label="Profissionais ativos" metric={snapshot.drivers.activeProfessionals} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Vínculos de propriedade ativos" label="Proprietários ativos" metric={snapshot.drivers.activeOwners} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Clientes identificados na agenda elegível" label="Clientes ativos" metric={snapshot.drivers.activeClients} style={secondaryCardStyle} />
-      </View>
+        <OpsSideCol sticky={!compact}>
+          <OpsPanel title="Atenção necessária">
+            {attentionItems.length === 0 ? (
+              <OpsInlineNotice message="Nenhum item exige ação imediata nesta sessão." tone="success" />
+            ) : (
+              <View style={styles.attentionList}>
+                {attentionItems.map((item) => (
+                  <View key={item.id} style={styles.attentionRow}>
+                    <Text style={styles.attentionLabel}>{item.label}</Text>
+                    <Text style={styles.attentionDetail}>{item.detail}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </OpsPanel>
 
-      <View style={styles.sectionCopy}>
-        <Text style={styles.sectionTitle}>Qualidade e risco</Text>
-        <Text style={styles.sectionDescription}>Guardrails para interpretar crescimento sem esconder perda de qualidade.</Text>
-      </View>
-      <View style={styles.metricGrid}>
-        <MetricComparisonCard detail="Cancelados sobre agenda elegível" format="percent" inverse label="Taxa de cancelamento" metric={snapshot.guardrails.cancellationRate} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Concluídos com cliente identificado" format="percent" label="Cobertura de identificação" metric={snapshot.guardrails.identifiedClientCoverage} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Criados no período com prioridade crítica" inverse label="Tickets críticos" metric={snapshot.guardrails.criticalTickets} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Primeira resposta vencida no período" inverse label="SLA comprometido" metric={snapshot.guardrails.slaAtRisk} style={secondaryCardStyle} />
-        <MetricComparisonCard detail="Operações que exigem investigação" inverse label="Falhas de sincronização" metric={snapshot.guardrails.syncFailed} style={secondaryCardStyle} />
-      </View>
+          <OpsPanel title="Qualidade dos dados">
+            <OpsDefList
+              rows={[
+                {
+                  label: 'Snapshot até',
+                  value: formatDate(snapshot.dataQuality.latestCompleteDate),
+                },
+                {
+                  label: 'Dias ausentes',
+                  value: String(snapshot.dataQuality.missingDays),
+                  tone: snapshot.dataQuality.missingDays > 0 ? 'caution' : 'neutral',
+                },
+                {
+                  label: 'Comparação',
+                  value: snapshot.dataQuality.comparisonAvailable ? 'Disponível' : 'Incompleta',
+                  tone: snapshot.dataQuality.comparisonAvailable ? 'neutral' : 'caution',
+                },
+                {
+                  label: 'Definição',
+                  value: `v${snapshot.definitionVersion}`,
+                },
+              ]}
+            />
+          </OpsPanel>
 
-      <ControlNotice
-        message={
-          snapshot.dataQuality.missingDays > 0
-            ? `${snapshot.dataQuality.missingDays} dia(s) do período ainda não possuem snapshot finalizado. Comparações incompletas são sinalizadas como sem base.`
-            : !snapshot.dataQuality.comparisonAvailable
-              ? `O período atual está reconciliado, mas uma ou mais fontes ainda não cobrem toda a comparação. Consulte Saúde dos dados para ver a data de disponibilidade.`
-            : `Dados reconciliados até ${snapshot.dataQuality.latestCompleteDate
-              ? snapshot.dataQuality.latestCompleteDate.split('-').reverse().join('/')
-              : 'o dia corrente'}.`
-        }
-        title="Qualidade dos dados"
-        tone={
-          snapshot.dataQuality.missingDays > 0
-            || !snapshot.dataQuality.comparisonAvailable
-            ? 'warning'
-            : 'success'
-        }
-      />
+          <OpsPanel title="Serviços e capacidade">
+            <OpsTableShell>
+              <OpsTableHead gridStyle={sourceGrid}>
+                <OpsHeadCell>Fonte</OpsHeadCell>
+                <OpsHeadCell>Estado</OpsHeadCell>
+                <OpsHeadCell>Desde</OpsHeadCell>
+              </OpsTableHead>
+              {snapshot.dataQuality.sourceCoverage.map((source) => (
+                <OpsTableRow key={source.family} gridStyle={sourceGrid}>
+                  <OpsCell strong numberOfLines={2}>{source.label}</OpsCell>
+                  <OpsCell
+                    tone={source.status === 'available' ? undefined : 'warning'}
+                  >
+                    {source.status === 'available' ? 'Ok' : source.status === 'partial' ? 'Parcial' : 'Indisp.'}
+                  </OpsCell>
+                  <OpsCell muted>{formatDate(source.availableFrom)}</OpsCell>
+                </OpsTableRow>
+              ))}
+            </OpsTableShell>
+          </OpsPanel>
+        </OpsSideCol>
+      </OpsGrid>
+
       <Text style={styles.freshness}>
         Gerado em {new Date(snapshot.generatedAt).toLocaleString('pt-BR')} · {snapshot.timezone}
         {snapshot.dataQuality.freshnessAt
@@ -377,80 +464,61 @@ export function ExecutiveDashboard({
 }
 
 const styles = StyleSheet.create({
-  dashboard: { width: '100%', gap: controlSpacing.xl },
-  filters: { gap: controlSpacing.md },
-  filterGroup: { gap: controlSpacing.xs },
-  filterLabel: { ...controlType.label, color: controlColors.textSecondary, textTransform: 'uppercase' },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: controlSpacing.xs },
-  filterChip: {
-    maxWidth: 280,
-    minHeight: 40,
-    justifyContent: 'center',
-    paddingHorizontal: controlSpacing.md,
-    borderWidth: 1,
-    borderColor: controlColors.border,
-    borderRadius: controlRadii.pill,
-    backgroundColor: controlColors.surfaceMuted,
+  dashboard: { width: '100%', gap: 18 },
+  controls: { gap: 12 },
+  controlGroup: { gap: 6 },
+  controlLabel: {
+    color: cloudTheme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
-  filterChipSelected: { borderColor: controlColors.brand, backgroundColor: controlColors.brandSoft },
-  filterChipPressed: { opacity: 0.78 },
-  filterChipText: { ...controlType.smallStrong, color: controlColors.textSecondary },
-  filterChipTextSelected: { color: controlColors.brand },
-  summary: {
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  refreshRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: controlSpacing.md,
+    gap: 10,
   },
-  sectionHeading: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: controlSpacing.md,
-  },
-  sectionCopy: { minWidth: 220, flex: 1, gap: controlSpacing.xxs },
-  sectionTitle: { ...controlType.sectionTitle, color: controlColors.text },
-  sectionDescription: { ...controlType.small, color: controlColors.textSecondary },
-  metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: controlSpacing.md },
-  metricHeader: {
-    minHeight: 32,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: controlSpacing.sm,
-  },
-  metricLabel: { ...controlType.smallStrong, minWidth: 120, flex: 1, color: controlColors.textSecondary },
-  metricValue: { ...controlType.metric, color: controlColors.brand },
-  metricDetail: { ...controlType.small, color: controlColors.textSecondary },
-  metricPrevious: { ...controlType.small, color: controlColors.textMuted },
+  metaText: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600' },
+  panelHint: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  chartBlock: { gap: 8 },
   chart: {
-    minHeight: 82,
+    minHeight: 96,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 2,
-    paddingTop: controlSpacing.sm,
+    paddingTop: 8,
     borderBottomWidth: 1,
-    borderBottomColor: controlColors.border,
+    borderBottomColor: cloudTheme.colors.border,
   },
   barSlot: { minWidth: 2, flex: 1, justifyContent: 'flex-end' },
   bar: {
     width: '100%',
     minWidth: 2,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-    backgroundColor: controlColors.accent,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    backgroundColor: '#5A7263',
   },
   missingBar: {
     height: 4,
     width: '100%',
     minWidth: 2,
-    borderRadius: 2,
-    backgroundColor: controlColors.border,
+    borderRadius: 1,
+    backgroundColor: cloudTheme.colors.border,
   },
-  chartAxis: { flexDirection: 'row', justifyContent: 'space-between' },
-  chartAxisText: { ...controlType.small, color: controlColors.textMuted },
-  freshness: { ...controlType.small, color: controlColors.textMuted },
+  chartAxis: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  chartAxisText: { color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '600' },
+  attentionList: { gap: 0 },
+  attentionRow: {
+    gap: 2,
+    minHeight: 48,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: cloudTheme.colors.border,
+  },
+  attentionLabel: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
+  attentionDetail: { color: cloudTheme.colors.textSecondary, fontSize: 12 },
+  freshness: { color: cloudTheme.colors.textMuted, fontSize: 12 },
 });

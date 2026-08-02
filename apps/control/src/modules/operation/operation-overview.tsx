@@ -2,10 +2,13 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { ControlNotice } from '@/components/control-ui';
 import { ExecutiveDashboard } from '@/components/executive-dashboard';
 import { RequireControlPermission } from '@/components/require-control-permission';
-import { SectionPage } from '@/components/section-page';
+import {
+  OpsHeader,
+  OpsPage,
+  OpsSecondaryButton,
+} from '@/modules/operation/ops-console';
 import {
   ControlExecutiveApiError,
   createControlMetricRange,
@@ -15,7 +18,7 @@ import {
   type ControlMetricRangeDays,
   type ControlMetricScopeOption,
 } from '@/services/control-executive';
-import { colors } from '@/theme/tokens';
+import { cloudTheme } from '@/theme/cloud-components';
 
 const globalScope: ControlMetricScopeOption = {
   type: 'global',
@@ -42,7 +45,6 @@ export function OperationOverviewScreen() {
     requestIdRef.current = requestId;
     setLoading(true);
     setError('');
-    setSnapshot(null);
 
     try {
       const availableScopes = await listControlMetricScopes();
@@ -65,6 +67,7 @@ export function OperationOverviewScreen() {
       setSnapshot(nextSnapshot);
     } catch (loadError) {
       if (requestId !== requestIdRef.current) return;
+      setSnapshot(null);
       setError(
         loadError instanceof ControlExecutiveApiError
           ? loadError.message
@@ -86,43 +89,57 @@ export function OperationOverviewScreen() {
 
   return (
     <RequireControlPermission permission="control.dashboard.read">
-      <SectionPage
-        eyebrow="VISÃO EXECUTIVA"
-        title="Cockpit da operação"
-        description="Resultados, motores e riscos consolidados por plataforma, organização ou estabelecimento. Valores monetários e latência em ms permanecem fora desta visão quando a fonte ainda não existe."
-      >
-        {loading ? (
+      <OpsPage>
+        <OpsHeader
+          kicker="OPERAÇÃO / VISÃO GERAL"
+          title="Cockpit da operação"
+          description="Estado consolidado da plataforma, operação e qualidade dos dados. Valores monetários e latência em ms permanecem fora desta visão quando a fonte ainda não existe."
+        />
+
+        {loading && !snapshot ? (
           <View style={styles.loading}>
-            <ActivityIndicator color={colors.brand} />
+            <ActivityIndicator color={cloudTheme.colors.brand} />
             <Text style={styles.loadingText}>Reconciliando indicadores...</Text>
           </View>
         ) : null}
 
         {error ? (
-          <ControlNotice
-            action={{ label: 'Tentar novamente', onPress: () => { void loadDashboard(); } }}
-            message={error}
-            title="Indicadores indisponíveis"
-            tone="danger"
-          />
+          <View style={styles.errorRow}>
+            <Text style={styles.errorText}>{error}</Text>
+            <OpsSecondaryButton label="Tentar novamente" onPress={() => { void loadDashboard(); }} />
+          </View>
         ) : null}
 
         {snapshot ? (
           <ExecutiveDashboard
             onRangeChange={setRangeDays}
+            onRefresh={() => { void loadDashboard(); }}
             onScopeChange={setSelectedScope}
             rangeDays={rangeDays}
+            refreshing={loading}
             scopes={scopes}
             selectedScope={selectedScope}
             snapshot={snapshot}
           />
         ) : null}
-      </SectionPage>
+      </OpsPage>
     </RequireControlPermission>
   );
 }
 
 const styles = StyleSheet.create({
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  loadingText: { color: '#78827b', fontSize: 12, lineHeight: 17 },
+  loadingText: { color: cloudTheme.colors.textSecondary, fontSize: 13 },
+  errorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.danger,
+    borderRadius: 4,
+    backgroundColor: cloudTheme.colors.dangerSoft,
+  },
+  errorText: { flex: 1, minWidth: 200, color: cloudTheme.colors.danger },
 });

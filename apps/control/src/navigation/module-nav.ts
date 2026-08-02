@@ -9,6 +9,8 @@ export type CloudNavItem = {
   href: CloudRoutePath;
   /** Optional in-module section when multiple items share the same route. */
   section?: string;
+  /** Optional sidebar group label (rendered once before the first item of the group). */
+  group?: string;
   permission: ControlPermission | ControlPermission[];
   exact?: boolean;
 };
@@ -71,6 +73,7 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         href: CLOUD_ROUTES.operacao.root,
         permission: 'control.dashboard.read',
         exact: true,
+        group: 'Monitoramento',
       },
       {
         id: 'op-services',
@@ -79,24 +82,28 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         section: 'services',
         permission: 'control.dashboard.read',
         exact: true,
+        group: 'Monitoramento',
       },
       {
         id: 'op-live',
         label: 'Tempo real',
         href: CLOUD_ROUTES.operacao.tempoReal,
         permission: 'control.live.read',
+        group: 'Monitoramento',
       },
       {
         id: 'op-incidents',
         label: 'Incidentes',
         href: CLOUD_ROUTES.operacao.incidentes,
         permission: 'control.dashboard.read',
+        group: 'Monitoramento',
       },
       {
         id: 'op-health',
         label: 'Saúde dos dados',
         href: CLOUD_ROUTES.operacao.saudeDosDados,
         permission: 'control.dashboard.read',
+        group: 'Confiabilidade',
       },
     ],
   },

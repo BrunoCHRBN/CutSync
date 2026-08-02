@@ -93,6 +93,21 @@ test('last module memory ignores Central and remains in-memory only', () => {
   expect(getLastModuleId()).toBe('support');
 });
 
+test('operation module groups monitoramento and confiabilidade', () => {
+  const can = canFactory(['control.dashboard.read', 'control.live.read']);
+  const items = navItemsForModule('operation', can);
+  const byLabel = Object.fromEntries(items.map((item) => [item.label, item]));
+
+  expect(byLabel['Visão geral']?.group).toBe('Monitoramento');
+  expect(byLabel.Serviços?.group).toBe('Monitoramento');
+  expect(byLabel['Tempo real']?.group).toBe('Monitoramento');
+  expect(byLabel.Incidentes?.group).toBe('Monitoramento');
+  expect(byLabel['Saúde dos dados']?.group).toBe('Confiabilidade');
+  expect(isNavItemSelected('/operacao', byLabel['Visão geral']!)).toBe(true);
+  expect(isNavItemSelected('/operacao', byLabel.Serviços!, 'services')).toBe(true);
+  expect(isNavItemSelected('/operacao/saude-dos-dados', byLabel['Saúde dos dados']!)).toBe(true);
+});
+
 test('support module uses canonical routes and selects one sidebar item per path', () => {
   const can = canFactory(['control.support.read', 'control.support.manage']);
   const items = navItemsForModule('support', can);

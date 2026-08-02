@@ -2,11 +2,14 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { PageHeader } from '@/components/cloud/page-header';
-import { ControlNotice } from '@/components/control-ui';
 import { DataQualityDashboard } from '@/components/data-quality-dashboard';
 import { RequireControlPermission } from '@/components/require-control-permission';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import {
+  OpsHeader,
+  OpsPage,
+  OpsSecondaryButton,
+} from '@/modules/operation/ops-console';
 import {
   ControlAnalyticsHealthApiError,
   loadControlAnalyticsHealth,
@@ -14,7 +17,18 @@ import {
   type ControlAnalyticsHealth,
 } from '@/services/control-analytics-health';
 import { cloudTheme } from '@/theme/cloud-components';
-import { controlColors, controlSpacing, controlType } from '@/theme/tokens';
+
+function formatRelative(iso: string, now = Date.now()): string {
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return '—';
+  const seconds = Math.max(0, Math.floor((now - ts) / 1000));
+  if (seconds < 45) return 'agora';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `há ${hours} h`;
+  return `há ${Math.floor(hours / 24)} d`;
+}
 
 export function DataQualityScreen() {
   const { context } = useControlAuth();
@@ -74,37 +88,41 @@ export function DataQualityScreen() {
 
   return (
     <RequireControlPermission permission="control.dashboard.read">
-      <View style={styles.page}>
-        <PageHeader
-          eyebrow="CONFIABILIDADE"
-          title="Saúde dos dados"
-          description="Cobertura integral, dados reconciliados, dias ausentes, fila pendente, cobertura por fonte, comparações históricas, snapshots e processamentos recentes."
-          badge="DADOS REAIS"
-          badgeTone="success"
+      <OpsPage>
+        <OpsHeader
+          kicker="OPERAÇÃO / SAÚDE DOS DADOS"
+          title="Confiabilidade"
+          description="Cobertura, continuidade de snapshots, comparações históricas e processamentos. Sem métricas simuladas."
+          meta={health ? (
+            <Text style={styles.meta}>
+              Atualizado {formatRelative(health.generatedAt)}
+            </Text>
+          ) : undefined}
+          actions={(
+            <OpsSecondaryButton
+              label={loading ? 'Atualizando…' : 'Atualizar'}
+              disabled={loading}
+              onPress={() => { void loadHealth(); }}
+            />
+          )}
         />
 
         {loading && !health ? (
           <View style={styles.loading}>
-            <ActivityIndicator color={controlColors.brand} />
+            <ActivityIndicator color={cloudTheme.colors.brand} />
             <Text style={styles.loadingText}>Verificando fontes e snapshots...</Text>
           </View>
         ) : null}
 
         {error ? (
-          <ControlNotice
-            action={{ label: 'Tentar novamente', onPress: () => { void loadHealth(); } }}
-            message={error}
-            title="Saúde analítica indisponível"
-            tone="danger"
-          />
+          <View style={styles.errorRow}>
+            <Text style={styles.errorText}>{error}</Text>
+            <OpsSecondaryButton label="Tentar novamente" onPress={() => { void loadHealth(); }} />
+          </View>
         ) : null}
 
         {success ? (
-          <ControlNotice
-            message={success}
-            title="Reprocessamento solicitado"
-            tone="success"
-          />
+          <Text style={styles.success}>{success}</Text>
         ) : null}
 
         {health ? (
@@ -115,23 +133,30 @@ export function DataQualityScreen() {
             reprocessing={reprocessing}
           />
         ) : null}
-      </View>
+      </OpsPage>
     </RequireControlPermission>
   );
 }
 
 const styles = StyleSheet.create({
-  page: {
-    width: '100%',
-    maxWidth: cloudTheme.layout.contentMax,
-    alignSelf: 'center',
-    gap: cloudTheme.spacing.xl,
-    padding: cloudTheme.layout.contentPadding,
-  },
+  meta: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600' },
   loading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: controlSpacing.sm,
+    gap: 8,
   },
-  loadingText: { ...controlType.small, color: controlColors.textSecondary },
+  loadingText: { color: cloudTheme.colors.textSecondary, fontSize: 13 },
+  errorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.danger,
+    borderRadius: 4,
+    backgroundColor: cloudTheme.colors.dangerSoft,
+  },
+  errorText: { flex: 1, minWidth: 200, color: cloudTheme.colors.danger },
+  success: { color: '#1F6B45', fontSize: 13, fontWeight: '600' },
 });
