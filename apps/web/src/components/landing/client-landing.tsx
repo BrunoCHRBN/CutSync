@@ -611,10 +611,11 @@ const styles = StyleSheet.create({
   heroBrand: { color: landingColors.brand, fontFamily: landingTypography.displayBold, fontSize: 42, lineHeight: 46, letterSpacing: -1.6 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
-  heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
+  heroBadgeText: { color: landingColors.brandStrong, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
   heroTitle: { maxWidth: 680, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 64, lineHeight: 70, letterSpacing: -2.8 },
   heroTitleMobile: { fontSize: 38, lineHeight: 44, letterSpacing: -1.6 },
-  heroDescription: { maxWidth: 540, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
+  // Tinta cheia no hero: inkSecondary se perdia nas folhas e madeira da foto.
+  heroDescription: { maxWidth: 540, color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29, opacity: 0.82 },
   heroActions: { paddingTop: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
   // Busca unificada: um único controle no desktop, campos empilhados abaixo do breakpoint.
