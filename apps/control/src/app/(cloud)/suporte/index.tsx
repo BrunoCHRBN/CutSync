@@ -6,7 +6,7 @@ import { FeedbackState } from '@/components/cloud/feedback-state';
 import { PageHeader } from '@/components/cloud/page-header';
 import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
-import { SupportOverview } from '@/modules/support/support-overview';
+import { SupportOverviewScreen } from '@/modules/support/support-overview';
 import { cloudTheme } from '@/theme/cloud-components';
 
 export default function SuporteRoute() {
@@ -57,7 +57,7 @@ export default function SuporteRoute() {
     );
   }
 
-  return <SupportOverview />;
+  return <SupportOverviewScreen />;
 }
 
 const styles = StyleSheet.create({

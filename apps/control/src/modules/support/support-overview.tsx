@@ -10,7 +10,7 @@ import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import {
   ControlSupportError,
   getControlSupportOverview,
-  type SupportOverview,
+  type SupportOverview as SupportOverviewData,
 } from '@/services/control-support';
 import { cloudTheme } from '@/theme/cloud-components';
 
@@ -23,9 +23,9 @@ function loadErrorMessage(error: unknown): string {
   return 'O resumo do suporte está temporariamente indisponível.';
 }
 
-export function SupportOverview() {
+export function SupportOverviewScreen() {
   const { can, context } = useControlAuth();
-  const [overview, setOverview] = useState<SupportOverview | null>(null);
+  const [overview, setOverview] = useState<SupportOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const requestId = useRef(0);
