@@ -415,6 +415,14 @@ silenciosa na importação.
 
 ## 9. Etapa 7 — Testes
 
+Status: implementada. Unitários em
+`tests/unit/establishment-client.unit.spec.ts` (8 casos, matriz alinhada ao
+SQL). SQL coberto por `establishment_client_enrichment`,
+`establishment_client_lifecycle`, `establishment_client_appointment_link` e
+`establishment_client_search_accent` (acento + tenant). Migration
+`20260810000000_establishment_client_search_accent.sql` validada em dry-run e
+aplicada em homolog (`20260810000000` registrada). Produção não foi tocada.
+
 | Camada | Cobertura |
 | --- | --- |
 | Unitário | Normalização de telefone e e-mail, transições de `status`, precedência de consentimento na unificação |
@@ -437,7 +445,7 @@ Os testes SQL seguem o formato das matrizes existentes em `supabase/tests/`
 | 6 | `database: backfill profile-linked establishment clients` — feito (na mesma migration) | 5 |
 | 7 | `web: add establishment client directory` — feito (código local) | 2, 4 |
 | 8 | `business: expose client origin, consent and archiving` — feito (código local) | 2, 4 |
-| 9 | `testing: add establishment client sql coverage` | 6 |
+| 9 | `testing: add establishment client sql coverage` — feito (código local + homolog) | 6 |
 
 ## 11. Marco de conclusão
 
