@@ -54,13 +54,15 @@ function BarbershopProfileSkeleton() {
 }
 
 export const BarbershopProfileExperience = () => {
-  const { barbershopId } = useLocalSearchParams<{ barbershopId: string }>();
+  const params = useLocalSearchParams<{ establishmentId?: string; barbershopId?: string }>();
+  const establishmentId = (Array.isArray(params.establishmentId) ? params.establishmentId[0] : params.establishmentId)
+    || (Array.isArray(params.barbershopId) ? params.barbershopId[0] : params.barbershopId);
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const router = useRouter();
-  const { establishment: barbershop, loading } = useEstablishment(barbershopId);
-  const { services } = useServices(barbershopId, true);
-  const { team: barbers } = usePublicTeam(barbershopId);
+  const { establishment: barbershop, loading } = useEstablishment(establishmentId);
+  const { services } = useServices(establishmentId, true);
+  const { team: barbers } = usePublicTeam(establishmentId);
   const [mapLoaded, setMapLoaded] = useState(false);
 
   const galleryPhotos = useMemo(() => {
@@ -109,10 +111,10 @@ export const BarbershopProfileExperience = () => {
   const instagramHandle = normalizeInstagramHandle(barbershop.instagram);
   const goBooking = (options?: { professionalId?: string; serviceId?: string }) => {
     tapLight();
-    const params = new URLSearchParams({ barbershopId: String(barbershopId) });
-    if (options?.professionalId) params.set('professionalId', options.professionalId);
-    if (options?.serviceId) params.set('serviceId', options.serviceId);
-    router.push(`/(client)/booking?${params.toString()}`);
+    const bookingParams = new URLSearchParams({ establishmentId: String(establishmentId) });
+    if (options?.professionalId) bookingParams.set('professionalId', options.professionalId);
+    if (options?.serviceId) bookingParams.set('serviceId', options.serviceId);
+    router.push(`/(client)/booking?${bookingParams.toString()}`);
   };
   const openProfessional = (professional: (typeof barbers)[number]) => {
     tapLight();

@@ -59,7 +59,16 @@ const ANY_PROFESSIONAL = 'any';
 export const EstablishmentBookingExperience = () => {
   const { width } = useWindowDimensions();
   const isMobileWeb = width < layout.mobileBreakpoint;
-  const { by, identifier, slug, rescheduleId, initialProfessionalId, initialServiceId } = useEstablishmentRouteParams();
+  const {
+    by,
+    identifier,
+    slug,
+    establishmentId,
+    barbershopId,
+    rescheduleId,
+    initialProfessionalId,
+    initialServiceId,
+  } = useEstablishmentRouteParams();
   const router = useRouter();
   const { user } = useAuth();
 
@@ -323,19 +332,19 @@ export const EstablishmentBookingExperience = () => {
   const primaryColor = theme.primary;
   const primaryForeground = theme.onPrimary;
   const profileSlug = slug || barbershop?.slug;
-  const clientBarbershopId = barbershopId || (by === 'id' ? barbershop?.id : undefined);
+  const clientEstablishmentId = establishmentId || barbershopId || (by === 'id' ? barbershop?.id : undefined);
 
   const goBackFromBooking = () => {
-    // Preserve the entry surface: client detail uses barbershopId; public pages use /:slug.
+    // Preserve the entry surface: client detail uses establishmentId; public pages use /:slug.
     // Prefer history when available so Explore → detalhe → booking returns to the same detalhe.
     if (router.canGoBack()) {
       router.back();
       return;
     }
-    if (clientBarbershopId) {
+    if (clientEstablishmentId) {
       router.replace({
-        pathname: '/(client)/barbershop',
-        params: { barbershopId: clientBarbershopId },
+        pathname: '/(client)/establishment',
+        params: { establishmentId: clientEstablishmentId },
       } as never);
       return;
     }

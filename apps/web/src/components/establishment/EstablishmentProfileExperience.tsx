@@ -193,7 +193,7 @@ function EstablishmentProfileBody({
     }
     router.push({
       pathname: '/(client)/booking',
-      params: { barbershopId: barbershop.id, ...(professionalId ? { professional_id: professionalId } : {}) },
+      params: { establishmentId: barbershop.id, ...(professionalId ? { professionalId } : {}) },
     } as never);
   };
 

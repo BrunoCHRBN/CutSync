@@ -121,13 +121,16 @@ test('reutiliza o wizard para reagendar sem atualizar appointments diretamente',
   expect(webBooking).not.toMatch(/from\('appointments'\)[\s\S]{0,300}\.update\(/);
 });
 
-test('volta do booking web para o detalhe Client por barbershopId, não para /:slug público', () => {
+test('volta do booking web para o detalhe Client por establishmentId, não para /:slug público', () => {
   const webBooking = readSource('apps/web/src/components/establishment/EstablishmentBookingExperience.tsx');
+  const routeParams = readSource('apps/web/src/hooks/use-establishment-route-params.ts');
 
   expect(webBooking).toContain('goBackFromBooking');
-  expect(webBooking).toContain("pathname: '/(client)/barbershop'");
-  expect(webBooking).toContain('params: { barbershopId: clientBarbershopId }');
+  expect(webBooking).toContain("pathname: '/(client)/establishment'");
+  expect(webBooking).toContain('params: { establishmentId: clientEstablishmentId }');
   expect(webBooking).toContain('router.canGoBack()');
-  // Must not prefer public slug over the client entry path when barbershopId is present.
+  expect(routeParams).toContain('establishmentId');
+  expect(routeParams).toContain("first(params.establishmentId) || first(params.barbershopId)");
+  // Must not prefer public slug over the client entry path when establishmentId is present.
   expect(webBooking).not.toMatch(/if \(profileSlug\) \{\s*router\.push\(`\/\$\{profileSlug\}`/);
 });

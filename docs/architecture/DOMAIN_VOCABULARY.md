@@ -107,13 +107,13 @@ Usar por PR pequena e vertical. Não misturar redesign visual com rename amplo.
 Ordem sugerida:
 
 1. **Params e rotas**
-   - [ ] Aceitar `establishmentId` em `useEstablishmentRouteParams`
-   - [ ] Manter leitura de `barbershopId` como alias depreciado
-   - [ ] Nova rota `/(client)/establishment` (reexport ou move)
-   - [ ] Redirect/compat de `/(client)/barbershop` → establishment
+   - [x] Aceitar `establishmentId` em `useEstablishmentRouteParams`
+   - [x] Manter leitura de `barbershopId` como alias depreciado
+   - [x] Nova rota `/(client)/establishment` (reexport ou move)
+   - [x] Redirect/compat de `/(client)/barbershop` → establishment
 2. **Navegação**
-   - [ ] Explore, favoritos, rebooking e voltar-do-booking usam `establishmentId` + rota nova
-   - [ ] Garantir que voltar do booking nunca prefira `/:slug` na jornada Client
+   - [x] Explore, favoritos, rebooking e voltar-do-booking usam `establishmentId` + rota nova
+   - [x] Garantir que voltar do booking nunca prefira `/:slug` na jornada Client
 3. **Componentes**
    - [ ] Renomear `BarbershopProfileExperience` → experiência de establishment no Client
    - [ ] Trocar variáveis locais `barbershop`/`barbers`/`selectedBarber` nos arquivos tocados

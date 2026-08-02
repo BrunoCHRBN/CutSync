@@ -360,7 +360,7 @@ export const ExploreExperience = () => {
 
   const openShop = (id: string) => {
     tapLight();
-    router.push({ pathname: '/(client)/barbershop', params: { barbershopId: id } });
+    router.push({ pathname: '/(client)/establishment', params: { establishmentId: id } });
   };
 
   const handleToggleFavorite = useCallback((establishmentId: string) => {

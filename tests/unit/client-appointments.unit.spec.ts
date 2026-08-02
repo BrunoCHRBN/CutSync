@@ -130,6 +130,7 @@ test('oferece novo agendamento a partir do histórico e do atendimento encerrado
   expect(webAppointments).toContain('handleRebook');
   expect(webAppointments).toContain('client-appointment-${item.id}-rebook-button');
   expect(webAppointments).toContain("pathname: '/(client)/booking'");
+  expect(webAppointments).toContain('establishmentId: item.shopId');
   expect(webAppointments).toContain('params.serviceId = item.serviceId');
   expect(webBooking).toContain('initialServiceId');
   expect(webBooking).toContain('setSelectedService(initialServiceId)');
