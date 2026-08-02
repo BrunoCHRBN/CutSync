@@ -163,11 +163,24 @@ Crie um projeto Vercel exclusivo para o Cloud (hoje ainda `@cutsync/control`) co
 - `experiments.baseUrl: "/cloud"` — links e assets do export apontam para `/cloud/*`;
 - rewrite interno em `apps/control/vercel.json`: `/cloud/:path*` → `/:path*` (o `dist` continua na raiz);
 - redirects apex em `apps/control/vercel.json` para favoritos legados (`/login` → `/cloud/login`, etc.);
-- variáveis públicas apontando para a homologação no Preview e para produção apenas depois da promoção.
+- variáveis públicas apontando para a homologação no Preview e Production
+  (Control/Cloud permanece em Homolog por política operacional);
+- as variáveis `EXPO_PUBLIC_*` são embutidas no `expo export` — mudar env na
+  Vercel exige **redeploy**; Preview sem URL/publishable key de Homolog faz o
+  login falhar (antes mascarado como “E-mail ou senha inválidos”).
+
+Confirme no bundle/login a linha `Projeto Auth: <host>.supabase.co` apontando
+para Homolog (`sphbbqdgcreowxzjgibj`). Se o host estiver ausente ou errado,
+corrija Preview/Production Environment Variables e redesdobre.
 
 No projeto público Web, o rewrite `/cloud/:path*` deve apontar para o host do
 projeto Cloud **antes** do catch-all SPA. O Cloud não deve compartilhar o
 bundle de `apps/web`.
+
+URL canônica após o deploy com `baseUrl`:
+
+- Preview/Production do projeto Control: `https://<host>/cloud/login`
+- Favoritos antigos `/login` redirecionam para `/cloud/login`
 
 ### Rollback sem banco
 

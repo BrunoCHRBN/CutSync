@@ -7,7 +7,7 @@ import {
 import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 
 import { parseControlContext } from '@/services/control-context';
-import { supabase } from '@/services/supabase';
+import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import type { ControlContext, ControlPermission } from '@/types/control';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -208,12 +208,37 @@ export function ControlAuthProvider({ children }: { children: React.ReactNode })
   const signIn = useCallback(async (email: string, password: string) => {
     setMessage('');
     setStatus('loading');
+
+    if (!isSupabaseConfigured) {
+      setMessage(
+        'Ambiente Cloud sem Supabase configurado neste build. Na Vercel do projeto Control, defina a URL e a publishable key de Homolog para Preview/Production e redeploy.',
+      );
+      setStatus('signed_out');
+      return;
+    }
+
     const result = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
     if (result.error || !result.data.session) {
-      setMessage('E-mail ou senha inválidos.');
+      const code = result.error?.code ?? '';
+      const details = result.error?.message?.toLowerCase() ?? '';
+      if (
+        code === 'invalid_credentials'
+        || details.includes('invalid login credentials')
+        || details.includes('invalid_credentials')
+      ) {
+        setMessage('E-mail ou senha inválidos.');
+      } else if (details.includes('failed to fetch') || details.includes('network')) {
+        setMessage('Não foi possível contactar o Supabase. Confirme a URL pública deste build.');
+      } else {
+        setMessage(
+          result.error?.message
+            ? `Falha na autenticação: ${result.error.message}`
+            : 'E-mail ou senha inválidos.',
+        );
+      }
       setStatus('signed_out');
       return;
     }

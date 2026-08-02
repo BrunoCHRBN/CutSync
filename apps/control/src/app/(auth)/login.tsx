@@ -12,6 +12,7 @@ import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import { resolvePostAuthDestination } from '@/navigation/safe-return-to';
+import { isSupabaseConfigured, supabaseProjectHost } from '@/services/supabase';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
 export default function LoginRoute() {
@@ -45,6 +46,13 @@ export default function LoginRoute() {
         </Text>
 
         <View style={styles.form}>
+          {!isSupabaseConfigured ? (
+            <ControlNotice
+              tone="warning"
+              title="Build sem Supabase"
+              message="Este deploy não embutiu a URL/publishable key de Homolog. Configure as variáveis públicas no projeto Vercel do Control e faça redeploy."
+            />
+          ) : null}
           <ControlField
             label="E-mail"
             autoCapitalize="none"
@@ -65,7 +73,7 @@ export default function LoginRoute() {
           />
           <ControlButton
             label="Entrar com segurança"
-            disabled={!email.trim() || !password}
+            disabled={!isSupabaseConfigured || !email.trim() || !password}
             onPress={() => { void signIn(email, password); }}
           />
           {message ? <ControlNotice tone="danger" message={message} /> : null}
@@ -74,6 +82,9 @@ export default function LoginRoute() {
         <Text style={styles.securityNote}>
           A sessão permanece somente nesta aba e exige autenticação em dois fatores.
         </Text>
+        {supabaseProjectHost ? (
+          <Text style={styles.securityNote}>Projeto Auth: {supabaseProjectHost}</Text>
+        ) : null}
       </ControlCard>
     </View>
   );
