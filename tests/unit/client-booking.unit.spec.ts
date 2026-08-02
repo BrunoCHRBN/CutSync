@@ -120,3 +120,14 @@ test('reutiliza o wizard para reagendar sem atualizar appointments diretamente',
   expect(webBooking).toContain("rpc('reschedule_appointment'");
   expect(webBooking).not.toMatch(/from\('appointments'\)[\s\S]{0,300}\.update\(/);
 });
+
+test('volta do booking web para o detalhe Client por barbershopId, não para /:slug público', () => {
+  const webBooking = readSource('apps/web/src/components/establishment/EstablishmentBookingExperience.tsx');
+
+  expect(webBooking).toContain('goBackFromBooking');
+  expect(webBooking).toContain("pathname: '/(client)/barbershop'");
+  expect(webBooking).toContain('params: { barbershopId: clientBarbershopId }');
+  expect(webBooking).toContain('router.canGoBack()');
+  // Must not prefer public slug over the client entry path when barbershopId is present.
+  expect(webBooking).not.toMatch(/if \(profileSlug\) \{\s*router\.push\(`\/\$\{profileSlug\}`/);
+});
