@@ -10,7 +10,7 @@ export default function FinanceiroRoute() {
       title="Financeiro restrito"
       message="Seu papel não permite consultar o financeiro da plataforma."
     >
-      <BillingOperations section="overview" />
+      <BillingOperations section="overview" hideChrome />
     </RequireControlPermission>
   );
 }

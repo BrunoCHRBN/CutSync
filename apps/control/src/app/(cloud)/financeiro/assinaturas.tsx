@@ -6,7 +6,7 @@ import { RequireControlPermission } from '@/components/require-control-permissio
 export default function AssinaturasRoute() {
   return (
     <RequireControlPermission permission="control.billing.read">
-      <BillingOperations section="plans" />
+      <BillingOperations section="plans" hideChrome />
     </RequireControlPermission>
   );
 }

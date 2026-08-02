@@ -288,17 +288,13 @@ export function BillingOperations({
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
-      {hideChrome ? (
-        <View style={{ gap: 16, padding: 24 }}>{body}</View>
-      ) : (
-        <SectionPage
-          eyebrow={meta.eyebrow}
-          title={meta.title}
-          description={meta.description}
-        >
-          {body}
-        </SectionPage>
-      )}
+      <SectionPage
+        eyebrow={meta.eyebrow}
+        title={meta.title}
+        description={meta.description}
+      >
+        {body}
+      </SectionPage>
     </ScrollView>
   );
 }

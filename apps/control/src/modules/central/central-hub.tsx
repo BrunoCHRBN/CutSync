@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -19,6 +19,8 @@ import { cloudTheme } from '@/theme/cloud-components';
 
 export function CentralHub() {
   const { can, context } = useControlAuth();
+  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const section = Array.isArray(params.section) ? params.section[0] : params.section;
   const modules = modulesVisibleTo(can);
   const centralEnabled = isCloudFlagEnabled('centralEnabled');
   const lastModuleId = getLastModuleId();
@@ -35,6 +37,50 @@ export function CentralHub() {
           title="Central temporariamente indisponível"
           message="A Central Cloud está desativada por feature flag."
         />
+      </View>
+    );
+  }
+
+  if (section === 'recent') {
+    return (
+      <View style={styles.page}>
+        <PageHeader
+          eyebrow="CENTRAL"
+          title="Acessos recentes"
+          description="Histórico dos ambientes visitados nesta sessão. Nada é persistido fora da aba."
+        />
+        <FeedbackState
+          kind="partial"
+          title="Trilha limitada à sessão"
+          message="Use Continuar na visão geral para retomar o último módulo desta aba. Nenhum histórico simulado é exibido."
+        />
+        <Link href={CLOUD_ROUTES.central} asChild>
+          <Pressable style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Voltar à visão geral</Text>
+          </Pressable>
+        </Link>
+      </View>
+    );
+  }
+
+  if (section === 'preferences') {
+    return (
+      <View style={styles.page}>
+        <PageHeader
+          eyebrow="CENTRAL"
+          title="Preferências"
+          description="Preferências do operador no CutSync Cloud. Persistência de perfil ainda não está homologada."
+        />
+        <FeedbackState
+          kind="partial"
+          title="Preferências em preparação"
+          message="Sessão, MFA e timeout continuam geridos pela política de autenticação atual."
+        />
+        <Link href={CLOUD_ROUTES.central} asChild>
+          <Pressable style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Voltar à visão geral</Text>
+          </Pressable>
+        </Link>
       </View>
     );
   }
@@ -91,18 +137,21 @@ export function CentralHub() {
             value={can('control.live.read') ? 'Tempo real' : '—'}
             detail="Fonte: painel ao vivo autorizado"
             tone="warning"
+            emphasize
           />
           <MetricCard
             label="Suporte"
             value={can('control.support.read') ? 'Fila' : '—'}
             detail="Somente se houver permissão de leitura"
             tone="info"
+            emphasize
           />
           <MetricCard
             label="Governança"
             value={can('control.access.manage') ? 'Acessos' : '—'}
             detail="Owner revisa diretório quando necessário"
-            tone="neutral"
+            tone="success"
+            emphasize
           />
         </View>
         {!can('control.live.read') && !can('control.support.read') ? (
@@ -222,11 +271,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: cloudTheme.spacing.sm,
+    marginTop: cloudTheme.spacing.xs,
   },
   primaryButton: {
     minHeight: cloudTheme.layout.touchTarget,
     justifyContent: 'center',
-    paddingHorizontal: cloudTheme.spacing.lg,
+    paddingHorizontal: cloudTheme.spacing.xl,
     borderRadius: cloudTheme.radii.md,
     backgroundColor: cloudTheme.colors.brand,
   },
@@ -239,6 +289,7 @@ const styles = StyleSheet.create({
     borderColor: cloudTheme.colors.brand,
     borderRadius: cloudTheme.radii.md,
     backgroundColor: 'transparent',
+    alignSelf: 'flex-start',
   },
   secondaryButtonText: { ...cloudTheme.type.button, color: cloudTheme.colors.brand },
   pressed: { opacity: 0.88 },

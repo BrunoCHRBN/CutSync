@@ -7,6 +7,8 @@ export type CloudNavItem = {
   id: string;
   label: string;
   href: CloudRoutePath;
+  /** Optional in-module section when multiple items share the same route. */
+  section?: string;
   permission: ControlPermission | ControlPermission[];
   exact?: boolean;
 };
@@ -37,6 +39,7 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'central-recent',
         label: 'Acessos recentes',
         href: CLOUD_ROUTES.central,
+        section: 'recent',
         permission: 'control.dashboard.read',
         exact: true,
       },
@@ -50,6 +53,7 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'central-preferences',
         label: 'Preferências',
         href: CLOUD_ROUTES.central,
+        section: 'preferences',
         permission: 'control.dashboard.read',
         exact: true,
       },
@@ -72,6 +76,7 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'op-services',
         label: 'Serviços',
         href: CLOUD_ROUTES.operacao.root,
+        section: 'services',
         permission: 'control.dashboard.read',
         exact: true,
       },
@@ -118,6 +123,7 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'sup-clients',
         label: 'Clientes',
         href: CLOUD_ROUTES.suporte.root,
+        section: 'clients',
         permission: 'control.support.read',
         exact: true,
       },
@@ -125,14 +131,13 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'sup-monitor',
         label: 'Monitoramento',
         href: CLOUD_ROUTES.operacao.tempoReal,
-        // Visible inside Suporte only when the module itself is readable.
-        // Tempo real remains guarded by control.live.read on the destination route.
         permission: 'control.support.read',
       },
       {
         id: 'sup-assisted',
         label: 'Operações assistidas',
         href: CLOUD_ROUTES.suporte.root,
+        section: 'assisted',
         permission: 'control.support.manage',
         exact: true,
       },
@@ -155,6 +160,7 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'gsp-users',
         label: 'Usuários e grupos',
         href: CLOUD_ROUTES.gsp.acessos,
+        section: 'users',
         permission: 'control.access.manage',
       },
       {
@@ -257,16 +263,7 @@ export function navItemsForModule(
 ): CloudNavItem[] {
   const module = CLOUD_NAV_MODULES.find((entry) => entry.id === moduleId);
   if (!module) return [];
-
-  const visible = module.items.filter((item) => canAccess(can, item.permission));
-  // Collapse duplicate hrefs while preserving first label occurrence.
-  const seen = new Set<string>();
-  return visible.filter((item) => {
-    const key = `${item.href}:${item.exact ? 'exact' : 'prefix'}:${item.label}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return module.items.filter((item) => canAccess(can, item.permission));
 }
 
 export function modulesForSwitcher(
@@ -277,12 +274,32 @@ export function modulesForSwitcher(
   ));
 }
 
-export function isNavItemSelected(pathname: string, item: CloudNavItem): boolean {
+export function navItemHref(item: CloudNavItem): string | { pathname: CloudRoutePath; params: { section: string } } {
+  if (!item.section) return item.href;
+  return { pathname: item.href, params: { section: item.section } };
+}
+
+export function isNavItemSelected(
+  pathname: string,
+  item: CloudNavItem,
+  section?: string | null,
+): boolean {
   const normalized = pathname.length > 1 && pathname.endsWith('/')
     ? pathname.slice(0, -1)
     : pathname;
-  if (item.exact) return normalized === item.href;
-  return normalized === item.href || normalized.startsWith(`${item.href}/`);
+  const activeSection = section?.trim() || null;
+
+  if (item.exact) {
+    if (normalized !== item.href) return false;
+    if (item.section) return activeSection === item.section;
+    return !activeSection;
+  }
+
+  if (normalized !== item.href && !normalized.startsWith(`${item.href}/`)) return false;
+  if (item.section) return activeSection === item.section;
+  // Prefer exact non-section item only when no section is active, unless nested path.
+  if (normalized === item.href) return !activeSection;
+  return true;
 }
 
 /** In-memory last module for "Continuar em…" (tab session only, not auth persistence). */

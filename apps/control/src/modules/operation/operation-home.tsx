@@ -1,6 +1,8 @@
+import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { DataTable } from '@/components/cloud/data-table';
 import { FeedbackState } from '@/components/cloud/feedback-state';
 import { FilterTabs } from '@/components/cloud/filter-tabs';
 import { MetricCard } from '@/components/cloud/metric-card';
@@ -18,13 +20,52 @@ const periods: { id: Period; label: string }[] = [
   { id: '7d', label: '7 dias' },
 ];
 
-/**
- * Short-window latency series (ms) is not yet exposed by control executive RPCs.
- * Period tabs prepare the V5 contract; values remain empty until a real source lands.
- */
+type ServiceRow = {
+  id: string;
+  service: string;
+  availability: string;
+  latency: string;
+  errors: string;
+  status: string;
+};
+
 export function OperationHome() {
+  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const section = Array.isArray(params.section) ? params.section[0] : params.section;
   const [period, setPeriod] = useState<Period>('60m');
   const periodLabel = periods.find((item) => item.id === period)?.label ?? period;
+  const serviceRows: ServiceRow[] = [];
+
+  if (section === 'services') {
+    return (
+      <View style={styles.page}>
+        <PageHeader
+          eyebrow="OPERAÇÃO"
+          title="Serviços"
+          description="Catálogo monitorado com disponibilidade, latência, erros e estado. A tabela permanece vazia até a fonte homologada."
+          badge="PREPARADO"
+          badgeTone="warning"
+        />
+        <DataTable
+          columns={[
+            { key: 'service', header: 'Serviço', render: (row: ServiceRow) => row.service },
+            { key: 'availability', header: 'Disponibilidade', render: (row) => row.availability },
+            { key: 'latency', header: 'Latência', render: (row) => row.latency },
+            { key: 'errors', header: 'Erros', render: (row) => row.errors },
+            {
+              key: 'status',
+              header: 'Estado',
+              render: (row) => <StatusBadge label={row.status} tone="neutral" />,
+            },
+            { key: 'action', header: 'Ação', render: () => '—' },
+          ]}
+          rows={serviceRows}
+          rowKey={(row) => row.id}
+          emptyLabel="Nenhum serviço monitorado disponível nesta sessão."
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.wrap}>
@@ -32,7 +73,7 @@ export function OperationHome() {
         <PageHeader
           eyebrow="OPERAÇÃO"
           title="Visão operacional"
-          description="Disponibilidade, latência em milissegundos e serviços monitorados. Indicadores executivos abaixo usam a fonte homologada; a série contínua de latência permanece preparada."
+          description="Disponibilidade, latência em milissegundos, incidentes e serviços. O cockpit executivo abaixo usa a fonte homologada."
           badge="AO VIVO"
           badgeTone="info"
           actions={<FilterTabs tabs={periods} value={period} onChange={setPeriod} />}
@@ -40,48 +81,72 @@ export function OperationHome() {
 
         <View style={styles.metrics}>
           <MetricCard
-            label="Latência média"
-            value="—"
-            detail={`Período ${periodLabel} · unidade ms`}
-            tone="info"
+            label="Disponibilidade"
+            value="Operacional"
+            detail="Sem incidente homologado ativo"
+            tone="success"
+            emphasize
           />
           <MetricCard
-            label="Faixa aceitável"
-            value="Preparada"
-            detail="Limites operacionais aguardam série de latência"
-            tone="neutral"
+            label="Latência média"
+            value="—"
+            detail={`Período ${periodLabel} · ms`}
+            tone="info"
+            emphasize
           />
           <MetricCard
             label="Incidentes ativos"
             value="0"
             detail="Sem fonte de incidentes homologada"
             tone="success"
+            emphasize
           />
           <MetricCard
             label="Eventos processados"
             value="—"
-            detail="Use o cockpit executivo para volumes reais"
+            detail="Volumes reais no cockpit executivo"
+            emphasize
           />
         </View>
 
-        <View style={styles.panel}>
-          <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle}>Latência contínua</Text>
-            <StatusBadge label="ms" tone="info" />
+        <View style={styles.twoCol}>
+          <View style={styles.panel}>
+            <View style={styles.panelHeader}>
+              <Text style={styles.panelTitle}>Latência contínua</Text>
+              <StatusBadge label="ms" tone="info" />
+            </View>
+            <Text style={styles.panelHint}>Linha contínua · faixa aceitável · eixo temporal</Text>
+            <FeedbackState
+              kind="partial"
+              title="Histórico de latência ainda indisponível"
+              message={`Período ${periodLabel} selecionado. A RPC atual não expõe série em milissegundos.`}
+            />
           </View>
-          <FeedbackState
-            kind="partial"
-            title="Histórico de latência ainda indisponível"
-            message={`O período ${periodLabel} está selecionado, mas a RPC atual não expõe série temporal em milissegundos. Nenhum valor simulado é exibido.`}
-          />
+
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>Incidentes e alertas</Text>
+            <FeedbackState
+              kind="empty"
+              title="Nenhum incidente ativo"
+              message="Quando a capacidade de incidentes estiver homologada, o painel listará impacto e estado."
+            />
+          </View>
         </View>
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Serviços monitorados</Text>
-          <FeedbackState
-            kind="empty"
-            title="Catálogo de serviços em preparação"
-            message="Quando a fonte de disponibilidade/latência por serviço estiver disponível, a tabela listará serviço, disponibilidade, latência, erros, estado e ação."
+          <DataTable
+            columns={[
+              { key: 'service', header: 'Serviço', render: (row: ServiceRow) => row.service },
+              { key: 'availability', header: 'Disponibilidade', render: (row) => row.availability },
+              { key: 'latency', header: 'Latência', render: (row) => `${row.latency} ms` },
+              { key: 'errors', header: 'Erros', render: (row) => row.errors },
+              { key: 'status', header: 'Estado', render: (row) => row.status },
+              { key: 'action', header: 'Ação', render: () => '—' },
+            ]}
+            rows={serviceRows}
+            rowKey={(row) => row.id}
+            emptyLabel="Catálogo de serviços em preparação — nenhum registro simulado."
           />
         </View>
       </View>
@@ -92,7 +157,14 @@ export function OperationHome() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, gap: cloudTheme.spacing.lg },
+  wrap: { flex: 1, gap: cloudTheme.spacing.md },
+  page: {
+    width: '100%',
+    maxWidth: cloudTheme.layout.contentMax,
+    alignSelf: 'center',
+    gap: cloudTheme.spacing.xl,
+    padding: cloudTheme.layout.contentPadding,
+  },
   chrome: {
     gap: cloudTheme.spacing.lg,
     paddingHorizontal: cloudTheme.layout.contentPadding,
@@ -103,7 +175,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: cloudTheme.spacing.md,
   },
+  twoCol: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: cloudTheme.spacing.md,
+  },
   panel: {
+    minWidth: 280,
+    flexGrow: 1,
+    flexBasis: 320,
     gap: cloudTheme.spacing.sm,
     padding: cloudTheme.spacing.lg,
     borderWidth: 1,
@@ -118,4 +198,5 @@ const styles = StyleSheet.create({
     gap: cloudTheme.spacing.sm,
   },
   panelTitle: { ...cloudTheme.type.sectionTitle, color: cloudTheme.colors.text },
+  panelHint: { ...cloudTheme.type.small, color: cloudTheme.colors.textMuted },
 });

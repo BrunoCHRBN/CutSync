@@ -30,8 +30,8 @@ export function CloudTopbar({
 
   return (
     <View style={styles.bar}>
-      <View style={styles.brandBlock}>
-        <Text style={styles.brandMark}>CutSync</Text>
+      <View style={styles.brandBlock} accessibilityRole="header">
+        <Text style={styles.brandMark}>CUTSYNC</Text>
         <Text style={styles.brandProduct}>Cloud</Text>
       </View>
 

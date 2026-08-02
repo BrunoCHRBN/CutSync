@@ -1,10 +1,12 @@
-import { Link, usePathname } from 'expo-router';
+import { Link, useLocalSearchParams, usePathname } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { getCloudEnvironmentLabel } from '@/navigation/environment-label';
 import {
   isNavItemSelected,
+  navItemHref,
   navItemsForModule,
   rememberLastModule,
   resolveActiveNavModule,
@@ -19,9 +21,12 @@ export function CloudSidebar({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const section = Array.isArray(params.section) ? params.section[0] : params.section;
   const { can } = useControlAuth();
   const activeModule = resolveActiveNavModule(pathname);
   const items = navItemsForModule(activeModule.id, can);
+  const environmentLabel = getCloudEnvironmentLabel();
 
   React.useEffect(() => {
     rememberLastModule(activeModule.id);
@@ -36,9 +41,9 @@ export function CloudSidebar({
 
       <View style={styles.nav}>
         {items.map((item) => {
-          const selected = isNavItemSelected(pathname, item);
+          const selected = isNavItemSelected(pathname, item, section);
           return (
-            <Link key={`${item.id}-${item.href}`} href={item.href} asChild>
+            <Link key={item.id} href={navItemHref(item) as never} asChild>
               <Pressable
                 accessibilityRole="link"
                 accessibilityState={{ selected }}
@@ -60,15 +65,10 @@ export function CloudSidebar({
 
       <View style={styles.footer}>
         <Text style={styles.footerLabel}>Ambiente</Text>
-        <Text style={styles.footerValue}>
-          {(
-            process.env.EXPO_PUBLIC_CONTROL_ENVIRONMENT
-            ?? process.env.EXPO_PUBLIC_APP_ENV
-            ?? 'homologation'
-          ).toUpperCase()}
-        </Text>
+        <Text style={styles.footerValue}>{environmentLabel}</Text>
         <Text style={styles.footerMeta}>CutSync Cloud</Text>
         <Text style={styles.footerHelp}>Ajuda e documentação</Text>
+        <Text style={styles.footerHelp}>Status da plataforma</Text>
       </View>
     </View>
   );
@@ -77,9 +77,9 @@ export function CloudSidebar({
 const styles = StyleSheet.create({
   sidebar: {
     width: cloudTheme.layout.sidebarWidth,
-    flex: 1,
+    flexShrink: 0,
     gap: cloudTheme.spacing.lg,
-    paddingHorizontal: cloudTheme.spacing.lg,
+    paddingHorizontal: cloudTheme.spacing.md,
     paddingVertical: cloudTheme.spacing.xl,
     backgroundColor: cloudTheme.colors.brandDark,
     borderRightWidth: 1,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRightWidth: 0,
   },
-  header: { gap: 4 },
+  header: { gap: 4, paddingHorizontal: cloudTheme.spacing.xs },
   eyebrow: {
     color: cloudTheme.colors.sidebarTextMuted,
     fontSize: 12,
@@ -98,10 +98,10 @@ const styles = StyleSheet.create({
   },
   moduleTitle: {
     color: cloudTheme.colors.sidebarTextStrong,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
   },
-  nav: { flex: 1, gap: cloudTheme.spacing.xxs },
+  nav: { flex: 1, gap: 2 },
   item: {
     minHeight: cloudTheme.layout.touchTarget,
     flexDirection: 'row',
@@ -117,17 +117,18 @@ const styles = StyleSheet.create({
     borderRadius: cloudTheme.radii.pill,
     backgroundColor: 'transparent',
   },
-  markerSelected: { backgroundColor: cloudTheme.colors.accentSoft },
-  itemText: { flex: 1, color: cloudTheme.colors.sidebarText, fontWeight: '600' },
+  markerSelected: { backgroundColor: '#FFFFFF' },
+  itemText: { flex: 1, color: cloudTheme.colors.sidebarText, fontWeight: '600', fontSize: 14 },
   itemTextSelected: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '800' },
   footer: {
     gap: 4,
     paddingTop: cloudTheme.spacing.md,
+    paddingHorizontal: cloudTheme.spacing.xs,
     borderTopWidth: 1,
     borderTopColor: cloudTheme.colors.brandLine,
   },
   footerLabel: { ...cloudTheme.type.caption, color: cloudTheme.colors.sidebarTextMuted },
   footerValue: { ...cloudTheme.type.smallStrong, color: cloudTheme.colors.sidebarTextStrong },
   footerMeta: { ...cloudTheme.type.small, color: cloudTheme.colors.sidebarText },
-  footerHelp: { ...cloudTheme.type.small, color: cloudTheme.colors.accentSoft, marginTop: 6 },
+  footerHelp: { ...cloudTheme.type.small, color: cloudTheme.colors.accentSoft, marginTop: 4 },
 });

@@ -24,6 +24,7 @@ export function ModuleSwitcher({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
+      accessibilityRole="tablist"
     >
       {modules.map((module) => {
         const selected = module.id === active.id;
@@ -35,15 +36,15 @@ export function ModuleSwitcher({
               accessibilityLabel={`Alternar para ${module.label}`}
               onPress={onNavigate}
               style={({ pressed }) => [
-                styles.chip,
-                selected && styles.chipSelected,
+                styles.tab,
+                selected && styles.tabSelected,
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.dot, selected && styles.dotSelected]} />
               <Text style={[styles.label, selected && styles.labelSelected]}>
                 {module.label}
               </Text>
+              <View style={[styles.underline, selected && styles.underlineSelected]} />
             </Pressable>
           </Link>
         );
@@ -55,32 +56,36 @@ export function ModuleSwitcher({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: cloudTheme.spacing.xs,
-  },
-  chip: {
+    alignItems: 'stretch',
+    gap: cloudTheme.spacing.sm,
     minHeight: cloudTheme.layout.touchTarget,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: cloudTheme.spacing.xs,
-    paddingHorizontal: cloudTheme.spacing.md,
-    borderWidth: 1,
-    borderColor: cloudTheme.colors.border,
-    borderRadius: cloudTheme.radii.md,
-    backgroundColor: cloudTheme.colors.surface,
   },
-  chipSelected: {
-    borderColor: cloudTheme.colors.brand,
-    backgroundColor: cloudTheme.colors.brandSoft,
+  tab: {
+    minHeight: cloudTheme.layout.touchTarget,
+    justifyContent: 'center',
+    paddingHorizontal: cloudTheme.spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  pressed: { opacity: 0.86 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 99,
-    backgroundColor: cloudTheme.colors.borderStrong,
+  tabSelected: {},
+  pressed: { opacity: 0.75 },
+  label: {
+    ...cloudTheme.type.button,
+    color: cloudTheme.colors.textSecondary,
   },
-  dotSelected: { backgroundColor: cloudTheme.colors.brand },
-  label: { ...cloudTheme.type.button, color: cloudTheme.colors.textSecondary },
-  labelSelected: { color: cloudTheme.colors.brand },
+  labelSelected: {
+    color: cloudTheme.colors.brand,
+    fontWeight: '800',
+  },
+  underline: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 0,
+    height: 2,
+    backgroundColor: 'transparent',
+  },
+  underlineSelected: {
+    backgroundColor: cloudTheme.colors.brand,
+  },
 });

@@ -6,7 +6,7 @@ import { RequireControlPermission } from '@/components/require-control-permissio
 export default function CobrancasRoute() {
   return (
     <RequireControlPermission permission="control.billing.read">
-      <BillingOperations section="accounts" />
+      <BillingOperations section="accounts" hideChrome />
     </RequireControlPermission>
   );
 }

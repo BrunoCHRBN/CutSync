@@ -5,34 +5,14 @@ import { CloudSidebar } from '@/components/cloud/cloud-sidebar';
 import { CloudToastProvider } from '@/components/cloud/cloud-toast';
 import { CloudTopbar } from '@/components/cloud/cloud-topbar';
 import { MobileBottomNavigation } from '@/components/cloud/mobile-bottom-navigation';
+import { getCloudEnvironmentLabel } from '@/navigation/environment-label';
 import { cloudTheme } from '@/theme/cloud-components';
-
-function getEnvironmentLabel(): string {
-  const configured = (
-    process.env.EXPO_PUBLIC_CONTROL_ENVIRONMENT
-    ?? process.env.EXPO_PUBLIC_APP_ENV
-  )?.trim().toLowerCase();
-
-  const labels: Record<string, string> = {
-    local: 'LOCAL',
-    development: 'DESENVOLVIMENTO',
-    dev: 'DESENVOLVIMENTO',
-    homologation: 'HOMOLOGAÇÃO',
-    homolog: 'HOMOLOGAÇÃO',
-    staging: 'HOMOLOGAÇÃO',
-    production: 'PRODUÇÃO',
-    prod: 'PRODUÇÃO',
-  };
-
-  if (configured) return labels[configured] ?? configured.toUpperCase();
-  return process.env.NODE_ENV === 'production' ? 'PRODUÇÃO' : 'DESENVOLVIMENTO';
-}
 
 export function CloudShell({ children }: { children: React.ReactNode }) {
   const { width } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const compact = width < cloudTheme.layout.compactBreakpoint;
-  const environmentLabel = getEnvironmentLabel();
+  const environmentLabel = getCloudEnvironmentLabel();
 
   return (
     <CloudToastProvider>

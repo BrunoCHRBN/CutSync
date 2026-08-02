@@ -123,6 +123,9 @@ export function OverviewSection({
           detail="Planos com preço-base configurado (catálogo)"
           tone="info"
         />
+      </View>
+
+      <View style={styles.metrics}>
         <ControlMetricCard
           label="Contas"
           value={snapshot.accounts.length.toLocaleString('pt-BR')}
@@ -135,9 +138,9 @@ export function OverviewSection({
           tone="success"
         />
         <ControlMetricCard
-          label="Conflitos pendentes"
+          label="Indicadores de fechamento"
           value={pendingConflicts.toLocaleString('pt-BR')}
-          detail="Decisões cadastrais"
+          detail="Conflitos cadastrais pendentes"
           tone={pendingConflicts > 0 ? 'warning' : 'neutral'}
         />
       </View>

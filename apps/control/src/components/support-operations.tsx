@@ -253,6 +253,7 @@ function RuntimeControls({
   onNotice: (message: string) => void;
   onSaved: () => Promise<void>;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [enabled, setEnabled] = useState(capabilities.enabled);
   const [allowNewTickets, setAllowNewTickets] = useState(capabilities.allowNewTickets);
   const [syncEnabled, setSyncEnabled] = useState(capabilities.syncEnabled);
@@ -294,44 +295,60 @@ function RuntimeControls({
 
   return (
     <View style={styles.runtimeCard}>
-      <View style={styles.runtimeHeader}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((current) => !current)}
+        style={styles.runtimeHeader}
+      >
         <View>
           <Text style={styles.cardEyebrow}>CONTROLE DE RUNTIME</Text>
           <Text style={styles.cardTitle}>Disponibilidade do suporte</Text>
         </View>
-        <Text style={styles.ownerBadge}>OWNER</Text>
-      </View>
-      <View style={styles.runtimeToggles}>
-        <RuntimeToggle label="Módulo" value={enabled} disabled={busy} onChange={setEnabled} />
-        <RuntimeToggle label="Novos chamados" value={allowNewTickets} disabled={busy} onChange={setAllowNewTickets} />
-        <RuntimeToggle label="Sincronização" value={syncEnabled} disabled={busy} onChange={setSyncEnabled} />
-      </View>
-      <TextInput
-        editable={!busy}
-        maxLength={300}
-        onChangeText={setMaintenanceMessage}
-        placeholder="Mensagem de manutenção exibida aos usuários"
-        style={styles.input}
-        value={maintenanceMessage}
-      />
-      <View style={styles.runtimeSaveRow}>
-        <TextInput
-          editable={!busy}
-          maxLength={500}
-          onChangeText={setReason}
-          placeholder="Justificativa da alteração"
-          style={[styles.input, styles.runtimeReason]}
-          value={reason}
-        />
-        <Pressable
-          accessibilityRole="button"
-          disabled={busy}
-          onPress={() => { void save(); }}
-          style={[styles.primaryButton, busy && styles.disabled]}
-        >
-          <Text style={styles.primaryButtonText}>{busy ? 'Salvando...' : 'Salvar runtime'}</Text>
-        </Pressable>
-      </View>
+        <View style={styles.runtimeHeaderMeta}>
+          <Text style={styles.ownerBadge}>OWNER</Text>
+          <Text style={styles.refreshButtonText}>{expanded ? 'Ocultar' : 'Configurar'}</Text>
+        </View>
+      </Pressable>
+      {expanded ? (
+        <>
+          <View style={styles.runtimeToggles}>
+            <RuntimeToggle label="Módulo" value={enabled} disabled={busy} onChange={setEnabled} />
+            <RuntimeToggle label="Novos chamados" value={allowNewTickets} disabled={busy} onChange={setAllowNewTickets} />
+            <RuntimeToggle label="Sincronização" value={syncEnabled} disabled={busy} onChange={setSyncEnabled} />
+          </View>
+          <TextInput
+            editable={!busy}
+            maxLength={300}
+            onChangeText={setMaintenanceMessage}
+            placeholder="Mensagem de manutenção exibida aos usuários"
+            style={styles.input}
+            value={maintenanceMessage}
+          />
+          <View style={styles.runtimeSaveRow}>
+            <TextInput
+              editable={!busy}
+              maxLength={500}
+              onChangeText={setReason}
+              placeholder="Justificativa da alteração"
+              style={[styles.input, styles.runtimeReason]}
+              value={reason}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => { void save(); }}
+              style={[styles.primaryButton, busy && styles.disabled]}
+            >
+              <Text style={styles.primaryButtonText}>{busy ? 'Salvando...' : 'Salvar runtime'}</Text>
+            </Pressable>
+          </View>
+        </>
+      ) : (
+        <Text style={styles.muted}>
+          Runtime {enabled ? 'ativo' : 'pausado'} · novos chamados {allowNewTickets ? 'ativos' : 'pausados'} · sync {syncEnabled ? 'ativa' : 'pausada'}
+        </Text>
+      )}
     </View>
   );
 }
@@ -1113,6 +1130,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  runtimeHeaderMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   runtimeToggles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   runtimeToggle: {
     minHeight: 36,

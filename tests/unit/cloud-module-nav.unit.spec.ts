@@ -56,8 +56,16 @@ test('exact nav selection does not mark sibling overview routes', () => {
     'operation',
     canFactory(['control.dashboard.read', 'control.live.read']),
   ).find((item) => item.label === 'Visão geral');
+  const services = navItemsForModule(
+    'operation',
+    canFactory(['control.dashboard.read', 'control.live.read']),
+  ).find((item) => item.label === 'Serviços');
   expect(overview).toBeTruthy();
+  expect(services).toBeTruthy();
   expect(isNavItemSelected('/operacao', overview!)).toBe(true);
+  expect(isNavItemSelected('/operacao', services!, null)).toBe(false);
+  expect(isNavItemSelected('/operacao', services!, 'services')).toBe(true);
+  expect(isNavItemSelected('/operacao', overview!, 'services')).toBe(false);
   expect(isNavItemSelected('/operacao/tempo-real', overview!)).toBe(false);
 });
 
