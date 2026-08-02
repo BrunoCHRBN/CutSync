@@ -1,4 +1,4 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,6 +8,9 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 
 import { useControlAuth } from '@/contexts/control-auth-context';
@@ -165,7 +168,48 @@ function scrollParentToTop(node: View | null) {
   globalThis.scrollTo?.(0, 0);
 }
 
+/** Web grid keeps header/row cells on one line; RN Web Link/asChild was stacking children. */
+const attentionGridStyle = Platform.select<ViewStyle>({
+  web: {
+    display: 'grid' as ViewStyle['display'],
+    // @ts-expect-error RN web grid
+    gridTemplateColumns: 'minmax(150px, 1.1fr) minmax(260px, 2fr) 100px 120px 130px 28px',
+    alignItems: 'center',
+    columnGap: 12,
+    width: '100%',
+  },
+  default: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+  },
+});
+
+const activityGridStyle = Platform.select<ViewStyle>({
+  web: {
+    display: 'grid' as ViewStyle['display'],
+    // @ts-expect-error RN web grid
+    gridTemplateColumns: '140px minmax(180px, 1fr) minmax(180px, 1.4fr) 110px',
+    alignItems: 'center',
+    columnGap: 12,
+    width: '100%',
+  },
+  default: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+  },
+});
+
+const tabularNums: TextStyle = Platform.select({
+  web: { fontVariant: ['tabular-nums'] },
+  default: {},
+}) ?? {};
+
 export function SupportOverviewScreen() {
+  const router = useRouter();
   const { can } = useControlAuth();
   const { width } = useWindowDimensions();
   const compact = width < 960;
@@ -239,6 +283,17 @@ export function SupportOverviewScreen() {
       .slice(0, 8);
   }, [overview]);
 
+  const attentionMeta = useMemo(() => {
+    const slaCount = attentionTickets.filter(isSlaAtRisk).length;
+    const highCount = attentionTickets.filter((ticket) => (
+      ticket.priority === 'critical' || ticket.priority === 'high'
+    )).length;
+    const parts: string[] = [];
+    if (slaCount > 0) parts.push(`${slaCount} fora do SLA`);
+    if (highCount > 0) parts.push(`${highCount} de alta prioridade`);
+    return parts.join(' · ');
+  }, [attentionTickets]);
+
   const recentActivity = useMemo(() => {
     if (!overview?.tickets.length) return [];
     return [...overview.tickets]
@@ -287,7 +342,7 @@ export function SupportOverviewScreen() {
     if (!synced.length) {
       const newest = Math.max(...overview.tickets.map((ticket) => Date.parse(ticket.updatedAt)));
       if (Number.isNaN(newest)) return 'Sem ciclo nesta sessão';
-      return `atividade ${formatRelativeFrom(newest, nowTick)}`;
+      return formatRelativeFrom(newest, nowTick);
     }
     return formatRelativeFrom(Math.max(...synced), nowTick);
   }, [nowTick, overview]);
@@ -299,6 +354,17 @@ export function SupportOverviewScreen() {
   const slaShare = counts && counts.total > 0
     ? Math.round((counts.slaAtRisk / counts.total) * 100)
     : null;
+
+  const openQueue = () => {
+    router.push(CLOUD_ROUTES.suporte.atendimentos);
+  };
+
+  const openTicket = (ticketId: string) => {
+    router.push({
+      pathname: CLOUD_ROUTES.suporte.atendimentos,
+      params: { ticketId },
+    });
+  };
 
   return (
     <View ref={pageRef} style={styles.page} collapsable={false}>
@@ -317,18 +383,21 @@ export function SupportOverviewScreen() {
             disabled={loading}
             onPress={() => { void load(); }}
             style={({ pressed }) => [
-              styles.textAction,
+              styles.secondaryButton,
               loading && styles.disabled,
               pressed && styles.pressed,
             ]}
           >
-            <Text style={styles.textActionLabel}>Atualizar</Text>
+            <Text style={styles.secondaryButtonText}>Atualizar</Text>
           </Pressable>
-          <Link href={CLOUD_ROUTES.suporte.atendimentos} asChild>
-            <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>Abrir fila</Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir fila de atendimentos"
+            onPress={openQueue}
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryButtonText}>Abrir fila</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -357,7 +426,7 @@ export function SupportOverviewScreen() {
               label="Risco de SLA"
               value={counts?.slaAtRisk ?? 0}
               tone={(counts?.slaAtRisk ?? 0) > 0 ? 'warning' : undefined}
-              detail={slaShare !== null ? `${slaShare}% da fila` : undefined}
+              detail={slaShare !== null && (counts?.slaAtRisk ?? 0) > 0 ? `${slaShare}% da fila` : undefined}
             />
             <View style={styles.stripDivider} />
             <StripCell
@@ -382,7 +451,10 @@ export function SupportOverviewScreen() {
             <View style={styles.mainCol}>
               <View style={styles.panel}>
                 <View style={styles.panelHead}>
-                  <Text style={styles.sectionTitle}>Atenção imediata</Text>
+                  <View style={styles.panelTitleBlock}>
+                    <Text style={styles.sectionTitle}>Atenção imediata</Text>
+                    {attentionMeta ? <Text style={styles.panelSubmeta}>{attentionMeta}</Text> : null}
+                  </View>
                   <Text style={styles.panelMeta}>
                     {attentionTickets.length} {attentionTickets.length === 1 ? 'item' : 'itens'}
                   </Text>
@@ -391,65 +463,56 @@ export function SupportOverviewScreen() {
                   <Text style={styles.muted}>Nenhum atendimento exige atenção imediata nesta sessão.</Text>
                 ) : (
                   <View style={styles.table}>
-                    <View style={styles.tableHead}>
-                      <Text style={[styles.headCell, styles.colProtocol]}>Chamado</Text>
-                      <Text style={[styles.headCell, styles.colReason]}>Motivo</Text>
-                      <Text style={[styles.headCell, styles.colPri]}>Prioridade</Text>
-                      <Text style={[styles.headCell, styles.colSla]}>SLA</Text>
-                      <Text style={[styles.headCell, styles.colOwner]}>Responsável</Text>
-                      <Text style={[styles.headCell, styles.colArrow]} />
+                    <View style={[styles.tableHead, attentionGridStyle]}>
+                      <Text style={styles.headCell}>Chamado</Text>
+                      <Text style={styles.headCell}>Motivo</Text>
+                      <Text style={styles.headCell}>Prioridade</Text>
+                      <Text style={styles.headCell}>SLA</Text>
+                      <Text style={styles.headCell}>Responsável</Text>
+                      <Text style={styles.headCell} />
                     </View>
                     {attentionTickets.map((ticket) => {
                       const slaRisk = isSlaAtRisk(ticket);
                       return (
-                        <Link
+                        <Pressable
                           key={ticket.id}
-                          href={{
-                            pathname: CLOUD_ROUTES.suporte.atendimentos,
-                            params: { ticketId: ticket.id },
-                          }}
-                          asChild
+                          accessibilityRole="link"
+                          accessibilityLabel={`Abrir chamado ${ticket.protocol}`}
+                          onPress={() => openTicket(ticket.id)}
+                          style={({ pressed }) => [
+                            styles.tableRow,
+                            attentionGridStyle,
+                            slaRisk && styles.tableRowSla,
+                            pressed && styles.tableRowHover,
+                          ]}
                         >
-                          <Pressable
-                            style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-                              styles.tableRow,
-                              slaRisk && styles.tableRowSla,
-                              (pressed || hovered) && styles.tableRowHover,
-                            ]}
+                          <Text style={styles.protocol} numberOfLines={1}>
+                            {ticket.protocol}
+                          </Text>
+                          <Text style={styles.cell} numberOfLines={2}>
+                            {reasonLabel(ticket)}
+                          </Text>
+                          <Text
+                            style={[styles.priTag, styles[`pri_${ticket.priority}`] as StyleProp<TextStyle>]}
+                            numberOfLines={1}
                           >
-                            <Text style={[styles.protocol, styles.colProtocol]} numberOfLines={1}>
-                              {ticket.protocol}
-                            </Text>
-                            <Text style={[styles.cell, styles.colReason]} numberOfLines={1}>
-                              {reasonLabel(ticket)}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.priTag,
-                                styles.colPri,
-                                styles[`pri_${ticket.priority}`],
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {priorityLabels[ticket.priority]}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.cell,
-                                styles.colSla,
-                                slaRisk && styles.warning,
-                                isSlaNear(ticket) && !slaRisk && styles.warning,
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {slaLabel(ticket)}
-                            </Text>
-                            <Text style={[styles.mono, styles.colOwner]} numberOfLines={1}>
-                              {assigneeLabel(ticket)}
-                            </Text>
-                            <Text style={[styles.arrow, styles.colArrow]}>→</Text>
-                          </Pressable>
-                        </Link>
+                            {priorityLabels[ticket.priority]}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.cell,
+                              slaRisk && styles.warning,
+                              isSlaNear(ticket) && !slaRisk && styles.warning,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {slaLabel(ticket)}
+                          </Text>
+                          <Text style={styles.mono} numberOfLines={1}>
+                            {assigneeLabel(ticket)}
+                          </Text>
+                          <Text style={styles.arrow}>→</Text>
+                        </Pressable>
                       );
                     })}
                   </View>
@@ -459,63 +522,64 @@ export function SupportOverviewScreen() {
               <View style={styles.panel}>
                 <View style={styles.panelHead}>
                   <Text style={styles.sectionTitle}>Atividade recente</Text>
-                  <Link href={CLOUD_ROUTES.suporte.atendimentos} asChild>
-                    <Pressable style={styles.textAction}>
-                      <Text style={styles.textActionLabel}>Ver histórico completo</Text>
-                    </Pressable>
-                  </Link>
+                  <Pressable
+                    accessibilityRole="link"
+                    onPress={openQueue}
+                    style={styles.textAction}
+                  >
+                    <Text style={styles.textActionLabel}>Ver histórico completo →</Text>
+                  </Pressable>
                 </View>
                 {recentActivity.length === 0 ? (
                   <Text style={styles.muted}>Sem atividade recente nesta sessão.</Text>
                 ) : (
                   <View style={styles.table}>
-                    <View style={styles.tableHead}>
-                      <Text style={[styles.headCell, styles.colWhen]}>Data e hora</Text>
-                      <Text style={[styles.headCell, styles.colProtocol]}>Chamado</Text>
-                      <Text style={[styles.headCell, styles.colEvent]}>Evento</Text>
-                      <Text style={[styles.headCell, styles.colStatus]}>Status</Text>
+                    <View style={[styles.tableHead, activityGridStyle]}>
+                      <Text style={styles.headCell}>Data e hora</Text>
+                      <Text style={styles.headCell}>Chamado</Text>
+                      <Text style={styles.headCell}>Evento</Text>
+                      <Text style={styles.headCell}>Status</Text>
                     </View>
                     {recentActivity.map((ticket) => (
-                      <Link
+                      <Pressable
                         key={ticket.id}
-                        href={{
-                          pathname: CLOUD_ROUTES.suporte.atendimentos,
-                          params: { ticketId: ticket.id },
-                        }}
-                        asChild
+                        accessibilityRole="link"
+                        accessibilityLabel={`Abrir chamado ${ticket.protocol}`}
+                        onPress={() => openTicket(ticket.id)}
+                        style={({ pressed }) => [
+                          styles.tableRow,
+                          activityGridStyle,
+                          pressed && styles.tableRowHover,
+                        ]}
                       >
-                        <Pressable
-                          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-                            styles.tableRow,
-                            (pressed || hovered) && styles.tableRowHover,
-                          ]}
-                        >
-                          <Text style={[styles.whenCell, styles.colWhen]} numberOfLines={1}>
-                            {formatActivityWhen(ticket.lastMessageAt ?? ticket.updatedAt)}
-                          </Text>
-                          <Text style={[styles.protocol, styles.colProtocol]} numberOfLines={1}>
-                            {ticket.protocol}
-                          </Text>
-                          <Text style={[styles.cellStrong, styles.colEvent]} numberOfLines={1}>
-                            {activityEvent(ticket)}
-                          </Text>
-                          <Text style={[styles.cell, styles.colStatus]} numberOfLines={1}>
-                            {statusLabels[ticket.status] ?? ticket.status}
-                          </Text>
-                        </Pressable>
-                      </Link>
+                        <Text style={styles.whenCell} numberOfLines={1}>
+                          {formatActivityWhen(ticket.lastMessageAt ?? ticket.updatedAt)}
+                        </Text>
+                        <Text style={styles.protocol} numberOfLines={1}>
+                          {ticket.protocol}
+                        </Text>
+                        <Text style={styles.cellStrong} numberOfLines={1}>
+                          {activityEvent(ticket)}
+                        </Text>
+                        <Text style={styles.cell} numberOfLines={1}>
+                          {statusLabels[ticket.status] ?? ticket.status}
+                        </Text>
+                      </Pressable>
                     ))}
                   </View>
                 )}
               </View>
             </View>
 
-            <View style={styles.sideCol}>
+            <View style={[styles.sideCol, !compact && styles.sideColSticky]}>
               <View style={styles.panel}>
                 <Text style={styles.sectionTitle}>Distribuição da fila</Text>
                 <View style={styles.distList}>
                   {distribution.map((item) => {
                     const ratio = item.value / distributionMax;
+                    const barWidth = item.value > 0
+                      ? `${Math.max(6, Math.round(ratio * 100))}%`
+                      : '0%';
                     return (
                       <View key={item.label} style={styles.distRow}>
                         <View style={styles.distMeta}>
@@ -526,17 +590,13 @@ export function SupportOverviewScreen() {
                             {item.value.toLocaleString('pt-BR')}
                           </Text>
                         </View>
-                        <View style={styles.distTrack}>
-                          <View
-                            style={[
-                              styles.distBar,
-                              {
-                                width: `${Math.max(item.value > 0 ? 8 : 0, Math.round(ratio * 100))}%`,
-                                opacity: item.value === 0 ? 0 : 1,
-                              },
-                            ]}
-                          />
-                        </View>
+                        {item.value > 0 ? (
+                          <View style={styles.distTrack}>
+                            <View style={[styles.distBar, { width: barWidth as `${number}%` }]} />
+                          </View>
+                        ) : (
+                          <View style={styles.distTrackEmpty} />
+                        )}
                       </View>
                     );
                   })}
@@ -572,6 +632,11 @@ export function SupportOverviewScreen() {
                           ? 'Em homologação'
                           : (createTicket.visible ? 'Bloqueados' : 'Sem permissão'))
                     }
+                    tone={
+                      !createTicket.enabled && createTicket.reason?.includes('homologação')
+                        ? 'caution'
+                        : undefined
+                    }
                   />
                   <HealthRow label="Projeção" value="JSM" />
                 </View>
@@ -598,25 +663,37 @@ function StripCell({
   return (
     <View style={styles.stripCell}>
       <Text style={styles.stripLabel}>{label}</Text>
-      <Text
-        style={[
-          styles.stripValue,
-          tone === 'danger' && styles.danger,
-          tone === 'warning' && styles.warning,
-        ]}
-      >
-        {value.toLocaleString('pt-BR')}
-      </Text>
-      {detail ? <Text style={styles.stripDetail}>{detail}</Text> : null}
+      <View style={styles.stripValueRow}>
+        <Text
+          style={[
+            styles.stripValue,
+            tone === 'danger' && styles.danger,
+            tone === 'warning' && styles.warning,
+          ]}
+        >
+          {value.toLocaleString('pt-BR')}
+        </Text>
+        {detail ? <Text style={styles.stripDetail}>· {detail}</Text> : null}
+      </View>
     </View>
   );
 }
 
-function HealthRow({ label, value }: { label: string; value: string }) {
+function HealthRow({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'caution';
+}) {
   return (
     <View style={styles.healthRow}>
       <Text style={styles.healthLabel}>{label}</Text>
-      <Text style={styles.healthValue}>{value}</Text>
+      <Text style={[styles.healthValue, tone === 'caution' && styles.healthCaution]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -626,7 +703,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 1360,
     alignSelf: 'center',
-    gap: 20,
+    gap: 18,
     paddingHorizontal: 32,
     paddingVertical: cloudTheme.layout.contentPadding,
   },
@@ -642,7 +719,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   kicker: {
     color: cloudTheme.colors.textMuted,
@@ -652,7 +729,7 @@ const styles = StyleSheet.create({
   },
   title: { color: cloudTheme.colors.text, fontSize: 27, fontWeight: '800' },
   lead: { color: cloudTheme.colors.textSecondary, fontSize: 14, lineHeight: 20, maxWidth: 560 },
-  updatedLabel: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600' },
+  updatedLabel: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600', marginRight: 4 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   muted: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 19 },
   errorRow: {
@@ -671,7 +748,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'stretch',
-    minHeight: 76,
+    minHeight: 68,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: cloudTheme.colors.border,
@@ -682,7 +759,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 2,
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
   },
   stripDivider: { width: 1, backgroundColor: cloudTheme.colors.border },
@@ -693,9 +770,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  stripValue: { color: cloudTheme.colors.text, fontSize: 21, fontWeight: '900' },
-  stripDetail: { color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '600' },
-  stripStatus: { color: cloudTheme.colors.text, fontSize: 15, fontWeight: '800' },
+  stripValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  stripValue: {
+    color: cloudTheme.colors.text,
+    fontSize: 21,
+    fontWeight: '800',
+    ...tabularNums,
+  },
+  stripDetail: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600' },
+  stripStatus: { color: cloudTheme.colors.text, fontSize: 15, fontWeight: '700' },
   danger: { color: cloudTheme.colors.danger },
   warning: { color: '#9A6B1F' },
   grid: {
@@ -708,18 +796,26 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   mainCol: {
-    flexGrow: 2,
+    flexGrow: 1,
     flexShrink: 1,
     flexBasis: '0%',
     minWidth: 0,
-    gap: 20,
+    gap: 22,
   },
   sideCol: {
-    width: 340,
+    width: 320,
     maxWidth: '100%',
     flexShrink: 0,
-    gap: 20,
+    gap: 22,
   },
+  sideColSticky: Platform.select({
+    web: {
+      position: 'sticky' as ViewStyle['position'],
+      top: 80,
+      alignSelf: 'flex-start',
+    },
+    default: {},
+  }) as ViewStyle,
   panel: {
     gap: 10,
     paddingTop: 4,
@@ -728,11 +824,12 @@ const styles = StyleSheet.create({
   },
   panelHead: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
     marginTop: 4,
   },
+  panelTitleBlock: { flex: 1, minWidth: 0, gap: 2 },
   sectionTitle: {
     color: cloudTheme.colors.text,
     fontSize: 15,
@@ -741,14 +838,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   panelMeta: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '700' },
+  panelSubmeta: { color: cloudTheme.colors.textSecondary, fontSize: 12, fontWeight: '600' },
   table: {
     borderTopWidth: 1,
     borderTopColor: cloudTheme.colors.border,
+    width: '100%',
   },
   tableHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    minHeight: 36,
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
@@ -760,13 +857,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 44,
-    paddingVertical: 8,
+    minHeight: 56,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
+    backgroundColor: 'transparent',
   },
   tableRowSla: {
     borderLeftWidth: 3,
@@ -787,32 +882,23 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontWeight: '600',
   },
-  cell: { color: cloudTheme.colors.textSecondary, fontSize: 13 },
-  cellStrong: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
+  cell: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  cellStrong: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '600' },
   whenCell: {
     color: cloudTheme.colors.textSecondary,
     fontSize: 12,
-    fontVariant: ['tabular-nums'],
     fontWeight: '600',
+    ...tabularNums,
   },
   priTag: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
   },
   pri_critical: { color: cloudTheme.colors.danger },
   pri_high: { color: '#9A6B1F' },
   pri_normal: { color: cloudTheme.colors.text },
   pri_low: { color: cloudTheme.colors.textMuted },
   arrow: { color: cloudTheme.colors.textMuted, fontSize: 14, fontWeight: '700', textAlign: 'right' },
-  colProtocol: { flex: 1.1, minWidth: 108 },
-  colReason: { flex: 1.6, minWidth: 140 },
-  colPri: { flex: 0.7, minWidth: 72 },
-  colSla: { flex: 0.85, minWidth: 84 },
-  colOwner: { flex: 0.8, minWidth: 72 },
-  colArrow: { width: 18, flexGrow: 0 },
-  colWhen: { flex: 1.1, minWidth: 120 },
-  colEvent: { flex: 0.9, minWidth: 88 },
-  colStatus: { flex: 0.9, minWidth: 96 },
   distList: { gap: 10 },
   distRow: { gap: 4 },
   distMeta: {
@@ -821,19 +907,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  distLabel: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '600', flex: 1 },
-  distValue: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '800' },
-  distZero: { color: cloudTheme.colors.textMuted, fontWeight: '500' },
+  distLabel: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '500', flex: 1 },
+  distValue: {
+    color: cloudTheme.colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+    minWidth: 24,
+    ...tabularNums,
+  },
+  distZero: { color: cloudTheme.colors.textMuted, fontWeight: '400' },
   distTrack: {
-    height: 6,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 1,
     backgroundColor: '#EEF1EE',
     overflow: 'hidden',
   },
+  distTrackEmpty: { height: 5 },
   distBar: {
     height: '100%',
-    borderRadius: 2,
-    backgroundColor: cloudTheme.colors.brand,
+    borderRadius: 1,
+    backgroundColor: '#5A7263',
   },
   healthList: {
     borderTopWidth: 1,
@@ -849,11 +943,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
   },
-  healthLabel: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '700' },
-  healthValue: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  healthLabel: { color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '600' },
+  healthValue: {
+    color: cloudTheme.colors.text,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  healthCaution: { color: '#9A6B1F', fontWeight: '600' },
   primaryButton: {
     minHeight: 44,
+    minWidth: 118,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
     borderRadius: 4,
     backgroundColor: '#1F6B45',
@@ -862,19 +964,20 @@ const styles = StyleSheet.create({
   secondaryButton: {
     minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: cloudTheme.colors.brand,
+    borderColor: '#1F6B45',
     borderRadius: 4,
     backgroundColor: cloudTheme.colors.surface,
   },
-  secondaryButtonText: { color: cloudTheme.colors.brand, fontWeight: '800', fontSize: 13 },
+  secondaryButtonText: { color: '#1F6B45', fontWeight: '800', fontSize: 13 },
   textAction: {
     minHeight: 36,
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  textActionLabel: { color: '#1F6B45', fontSize: 13, fontWeight: '800' },
+  textActionLabel: { color: '#1F6B45', fontSize: 13, fontWeight: '700' },
   pressed: { opacity: 0.88 },
   disabled: { opacity: 0.5 },
 });
