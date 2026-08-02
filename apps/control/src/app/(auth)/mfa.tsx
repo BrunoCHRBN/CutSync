@@ -12,7 +12,7 @@ import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import { resolvePostAuthDestination } from '@/navigation/safe-return-to';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { cloudTheme } from '@/theme/cloud-components';
 
 export default function MfaRoute() {
   const {
@@ -38,8 +38,9 @@ export default function MfaRoute() {
 
   return (
     <View style={styles.page}>
+      <View style={styles.atmosphere} />
       <ControlCard style={styles.card}>
-        <Text style={styles.eyebrow}>SEGUNDA ETAPA</Text>
+        <Text style={styles.brandMark}>CUTSYNC CLOUD</Text>
         <Text style={styles.title}>Confirme seu autenticador</Text>
         <Text style={styles.description}>
           O CutSync Cloud exige TOTP e uma sessão AAL2 para liberar qualquer dado interno.
@@ -63,7 +64,9 @@ export default function MfaRoute() {
             onPress={() => { void enrollMfa(); }}
           />
         ) : (
-          <Text style={styles.helper}>Abra seu aplicativo autenticador e informe o código atual.</Text>
+          <Text style={styles.helper}>
+            Abra seu aplicativo autenticador e informe o código atual.
+          </Text>
         )}
 
         <ControlField
@@ -83,7 +86,13 @@ export default function MfaRoute() {
           busy={mfaBusy}
           onPress={() => { void verifyMfa(code); }}
         />
-        {message ? <ControlNotice tone="danger" message={message} /> : null}
+        {message ? (
+          <ControlNotice
+            tone="danger"
+            title="Verificação não concluída"
+            message={message}
+          />
+        ) : null}
         <ControlButton
           label="Encerrar sessão"
           variant="ghost"
@@ -99,24 +108,58 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.canvasMuted,
+    padding: cloudTheme.spacing.xl,
+    backgroundColor: cloudTheme.colors.canvas,
+  },
+  atmosphere: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: cloudTheme.colors.brandSoft,
+    opacity: 0.35,
   },
   card: {
+    width: '100%',
     maxWidth: 480,
-    gap: spacing.md,
-    padding: spacing.xxl,
+    gap: cloudTheme.spacing.md,
+    padding: cloudTheme.spacing.xxl,
+    borderRadius: cloudTheme.radii.lg,
+    zIndex: 1,
   },
-  eyebrow: { ...typeScale.eyebrow, color: colors.accent },
-  title: { ...typeScale.pageTitleCompact, color: colors.text },
-  description: { ...typeScale.body, color: colors.textSecondary },
-  enrollment: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
-  qrCode: { width: 190, height: 190, backgroundColor: colors.surface },
-  helper: { ...typeScale.small, color: colors.textSecondary },
-  secret: { ...typeScale.bodyStrong, color: colors.text, letterSpacing: 1, textAlign: 'center' },
+  brandMark: {
+    ...cloudTheme.type.eyebrow,
+    color: cloudTheme.colors.accent,
+  },
+  title: {
+    ...cloudTheme.type.pageTitleCompact,
+    color: cloudTheme.colors.text,
+  },
+  description: {
+    ...cloudTheme.type.body,
+    color: cloudTheme.colors.textSecondary,
+  },
+  enrollment: {
+    alignItems: 'center',
+    gap: cloudTheme.spacing.sm,
+    paddingVertical: cloudTheme.spacing.xs,
+  },
+  qrCode: {
+    width: 190,
+    height: 190,
+    backgroundColor: cloudTheme.colors.surface,
+  },
+  helper: {
+    ...cloudTheme.type.small,
+    color: cloudTheme.colors.textSecondary,
+  },
+  secret: {
+    ...cloudTheme.type.bodyStrong,
+    color: cloudTheme.colors.text,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
   input: {
     textAlign: 'center',
     fontSize: 18,
     letterSpacing: 3,
+    minHeight: cloudTheme.layout.touchTarget,
   },
 });

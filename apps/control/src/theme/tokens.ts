@@ -49,8 +49,8 @@ export const controlSpacing = {
 export const controlRadii = {
   sm: 8,
   md: 10,
-  lg: 14,
-  xl: 18,
+  lg: 12,
+  xl: 16,
   pill: 999,
 } as const;
 
@@ -119,10 +119,12 @@ export const controlType = {
 export const controlLayout = {
   contentMax: 1180,
   formMax: 720,
-  sidebarWidth: 264,
+  sidebarWidth: 220,
+  contentPadding: 28,
   compactBreakpoint: 900,
+  tabletBreakpoint: 1024,
   mobileBreakpoint: 600,
-  touchTarget: 48,
+  touchTarget: 44,
 } as const;
 
 // Aliases keep feature code concise while the `control*` names make imports

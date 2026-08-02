@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { BillingOverviewLinks } from '@/components/billing/billing-navigation';
@@ -7,6 +7,9 @@ import {
   type PendingBillingAction,
   subscriptionStatusLabels,
 } from '@/components/billing/billing-types';
+import { DataTable } from '@/components/cloud/data-table';
+import { FeedbackState } from '@/components/cloud/feedback-state';
+import { FilterTabs } from '@/components/cloud/filter-tabs';
 import {
   ControlButton,
   ControlCard,
@@ -24,6 +27,20 @@ import type {
   ControlBillingSnapshot,
   ControlIdentityConflict,
 } from '@/services/control-billing';
+
+type FinancePeriod = '7d' | '30d' | 'month' | 'custom';
+
+const financePeriods: { id: FinancePeriod; label: string }[] = [
+  { id: '7d', label: '7 dias' },
+  { id: '30d', label: '30 dias' },
+  { id: 'month', label: 'Mês atual' },
+  { id: 'custom', label: 'Personalizado' },
+];
+
+/**
+ * Contrato futuro para série temporal financeira (não fabricar barras sem RPC):
+ * { date: string; receivedCents: number; pendingCents: number; forecastCents: number }
+ */
 
 const conflictReasonLabels: Record<string, string> = {
   duplicate_document: 'Documento já associado',
@@ -59,6 +76,7 @@ export function OverviewSection({
 }: {
   snapshot: ControlBillingSnapshot;
 }) {
+  const [period, setPeriod] = useState<FinancePeriod>('30d');
   const activeSubscriptions = snapshot.accounts.filter((item) => (
     item.subscriptionStatus === 'active' || item.subscriptionStatus === 'trialing'
   )).length;
@@ -66,10 +84,45 @@ export function OverviewSection({
     item.subscriptionStatus === 'past_due' || item.subscriptionStatus === 'suspended'
   )).length;
   const pendingConflicts = snapshot.conflicts.filter((item) => item.status === 'pending').length;
+  const configuredPlans = snapshot.plans.filter((plan) => plan.basePriceCents !== null).length;
 
   return (
     <>
+      <View style={styles.periodRow}>
+        <Text style={styles.bodyText}>Período de análise</Text>
+        <FilterTabs tabs={financePeriods} value={period} onChange={setPeriod} />
+        {period === 'custom' ? (
+          <Text style={styles.bodyText}>
+            Intervalo personalizado aguarda seletor de datas ligado à RPC de caixa.
+          </Text>
+        ) : null}
+      </View>
+
       <View style={styles.metrics}>
+        <ControlMetricCard
+          label="Recebido"
+          value="—"
+          detail="Valor confirmado · série de caixa ainda indisponível"
+          tone="success"
+        />
+        <ControlMetricCard
+          label="Pendências"
+          value={attentionSubscriptions.toLocaleString('pt-BR')}
+          detail="Assinaturas em atraso ou suspensas (operacional)"
+          tone={attentionSubscriptions > 0 ? 'warning' : 'neutral'}
+        />
+        <ControlMetricCard
+          label="Conciliação"
+          value={snapshot.cutovers.length.toLocaleString('pt-BR')}
+          detail="Transições aguardando reconciliação"
+          tone={snapshot.cutovers.length > 0 ? 'warning' : 'neutral'}
+        />
+        <ControlMetricCard
+          label="Previsto"
+          value={configuredPlans.toLocaleString('pt-BR')}
+          detail="Planos com preço-base configurado (catálogo)"
+          tone="info"
+        />
         <ControlMetricCard
           label="Contas"
           value={snapshot.accounts.length.toLocaleString('pt-BR')}
@@ -82,24 +135,59 @@ export function OverviewSection({
           tone="success"
         />
         <ControlMetricCard
-          label="Exigem atenção"
-          value={attentionSubscriptions.toLocaleString('pt-BR')}
-          detail="Em atraso ou suspensas"
-          tone={attentionSubscriptions > 0 ? 'warning' : 'neutral'}
-        />
-        <ControlMetricCard
-          label="Transições pendentes"
-          value={snapshot.cutovers.length.toLocaleString('pt-BR')}
-          detail="Aguardando reconciliação"
-          tone={snapshot.cutovers.length > 0 ? 'warning' : 'neutral'}
-        />
-        <ControlMetricCard
           label="Conflitos pendentes"
           value={pendingConflicts.toLocaleString('pt-BR')}
           detail="Decisões cadastrais"
           tone={pendingConflicts > 0 ? 'warning' : 'neutral'}
         />
       </View>
+
+      <ControlCard style={styles.formCard}>
+        <Text style={styles.cardTitle}>Fluxo financeiro</Text>
+        <FeedbackState
+          kind="partial"
+          title="Histórico ainda indisponível"
+          message={`O período ${financePeriods.find((item) => item.id === period)?.label} está selecionado, mas a RPC atual não expõe série temporal de recebido/pendente/previsto. Nenhum gráfico simulado é exibido.`}
+        />
+      </ControlCard>
+
+      <ControlCard style={styles.formCard}>
+        <Text style={styles.cardTitle}>Pendências financeiras</Text>
+        <Text style={styles.bodyText}>
+          {attentionSubscriptions > 0
+            ? `${attentionSubscriptions} assinatura(s) exigem atenção operacional.`
+            : 'Nenhuma assinatura em atraso ou suspensa no snapshot atual.'}
+        </Text>
+        <Text style={styles.bodyText}>
+          {snapshot.cutovers.length > 0
+            ? `${snapshot.cutovers.length} transição(ões) pendente(s) de conciliação.`
+            : 'Nenhuma transição de cutover pendente.'}
+        </Text>
+      </ControlCard>
+
+      <ControlCard style={styles.formCard}>
+        <Text style={styles.cardTitle}>Movimentações recentes</Text>
+        <DataTable
+          columns={[
+            { key: 'date', header: 'Data', render: (row: { date: string }) => row.date },
+            { key: 'description', header: 'Descrição', render: (row: { description: string }) => row.description },
+            { key: 'account', header: 'Conta', render: (row: { account: string }) => row.account },
+            { key: 'type', header: 'Tipo', render: (row: { type: string }) => row.type },
+            { key: 'status', header: 'Status', render: (row: { status: string }) => row.status },
+            { key: 'amount', header: 'Valor', render: (row: { amount: string }) => row.amount },
+          ]}
+          rows={[] as {
+            date: string;
+            description: string;
+            account: string;
+            type: string;
+            status: string;
+            amount: string;
+          }[]}
+          rowKey={(row) => row.date + row.description}
+          emptyLabel="Nenhuma movimentação de caixa disponível nesta sessão."
+        />
+      </ControlCard>
 
       <View style={styles.overviewLinks}>
         <BillingOverviewLinks />

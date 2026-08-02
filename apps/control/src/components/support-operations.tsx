@@ -12,8 +12,11 @@ import {
   View,
 } from 'react-native';
 
+import { ContextualSearch } from '@/components/cloud/contextual-search';
+import { StatusBadge } from '@/components/cloud/status-badge';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import { subscribeToControlLive } from '@/services/control-live';
 import {
   configureSupportTeamMember,
@@ -142,38 +145,75 @@ function FilterGroup<T extends string>({
   );
 }
 
+function isSlaAtRisk(ticket: SupportTicketSummary): boolean {
+  if (!ticket.firstResponseDueAt || ticket.firstRespondedAt) return false;
+  return Date.parse(ticket.firstResponseDueAt) < Date.now();
+}
+
 function TicketCard({
   ticket,
   selected,
   onPress,
+  checked,
+  onToggleCheck,
+  selectable,
 }: {
   ticket: SupportTicketSummary;
   selected: boolean;
   onPress: () => void;
+  checked?: boolean;
+  onToggleCheck?: () => void;
+  selectable?: boolean;
 }) {
+  const slaRisk = isSlaAtRisk(ticket);
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={`Abrir chamado ${ticket.protocol}`}
       onPress={onPress}
       style={({ pressed }) => [
         styles.ticketCard,
         selected && styles.ticketCardSelected,
+        slaRisk && styles.ticketCardSlaRisk,
         pressed && styles.pressed,
       ]}
     >
       <View style={styles.ticketTopLine}>
-        <Text numberOfLines={1} style={styles.protocol}>{ticket.protocol}</Text>
+        <View style={styles.ticketIdentity}>
+          {selectable ? (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: Boolean(checked) }}
+              hitSlop={8}
+              onPress={onToggleCheck}
+              style={[styles.checkbox, checked && styles.checkboxChecked]}
+            >
+              <Text style={styles.checkboxMark}>{checked ? '✓' : ''}</Text>
+            </Pressable>
+          ) : null}
+          <Text numberOfLines={1} style={styles.protocol}>{ticket.protocol}</Text>
+        </View>
         <Text style={[styles.priority, styles[`priority_${ticket.priority}`]]}>
           {priorityLabels[ticket.priority]}
         </Text>
       </View>
       <Text numberOfLines={2} style={styles.ticketSubject}>{ticket.subject}</Text>
+      <Text numberOfLines={1} style={styles.ticketClient}>
+        {ticket.requesterDisplayName ?? ticket.locationLabel ?? 'Cliente não identificado'}
+      </Text>
       <View style={styles.ticketMetadata}>
         <Text style={styles.metadata}>{statusLabels[ticket.status]}</Text>
         <Text style={styles.metadata}>{categoryLabels[ticket.category]}</Text>
-        {ticket.locationLabel ? <Text numberOfLines={1} style={styles.metadata}>{ticket.locationLabel}</Text> : null}
+        <Text style={[styles.metadata, slaRisk && styles.slaRiskText]}>
+          SLA {slaRisk ? 'fora do prazo' : 'no prazo'}
+        </Text>
+        <Text style={styles.metadata}>
+          Resp. {ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : 'não atribuído'}
+        </Text>
       </View>
-      <Text style={styles.ticketDate}>Atualizado em {formatDate(ticket.updatedAt)}</Text>
+      <Text style={styles.ticketDate}>
+        Última interação {formatDate(ticket.lastMessageAt ?? ticket.updatedAt)}
+      </Text>
     </Pressable>
   );
 }
@@ -309,6 +349,9 @@ export function SupportOperations() {
   const [statusFilter, setStatusFilter] = useState<SupportStatus | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<SupportPriority | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<SupportCategory | null>(null);
+  const [slaFilter, setSlaFilter] = useState<'all' | 'at_risk' | 'ok'>('all');
+  const [queueQuery, setQueueQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [overview, setOverview] = useState<SupportOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -519,6 +562,31 @@ export function SupportOperations() {
     allowNewTickets: overview?.capabilities?.allowNewTickets ?? false,
   });
 
+  const filteredTickets = (overview?.tickets ?? []).filter((ticket) => {
+    const needle = queueQuery.trim().toLowerCase();
+    if (needle) {
+      const haystack = [
+        ticket.protocol,
+        ticket.subject,
+        ticket.requesterDisplayName,
+        ticket.locationLabel,
+        categoryLabels[ticket.category],
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(needle)) return false;
+    }
+    if (slaFilter === 'at_risk' && !isSlaAtRisk(ticket)) return false;
+    if (slaFilter === 'ok' && isSlaAtRisk(ticket)) return false;
+    return true;
+  });
+
+  const toggleSelected = (ticketId: string) => {
+    setSelectedIds((current) => (
+      current.includes(ticketId)
+        ? current.filter((id) => id !== ticketId)
+        : [...current, ticketId]
+    ));
+  };
+
   return (
     <View style={styles.content}>
       {createTicketAction.visible ? (
@@ -638,21 +706,47 @@ export function SupportOperations() {
           </View>
 
           <View style={styles.filters}>
+            <ContextualSearch
+              value={queueQuery}
+              onChangeText={setQueueQuery}
+              placeholder="Filtrar por cliente, protocolo ou motivo"
+            />
             <FilterGroup label="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
             <FilterGroup label="Prioridade" value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} />
             <FilterGroup label="Área" value={categoryFilter} options={categoryOptions} onChange={setCategoryFilter} />
+            <FilterGroup
+              label="SLA"
+              value={slaFilter === 'all' ? null : slaFilter}
+              options={[
+                { value: 'at_risk' as const, label: 'Fora do SLA' },
+                { value: 'ok' as const, label: 'No prazo' },
+              ]}
+              onChange={(value) => setSlaFilter(value ?? 'all')}
+            />
           </View>
+
+          {canManage && selectedIds.length > 0 ? (
+            <View style={styles.batchBar}>
+              <Text style={styles.muted}>{selectedIds.length} selecionado(s)</Text>
+              <StatusBadge label="LOTE BLOQUEADO" tone="warning" />
+              <Text style={styles.muted}>
+                Ações em lote aguardam RPC homologada. Use as ações do detalhe para mutações autorizadas.
+              </Text>
+            </View>
+          ) : null}
         </>
       ) : null}
 
       {overview && showQueue ? (
         <View style={[styles.workspace, compact && styles.workspaceCompact]}>
           {showList ? (
-            <View style={[styles.listPanel, compact && styles.fullPanel]}>
+            <View style={[styles.listPanel, compact && styles.fullPanel, !compact && styles.listPanelWide]}>
               <View style={styles.panelHeader}>
                 <View>
                   <Text style={styles.cardTitle}>Chamados</Text>
-                  <Text style={styles.muted}>{overview.tickets.length} carregado(s)</Text>
+                  <Text style={styles.muted}>
+                    {filteredTickets.length} de {overview.tickets.length} · total filtrado {overview.counts.total}
+                  </Text>
                 </View>
                 {overviewLoading ? (
                   <ActivityIndicator color="#173d2b" />
@@ -662,19 +756,85 @@ export function SupportOperations() {
                   </Pressable>
                 )}
               </View>
-              <View style={styles.ticketList}>
-                {overview.tickets.map((ticket) => (
-                  <TicketCard
-                    key={ticket.id}
-                    ticket={ticket}
-                    selected={ticket.id === selectedTicketId}
-                    onPress={() => router.setParams({ ticketId: ticket.id })}
-                  />
-                ))}
-                {!overviewLoading && overview.tickets.length === 0 ? (
-                  <Text style={styles.empty}>Nenhum chamado corresponde aos filtros atuais.</Text>
-                ) : null}
-              </View>
+
+              {!compact ? (
+                <View style={styles.desktopTable}>
+                  <View style={styles.desktopHeader}>
+                    {canManage ? <Text style={[styles.desktopHeadCell, styles.desktopCheckCol]} /> : null}
+                    <Text style={[styles.desktopHeadCell, styles.desktopFlex]}>Cliente / protocolo</Text>
+                    <Text style={[styles.desktopHeadCell, styles.desktopFlex]}>Motivo</Text>
+                    <Text style={styles.desktopHeadCell}>Prioridade</Text>
+                    <Text style={styles.desktopHeadCell}>SLA</Text>
+                    <Text style={styles.desktopHeadCell}>Responsável</Text>
+                    <Text style={styles.desktopHeadCell}>Status</Text>
+                  </View>
+                  {filteredTickets.map((ticket) => {
+                    const slaRisk = isSlaAtRisk(ticket);
+                    return (
+                      <Pressable
+                        key={ticket.id}
+                        accessibilityRole="button"
+                        onPress={() => router.setParams({ ticketId: ticket.id })}
+                        style={[
+                          styles.desktopRow,
+                          ticket.id === selectedTicketId && styles.desktopRowSelected,
+                          slaRisk && styles.desktopRowSlaRisk,
+                        ]}
+                      >
+                        {canManage ? (
+                          <Pressable
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: selectedIds.includes(ticket.id) }}
+                            onPress={() => toggleSelected(ticket.id)}
+                            style={[styles.checkbox, selectedIds.includes(ticket.id) && styles.checkboxChecked, styles.desktopCheckCol]}
+                          >
+                            <Text style={styles.checkboxMark}>
+                              {selectedIds.includes(ticket.id) ? '✓' : ''}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                        <View style={styles.desktopFlex}>
+                          <Text style={styles.protocol}>{ticket.protocol}</Text>
+                          <Text numberOfLines={1} style={styles.ticketClient}>
+                            {ticket.requesterDisplayName ?? ticket.locationLabel ?? '—'}
+                          </Text>
+                        </View>
+                        <Text numberOfLines={2} style={[styles.ticketSubject, styles.desktopFlex]}>
+                          {ticket.subject}
+                        </Text>
+                        <Text style={[styles.priority, styles[`priority_${ticket.priority}`]]}>
+                          {priorityLabels[ticket.priority]}
+                        </Text>
+                        <Text style={[styles.metadata, slaRisk && styles.slaRiskText]}>
+                          {slaRisk ? 'Fora do SLA' : 'No prazo'}
+                        </Text>
+                        <Text style={styles.metadata}>
+                          {ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : '—'}
+                        </Text>
+                        <Text style={styles.metadata}>{statusLabels[ticket.status]}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.ticketList}>
+                  {filteredTickets.map((ticket) => (
+                    <TicketCard
+                      key={ticket.id}
+                      ticket={ticket}
+                      selected={ticket.id === selectedTicketId}
+                      selectable={canManage}
+                      checked={selectedIds.includes(ticket.id)}
+                      onToggleCheck={() => toggleSelected(ticket.id)}
+                      onPress={() => router.setParams({ ticketId: ticket.id })}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {!overviewLoading && filteredTickets.length === 0 ? (
+                <Text style={styles.empty}>Nenhum chamado corresponde aos filtros atuais.</Text>
+              ) : null}
               {overview.nextCursor ? (
                 <Pressable
                   accessibilityRole="button"
@@ -691,7 +851,11 @@ export function SupportOperations() {
           {showDetail ? (
             <View style={[styles.detailPanel, compact && styles.fullPanel]}>
               {compact && selectedTicketId ? (
-                <Pressable accessibilityRole="button" onPress={() => router.replace('/support')} style={styles.backButton}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.replace(CLOUD_ROUTES.suporte.root)}
+                  style={styles.backButton}
+                >
                   <Text style={styles.backButtonText}>← Voltar para a fila</Text>
                 </Pressable>
               ) : null}
@@ -1029,6 +1193,7 @@ const styles = StyleSheet.create({
   refreshButtonText: { color: '#285f43', fontSize: 11, fontWeight: '800' },
   ticketList: { gap: 9 },
   ticketCard: {
+    minHeight: 44,
     gap: 8,
     padding: 14,
     borderWidth: 1,
@@ -1037,12 +1202,64 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   ticketCardSelected: { borderColor: '#347452', backgroundColor: '#f0f8f3' },
+  ticketCardSlaRisk: { borderColor: '#c9892f', borderLeftWidth: 4 },
   ticketTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  protocol: { color: '#347452', fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
+  ticketIdentity: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+  protocol: { color: '#347452', fontSize: 12, fontWeight: '900', letterSpacing: 0.7 },
   ticketSubject: { color: '#17231c', fontSize: 14, fontWeight: '800', lineHeight: 19 },
+  ticketClient: { color: '#344239', fontSize: 12, fontWeight: '600' },
   ticketMetadata: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  metadata: { color: '#667269', fontSize: 10, fontWeight: '600' },
-  ticketDate: { color: '#7b857e', fontSize: 10 },
+  metadata: { color: '#667269', fontSize: 12, fontWeight: '600' },
+  slaRiskText: { color: '#8b641d', fontWeight: '800' },
+  ticketDate: { color: '#7b857e', fontSize: 12 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 1,
+    borderColor: '#bdc9bf',
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  checkboxChecked: { borderColor: '#27523b', backgroundColor: '#27523b' },
+  checkboxMark: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
+  batchBar: {
+    gap: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e6d4a8',
+    borderRadius: 12,
+    backgroundColor: '#fffbf1',
+  },
+  listPanelWide: { width: 460, maxWidth: '48%' },
+  desktopTable: { gap: 0, borderWidth: 1, borderColor: '#d8dfd8', borderRadius: 12, overflow: 'hidden' },
+  desktopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#f5f7f4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d8dfd8',
+  },
+  desktopRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7ebe7',
+    backgroundColor: '#ffffff',
+  },
+  desktopRowSelected: { backgroundColor: '#f0f8f3' },
+  desktopRowSlaRisk: { borderLeftWidth: 4, borderLeftColor: '#c9892f' },
+  desktopHeadCell: { color: '#7b857e', fontSize: 12, fontWeight: '800', minWidth: 72 },
+  desktopFlex: { flex: 1, minWidth: 100 },
+  desktopCheckCol: { width: 28, minWidth: 28 },
   priority: {
     overflow: 'hidden',
     paddingHorizontal: 8,

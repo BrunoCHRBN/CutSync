@@ -52,7 +52,7 @@ export function ControlCard({
   );
 }
 
-export type ControlButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type ControlButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
 
 export interface ControlButtonProps {
   label: string;
@@ -74,6 +74,10 @@ const buttonVariantStyles: Record<ControlButtonVariant, ViewStyle> = {
     borderColor: controlColors.borderStrong,
     backgroundColor: controlColors.surface,
   },
+  outline: {
+    borderColor: controlColors.brand,
+    backgroundColor: 'transparent',
+  },
   danger: {
     borderColor: controlColors.danger,
     backgroundColor: controlColors.danger,
@@ -87,6 +91,7 @@ const buttonVariantStyles: Record<ControlButtonVariant, ViewStyle> = {
 const buttonTextVariantStyles: Record<ControlButtonVariant, TextStyle> = {
   primary: { color: controlColors.surface },
   secondary: { color: controlColors.brand },
+  outline: { color: controlColors.brand },
   danger: { color: controlColors.surface },
   ghost: { color: controlColors.textSecondary },
 };
@@ -102,7 +107,7 @@ export function ControlButton({
   testID,
 }: ControlButtonProps) {
   const unavailable = disabled || busy;
-  const indicatorColor = variant === 'secondary' || variant === 'ghost'
+  const indicatorColor = variant === 'secondary' || variant === 'outline' || variant === 'ghost'
     ? controlColors.brand
     : controlColors.surface;
 

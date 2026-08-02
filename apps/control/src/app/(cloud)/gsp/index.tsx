@@ -1,18 +1,25 @@
 import React from 'react';
 
-import { RequireControlPermission } from '@/components/require-control-permission';
-import { GspPlaceholder } from '@/modules/gsp/gsp-placeholder';
+import { ControlState } from '@/components/control-state';
+import { useControlAuth } from '@/contexts/control-auth-context';
+import { GspOverview } from '@/modules/gsp/gsp-overview';
 
 export default function GspRoute() {
-  return (
-    <RequireControlPermission permission="control.governance.read">
-      <GspPlaceholder
-        eyebrow="GSP"
-        title="Governança, Segurança e Políticas"
-        description="Composição de risco, revisões, auditoria e políticas. A central existente migra após paridade funcional."
-        source="Central de governança existente"
-        detail="As rotas atuais permanecem no Web enquanto a migração para o Cloud é validada sem perda de funcionalidades."
-      />
-    </RequireControlPermission>
+  const { can } = useControlAuth();
+  const allowed = (
+    can('control.governance.read')
+    || can('control.knowledge.read')
+    || can('control.access.manage')
   );
+
+  if (!allowed) {
+    return (
+      <ControlState
+        title="GSP restrito"
+        message="Seu papel não permite consultar Governança, Segurança e Plataforma."
+      />
+    );
+  }
+
+  return <GspOverview />;
 }

@@ -3,47 +3,102 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlobalSearch } from '@/components/cloud/global-search';
 import { ModuleSwitcher } from '@/components/cloud/module-switcher';
+import { useControlAuth } from '@/contexts/control-auth-context';
 import { cloudTheme } from '@/theme/cloud-components';
+
+const roleLabels = {
+  SaaS_Viewer: 'Visualizador',
+  SaaS_Editor: 'Editor',
+  SaaS_Owner: 'Proprietário',
+} as const;
 
 export function CloudTopbar({
   environmentLabel,
   menuOpen,
   onToggleMenu,
   showMenuButton,
+  onNavigate,
 }: {
   environmentLabel: string;
   menuOpen: boolean;
   onToggleMenu: () => void;
   showMenuButton: boolean;
+  onNavigate?: () => void;
 }) {
+  const { context, signOut } = useControlAuth();
+  const [profileOpen, setProfileOpen] = React.useState(false);
+
   return (
     <View style={styles.bar}>
       <View style={styles.brandBlock}>
-        <Text style={styles.eyebrow}>CUTSYNC</Text>
-        <Text style={styles.title}>Cloud</Text>
+        <Text style={styles.brandMark}>CutSync</Text>
+        <Text style={styles.brandProduct}>Cloud</Text>
+      </View>
+
+      <View style={styles.switcher}>
+        <ModuleSwitcher onNavigate={onNavigate} />
+      </View>
+
+      <View style={styles.search}>
+        <GlobalSearch
+          placeholder="Buscar em todo o CutSync Cloud"
+          onNavigate={onNavigate}
+        />
+      </View>
+
+      <View style={styles.meta}>
         <View style={styles.envBadge}>
           <Text style={styles.envText}>{environmentLabel}</Text>
         </View>
-      </View>
-
-      <View style={styles.tools}>
-        <View style={styles.search}>
-          <GlobalSearch />
-        </View>
-        <ModuleSwitcher />
-      </View>
-
-      {showMenuButton ? (
         <Pressable
-          accessibilityLabel={menuOpen ? 'Fechar menu do Cloud' : 'Abrir menu do Cloud'}
+          accessibilityLabel="Notificações"
           accessibilityRole="button"
-          accessibilityState={{ expanded: menuOpen }}
-          onPress={onToggleMenu}
-          style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <Text style={styles.menuText}>{menuOpen ? 'Fechar' : 'Menu'}</Text>
+          <Text style={styles.iconButtonText}>Alertas</Text>
         </Pressable>
-      ) : null}
+        <View>
+          <Pressable
+            accessibilityLabel="Menu do perfil"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: profileOpen }}
+            onPress={() => setProfileOpen((current) => !current)}
+            style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}
+          >
+            <Text numberOfLines={1} style={styles.profileName}>
+              {context?.name ?? 'Operador'}
+            </Text>
+            <Text style={styles.profileRole}>
+              {context ? roleLabels[context.role] : 'Sessão'}
+            </Text>
+          </Pressable>
+          {profileOpen ? (
+            <View style={styles.profileMenu}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setProfileOpen(false);
+                  void signOut();
+                }}
+                style={({ pressed }) => [styles.profileMenuItem, pressed && styles.pressed]}
+              >
+                <Text style={styles.profileMenuText}>Encerrar sessão</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+        {showMenuButton ? (
+          <Pressable
+            accessibilityLabel={menuOpen ? 'Fechar menu do módulo' : 'Abrir menu do módulo'}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: menuOpen }}
+            onPress={onToggleMenu}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.iconButtonText}>{menuOpen ? 'Fechar' : 'Menu'}</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -54,66 +109,96 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: cloudTheme.spacing.md,
     paddingHorizontal: cloudTheme.spacing.lg,
     paddingVertical: cloudTheme.spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: cloudTheme.colors.brandLine,
-    backgroundColor: cloudTheme.colors.brandDark,
+    borderBottomColor: cloudTheme.colors.border,
+    backgroundColor: cloudTheme.colors.surface,
   },
   brandBlock: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
     minWidth: 120,
+  },
+  brandMark: {
+    color: cloudTheme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  brandProduct: {
+    color: cloudTheme.colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  switcher: { flexGrow: 1, minWidth: 220, maxWidth: 520 },
+  search: { flexGrow: 1, minWidth: 200, maxWidth: 360 },
+  meta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: cloudTheme.spacing.sm,
-  },
-  eyebrow: {
-    color: cloudTheme.colors.accentSoft,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
-  title: {
-    color: cloudTheme.colors.sidebarTextStrong,
-    fontSize: 22,
-    fontWeight: '800',
+    gap: cloudTheme.spacing.xs,
   },
   envBadge: {
+    minHeight: 32,
+    justifyContent: 'center',
     paddingHorizontal: cloudTheme.spacing.sm,
-    paddingVertical: cloudTheme.spacing.xxs,
     borderWidth: 1,
-    borderColor: cloudTheme.colors.brandLine,
+    borderColor: cloudTheme.colors.border,
     borderRadius: cloudTheme.radii.pill,
-    backgroundColor: cloudTheme.colors.brandPanel,
+    backgroundColor: cloudTheme.colors.surfaceMuted,
   },
   envText: {
-    color: cloudTheme.colors.accentSoft,
+    color: cloudTheme.colors.textSecondary,
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
-  tools: {
-    flex: 1,
-    minWidth: 240,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: cloudTheme.spacing.sm,
-  },
-  search: { flex: 1, minWidth: 200, maxWidth: 420 },
-  menuButton: {
+  iconButton: {
     minHeight: cloudTheme.layout.touchTarget,
-    minWidth: 76,
+    minWidth: cloudTheme.layout.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: cloudTheme.spacing.md,
+    paddingHorizontal: cloudTheme.spacing.sm,
     borderWidth: 1,
-    borderColor: cloudTheme.colors.brandLine,
+    borderColor: cloudTheme.colors.border,
     borderRadius: cloudTheme.radii.md,
-    backgroundColor: cloudTheme.colors.brandPanel,
+    backgroundColor: cloudTheme.colors.surface,
   },
-  pressed: { opacity: 0.82 },
-  menuText: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '800' },
+  iconButtonText: { ...cloudTheme.type.caption, color: cloudTheme.colors.text },
+  profileButton: {
+    minHeight: cloudTheme.layout.touchTarget,
+    minWidth: 120,
+    justifyContent: 'center',
+    paddingHorizontal: cloudTheme.spacing.sm,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
+    borderRadius: cloudTheme.radii.md,
+    backgroundColor: cloudTheme.colors.surface,
+  },
+  profileName: { ...cloudTheme.type.smallStrong, color: cloudTheme.colors.text },
+  profileRole: { ...cloudTheme.type.caption, color: cloudTheme.colors.textMuted },
+  profileMenu: {
+    position: 'absolute',
+    right: 0,
+    top: 52,
+    zIndex: 20,
+    minWidth: 180,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
+    borderRadius: cloudTheme.radii.md,
+    backgroundColor: cloudTheme.colors.surfaceRaised,
+    padding: cloudTheme.spacing.xs,
+  },
+  profileMenuItem: {
+    minHeight: cloudTheme.layout.touchTarget,
+    justifyContent: 'center',
+    paddingHorizontal: cloudTheme.spacing.sm,
+    borderRadius: cloudTheme.radii.sm,
+  },
+  profileMenuText: { ...cloudTheme.type.smallStrong, color: cloudTheme.colors.danger },
+  pressed: { opacity: 0.85 },
 });

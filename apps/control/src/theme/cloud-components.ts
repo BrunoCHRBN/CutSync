@@ -40,6 +40,8 @@ export const cloudTheme = {
     topbarHeight: 64,
     bottomNavHeight: 64,
     moduleCardMinHeight: 168,
+    sidebarWidth: 220,
+    contentPadding: 28,
   },
   motion: {
     fastMs: 120,

@@ -89,7 +89,7 @@ export function OperationOverviewScreen() {
       <SectionPage
         eyebrow="VISÃO EXECUTIVA"
         title="Cockpit da operação"
-        description="Resultados, motores e riscos consolidados por plataforma, organização ou estabelecimento. Valores monetários permanecem fora desta visão."
+        description="Resultados, motores e riscos consolidados por plataforma, organização ou estabelecimento. Valores monetários e latência em ms permanecem fora desta visão quando a fonte ainda não existe."
       >
         {loading ? (
           <View style={styles.loading}>

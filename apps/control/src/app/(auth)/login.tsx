@@ -12,7 +12,7 @@ import { ControlState } from '@/components/control-state';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import { resolvePostAuthDestination } from '@/navigation/safe-return-to';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { cloudTheme } from '@/theme/cloud-components';
 
 export default function LoginRoute() {
   const { status, message, signIn, retry } = useControlAuth();
@@ -32,13 +32,21 @@ export default function LoginRoute() {
   }
   if (status === 'unauthorized') return <Redirect href={CLOUD_ROUTES.semAcesso} />;
   if (status === 'error') {
-    return <ControlState title="Não foi possível validar o acesso" message={message} actionLabel="Tentar novamente" onAction={() => { void retry(); }} />;
+    return (
+      <ControlState
+        title="Não foi possível validar o acesso"
+        message={message}
+        actionLabel="Tentar novamente"
+        onAction={() => { void retry(); }}
+      />
+    );
   }
 
   return (
     <View style={styles.page}>
+      <View style={styles.atmosphere} />
       <ControlCard style={styles.panel}>
-        <Text style={styles.eyebrow}>AMBIENTE INTERNO</Text>
+        <Text style={styles.brandMark}>AMBIENTE INTERNO</Text>
         <Text style={styles.title}>CutSync Cloud</Text>
         <Text style={styles.description}>
           Indicadores, operação e governança em um ambiente separado dos aplicativos públicos.
@@ -68,11 +76,17 @@ export default function LoginRoute() {
             disabled={!email.trim() || !password}
             onPress={() => { void signIn(email, password); }}
           />
-          {message ? <ControlNotice tone="danger" message={message} /> : null}
+          {message ? (
+            <ControlNotice
+              tone="danger"
+              title="Não foi possível entrar"
+              message={message}
+            />
+          ) : null}
         </View>
 
         <Text style={styles.securityNote}>
-          A sessão permanece somente nesta aba e exige autenticação em dois fatores.
+          A sessão permanece somente nesta aba e exige autenticação em dois fatores (TOTP / AAL2).
         </Text>
       </ControlCard>
     </View>
@@ -84,17 +98,41 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.canvasMuted,
+    padding: cloudTheme.spacing.xl,
+    backgroundColor: cloudTheme.colors.canvas,
+  },
+  atmosphere: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: cloudTheme.colors.brandSoft,
+    opacity: 0.35,
   },
   panel: {
+    width: '100%',
     maxWidth: 460,
-    gap: spacing.md,
-    padding: spacing.xxl,
+    gap: cloudTheme.spacing.md,
+    padding: cloudTheme.spacing.xxl,
+    borderRadius: cloudTheme.radii.lg,
+    zIndex: 1,
   },
-  eyebrow: { ...typeScale.eyebrow, color: colors.accent },
-  title: { ...typeScale.pageTitle, color: colors.text },
-  description: { ...typeScale.body, color: colors.textSecondary },
-  form: { gap: spacing.sm, marginTop: spacing.sm },
-  securityNote: { ...typeScale.small, color: colors.textMuted, marginTop: spacing.xs },
+  brandMark: {
+    ...cloudTheme.type.eyebrow,
+    color: cloudTheme.colors.accent,
+  },
+  title: {
+    ...cloudTheme.type.pageTitle,
+    color: cloudTheme.colors.text,
+  },
+  description: {
+    ...cloudTheme.type.body,
+    color: cloudTheme.colors.textSecondary,
+  },
+  form: {
+    gap: cloudTheme.spacing.sm,
+    marginTop: cloudTheme.spacing.sm,
+  },
+  securityNote: {
+    ...cloudTheme.type.small,
+    color: cloudTheme.colors.textMuted,
+    marginTop: cloudTheme.spacing.xs,
+  },
 });

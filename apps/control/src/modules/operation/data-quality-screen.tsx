@@ -2,10 +2,10 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { PageHeader } from '@/components/cloud/page-header';
 import { ControlNotice } from '@/components/control-ui';
 import { DataQualityDashboard } from '@/components/data-quality-dashboard';
 import { RequireControlPermission } from '@/components/require-control-permission';
-import { SectionPage } from '@/components/section-page';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import {
   ControlAnalyticsHealthApiError,
@@ -13,6 +13,7 @@ import {
   requestControlAnalyticsReprocess,
   type ControlAnalyticsHealth,
 } from '@/services/control-analytics-health';
+import { cloudTheme } from '@/theme/cloud-components';
 import { controlColors, controlSpacing, controlType } from '@/theme/tokens';
 
 export function DataQualityScreen() {
@@ -73,11 +74,15 @@ export function DataQualityScreen() {
 
   return (
     <RequireControlPermission permission="control.dashboard.read">
-      <SectionPage
-        description="Cobertura histórica, lacunas, disponibilidade de comparações e fila auditável de snapshots."
-        eyebrow="CONFIABILIDADE"
-        title="Saúde dos dados"
-      >
+      <View style={styles.page}>
+        <PageHeader
+          eyebrow="CONFIABILIDADE"
+          title="Saúde dos dados"
+          description="Cobertura integral, dados reconciliados, dias ausentes, fila pendente, cobertura por fonte, comparações históricas, snapshots e processamentos recentes."
+          badge="DADOS REAIS"
+          badgeTone="success"
+        />
+
         {loading && !health ? (
           <View style={styles.loading}>
             <ActivityIndicator color={controlColors.brand} />
@@ -110,12 +115,19 @@ export function DataQualityScreen() {
             reprocessing={reprocessing}
           />
         ) : null}
-      </SectionPage>
+      </View>
     </RequireControlPermission>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    width: '100%',
+    maxWidth: cloudTheme.layout.contentMax,
+    alignSelf: 'center',
+    gap: cloudTheme.spacing.xl,
+    padding: cloudTheme.layout.contentPadding,
+  },
   loading: {
     flexDirection: 'row',
     alignItems: 'center',

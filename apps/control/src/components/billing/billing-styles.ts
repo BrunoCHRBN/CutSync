@@ -24,6 +24,7 @@ export const billingStyles = StyleSheet.create({
   navigationLabelSelected: { color: colors.brandPrimary },
   loading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  periodRow: { gap: spacing.sm },
   overviewLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   overviewLink: {
     width: 260,

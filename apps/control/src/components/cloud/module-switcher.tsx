@@ -1,58 +1,63 @@
-import { Link } from 'expo-router';
+import { Link, usePathname } from 'expo-router';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useControlAuth } from '@/contexts/control-auth-context';
-import { modulesVisibleTo, type CloudModule } from '@/navigation/module-registry';
+import {
+  modulesForSwitcher,
+  resolveActiveNavModule,
+} from '@/navigation/module-nav';
 import { cloudTheme } from '@/theme/cloud-components';
 
-const accentMap: Record<CloudModule['accent'], string> = {
-  blue: cloudTheme.colors.accentBlue,
-  green: cloudTheme.colors.accentGreen,
-  violet: cloudTheme.colors.accentViolet,
-  amber: cloudTheme.colors.accentAmber,
-};
-
 export function ModuleSwitcher({
-  compact = false,
   onNavigate,
 }: {
-  compact?: boolean;
   onNavigate?: () => void;
 }) {
+  const pathname = usePathname();
   const { can } = useControlAuth();
-  const modules = modulesVisibleTo(can);
+  const modules = modulesForSwitcher(can);
+  const active = resolveActiveNavModule(pathname);
 
   return (
-    <View style={[styles.row, compact && styles.column]}>
-      {modules.map((module) => (
-        <Link key={module.id} href={module.href} asChild>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={`Abrir módulo ${module.label}`}
-            onPress={onNavigate}
-            style={({ pressed }) => [
-              styles.chip,
-              { borderColor: accentMap[module.accent] },
-              pressed && styles.pressed,
-            ]}
-          >
-            <View style={[styles.dot, { backgroundColor: accentMap[module.accent] }]} />
-            <Text style={styles.label}>{module.label}</Text>
-          </Pressable>
-        </Link>
-      ))}
-    </View>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.row}
+    >
+      {modules.map((module) => {
+        const selected = module.id === active.id;
+        return (
+          <Link key={module.id} href={module.href} asChild>
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Alternar para ${module.label}`}
+              onPress={onNavigate}
+              style={({ pressed }) => [
+                styles.chip,
+                selected && styles.chipSelected,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[styles.dot, selected && styles.dotSelected]} />
+              <Text style={[styles.label, selected && styles.labelSelected]}>
+                {module.label}
+              </Text>
+            </Pressable>
+          </Link>
+        );
+      })}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: cloudTheme.spacing.xs,
   },
-  column: { flexDirection: 'column' },
   chip: {
     minHeight: cloudTheme.layout.touchTarget,
     flexDirection: 'row',
@@ -60,10 +65,22 @@ const styles = StyleSheet.create({
     gap: cloudTheme.spacing.xs,
     paddingHorizontal: cloudTheme.spacing.md,
     borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
     borderRadius: cloudTheme.radii.md,
     backgroundColor: cloudTheme.colors.surface,
   },
+  chipSelected: {
+    borderColor: cloudTheme.colors.brand,
+    backgroundColor: cloudTheme.colors.brandSoft,
+  },
   pressed: { opacity: 0.86 },
-  dot: { width: 8, height: 8, borderRadius: 99 },
-  label: { ...cloudTheme.type.button, color: cloudTheme.colors.text },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 99,
+    backgroundColor: cloudTheme.colors.borderStrong,
+  },
+  dotSelected: { backgroundColor: cloudTheme.colors.brand },
+  label: { ...cloudTheme.type.button, color: cloudTheme.colors.textSecondary },
+  labelSelected: { color: cloudTheme.colors.brand },
 });

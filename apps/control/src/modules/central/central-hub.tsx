@@ -2,114 +2,139 @@ import { Link } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { GlobalSearch } from '@/components/cloud/global-search';
+import { FeedbackState } from '@/components/cloud/feedback-state';
 import { MetricCard } from '@/components/cloud/metric-card';
-import { ModuleSwitcher } from '@/components/cloud/module-switcher';
+import { ModuleCard } from '@/components/cloud/module-card';
+import { PageHeader } from '@/components/cloud/page-header';
 import { StatusBadge } from '@/components/cloud/status-badge';
-import { SectionPage } from '@/components/section-page';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { isCloudFlagEnabled } from '@/features/cloud/cloud-feature-flags';
 import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
-import { modulesVisibleTo, type CloudModule } from '@/navigation/module-registry';
+import {
+  CLOUD_NAV_MODULES,
+  getLastModuleId,
+} from '@/navigation/module-nav';
+import { modulesVisibleTo } from '@/navigation/module-registry';
 import { cloudTheme } from '@/theme/cloud-components';
-
-const accentSoft: Record<CloudModule['accent'], string> = {
-  blue: cloudTheme.colors.accentBlueSoft,
-  green: cloudTheme.colors.accentGreenSoft,
-  violet: cloudTheme.colors.accentVioletSoft,
-  amber: cloudTheme.colors.accentAmberSoft,
-};
-
-const accentStrong: Record<CloudModule['accent'], string> = {
-  blue: cloudTheme.colors.accentBlue,
-  green: cloudTheme.colors.accentGreen,
-  violet: cloudTheme.colors.accentViolet,
-  amber: cloudTheme.colors.accentAmber,
-};
 
 export function CentralHub() {
   const { can, context } = useControlAuth();
   const modules = modulesVisibleTo(can);
   const centralEnabled = isCloudFlagEnabled('centralEnabled');
+  const lastModuleId = getLastModuleId();
+  const continueModule = CLOUD_NAV_MODULES.find((module) => module.id === lastModuleId)
+    ?? CLOUD_NAV_MODULES.find((module) => module.id === modules[0]?.id)
+    ?? CLOUD_NAV_MODULES.find((module) => module.id === 'operation')
+    ?? CLOUD_NAV_MODULES[0];
 
   if (!centralEnabled) {
     return (
-      <SectionPage
-        eyebrow="CENTRAL"
-        title="Central temporariamente indisponível"
-        description="A Central Cloud está desativada por feature flag."
-      />
+      <View style={styles.page}>
+        <FeedbackState
+          kind="maintenance"
+          title="Central temporariamente indisponível"
+          message="A Central Cloud está desativada por feature flag."
+        />
+      </View>
     );
   }
 
-  const continueHref = modules[0]?.href ?? CLOUD_ROUTES.operacao.root;
-
   return (
-    <SectionPage
-      eyebrow="CUTSYNC CLOUD"
-      title="Central"
-      description="Escolha o módulo autorizado, continue o trabalho recente e acompanhe a disponibilidade técnica sem misturar com a situação operacional."
-    >
-      <View style={styles.searchRow}>
-        <GlobalSearch placeholder="Buscar rotas e ações disponíveis" />
-        <ModuleSwitcher />
-      </View>
+    <View style={styles.page}>
+      <PageHeader
+        eyebrow="CUTSYNC CLOUD"
+        title="Central"
+        description="Retome o trabalho, priorize o que importa hoje e entre nos ambientes autorizados pela sua sessão."
+        badge={context?.role?.replace('SaaS_', '') ?? 'Sessão'}
+        badgeTone="info"
+      />
 
       <View style={styles.continueCard}>
         <StatusBadge label="CONTINUAR EM" tone="info" />
-        <Text style={styles.continueTitle}>
-          {modules[0]?.label ?? 'Operação'}
-        </Text>
+        <Text style={styles.continueTitle}>{continueModule.label}</Text>
         <Text style={styles.continueDetail}>
-          Sessão de {context?.name ?? 'operador'} com papel {context?.role ?? 'indefinido'}.
+          Último ambiente da sessão de {context?.name ?? 'operador'}.
         </Text>
-        <Link href={continueHref} asChild>
-          <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>Continuar</Text>
-          </Pressable>
-        </Link>
-      </View>
-
-      <View style={styles.metrics}>
-        <MetricCard
-          label="Ambientes autorizados"
-          value={String(modules.length)}
-          detail="Módulos liberados pela sessão atual"
-          tone="info"
-        />
-        <MetricCard
-          label="Prioridades"
-          value={can('control.access.manage') ? 'GSP' : 'Operação'}
-          detail="Fila sugerida com base no seu papel"
-          tone="warning"
-        />
-        <MetricCard
-          label="Disponibilidade técnica"
-          value="Estável"
-          detail="Separada da situação de trabalho dos módulos"
-          tone="success"
-        />
+        <View style={styles.continueMeta}>
+          <View style={styles.metaBlock}>
+            <Text style={styles.metaLabel}>Disponibilidade técnica</Text>
+            <Text style={styles.metaValue}>Operacional</Text>
+          </View>
+          <View style={styles.metaBlock}>
+            <Text style={styles.metaLabel}>Situação de trabalho</Text>
+            <Text style={styles.metaValue}>
+              {can('control.live.read') ? 'Ver alertas em Tempo real' : 'Sem alertas carregados'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.continueActions}>
+          <Link href={continueModule.href} asChild>
+            <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+              <Text style={styles.primaryButtonText}>Continuar</Text>
+            </Pressable>
+          </Link>
+          {can('control.live.read') ? (
+            <Link href={CLOUD_ROUTES.operacao.tempoReal} asChild>
+              <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                <Text style={styles.secondaryButtonText}>Ver alertas</Text>
+              </Pressable>
+            </Link>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Módulos</Text>
+        <Text style={styles.sectionTitle}>Prioridades de hoje</Text>
+        <View style={styles.metrics}>
+          <MetricCard
+            label="Impacto operacional"
+            value={can('control.live.read') ? 'Tempo real' : '—'}
+            detail="Fonte: painel ao vivo autorizado"
+            tone="warning"
+          />
+          <MetricCard
+            label="Suporte"
+            value={can('control.support.read') ? 'Fila' : '—'}
+            detail="Somente se houver permissão de leitura"
+            tone="info"
+          />
+          <MetricCard
+            label="Governança"
+            value={can('control.access.manage') ? 'Acessos' : '—'}
+            detail="Owner revisa diretório quando necessário"
+            tone="neutral"
+          />
+        </View>
+        {!can('control.live.read') && !can('control.support.read') ? (
+          <FeedbackState
+            kind="empty"
+            title="Nenhuma prioridade carregada"
+            message="Não há filas ou alertas autorizados para montar prioridades nesta sessão."
+          />
+        ) : null}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Ambientes disponíveis</Text>
         <View style={styles.moduleGrid}>
           {modules.map((module) => (
-            <Link key={module.id} href={module.href} asChild>
-              <Pressable
-                accessibilityRole="link"
-                style={({ pressed }) => [
-                  styles.moduleCard,
-                  { backgroundColor: accentSoft[module.accent], borderColor: accentStrong[module.accent] },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.moduleLabel, { color: accentStrong[module.accent] }]}>
-                  {module.label}
-                </Text>
-                <Text style={styles.moduleDescription}>{module.description}</Text>
-              </Pressable>
-            </Link>
+            <ModuleCard
+              key={module.id}
+              href={module.href}
+              label={module.label}
+              description={module.description}
+              accent={module.accent}
+              availabilityLabel="Operacional"
+              workLabel={
+                module.id === 'support'
+                  ? 'Fila de atendimentos'
+                  : module.id === 'operation'
+                    ? 'Indicadores e tempo real'
+                    : module.id === 'gsp'
+                      ? 'Governança e acessos'
+                      : 'Cobrança da plataforma'
+              }
+            />
           ))}
         </View>
       </View>
@@ -150,16 +175,24 @@ export function CentralHub() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Atividade recente</Text>
-        <Text style={styles.muted}>
-          A trilha de atividade recente permanece limitada às rotas e ações já autorizadas nesta sessão.
-        </Text>
+        <FeedbackState
+          kind="partial"
+          title="Trilha limitada à sessão"
+          message="A atividade recente permanece restrita às rotas e ações já autorizadas. Nenhum histórico simulado é exibido."
+        />
       </View>
-    </SectionPage>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  searchRow: { gap: cloudTheme.spacing.md },
+  page: {
+    width: '100%',
+    maxWidth: cloudTheme.layout.contentMax,
+    alignSelf: 'center',
+    gap: cloudTheme.spacing.xl,
+    padding: cloudTheme.layout.contentPadding,
+  },
   continueCard: {
     gap: cloudTheme.spacing.sm,
     padding: cloudTheme.spacing.xl,
@@ -170,8 +203,27 @@ const styles = StyleSheet.create({
   },
   continueTitle: { ...cloudTheme.type.sectionTitle, color: cloudTheme.colors.text },
   continueDetail: { ...cloudTheme.type.body, color: cloudTheme.colors.textSecondary },
+  continueMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: cloudTheme.spacing.md,
+  },
+  metaBlock: {
+    minWidth: 180,
+    flexGrow: 1,
+    gap: 2,
+    padding: cloudTheme.spacing.md,
+    borderRadius: cloudTheme.radii.md,
+    backgroundColor: cloudTheme.colors.surfaceMuted,
+  },
+  metaLabel: { ...cloudTheme.type.caption, color: cloudTheme.colors.textMuted },
+  metaValue: { ...cloudTheme.type.smallStrong, color: cloudTheme.colors.text },
+  continueActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: cloudTheme.spacing.sm,
+  },
   primaryButton: {
-    alignSelf: 'flex-start',
     minHeight: cloudTheme.layout.touchTarget,
     justifyContent: 'center',
     paddingHorizontal: cloudTheme.spacing.lg,
@@ -179,22 +231,21 @@ const styles = StyleSheet.create({
     backgroundColor: cloudTheme.colors.brand,
   },
   primaryButtonText: { ...cloudTheme.type.button, color: cloudTheme.colors.surface },
+  secondaryButton: {
+    minHeight: cloudTheme.layout.touchTarget,
+    justifyContent: 'center',
+    paddingHorizontal: cloudTheme.spacing.lg,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.brand,
+    borderRadius: cloudTheme.radii.md,
+    backgroundColor: 'transparent',
+  },
+  secondaryButtonText: { ...cloudTheme.type.button, color: cloudTheme.colors.brand },
   pressed: { opacity: 0.88 },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: cloudTheme.spacing.md },
   section: { gap: cloudTheme.spacing.md },
   sectionTitle: { ...cloudTheme.type.sectionTitle, color: cloudTheme.colors.text },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: cloudTheme.spacing.md },
   moduleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: cloudTheme.spacing.md },
-  moduleCard: {
-    minWidth: 220,
-    minHeight: cloudTheme.layout.moduleCardMinHeight,
-    flexGrow: 1,
-    gap: cloudTheme.spacing.sm,
-    padding: cloudTheme.spacing.lg,
-    borderWidth: 1,
-    borderRadius: cloudTheme.radii.lg,
-  },
-  moduleLabel: { ...cloudTheme.type.cardTitle },
-  moduleDescription: { ...cloudTheme.type.body, color: cloudTheme.colors.textSecondary },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: cloudTheme.spacing.sm },
   quickAction: {
     minHeight: cloudTheme.layout.touchTarget,
@@ -206,5 +257,4 @@ const styles = StyleSheet.create({
     backgroundColor: cloudTheme.colors.surface,
   },
   quickActionText: { ...cloudTheme.type.button, color: cloudTheme.colors.brand },
-  muted: { ...cloudTheme.type.body, color: cloudTheme.colors.textMuted },
 });
