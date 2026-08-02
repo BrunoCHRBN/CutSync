@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  switcher: { flexGrow: 1, minWidth: 220, maxWidth: 520 },
-  search: { flexGrow: 1, minWidth: 200, maxWidth: 360 },
+  switcher: { minWidth: 160, maxWidth: 240 },
+  search: { flexGrow: 1, minWidth: 180, maxWidth: 420 },
   meta: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -44,6 +44,23 @@ test('module switcher hides modules without visible nav items', () => {
   expect(ownerAccessOnly.map((module) => module.id)).toEqual(['central', 'gsp']);
 });
 
+test('module switcher keeps vertical menu ordering stable for modal list', () => {
+  const modules = modulesForSwitcher(canFactory([
+    'control.dashboard.read',
+    'control.live.read',
+    'control.support.read',
+    'control.governance.read',
+    'control.billing.read',
+  ]));
+  expect(modules.map((module) => module.label)).toEqual([
+    'Central',
+    'Operação',
+    'Suporte',
+    'GSP',
+    'Financeiro',
+  ]);
+});
+
 test('resolveActiveNavModule maps nested routes to their module', () => {
   expect(resolveActiveNavModule('/operacao/saude-dos-dados').id).toBe('operation');
   expect(resolveActiveNavModule('/gsp/acessos').id).toBe('gsp');
