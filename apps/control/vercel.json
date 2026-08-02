@@ -20,6 +20,10 @@
   "rewrites": [
     { "source": "/cloud", "destination": "/index.html" },
     { "source": "/cloud/", "destination": "/index.html" },
+    {
+      "source": "/cloud/suporte/atendimentos/:ticketId",
+      "destination": "/suporte/atendimentos/00000000-0000-4000-8000-000000000000"
+    },
     { "source": "/cloud/:path*", "destination": "/:path*" }
   ]
 }

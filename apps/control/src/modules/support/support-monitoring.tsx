@@ -146,7 +146,7 @@ export function SupportMonitoringScreen() {
               <Link
                 key={ticket.id}
                 href={{
-                  pathname: CLOUD_ROUTES.suporte.atendimentos,
+                  pathname: '/suporte/atendimentos/[ticketId]',
                   params: { ticketId: ticket.id },
                 }}
                 asChild

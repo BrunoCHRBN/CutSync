@@ -124,6 +124,18 @@ test('support module uses canonical routes and selects one sidebar item per path
   expect(isNavItemSelected('/suporte', byLabel['Visão geral']!)).toBe(true);
   expect(isNavItemSelected('/suporte/atendimentos', byLabel['Visão geral']!)).toBe(false);
   expect(isNavItemSelected('/suporte/atendimentos', byLabel.Atendimentos!)).toBe(true);
+  expect(
+    isNavItemSelected(
+      '/suporte/atendimentos/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      byLabel.Atendimentos!,
+    ),
+  ).toBe(true);
+  expect(
+    isNavItemSelected(
+      '/suporte/atendimentos/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      byLabel['Visão geral']!,
+    ),
+  ).toBe(false);
   expect(isNavItemSelected('/suporte/clientes', byLabel.Clientes!)).toBe(true);
   expect(isNavItemSelected('/suporte/clientes', byLabel.Atendimentos!)).toBe(false);
   expect(isNavItemSelected('/suporte/monitoramento', byLabel.Monitoramento!)).toBe(true);

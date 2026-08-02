@@ -361,7 +361,7 @@ export function SupportOverviewScreen() {
 
   const openTicket = (ticketId: string) => {
     router.push({
-      pathname: CLOUD_ROUTES.suporte.atendimentos,
+      pathname: '/suporte/atendimentos/[ticketId]',
       params: { ticketId },
     });
   };

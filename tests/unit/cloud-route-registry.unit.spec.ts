@@ -4,6 +4,7 @@ import {
   CLOUD_ROUTES,
   isCloudRoutePath,
   listCloudRoutePaths,
+  supportTicketPath,
 } from '../../apps/control/src/navigation/cloud-routes';
 
 test('registers canonical Cloud router paths without duplicating /cloud', () => {
@@ -24,4 +25,11 @@ test('validates known Cloud paths', () => {
   expect(isCloudRoutePath('/suporte/operacoes-assistidas')).toBeTruthy();
   expect(isCloudRoutePath('/billing')).toBeFalsy();
   expect(isCloudRoutePath('https://evil.example')).toBeFalsy();
+});
+
+test('builds opaque support ticket detail paths without PII', () => {
+  const ticketId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  expect(supportTicketPath(ticketId)).toBe(`/suporte/atendimentos/${ticketId}`);
+  expect(supportTicketPath(ticketId)).not.toMatch(/@|nome|email/i);
+  expect(isCloudRoutePath(supportTicketPath(ticketId))).toBeFalsy();
 });

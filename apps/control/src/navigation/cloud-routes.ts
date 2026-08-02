@@ -68,3 +68,8 @@ export function listCloudRoutePaths(): CloudRoutePath[] {
 export function isCloudRoutePath(value: string): value is CloudRoutePath {
   return listCloudRoutePaths().includes(value as CloudRoutePath);
 }
+
+/** Opaque ticket UUID path for support detail (not a static registry entry). */
+export function supportTicketPath(ticketId: string): string {
+  return `${CLOUD_ROUTES.suporte.atendimentos}/${ticketId}`;
+}
