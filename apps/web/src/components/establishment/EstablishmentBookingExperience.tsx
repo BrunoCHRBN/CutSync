@@ -323,14 +323,24 @@ export const EstablishmentBookingExperience = () => {
   const primaryColor = theme.primary;
   const primaryForeground = theme.onPrimary;
   const profileSlug = slug || barbershop?.slug;
+  const clientBarbershopId = barbershopId || (by === 'id' ? barbershop?.id : undefined);
 
   const goBackFromBooking = () => {
-    if (profileSlug) {
-      router.push(`/${profileSlug}` as never);
-      return;
-    }
+    // Preserve the entry surface: client detail uses barbershopId; public pages use /:slug.
+    // Prefer history when available so Explore → detalhe → booking returns to the same detalhe.
     if (router.canGoBack()) {
       router.back();
+      return;
+    }
+    if (clientBarbershopId) {
+      router.replace({
+        pathname: '/(client)/barbershop',
+        params: { barbershopId: clientBarbershopId },
+      } as never);
+      return;
+    }
+    if (profileSlug) {
+      router.replace(`/${profileSlug}` as never);
       return;
     }
     router.replace('/(client)' as never);
