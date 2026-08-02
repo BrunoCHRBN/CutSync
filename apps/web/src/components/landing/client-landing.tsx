@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 780, paddingHorizontal: 28, paddingTop: 96, paddingBottom: 120, flexDirection: 'row', alignItems: 'center', gap: 64, zIndex: 2 },
   heroSectionStacked: { minHeight: 0, paddingTop: 64, paddingBottom: 80, flexDirection: 'column', alignItems: 'stretch' },
   heroCopy: { flex: 1, maxWidth: 720, minWidth: 280, gap: 18, zIndex: 2 },
-  heroBrand: { color: landingColors.brand, fontFamily: landingTypography.displayBold, fontSize: 42, lineHeight: 46, letterSpacing: -1.6 },
+  heroBrand: { color: landingColors.brandStrong, fontFamily: landingTypography.displayBold, fontSize: 42, lineHeight: 46, letterSpacing: -1.6 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
   heroBadgeText: { color: landingColors.brandStrong, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
