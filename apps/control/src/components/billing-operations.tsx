@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import {
   BillingConfirmation,
@@ -287,14 +287,12 @@ export function BillingOperations({
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent}>
-      <SectionPage
-        eyebrow={meta.eyebrow}
-        title={meta.title}
-        description={meta.description}
-      >
-        {body}
-      </SectionPage>
-    </ScrollView>
+    <SectionPage
+      eyebrow={meta.eyebrow}
+      title={meta.title}
+      description={meta.description}
+    >
+      {body}
+    </SectionPage>
   );
 }

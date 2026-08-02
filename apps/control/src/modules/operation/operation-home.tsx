@@ -157,7 +157,7 @@ export function OperationHome() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, gap: cloudTheme.spacing.md },
+  wrap: { gap: cloudTheme.spacing.md },
   page: {
     width: '100%',
     maxWidth: cloudTheme.layout.contentMax,

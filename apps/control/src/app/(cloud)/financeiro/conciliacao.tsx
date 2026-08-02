@@ -31,7 +31,7 @@ export default function ConciliacaoRoute() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1 },
+  wrap: { width: '100%' },
   tabs: {
     paddingHorizontal: cloudTheme.layout.contentPadding,
     paddingTop: cloudTheme.spacing.lg,

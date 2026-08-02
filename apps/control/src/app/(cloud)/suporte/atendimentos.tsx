@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { PageHeader } from '@/components/cloud/page-header';
 import { ControlState } from '@/components/control-state';
@@ -20,23 +20,20 @@ export default function AtendimentosRoute() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.page}>
-        <PageHeader
-          eyebrow="SUPORTE"
-          title="Atendimentos"
-          description="Fila operacional com filtros, SLA, responsável e detalhe. Criação permanece bloqueada até homologação."
-          badge="FILA"
-          badgeTone="info"
-        />
-        <SupportOperations />
-      </View>
-    </ScrollView>
+    <View style={styles.page}>
+      <PageHeader
+        eyebrow="SUPORTE"
+        title="Atendimentos"
+        description="Fila operacional com filtros, SLA, responsável e detalhe. Criação permanece bloqueada até homologação."
+        badge="FILA"
+        badgeTone="info"
+      />
+      <SupportOperations />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
   page: {
     width: '100%',
     maxWidth: cloudTheme.layout.contentMax,

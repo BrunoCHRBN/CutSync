@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { FeedbackState } from '@/components/cloud/feedback-state';
 import { PageHeader } from '@/components/cloud/page-header';
@@ -58,23 +58,20 @@ export default function SuporteRoute() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.page}>
-        <PageHeader
-          eyebrow="SUPORTE"
-          title="Visão geral"
-          description="Fila operacional, filtros, SLA e detalhe do chamado. Criação de novos atendimentos permanece bloqueada até homologação."
-          badge="FILA"
-          badgeTone="info"
-        />
-        <SupportOperations />
-      </View>
-    </ScrollView>
+    <View style={styles.page}>
+      <PageHeader
+        eyebrow="SUPORTE"
+        title="Visão geral"
+        description="Fila operacional, filtros, SLA e detalhe do chamado. Criação de novos atendimentos permanece bloqueada até homologação."
+        badge="FILA"
+        badgeTone="info"
+      />
+      <SupportOperations />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
   page: {
     width: '100%',
     maxWidth: cloudTheme.layout.contentMax,

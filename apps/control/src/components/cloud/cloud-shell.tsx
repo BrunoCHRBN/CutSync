@@ -1,5 +1,12 @@
 import React from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import { CloudSidebar } from '@/components/cloud/cloud-sidebar';
 import { CloudToastProvider } from '@/components/cloud/cloud-toast';
@@ -13,6 +20,21 @@ export function CloudShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const compact = width < cloudTheme.layout.compactBreakpoint;
   const environmentLabel = getCloudEnvironmentLabel();
+  const bottomPad = compact
+    ? cloudTheme.layout.bottomNavHeight + cloudTheme.spacing.xl
+    : cloudTheme.spacing.xxl;
+
+  const webContentStyle = {
+    ...styles.content,
+    paddingBottom: bottomPad,
+    overflow: 'scroll',
+    // RN Web scrollport extras (not in core ViewStyle).
+    overflowY: 'auto',
+    overscrollBehavior: 'contain',
+  } as ViewStyle & {
+    overflowY?: 'auto' | 'scroll';
+    overscrollBehavior?: 'contain' | 'auto';
+  };
 
   return (
     <CloudToastProvider>
@@ -34,9 +56,19 @@ export function CloudShell({ children }: { children: React.ReactNode }) {
             </View>
           ) : null}
 
-          <View style={[styles.content, compact && styles.contentCompact]}>
-            {children}
-          </View>
+          {Platform.OS === 'web' ? (
+            <View style={webContentStyle}>{children}</View>
+          ) : (
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={[styles.contentContainer, { paddingBottom: bottomPad }]}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              {children}
+            </ScrollView>
+          )}
         </View>
 
         {compact ? <MobileBottomNavigation /> : null}
@@ -48,12 +80,16 @@ export function CloudShell({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   app: {
     flex: 1,
+    height: '100%',
+    maxHeight: '100%',
     backgroundColor: cloudTheme.colors.canvas,
+    overflow: 'hidden',
   },
   body: {
     flex: 1,
     flexDirection: 'row',
     minHeight: 0,
+    minWidth: 0,
   },
   bodyCompact: {
     flexDirection: 'column',
@@ -62,13 +98,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.brandLine,
     backgroundColor: cloudTheme.colors.brandDark,
+    maxHeight: '45%',
   },
   content: {
     flex: 1,
     minWidth: 0,
     minHeight: 0,
   },
-  contentCompact: {
-    paddingBottom: cloudTheme.layout.bottomNavHeight + cloudTheme.spacing.sm,
+  contentContainer: {
+    flexGrow: 1,
   },
 });
