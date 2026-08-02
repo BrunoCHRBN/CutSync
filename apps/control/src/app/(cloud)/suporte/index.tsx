@@ -5,8 +5,8 @@ import { StyleSheet, View } from 'react-native';
 import { FeedbackState } from '@/components/cloud/feedback-state';
 import { PageHeader } from '@/components/cloud/page-header';
 import { ControlState } from '@/components/control-state';
-import { SupportOperations } from '@/components/support-operations';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import { SupportOverview } from '@/modules/support/support-overview';
 import { cloudTheme } from '@/theme/cloud-components';
 
 export default function SuporteRoute() {
@@ -57,18 +57,7 @@ export default function SuporteRoute() {
     );
   }
 
-  return (
-    <View style={styles.page}>
-      <PageHeader
-        eyebrow="SUPORTE"
-        title="Visão geral"
-        description="Fila operacional, filtros, SLA e detalhe do chamado. Criação de novos atendimentos permanece bloqueada até homologação."
-        badge="FILA"
-        badgeTone="info"
-      />
-      <SupportOperations />
-    </View>
-  );
+  return <SupportOverview />;
 }
 
 const styles = StyleSheet.create({

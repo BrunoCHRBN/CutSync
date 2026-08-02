@@ -24,7 +24,7 @@ export default function AtendimentosRoute() {
       <PageHeader
         eyebrow="SUPORTE"
         title="Atendimentos"
-        description="Fila operacional com filtros, SLA, responsável e detalhe. Criação permanece bloqueada até homologação."
+        description="Fila operacional com filtros, tabela de chamados e detalhe. Selecione um chamado para abrir o painel lateral."
         badge="FILA"
         badgeTone="info"
       />
@@ -36,7 +36,7 @@ export default function AtendimentosRoute() {
 const styles = StyleSheet.create({
   page: {
     width: '100%',
-    maxWidth: cloudTheme.layout.contentMax,
+    maxWidth: 1400,
     alignSelf: 'center',
     gap: cloudTheme.spacing.xl,
     padding: cloudTheme.layout.contentPadding,

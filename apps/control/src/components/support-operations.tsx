@@ -571,8 +571,12 @@ export function SupportOperations() {
   );
   const showQueue = activeMember;
   const showOverviewPanels = !compact || !selectedTicketId;
-  const showList = showQueue && (!compact || !selectedTicketId);
-  const showDetail = showQueue && (!compact || Boolean(selectedTicketId));
+  const detailOpen = Boolean(selectedTicketId);
+  // Desktop: full-width table until a ticket is selected; then split with detail.
+  // Mobile: list XOR detail to preserve vertical space.
+  const showList = showQueue && (!compact || !detailOpen);
+  const showDetail = showQueue && detailOpen;
+  const splitDesktop = showQueue && !compact && detailOpen;
   const createTicketAction = resolveCloudActionAvailability({
     action: 'create_support_ticket',
     can,
@@ -757,7 +761,14 @@ export function SupportOperations() {
       {overview && showQueue ? (
         <View style={[styles.workspace, compact && styles.workspaceCompact]}>
           {showList ? (
-            <View style={[styles.listPanel, compact && styles.fullPanel, !compact && styles.listPanelWide]}>
+            <View
+              style={[
+                styles.listPanel,
+                compact && styles.fullPanel,
+                !compact && !splitDesktop && styles.listPanelFull,
+                splitDesktop && styles.listPanelSplit,
+              ]}
+            >
               <View style={styles.panelHeader}>
                 <View>
                   <Text style={styles.cardTitle}>Chamados</Text>
@@ -778,12 +789,16 @@ export function SupportOperations() {
                 <View style={styles.desktopTable}>
                   <View style={styles.desktopHeader}>
                     {canManage ? <Text style={[styles.desktopHeadCell, styles.desktopCheckCol]} /> : null}
-                    <Text style={[styles.desktopHeadCell, styles.desktopFlex]}>Cliente / protocolo</Text>
-                    <Text style={[styles.desktopHeadCell, styles.desktopFlex]}>Motivo</Text>
-                    <Text style={styles.desktopHeadCell}>Prioridade</Text>
-                    <Text style={styles.desktopHeadCell}>SLA</Text>
-                    <Text style={styles.desktopHeadCell}>Responsável</Text>
-                    <Text style={styles.desktopHeadCell}>Status</Text>
+                    <Text style={[styles.desktopHeadCell, styles.desktopPrimaryCol]}>Cliente / protocolo</Text>
+                    {!splitDesktop ? (
+                      <Text style={[styles.desktopHeadCell, styles.desktopFlex]}>Motivo</Text>
+                    ) : null}
+                    <Text style={[styles.desktopHeadCell, styles.desktopFixedCol]}>Prioridade</Text>
+                    <Text style={[styles.desktopHeadCell, styles.desktopFixedCol]}>SLA</Text>
+                    {!splitDesktop ? (
+                      <Text style={[styles.desktopHeadCell, styles.desktopFixedCol]}>Responsável</Text>
+                    ) : null}
+                    <Text style={[styles.desktopHeadCell, styles.desktopStatusCol]}>Status</Text>
                   </View>
                   {filteredTickets.map((ticket) => {
                     const slaRisk = isSlaAtRisk(ticket);
@@ -810,25 +825,44 @@ export function SupportOperations() {
                             </Text>
                           </Pressable>
                         ) : null}
-                        <View style={styles.desktopFlex}>
-                          <Text style={styles.protocol}>{ticket.protocol}</Text>
+                        <View style={styles.desktopPrimaryCol}>
+                          <Text numberOfLines={1} style={styles.protocol}>{ticket.protocol}</Text>
                           <Text numberOfLines={1} style={styles.ticketClient}>
                             {ticket.requesterDisplayName ?? ticket.locationLabel ?? '—'}
                           </Text>
+                          {splitDesktop ? (
+                            <Text numberOfLines={1} style={styles.ticketSubjectMuted}>{ticket.subject}</Text>
+                          ) : null}
                         </View>
-                        <Text numberOfLines={2} style={[styles.ticketSubject, styles.desktopFlex]}>
-                          {ticket.subject}
-                        </Text>
-                        <Text style={[styles.priority, styles[`priority_${ticket.priority}`]]}>
+                        {!splitDesktop ? (
+                          <Text numberOfLines={2} style={[styles.ticketSubject, styles.desktopFlex]}>
+                            {ticket.subject}
+                          </Text>
+                        ) : null}
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.priority,
+                            styles.desktopFixedCol,
+                            styles[`priority_${ticket.priority}`],
+                          ]}
+                        >
                           {priorityLabels[ticket.priority]}
                         </Text>
-                        <Text style={[styles.metadata, slaRisk && styles.slaRiskText]}>
+                        <Text
+                          numberOfLines={1}
+                          style={[styles.metadata, styles.desktopFixedCol, slaRisk && styles.slaRiskText]}
+                        >
                           {slaRisk ? 'Fora do SLA' : 'No prazo'}
                         </Text>
-                        <Text style={styles.metadata}>
-                          {ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : '—'}
+                        {!splitDesktop ? (
+                          <Text numberOfLines={1} style={[styles.metadata, styles.desktopFixedCol]}>
+                            {ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : '—'}
+                          </Text>
+                        ) : null}
+                        <Text numberOfLines={1} style={[styles.metadata, styles.desktopStatusCol]}>
+                          {statusLabels[ticket.status]}
                         </Text>
-                        <Text style={styles.metadata}>{statusLabels[ticket.status]}</Text>
                       </Pressable>
                     );
                   })}
@@ -866,14 +900,22 @@ export function SupportOperations() {
           ) : null}
 
           {showDetail ? (
-            <View style={[styles.detailPanel, compact && styles.fullPanel]}>
-              {compact && selectedTicketId ? (
+            <View style={[styles.detailPanel, compact && styles.fullPanel, splitDesktop && styles.detailPanelSplit]}>
+              {selectedTicketId ? (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => router.replace(CLOUD_ROUTES.suporte.root)}
+                  onPress={() => {
+                    if (compact) {
+                      router.replace(CLOUD_ROUTES.suporte.atendimentos);
+                      return;
+                    }
+                    router.setParams({ ticketId: undefined });
+                  }}
                   style={styles.backButton}
                 >
-                  <Text style={styles.backButtonText}>← Voltar para a fila</Text>
+                  <Text style={styles.backButtonText}>
+                    {compact ? '← Voltar para a fila' : 'Fechar detalhe'}
+                  </Text>
                 </Pressable>
               ) : null}
 
@@ -1184,16 +1226,32 @@ const styles = StyleSheet.create({
   filterChipSelected: { borderColor: '#27523b', backgroundColor: '#27523b' },
   filterChipText: { color: '#526158', fontSize: 11, fontWeight: '700' },
   filterChipTextSelected: { color: '#ffffff' },
-  workspace: { minHeight: 560, flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  workspace: {
+    width: '100%',
+    minHeight: 560,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 16,
+  },
   workspaceCompact: { minHeight: 0, flexDirection: 'column' },
   listPanel: {
-    width: 380,
     gap: 12,
     padding: 15,
     borderWidth: 1,
     borderColor: '#d8dfd8',
     borderRadius: 14,
     backgroundColor: '#f9faf8',
+  },
+  listPanelFull: {
+    flex: 1,
+    width: '100%',
+    minWidth: 0,
+  },
+  listPanelSplit: {
+    flexGrow: 1.75,
+    flexShrink: 1,
+    flexBasis: '58%',
+    minWidth: 520,
   },
   detailPanel: {
     minWidth: 0,
@@ -1204,6 +1262,13 @@ const styles = StyleSheet.create({
     borderColor: '#d8dfd8',
     borderRadius: 14,
     backgroundColor: '#ffffff',
+  },
+  detailPanelSplit: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '36%',
+    minWidth: 340,
+    maxWidth: 460,
   },
   fullPanel: { width: '100%' },
   panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
@@ -1250,12 +1315,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fffbf1',
   },
-  listPanelWide: { width: 460, maxWidth: '48%' },
-  desktopTable: { gap: 0, borderWidth: 1, borderColor: '#d8dfd8', borderRadius: 12, overflow: 'hidden' },
+  desktopTable: {
+    gap: 0,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#d8dfd8',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   desktopHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: '#f5f7f4',
@@ -1263,10 +1334,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#d8dfd8',
   },
   desktopRow: {
-    minHeight: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
@@ -1275,16 +1346,40 @@ const styles = StyleSheet.create({
   },
   desktopRowSelected: { backgroundColor: '#f0f8f3' },
   desktopRowSlaRisk: { borderLeftWidth: 4, borderLeftColor: '#c9892f' },
-  desktopHeadCell: { color: '#7b857e', fontSize: 12, fontWeight: '800', minWidth: 72 },
-  desktopFlex: { flex: 1, minWidth: 100 },
-  desktopCheckCol: { width: 28, minWidth: 28 },
+  desktopHeadCell: {
+    color: '#7b857e',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  desktopFlex: { flex: 1.2, minWidth: 140 },
+  desktopPrimaryCol: { flex: 1.4, minWidth: 160 },
+  desktopFixedCol: {
+    flexGrow: 0,
+    flexShrink: 0,
+    minWidth: 84,
+    maxWidth: 96,
+  },
+  desktopStatusCol: {
+    flexGrow: 0,
+    flexShrink: 0,
+    minWidth: 104,
+    maxWidth: 124,
+  },
+  desktopCheckCol: { width: 28, minWidth: 28, flexShrink: 0 },
+  ticketSubjectMuted: {
+    color: '#667269',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   priority: {
     overflow: 'hidden',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    fontSize: 10,
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   priority_critical: { color: '#ffffff', backgroundColor: '#9a3f37' },
   priority_high: { color: '#7d4d11', backgroundColor: '#f9e3bd' },
