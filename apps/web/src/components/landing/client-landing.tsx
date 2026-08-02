@@ -290,7 +290,7 @@ const ClientLandingContent = () => {
       <GlassSurface variant="header" style={styles.header}>
         <View style={styles.headerInner}>
           <Pressable testID="client-brand-home-link" accessibilityRole="link" onPress={() => router.replace('/' as never)} style={styles.brandRow}>
-            <View style={styles.brandMark}><Sparkles size={17} color={landingColors.white} /></View>
+            <View style={styles.brandMark}><Scissors size={17} color={landingColors.white} /></View>
             <Text style={styles.brand}>CutSync</Text>
           </Pressable>
           {isDesktop && <LandingNav audience="client" onNavigate={navigateToSection} />}
@@ -608,13 +608,14 @@ const styles = StyleSheet.create({
   heroSection: { width: '100%', maxWidth: landingLayout.maxWidth, alignSelf: 'center', minHeight: 780, paddingHorizontal: 28, paddingTop: 96, paddingBottom: 120, flexDirection: 'row', alignItems: 'center', gap: 64, zIndex: 2 },
   heroSectionStacked: { minHeight: 0, paddingTop: 64, paddingBottom: 80, flexDirection: 'column', alignItems: 'stretch' },
   heroCopy: { flex: 1, maxWidth: 720, minWidth: 280, gap: 18, zIndex: 2 },
-  heroBrand: { color: landingColors.brand, fontFamily: landingTypography.displayBold, fontSize: 42, lineHeight: 46, letterSpacing: -1.6 },
+  heroBrand: { color: landingColors.brandStrong, fontFamily: landingTypography.displayBold, fontSize: 42, lineHeight: 46, letterSpacing: -1.6 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: landingColors.success },
-  heroBadgeText: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
+  heroBadgeText: { color: landingColors.brandStrong, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.6 },
   heroTitle: { maxWidth: 680, color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 64, lineHeight: 70, letterSpacing: -2.8 },
   heroTitleMobile: { fontSize: 38, lineHeight: 44, letterSpacing: -1.6 },
-  heroDescription: { maxWidth: 540, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29 },
+  // Tinta cheia no hero: inkSecondary se perdia nas folhas e madeira da foto.
+  heroDescription: { maxWidth: 540, color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 17, lineHeight: 29, opacity: 0.82 },
   heroActions: { paddingTop: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
   // Busca unificada: um único controle no desktop, campos empilhados abaixo do breakpoint.
