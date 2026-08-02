@@ -29,6 +29,7 @@ A separação não deve duplicar regras críticas. Disponibilidade, criação, c
 | Compartilhamento | Regras, tipos, acesso a dados, validações e tokens de marca; telas completas somente quando houver equivalência real |
 | Identidade | Uma pessoa pode ser cliente e também pertencer a estabelecimentos como profissional ou administrador |
 | Autorização | Determinada no Supabase por associação ativa e RLS/RPC, nunca pelo aplicativo instalado |
+| Vocabulário de domínio | Canônico: estabelecimento / professional — ver [DOMAIN_VOCABULARY.md](./DOMAIN_VOCABULARY.md); legado `barbershop`/`barbeiro` não deve entrar em código novo |
 | Migração | Incremental; mover primeiro sem redesenhar e redesenhar depois por produto |
 | Publicação | Projetos EAS, versões, credenciais, canais e ciclos de release independentes |
 

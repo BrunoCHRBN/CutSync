@@ -117,7 +117,7 @@ A senha do banco foi compartilhada durante a auditoria e as três contas usam a 
 - ESLint: 40 erros e 21 avisos, incluindo efeitos com atualizações síncronas, funções impuras no render e memoizações inconsistentes.
 - Arquivos de 951, 975 e 1.130 linhas concentram estado, consulta, regra de negócio e apresentação.
 - 51 usos de `any`/casts reduzem a proteção de tipos.
-- SQL legado (`migration_i18n.sql`) usa nomes e roles antigos (`barbershops`, `barber_id`, `barber`), divergindo do schema atual (`establishments`, `professional_id`, `professional`). Aplicá-lo hoje é arriscado.
+- SQL legado (`migration_i18n.sql`) usa nomes e roles antigos (`barbershops`, `barber_id`, `barber`), divergindo do schema atual (`establishments`, `professional_id`, `professional`). Aplicá-lo hoje é arriscado. O glossário normativo e o checklist de renomeação estão em `docs/architecture/DOMAIN_VOCABULARY.md`.
 - O schema do banco não é gerado automaticamente para TypeScript.
 - Upload de banners depende de bucket/policies não versionados no repositório.
 
