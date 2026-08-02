@@ -378,6 +378,13 @@ A camada de serviço segue o padrão do Web: `supabase.rpc()` tipado por
 
 ## 7. Etapa 5 — Ajustes no Business
 
+Status: implementada nas telas
+`apps/business/src/screens/clients.tsx` e
+`apps/business/src/screens/client-detail.tsx`, com API em
+`apps/business/src/features/clients/`. Contrato alinhado ao Web: origem,
+consentimento, vínculo, recorrência pelos agregados, arquivar/restaurar e
+filtro de arquivados na busca. Produção não foi tocada.
+
 Duração estimada: 2 a 3 dias.
 
 As telas já existem. O ajuste é de contrato:
@@ -429,7 +436,7 @@ Os testes SQL seguem o formato das matrizes existentes em `supabase/tests/`
 | 5 | `database: link client bookings to establishment clients` — feito | 4 |
 | 6 | `database: backfill profile-linked establishment clients` — feito (na mesma migration) | 5 |
 | 7 | `web: add establishment client directory` — feito (código local) | 2, 4 |
-| 8 | `business: expose client origin, consent and archiving` | 2, 4 |
+| 8 | `business: expose client origin, consent and archiving` — feito (código local) | 2, 4 |
 | 9 | `testing: add establishment client sql coverage` | 6 |
 
 ## 11. Marco de conclusão

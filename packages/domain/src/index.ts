@@ -7,6 +7,7 @@ export * from './date-time';
 export * from './display-name';
 export * from './establishment-client';
 export * from './instagram-handle';
+export * from './mobile-commands';
 export * from './schedule';
 export * from './support';
 export * from './totp-enrollment';

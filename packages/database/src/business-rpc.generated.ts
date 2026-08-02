@@ -1,6 +1,8 @@
 /**
  * Generated from the linked Supabase public schema after
- * 20260801000000_business_operational_access.
+ * 20260801000000_business_operational_access, with the pending Android-cycle
+ * RPCs maintained here until that migration is homologated and the complete
+ * Supabase types can be regenerated.
  *
  * Keep this scoped surface in sync with the RPC definitions consumed by
  * CutSync Business. The monorepo-wide generated file is regenerated
@@ -70,6 +72,224 @@ export interface BusinessRpcFunctions {
       invited_role: string;
     }[];
   };
+  inspect_business_invitation_token: {
+    Args: { target_invitation_token: string };
+    Returns: {
+      establishment_name: string;
+      expiration: string;
+      invitation_status: string;
+      invited_contact: string;
+      invited_role: string;
+    }[];
+  };
+  accept_business_invitation_token: {
+    Args: { target_invitation_token: string; target_request_id: string };
+    Returns: {
+      accepted_establishment_id: string;
+      accepted_role: string;
+    }[];
+  };
+  get_mobile_release_policy: {
+    Args: { target_app_kind: string; target_platform: string; target_app_version: string };
+    Returns: {
+      app_kind: string;
+      enforcement_enabled: boolean;
+      latest_version: string;
+      message: string | null;
+      minimum_supported_version: string;
+      platform: string;
+      store_url: string | null;
+      update_required: boolean;
+    }[];
+  };
+  get_available_slots: {
+    Args: {
+      target_appointment_id?: string;
+      target_establishment_id: string;
+      target_local_date: string;
+      target_professional_id: string;
+      target_service_id: string;
+    };
+    Returns: {
+      available: boolean;
+      duration_minutes: number;
+      local_time: string;
+      starts_at: string;
+      unavailable_reason: string | null;
+    }[];
+  };
+  get_business_appointment_detail: {
+    Args: { target_establishment_id: string; target_appointment_id: string };
+    Returns: unknown;
+  };
+  confirm_business_appointment: {
+    Args: { target_establishment_id: string; target_appointment_id: string; target_request_id: string };
+    Returns: unknown;
+  };
+  complete_business_appointment: {
+    Args: { target_establishment_id: string; target_appointment_id: string; target_request_id: string };
+    Returns: unknown;
+  };
+  cancel_business_appointment: {
+    Args: { target_establishment_id: string; target_appointment_id: string; target_request_id: string; target_reason?: string | null };
+    Returns: unknown;
+  };
+  mark_business_appointment_no_show: {
+    Args: { target_establishment_id: string; target_appointment_id: string; target_request_id: string };
+    Returns: unknown;
+  };
+  reschedule_business_appointment: {
+    Args: {
+      target_establishment_id: string;
+      target_appointment_id: string;
+      target_date_time: string;
+      target_professional_id: string;
+      target_service_id: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  create_business_appointment: {
+    Args: {
+      target_establishment_id: string;
+      target_professional_id: string;
+      target_service_id: string;
+      target_date_time: string;
+      target_request_id: string;
+      target_establishment_client_id?: string | null;
+      target_client_name?: string | null;
+      target_client_phone?: string | null;
+      target_client_email?: string | null;
+      target_notes?: string | null;
+    };
+    Returns: unknown;
+  };
+  get_business_schedule_blocks: {
+    Args: {
+      target_establishment_id: string;
+      target_range_start: string;
+      target_range_end: string;
+      target_professional_id?: string | null;
+    };
+    Returns: unknown;
+  };
+  create_business_schedule_block: {
+    Args: {
+      target_establishment_id: string;
+      target_professional_id: string;
+      target_starts_at: string;
+      target_ends_at: string;
+      target_kind: string;
+      target_request_id: string;
+      target_reason?: string | null;
+      target_all_day?: boolean;
+      target_local_date?: string | null;
+    };
+    Returns: unknown;
+  };
+  update_business_schedule_block: {
+    Args: {
+      target_establishment_id: string;
+      target_schedule_block_id: string;
+      target_professional_id: string;
+      target_starts_at: string;
+      target_ends_at: string;
+      target_kind: string;
+      target_request_id: string;
+      target_reason?: string | null;
+      target_all_day?: boolean;
+      target_local_date?: string | null;
+    };
+    Returns: unknown;
+  };
+  delete_business_schedule_block: {
+    Args: { target_establishment_id: string; target_schedule_block_id: string; target_request_id: string };
+    Returns: unknown;
+  };
+  search_establishment_clients: {
+    Args: {
+      target_establishment_id: string;
+      target_query?: string | null;
+      target_limit?: number;
+      target_offset?: number;
+      target_include_archived?: boolean;
+    };
+    Returns: unknown;
+  };
+  get_establishment_client: {
+    Args: { target_establishment_id: string; target_establishment_client_id: string };
+    Returns: unknown;
+  };
+  create_establishment_client: {
+    Args: {
+      target_establishment_id: string; target_name: string; target_request_id: string;
+      target_phone?: string | null; target_email?: string | null; target_tags?: string[]; target_notes?: string | null;
+    };
+    Returns: unknown;
+  };
+  update_establishment_client: {
+    Args: {
+      target_establishment_id: string; target_establishment_client_id: string; target_request_id: string;
+      target_name?: string | null; target_phone?: string | null; target_email?: string | null;
+      target_tags?: string[] | null; target_notes?: string | null;
+      target_marketing_consent_status?: string | null;
+    };
+    Returns: unknown;
+  };
+  archive_establishment_client: {
+    Args: {
+      target_establishment_id: string;
+      target_establishment_client_id: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  restore_establishment_client: {
+    Args: {
+      target_establishment_id: string;
+      target_establishment_client_id: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  merge_establishment_clients: {
+    Args: {
+      target_establishment_id: string; target_survivor_client_id: string;
+      target_duplicate_client_id: string; target_request_id: string; target_reason?: string | null;
+    };
+    Returns: unknown;
+  };
+  get_my_establishment_client_link_requests: { Args: never; Returns: unknown };
+  confirm_establishment_client_link: { Args: { target_link_id: string; target_request_id: string }; Returns: unknown };
+  reject_establishment_client_link: { Args: { target_link_id: string; target_request_id: string }; Returns: unknown };
+  get_business_services: { Args: { target_establishment_id: string }; Returns: unknown };
+  create_business_service: {
+    Args: { target_establishment_id: string; target_name: string; target_price: number; target_duration_minutes: number; target_request_id: string; target_sort_order?: number | null };
+    Returns: unknown;
+  };
+  update_business_service: {
+    Args: { target_establishment_id: string; target_service_id: string; target_request_id: string; target_name?: string | null; target_price?: number | null; target_duration_minutes?: number | null; target_sort_order?: number | null };
+    Returns: unknown;
+  };
+  set_business_service_status: {
+    Args: { target_establishment_id: string; target_service_id: string; target_is_active: boolean; target_request_id: string };
+    Returns: unknown;
+  };
+  reorder_business_services: { Args: { target_establishment_id: string; target_service_ids: string[]; target_request_id: string }; Returns: unknown };
+  upsert_business_professional_service: {
+    Args: { target_establishment_id: string; target_professional_id: string; target_service_id: string; target_price: number; target_duration_minutes: number; target_is_active: boolean; target_request_id: string };
+    Returns: unknown;
+  };
+  get_business_team: { Args: { target_establishment_id: string }; Returns: unknown };
+  create_business_team_invite: { Args: { target_establishment_id: string; target_contact: string; target_role: string; target_request_id: string }; Returns: unknown };
+  resend_business_team_invite: { Args: { target_establishment_id: string; target_invitation_id: string; target_request_id: string }; Returns: unknown };
+  revoke_business_team_invite: { Args: { target_establishment_id: string; target_invitation_id: string; target_request_id: string }; Returns: unknown };
+  accept_business_team_invite: { Args: { target_invitation_id: string; target_request_id: string }; Returns: unknown };
+  get_my_business_team_invitation: { Args: { target_invitation_id: string }; Returns: unknown };
+  suspend_business_team_member: { Args: { target_establishment_id: string; target_membership_id: string; target_request_id: string }; Returns: unknown };
+  reactivate_business_team_member: { Args: { target_establishment_id: string; target_membership_id: string; target_request_id: string }; Returns: unknown };
+  remove_business_team_member: { Args: { target_establishment_id: string; target_membership_id: string; target_request_id: string }; Returns: unknown };
+  update_business_team_commission: { Args: { target_establishment_id: string; target_membership_id: string; target_commission_rate: number; target_request_id: string }; Returns: unknown };
 }
 
 export type BusinessRpcName = keyof BusinessRpcFunctions;
@@ -78,4 +298,4 @@ export type BusinessRpcArgs<Name extends BusinessRpcName> =
 export type BusinessRpcReturns<Name extends BusinessRpcName> =
   BusinessRpcFunctions[Name]['Returns'];
 export type BusinessRpcRow<Name extends BusinessRpcName> =
-  BusinessRpcReturns<Name>[number];
+  BusinessRpcReturns<Name> extends readonly (infer Row)[] ? Row : BusinessRpcReturns<Name>;

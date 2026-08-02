@@ -1,50 +1,84 @@
-import { Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
+  BusinessButton,
   BusinessCard,
   BusinessHeader,
   BusinessNotice,
   BusinessPage,
-  BusinessPill,
 } from '@/components/ui/business-ui';
 import { useBusinessOperational } from '@/contexts/business-operational-context';
 import { businessTheme } from '@/theme/business-theme';
 
-const modules = [
-  { name: 'Serviços', description: 'Catálogo, duração, preço e disponibilidade operacional.' },
-  { name: 'Equipe', description: 'Profissionais vinculados, convites e permissões.' },
-  { name: 'Jornadas', description: 'Escalas, folgas e regras de atendimento.' },
-  { name: 'Configurações', description: 'Preferências essenciais da unidade ativa.' },
-] as const;
-
 export function BusinessManagementScreen() {
-  const { activeContext } = useBusinessOperational();
+  const router = useRouter();
+  const { activeContext, hasCapability } = useBusinessOperational();
   if (activeContext?.operationalRole === 'professional') {
     return <Redirect href="/today" />;
   }
 
   const readOnly = activeContext?.accessMode === 'read_only';
+  const modules = [
+    {
+      name: 'Clientes',
+      description: 'Diretório local, origem, consentimento, vínculo, arquivamento e merge auditado.',
+      route: '/(app)/clients' as const,
+      enabled: hasCapability('view_clients'),
+    },
+    {
+      name: 'Serviços',
+      description: 'Catálogo, duração, preço e disponibilidade operacional.',
+      route: null,
+      enabled: false,
+    },
+    {
+      name: 'Equipe',
+      description: 'Profissionais vinculados, convites e permissões.',
+      route: null,
+      enabled: false,
+    },
+    {
+      name: 'Jornadas',
+      description: 'Escalas, folgas e regras de atendimento.',
+      route: null,
+      enabled: false,
+    },
+    {
+      name: 'Configurações',
+      description: 'Preferências essenciais da unidade ativa.',
+      route: null,
+      enabled: false,
+    },
+  ] as const;
+
   return (
     <BusinessPage testID="business-management-screen">
       <BusinessHeader
-        eyebrow="GESTÃO OPERACIONAL"
-        title="Gestão"
-        description={activeContext?.establishmentName}
-        trailing={<BusinessPill label={readOnly ? 'Leitura' : 'Acesso completo'} tone={readOnly ? 'warning' : 'success'} />}
+        eyebrow="GESTÃO"
+        title="Operação da unidade"
+        description="Áreas administrativas da unidade ativa."
       />
       <BusinessNotice
         tone={readOnly ? 'warning' : 'neutral'}
         message={readOnly
           ? 'As áreas administrativas permanecem consultáveis, mas alterações estão bloqueadas pelo backend.'
-          : 'A estrutura administrativa está pronta. Os fluxos completos entram na fatia de Serviços e equipe.'}
+          : 'Mutações de clientes usam RPCs específicas; a autorização é recalculada pelo backend.'}
       />
       <View style={styles.grid}>
         {modules.map((module) => (
           <BusinessCard key={module.name} style={styles.module}>
             <Text selectable style={styles.moduleName}>{module.name}</Text>
             <Text selectable style={styles.moduleDescription}>{module.description}</Text>
-            <Text style={styles.moduleStatus}>{readOnly ? 'SOMENTE LEITURA' : 'FUNDAÇÃO DISPONÍVEL'}</Text>
+            {module.route && module.enabled ? (
+              <BusinessButton
+                label={`Abrir ${module.name}`}
+                variant="secondary"
+                onPress={() => router.push(module.route as never)}
+              />
+            ) : (
+              <Text style={styles.moduleStatus}>{readOnly ? 'SOMENTE LEITURA' : 'PRÓXIMO CICLO'}</Text>
+            )}
           </BusinessCard>
         ))}
       </View>
@@ -54,8 +88,8 @@ export function BusinessManagementScreen() {
 
 const styles = StyleSheet.create({
   grid: { gap: businessTheme.spacing.sm },
-  module: { minHeight: 112, justifyContent: 'center' },
+  module: { gap: businessTheme.spacing.xs },
   moduleName: { ...businessTheme.typography.heading, color: businessTheme.colors.text },
   moduleDescription: { ...businessTheme.typography.body, color: businessTheme.colors.textSoft },
-  moduleStatus: { ...businessTheme.typography.eyebrow, color: businessTheme.colors.textMuted, paddingTop: 4 },
+  moduleStatus: { ...businessTheme.typography.caption, color: businessTheme.colors.textMuted },
 });

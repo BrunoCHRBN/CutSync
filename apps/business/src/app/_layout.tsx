@@ -3,16 +3,23 @@ import { StatusBar } from 'expo-status-bar';
 
 import { BusinessOperationalProvider, useBusinessOperational } from '@/contexts/business-operational-context';
 import { BusinessSessionProvider, useBusinessSession } from '@/contexts/business-session';
+import {
+  BusinessQueryProvider,
+  BusinessQueryScopeReset,
+} from '@/features/connectivity/business-query-provider';
 import { businessTheme } from '@/theme/business-theme';
 
 export default function BusinessRootLayout() {
   return (
-    <BusinessSessionProvider>
-      <BusinessOperationalProvider>
-        <StatusBar style="light" />
-        <BusinessRootNavigator />
-      </BusinessOperationalProvider>
-    </BusinessSessionProvider>
+    <BusinessQueryProvider>
+      <BusinessSessionProvider>
+        <BusinessOperationalProvider>
+          <BusinessQueryScopeReset />
+          <StatusBar style="light" />
+          <BusinessRootNavigator />
+        </BusinessOperationalProvider>
+      </BusinessSessionProvider>
+    </BusinessQueryProvider>
   );
 }
 
