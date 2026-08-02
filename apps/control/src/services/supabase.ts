@@ -20,26 +20,34 @@ function isHttpUrl(value: string | undefined): value is string {
   }
 }
 
-const urlKey = ['EXPO', 'PUBLIC', 'SUPABASE', 'URL'].join('_');
-const keyKey = ['EXPO', 'PUBLIC', 'SUPABASE', 'PUBLISHABLE', 'KEY'].join('_');
-
-const configuredUrl = sanitizeEnvironmentValue(process.env[urlKey]);
-const configuredKey = sanitizeEnvironmentValue(process.env[keyKey]);
+// Expo/Metro only inlines EXPO_PUBLIC_* with static process.env.NAME access.
+// Dynamic keys like process.env[name] are left empty in the web export.
+const configuredUrl = sanitizeEnvironmentValue(
+  process.env.EXPO_PUBLIC_SUPABASE_URL, // pragma: allowlist secret
+);
+const configuredKey = sanitizeEnvironmentValue(
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY, // pragma: allowlist secret
+);
 
 export const isSupabaseConfigured = Boolean(isHttpUrl(configuredUrl) && configuredKey);
 
+/** Public project host baked into the bundle — useful to confirm Homolog vs wrong env. */
+export const supabaseProjectHost = isHttpUrl(configuredUrl)
+  ? new URL(configuredUrl).host
+  : null;
+
 if (!isSupabaseConfigured) {
   console.warn(
-    `Configure ${urlKey} e ${keyKey} com valores HTTP válidos.`,
+    'Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY com valores HTTP válidos no build da Vercel (Preview/Production).', // pragma: allowlist secret
   );
 }
 
-// Placeholder keeps static export and login shell bootable when secrets are absent
-// or malformed in CI. Runtime auth calls still fail closed without real credentials.
+// Placeholder keeps static export bootable when secrets are absent.
+// Auth UI must check isSupabaseConfigured before attempting sign-in.
 const url: string = isHttpUrl(configuredUrl) ? configuredUrl : 'https://example.supabase.co';
 const publishableKey: string = configuredKey && isSupabaseConfigured
   ? configuredKey
-  : ['sb', 'publishable', 'missing', 'configuration'].join('_');
+  : 'sb_publishable_missing_configuration';
 
 export const supabase = createClient<Database>(url, publishableKey, {
   auth: {
