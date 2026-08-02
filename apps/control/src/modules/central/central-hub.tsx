@@ -4,8 +4,18 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { ModuleCard } from '@/components/cloud/module-card';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { isCloudFlagEnabled } from '@/features/cloud/cloud-feature-flags';
-import { modulesVisibleTo } from '@/navigation/module-registry';
+import {
+  modulesVisibleTo,
+  type CloudModuleId,
+} from '@/navigation/module-registry';
 import { cloudTheme } from '@/theme/cloud-components';
+
+const briefCopy: Record<CloudModuleId, string> = {
+  operation: 'Indicadores, tempo real e saúde dos dados.',
+  support: 'Fila de atendimentos e acompanhamento de SLA.',
+  gsp: 'Governança, segurança, acessos e auditoria.',
+  finance: 'Cobranças, assinaturas e conciliação.',
+};
 
 export function CentralHub() {
   const { can } = useControlAuth();
@@ -33,7 +43,7 @@ export function CentralHub() {
             <ModuleCard
               href={module.href}
               label={module.label}
-              description=""
+              description={briefCopy[module.id]}
               accent={module.accent}
               compact
             />
@@ -56,11 +66,11 @@ const styles = StyleSheet.create({
   },
   row: {
     width: '100%',
-    maxWidth: 1120,
+    maxWidth: 1100,
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'center',
-    gap: cloudTheme.spacing.lg,
+    gap: cloudTheme.spacing.md,
   },
   rowWrap: {
     flexWrap: 'wrap',
@@ -70,11 +80,11 @@ const styles = StyleSheet.create({
   },
   slotWide: {
     flex: 1,
-    maxWidth: 260,
+    maxWidth: 240,
   },
   slotNarrow: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 360,
   },
   disabled: {
     ...cloudTheme.type.body,
