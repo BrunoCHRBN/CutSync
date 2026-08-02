@@ -74,7 +74,12 @@ export function MobileBottomNavigation() {
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.label, item.selected && styles.labelSelected]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+                style={[styles.label, item.selected && styles.labelSelected]}
+              >
                 {item.label}
               </Text>
             </Pressable>
@@ -91,7 +96,14 @@ export function MobileBottomNavigation() {
             pressed && styles.pressed,
           ]}
         >
-          <Text style={[styles.label, profileOpen && styles.labelSelected]}>Perfil</Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={[styles.label, profileOpen && styles.labelSelected]}
+          >
+            Perfil
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -103,6 +115,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: cloudTheme.colors.border,
     backgroundColor: cloudTheme.colors.surface,
+    zIndex: 20,
   },
   profileSheet: {
     gap: cloudTheme.spacing.xs,
@@ -128,17 +141,27 @@ const styles = StyleSheet.create({
   bar: {
     minHeight: cloudTheme.layout.bottomNavHeight,
     flexDirection: 'row',
-    paddingBottom: 4,
+    alignItems: 'stretch',
+    paddingBottom: 6,
+    paddingHorizontal: 2,
   },
   item: {
     flex: 1,
+    minWidth: 0,
     minHeight: cloudTheme.layout.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   itemSelected: { backgroundColor: cloudTheme.colors.brandSoft },
-  label: { ...cloudTheme.type.caption, color: cloudTheme.colors.textSecondary },
+  label: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: cloudTheme.colors.textSecondary,
+    textAlign: 'center',
+    width: '100%',
+  },
   labelSelected: { color: cloudTheme.colors.brand, fontWeight: '800' },
   pressed: { opacity: 0.85 },
 });

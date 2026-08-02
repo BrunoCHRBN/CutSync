@@ -15,6 +15,11 @@ import {
 
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
+import {
+  assigneeLabel,
+  labelForStatus,
+  priorityLabels,
+} from '@/modules/support/presentation';
 import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import {
   ControlSupportError,
@@ -24,13 +29,6 @@ import {
   type SupportTicketSummary,
 } from '@/services/control-support';
 import { cloudTheme } from '@/theme/cloud-components';
-
-const priorityLabels: Record<SupportPriority, string> = {
-  critical: 'Crítica',
-  high: 'Alta',
-  normal: 'Normal',
-  low: 'Baixa',
-};
 
 const priorityRank: Record<SupportPriority, number> = {
   critical: 0,
@@ -49,16 +47,6 @@ const categoryLabels: Record<string, string> = {
   platform_incident: 'Incidente',
   product_feedback: 'Produto',
   other: 'Outros',
-};
-
-const statusLabels: Record<string, string> = {
-  queued: 'Na fila',
-  open: 'Aberto',
-  in_progress: 'Em andamento',
-  waiting_user: 'Aguardando usuário',
-  resolved: 'Resolvido',
-  closed: 'Fechado',
-  sync_failed: 'Falha de sync',
 };
 
 function loadErrorMessage(error: unknown): string {
@@ -139,12 +127,8 @@ function activityEvent(ticket: SupportTicketSummary): string {
 
 function slaLabel(ticket: SupportTicketSummary): string {
   if (isSlaAtRisk(ticket)) return 'Fora do SLA';
-  if (isSlaNear(ticket)) return 'Próximo';
+  if (isSlaNear(ticket)) return 'Próximo do limite';
   return 'No prazo';
-}
-
-function assigneeLabel(ticket: SupportTicketSummary): string {
-  return ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : '—';
 }
 
 function reasonLabel(ticket: SupportTicketSummary): string {
@@ -562,7 +546,7 @@ export function SupportOverviewScreen() {
                           {activityEvent(ticket)}
                         </Text>
                         <Text style={styles.cell} numberOfLines={1}>
-                          {statusLabels[ticket.status] ?? ticket.status}
+                          {labelForStatus(ticket.status)}
                         </Text>
                       </Pressable>
                     ))}

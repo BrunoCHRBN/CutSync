@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -16,16 +17,26 @@ import {
 
 import { useControlAuth } from '@/contexts/control-auth-context';
 import {
-  assigneeLabel,
-  categoryLabels,
-  clientLabel,
+  formatCompactDate,
   formatDateTime,
+  formatEventTransition,
   formatRelative,
-  priorityLabels,
+  formatTeamLabel,
+  initialsFromName,
+  isAutomaticEventActor,
+  labelForCategory,
+  labelForEventType,
+  labelForImpact,
+  labelForPriority,
+  labelForProduct,
+  labelForStatus,
+  labelForSync,
+  maskIdentifier,
+  resolveAssigneeIdentity,
+  resolveRequesterIdentity,
+  resolveTeamIdentity,
   slaLabel,
-  statusLabels,
-  syncLabel,
-} from '@/modules/support/support-labels';
+} from '@/modules/support/presentation';
 import {
   parseSupportQueueParams,
   SUPPORT_TICKET_STATIC_SHELL_ID,
@@ -52,9 +63,20 @@ const priorityTone: Record<SupportPriority, TextStyle> = {
   low: { color: '#526158', backgroundColor: '#e9ece9' },
 };
 
-function resolveTicketIdFromLocation(
-  param: string | undefined,
-): string | undefined {
+type DetailTab = 'overview' | 'conversation' | 'participants' | 'technical' | 'history';
+type PendingAction =
+  | { kind: 'reprocess' }
+  | { kind: 'escalate'; level: Exclude<SupportEscalationLevel, 0> };
+
+const TABS: { id: DetailTab; label: string }[] = [
+  { id: 'overview', label: 'Visão geral' },
+  { id: 'conversation', label: 'Conversa' },
+  { id: 'participants', label: 'Envolvidos' },
+  { id: 'technical', label: 'Contexto técnico' },
+  { id: 'history', label: 'Histórico' },
+];
+
+function resolveTicketIdFromLocation(param: string | undefined): string | undefined {
   if (param && param !== SUPPORT_TICKET_STATIC_SHELL_ID && isSupportTicketId(param)) {
     return param;
   }
@@ -66,16 +88,6 @@ function resolveTicketIdFromLocation(
   if (param && isSupportTicketId(param)) return param;
   return param;
 }
-
-type DetailTab = 'overview' | 'conversation' | 'participants' | 'technical' | 'history';
-
-const TABS: { id: DetailTab; label: string }[] = [
-  { id: 'overview', label: 'Visão geral' },
-  { id: 'conversation', label: 'Conversa' },
-  { id: 'participants', label: 'Envolvidos' },
-  { id: 'technical', label: 'Contexto técnico' },
-  { id: 'history', label: 'Histórico' },
-];
 
 function errorMessage(error: unknown): string {
   if (!(error instanceof ControlSupportError)) return 'Não foi possível carregar o chamado.';
@@ -101,43 +113,78 @@ function parseTab(value: string | string[] | undefined): DetailTab {
   return 'overview';
 }
 
-function DefRow({ label, value }: { label: string; value: string | null | undefined }) {
+function DefRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string | null | undefined;
+  mono?: boolean;
+}) {
   if (!value) return null;
   return (
     <View style={styles.defRow}>
       <Text style={styles.defLabel}>{label}</Text>
-      <Text style={styles.defValue} selectable>{value}</Text>
+      <Text style={[styles.defValue, mono && styles.mono]} selectable>{value}</Text>
+    </View>
+  );
+}
+
+function ContextChip({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <View style={styles.contextChip}>
+      <Text style={styles.contextChipLabel}>{label}</Text>
+      <Text style={[styles.contextChipValue, warn && styles.warnText]} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
 
 function MessageItem({ message }: { message: SupportMessage }) {
   const kindLabel = message.authorKind === 'support'
-    ? 'Resposta do suporte'
+    ? 'Resposta pública do suporte'
     : message.authorKind === 'system'
       ? 'Evento automático'
       : 'Mensagem pública';
+  const initials = initialsFromName(message.authorDisplayName);
   return (
-    <View style={[styles.timelineItem, message.authorKind === 'support' && styles.timelineSupport]}>
-      <Text style={styles.timelineWhen}>{formatDateTime(message.createdAt)}</Text>
-      <Text style={styles.timelineAuthor}>
-        {message.authorDisplayName} · {kindLabel}
-      </Text>
-      <Text style={styles.timelineBody} selectable>{message.body}</Text>
+    <View style={styles.timelineItem}>
+      <View style={[
+        styles.avatar,
+        message.authorKind === 'support' && styles.avatarSupport,
+        message.authorKind === 'system' && styles.avatarSystem,
+      ]}
+      >
+        <Text style={styles.avatarText}>{initials}</Text>
+      </View>
+      <View style={styles.timelineContent}>
+        <Text style={styles.timelineWhen}>{formatCompactDate(message.createdAt)}</Text>
+        <Text style={styles.timelineAuthor}>
+          {message.authorDisplayName}
+        </Text>
+        <Text style={styles.timelineKind}>{kindLabel}</Text>
+        <Text style={styles.timelineBody} selectable>{message.body}</Text>
+      </View>
     </View>
   );
 }
 
 function EventItem({ event }: { event: SupportEvent }) {
+  const transition = formatEventTransition(event.fromValue, event.toValue);
+  const actor = event.actorDisplayName?.trim() || 'Sistema CutSync';
+  const automatic = isAutomaticEventActor(event.actorDisplayName);
   return (
     <View style={styles.historyRow}>
-      <Text style={styles.historyWhen}>{formatDateTime(event.createdAt)}</Text>
-      <Text style={styles.historyActor}>{event.actorDisplayName ?? 'Sistema'}</Text>
-      <Text style={styles.historyEvent}>{event.eventType}</Text>
-      <Text style={styles.historyChange} numberOfLines={2}>
-        {[event.fromValue, event.toValue].filter(Boolean).join(' → ') || '—'}
-      </Text>
-      <Text style={styles.historyOrigin} numberOfLines={1}>{event.reason ?? '—'}</Text>
+      <Text style={styles.historyWhen}>{formatDateTime(event.createdAt) ?? '—'}</Text>
+      <View style={styles.historyActorCol}>
+        <Text style={styles.historyActor}>{actor}</Text>
+        <Text style={styles.historyActorKind}>{automatic ? 'Automático' : 'Operador'}</Text>
+      </View>
+      <Text style={styles.historyEvent}>{labelForEventType(event.eventType)}</Text>
+      <Text style={styles.historyChange} numberOfLines={2}>{transition ?? '—'}</Text>
+      <Text style={styles.historyOrigin} numberOfLines={2}>{event.reason ?? '—'}</Text>
     </View>
   );
 }
@@ -158,7 +205,8 @@ export function SupportTicketDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [actionsOpen, setActionsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const requestId = useRef(0);
@@ -167,13 +215,14 @@ export function SupportTicketDetailScreen() {
     const id = ++requestId.current;
     setLoading(true);
     setError('');
-    setDetail(null);
     if (ticketIdParam === SUPPORT_TICKET_STATIC_SHELL_ID) {
+      setDetail(null);
       setError('Informe um chamado válido a partir da fila de atendimentos.');
       setLoading(false);
       return;
     }
     if (!isSupportTicketId(ticketIdParam)) {
+      setDetail(null);
       setError('O identificador do chamado na URL é inválido.');
       setLoading(false);
       return;
@@ -182,7 +231,10 @@ export function SupportTicketDetailScreen() {
       const result = await getControlSupportTicket(ticketIdParam);
       if (id === requestId.current) setDetail(result);
     } catch (loadError) {
-      if (id === requestId.current) setError(errorMessage(loadError));
+      if (id === requestId.current) {
+        setDetail(null);
+        setError(errorMessage(loadError));
+      }
     } finally {
       if (id === requestId.current) setLoading(false);
     }
@@ -213,26 +265,24 @@ export function SupportTicketDetailScreen() {
     }
   };
 
-  const runAction = async (
-    action: 'reprocess' | 'escalate',
-    level?: Exclude<SupportEscalationLevel, 0>,
-  ) => {
-    if (!canManage || !detail || actionReason.trim().length < 10) {
+  const confirmAction = async () => {
+    if (!canManage || !detail || !pendingAction || actionReason.trim().length < 10) {
       setNotice('Informe uma justificativa com pelo menos 10 caracteres.');
       return;
     }
     setActionBusy(true);
     setNotice('');
     try {
-      if (action === 'reprocess') {
+      if (pendingAction.kind === 'reprocess') {
         await reprocessSupportSync(detail.ticket.id, actionReason);
         setNotice('Sincronização recolocada na fila.');
-      } else if (level) {
-        await escalateSupportTicket(detail.ticket.id, level, actionReason);
-        setNotice(`Chamado escalado para L${level}.`);
+      } else {
+        await escalateSupportTicket(detail.ticket.id, pendingAction.level, actionReason);
+        setNotice(`Chamado escalado para L${pendingAction.level}.`);
       }
       setActionReason('');
-      setActionsOpen(false);
+      setPendingAction(null);
+      setMenuOpen(false);
       await load();
     } catch (actionError) {
       setNotice(errorMessage(actionError));
@@ -242,31 +292,46 @@ export function SupportTicketDetailScreen() {
   };
 
   const ticket = detail?.ticket;
+  const requester = ticket ? resolveRequesterIdentity(ticket) : null;
+  const assignee = ticket ? resolveAssigneeIdentity(ticket) : null;
+  const team = ticket ? resolveTeamIdentity({ teamCode: ticket.teamCode, teamId: ticket.teamId }) : null;
+  const slaOut = ticket ? slaLabel(ticket) === 'Fora do SLA' : false;
+
   const participants = useMemo(() => {
-    if (!ticket) return [];
-    const rows: { role: string; person: string; org: string; status: string }[] = [];
-    rows.push({
-      role: 'Solicitante',
-      person: ticket.requesterDisplayName ?? 'Identidade minimizada',
-      org: ticket.locationLabel ?? '—',
-      status: ticket.requesterRole || '—',
-    });
-    rows.push({
-      role: 'Responsável',
-      person: assigneeLabel(ticket),
-      org: ticket.teamCode ?? '—',
-      status: ticket.assigneeProfileId ? 'Atribuído' : 'Sem responsável',
-    });
-    if (ticket.teamCode) {
-      rows.push({
-        role: 'Equipe',
-        person: ticket.teamCode,
-        org: ticket.teamId ? ticket.teamId.slice(0, 8) : '—',
-        status: 'Ativa',
-      });
-    }
-    return rows;
-  }, [ticket]);
+    if (!ticket || !requester || !assignee || !team) return [];
+    return [
+      {
+        role: 'Solicitante',
+        person: requester.primary,
+        org: ticket.locationLabel ?? '—',
+        status: ticket.requesterRole ? labelForTransitionSafe(ticket.requesterRole) : 'Ativo',
+        contact: null as string | null,
+      },
+      {
+        role: 'Responsável',
+        person: assignee.primary,
+        org: team.primary,
+        status: ticket.assigneeProfileId ? 'Atribuído' : 'Sem responsável',
+        contact: assignee.secondary,
+      },
+      {
+        role: 'Equipe responsável',
+        person: team.primary,
+        org: formatTeamLabel(ticket.teamCode) ?? '—',
+        status: ticket.teamCode ? 'Ativa' : 'Não informada',
+        contact: team.secondary,
+      },
+    ];
+  }, [ticket, requester, assignee, team]);
+
+  const showSidePanel = !compact && (tab === 'overview' || tab === 'conversation' || tab === 'history');
+  const sideCompact = tab === 'conversation' || tab === 'history';
+
+  const actionTitle = pendingAction?.kind === 'reprocess'
+    ? 'Reprocessar sincronização'
+    : pendingAction?.kind === 'escalate'
+      ? `Escalar para L${pendingAction.level}`
+      : '';
 
   return (
     <View style={styles.page}>
@@ -274,8 +339,8 @@ export function SupportTicketDetailScreen() {
         <Text style={styles.backText}>← Atendimentos</Text>
       </Pressable>
 
-      {loading ? (
-        <View style={styles.loading}>
+      {loading && !detail ? (
+        <View style={styles.loading} accessibilityLiveRegion="polite">
           <ActivityIndicator color={cloudTheme.colors.brand} />
           <Text style={styles.muted}>Carregando chamado…</Text>
         </View>
@@ -293,110 +358,95 @@ export function SupportTicketDetailScreen() {
 
       {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
 
-      {ticket ? (
+      {ticket && requester && assignee && team ? (
         <>
           <View style={styles.header}>
             <View style={styles.headerMain}>
               <View style={styles.protocolRow}>
                 <Text style={styles.protocol}>{ticket.protocol}</Text>
                 <Text style={[styles.priTag, priorityTone[ticket.priority]]}>
-                  {priorityLabels[ticket.priority]}
+                  {labelForPriority(ticket.priority)}
                 </Text>
               </View>
               <Text style={styles.title}>{ticket.subject}</Text>
-              <Text style={styles.metaLine}>
-                {statusLabels[ticket.status]}
-                {' · '}
-                {slaLabel(ticket)}
-                {' · '}
-                {assigneeLabel(ticket)}
-                {' · '}
-                {ticket.jsmIssueKey ?? 'Sem JSM'}
-                {' · '}
-                {syncLabel(ticket.syncStatus)}
-              </Text>
-              <Text style={styles.updated}>
-                Atualizado {formatRelative(ticket.updatedAt)}
-              </Text>
+              <View style={styles.contextStrip}>
+                <ContextChip label="Status" value={labelForStatus(ticket.status)} />
+                <ContextChip label="SLA" value={slaLabel(ticket)} warn={slaOut} />
+                <ContextChip label="Responsável" value={assignee.primary} />
+                <ContextChip label="Equipe" value={team.primary} />
+                <ContextChip label="JSM" value={ticket.jsmIssueKey ?? 'Sem referência'} />
+                <ContextChip label="Sincronização" value={labelForSync(ticket.syncStatus)} />
+                <ContextChip label="Atualizado" value={formatRelative(ticket.updatedAt)} />
+              </View>
             </View>
             {!compact ? (
               <View style={styles.headerActions}>
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityLabel={ticket.jsmIssueUrl ? 'Responder no Jira' : 'Responder indisponível'}
                   disabled={!ticket.jsmIssueUrl}
                   onPress={() => { void openJira(); }}
                   style={[styles.primaryButton, !ticket.jsmIssueUrl && styles.disabled]}
                 >
-                  <Text style={styles.primaryButtonText}>
-                    {ticket.jsmIssueUrl ? 'Responder' : 'Responder — indisponível'}
-                  </Text>
+                  <Text style={styles.primaryButtonText}>Responder</Text>
                 </Pressable>
-                {!ticket.jsmIssueUrl ? (
-                  <Text style={styles.hint}>Respostas públicas continuam no Jira após a sincronização.</Text>
-                ) : null}
                 {canManage ? (
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setActionsOpen((current) => !current)}
+                    accessibilityState={{ expanded: menuOpen }}
+                    onPress={() => setMenuOpen((current) => !current)}
                     style={styles.secondaryButton}
                   >
-                    <Text style={styles.secondaryButtonText}>
-                      {actionsOpen ? 'Ocultar ações' : 'Mais ações'}
-                    </Text>
+                    <Text style={styles.secondaryButtonText}>Mais ações</Text>
                   </Pressable>
+                ) : null}
+                {!ticket.jsmIssueUrl ? (
+                  <Text style={styles.hint}>
+                    Respostas pelo CutSync Cloud estão em homologação. Use Abrir no Jira quando a URL existir.
+                  </Text>
                 ) : null}
               </View>
             ) : null}
           </View>
 
-          {actionsOpen && canManage ? (
-            <View style={styles.actionsPanel}>
-              <Text style={styles.sectionTitle}>Ações operacionais</Text>
-              <Text style={styles.muted}>
-                Mutações individuais autorizadas. Informe justificativa auditável.
-              </Text>
-              <TextInput
-                editable={!actionBusy}
-                maxLength={500}
-                multiline
-                onChangeText={setActionReason}
-                placeholder="Justificativa da ação"
-                style={styles.input}
-                value={actionReason}
-              />
-              <View style={styles.actionButtons}>
+          {menuOpen && canManage && !pendingAction ? (
+            <View style={styles.menuPanel} accessibilityRole="menu">
+              <Pressable
+                accessibilityRole="menuitem"
+                onPress={() => setPendingAction({ kind: 'reprocess' })}
+                style={styles.menuItem}
+              >
+                <Text style={styles.menuItemText}>Reprocessar sincronização</Text>
+              </Pressable>
+              {([1, 2, 3] as const).map((level) => (
                 <Pressable
-                  accessibilityRole="button"
-                  disabled={actionBusy}
-                  onPress={() => { void runAction('reprocess'); }}
-                  style={[styles.secondaryButton, actionBusy && styles.disabled]}
+                  key={level}
+                  accessibilityRole="menuitem"
+                  disabled={ticket.escalationLevel >= level}
+                  onPress={() => setPendingAction({ kind: 'escalate', level })}
+                  style={[styles.menuItem, ticket.escalationLevel >= level && styles.disabled]}
                 >
-                  <Text style={styles.secondaryButtonText}>Reprocessar sync</Text>
+                  <Text style={styles.menuItemText}>Escalar para L{level}</Text>
                 </Pressable>
-                {([1, 2, 3] as const).map((level) => (
-                  <Pressable
-                    key={level}
-                    accessibilityRole="button"
-                    disabled={actionBusy || ticket.escalationLevel >= level}
-                    onPress={() => { void runAction('escalate', level); }}
-                    style={[
-                      styles.escalateButton,
-                      (actionBusy || ticket.escalationLevel >= level) && styles.disabled,
-                    ]}
-                  >
-                    <Text style={styles.escalateText}>Escalar L{level}</Text>
-                  </Pressable>
-                ))}
-                {ticket.jsmIssueUrl ? (
-                  <Pressable accessibilityRole="link" onPress={() => { void openJira(); }} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryButtonText}>Abrir no Jira</Text>
-                  </Pressable>
-                ) : null}
-              </View>
+              ))}
+              {ticket.jsmIssueUrl ? (
+                <Pressable
+                  accessibilityRole="menuitem"
+                  onPress={() => { void openJira(); setMenuOpen(false); }}
+                  style={styles.menuItem}
+                >
+                  <Text style={styles.menuItemText}>Abrir no Jira</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabs}
+            accessibilityRole="tablist"
+          >
             {TABS.map((item) => (
               <Pressable
                 key={item.id}
@@ -416,41 +466,53 @@ export function SupportTicketDetailScreen() {
             <View style={styles.mainCol}>
               {tab === 'overview' ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Descrição</Text>
+                  <Text style={styles.sectionTitle}>Resumo</Text>
                   <Text style={styles.bodyText} selectable>{ticket.subject}</Text>
                   {ticket.impact ? (
-                    <>
-                      <Text style={styles.subTitle}>Impacto</Text>
-                      <Text style={styles.bodyText} selectable>{ticket.impact}</Text>
-                    </>
+                    <DefRow label="Impacto" value={labelForImpact(ticket.impact)} />
                   ) : null}
 
                   <Text style={styles.sectionTitle}>Dados do chamado</Text>
                   <View style={styles.defList}>
-                    <DefRow label="Cliente" value={clientLabel(ticket)} />
-                    <DefRow label="Área" value={categoryLabels[ticket.category]} />
-                    <DefRow label="Produto" value={ticket.product} />
-                    <DefRow label="Categoria" value={ticket.category} />
+                    <DefRow label="Protocolo" value={ticket.protocol} mono />
+                    <DefRow label="Cliente" value={requester.primary} />
+                    <DefRow label="Área" value={labelForCategory(ticket.category)} />
+                    <DefRow label="Produto" value={labelForProduct(ticket.product)} />
+                    <DefRow label="Categoria" value={labelForCategory(ticket.category)} />
                     <DefRow label="Subcategoria" value={ticket.subcategory} />
-                    <DefRow label="Prioridade" value={priorityLabels[ticket.priority]} />
-                    <DefRow label="Status" value={statusLabels[ticket.status]} />
+                    <DefRow label="Prioridade" value={labelForPriority(ticket.priority)} />
+                    <DefRow label="Status" value={labelForStatus(ticket.status)} />
                     <DefRow label="SLA" value={slaLabel(ticket)} />
                     <DefRow label="Escalonamento" value={`L${ticket.escalationLevel}`} />
+                  </View>
+
+                  <Text style={styles.sectionTitle}>Prazos</Text>
+                  <View style={styles.defList}>
                     <DefRow label="Criado em" value={formatDateTime(ticket.createdAt)} />
                     <DefRow label="Atualizado em" value={formatDateTime(ticket.updatedAt)} />
                     <DefRow label="Primeira resposta até" value={formatDateTime(ticket.firstResponseDueAt)} />
                     <DefRow label="Primeira resposta em" value={formatDateTime(ticket.firstRespondedAt)} />
-                    <DefRow label="Resolvido em" value={formatDateTime(ticket.resolvedAt)} />
-                    <DefRow label="Fechado em" value={formatDateTime(ticket.closedAt)} />
+                    {ticket.resolvedAt || ticket.closedAt ? (
+                      <>
+                        <DefRow label="Resolvido em" value={formatDateTime(ticket.resolvedAt)} />
+                        <DefRow label="Fechado em" value={formatDateTime(ticket.closedAt)} />
+                      </>
+                    ) : (
+                      <Text style={styles.muted}>Informações de resolução ainda não disponíveis.</Text>
+                    )}
                   </View>
 
-                  <Text style={styles.sectionTitle}>Conta e organização</Text>
-                  <View style={styles.defList}>
-                    <DefRow label="Localização" value={ticket.locationLabel} />
-                    <DefRow label="Estabelecimento" value={ticket.establishmentId?.slice(0, 8)} />
-                    <DefRow label="Organização" value={ticket.organizationId?.slice(0, 8)} />
-                    <DefRow label="Equipe" value={ticket.teamCode} />
-                  </View>
+                  {(ticket.locationLabel || ticket.establishmentId || ticket.organizationId) ? (
+                    <>
+                      <Text style={styles.sectionTitle}>Conta e organização</Text>
+                      <View style={styles.defList}>
+                        <DefRow label="Localização" value={ticket.locationLabel} />
+                        <DefRow label="Estabelecimento" value={maskIdentifier(ticket.establishmentId)} mono />
+                        <DefRow label="Organização" value={maskIdentifier(ticket.organizationId)} mono />
+                        <DefRow label="Equipe" value={team.primary} />
+                      </View>
+                    </>
+                  ) : null}
 
                   {(detail?.messages.length ?? 0) > 0 ? (
                     <>
@@ -468,7 +530,7 @@ export function SupportTicketDetailScreen() {
 
               {tab === 'conversation' ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Conversa pública</Text>
+                  <Text style={styles.sectionTitle}>Conversa</Text>
                   {(detail?.messages.length ?? 0) === 0 ? (
                     <Text style={styles.muted}>Nenhuma mensagem pública sincronizada nesta sessão.</Text>
                   ) : (
@@ -478,8 +540,13 @@ export function SupportTicketDetailScreen() {
                   )}
                   <View style={styles.composerDisabled}>
                     <Text style={styles.muted}>
-                      Composição de resposta neste console aguarda homologação. Use Responder para abrir o Jira quando a URL estiver disponível.
+                      Respostas pelo CutSync Cloud estão em homologação.
                     </Text>
+                    {ticket.jsmIssueUrl ? (
+                      <Pressable accessibilityRole="button" onPress={() => { void openJira(); }} style={styles.secondaryButton}>
+                        <Text style={styles.secondaryButtonText}>Abrir no Jira</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
               ) : null}
@@ -494,13 +561,16 @@ export function SupportTicketDetailScreen() {
                     <View style={styles.tableHead}>
                       <Text style={[styles.headCell, styles.colRole]}>Papel</Text>
                       <Text style={[styles.headCell, styles.colPerson]}>Pessoa</Text>
-                      <Text style={[styles.headCell, styles.colOrg]}>Organização/equipe</Text>
+                      <Text style={[styles.headCell, styles.colOrg]}>Equipe/organização</Text>
                       <Text style={[styles.headCell, styles.colStatus]}>Situação</Text>
                     </View>
                     {participants.map((row) => (
                       <View key={`${row.role}-${row.person}`} style={styles.tableRow}>
                         <Text style={[styles.cellStrong, styles.colRole]}>{row.role}</Text>
-                        <Text style={[styles.cell, styles.colPerson]}>{row.person}</Text>
+                        <View style={styles.colPerson}>
+                          <Text style={styles.cellStrong}>{row.person}</Text>
+                          {row.contact ? <Text style={styles.metaSecondary}>{row.contact}</Text> : null}
+                        </View>
                         <Text style={[styles.cell, styles.colOrg]}>{row.org}</Text>
                         <Text style={[styles.cell, styles.colStatus]}>{row.status}</Text>
                       </View>
@@ -511,21 +581,30 @@ export function SupportTicketDetailScreen() {
 
               {tab === 'technical' ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Contexto técnico</Text>
-                  <Text style={styles.muted}>
-                    Apenas campos expostos pela RPC atual. Plataforma, navegador e IP não são fornecidos neste contrato.
-                  </Text>
+                  <Text style={styles.sectionTitle}>Integração</Text>
                   <View style={styles.defList}>
-                    <DefRow label="Sincronização" value={syncLabel(ticket.syncStatus)} />
-                    <DefRow label="Erro de sync" value={ticket.lastSyncErrorCode} />
-                    <DefRow label="JSM" value={ticket.jsmIssueKey} />
+                    <DefRow label="JSM" value={ticket.jsmIssueKey} mono />
                     <DefRow label="URL JSM" value={ticket.jsmIssueUrl} />
-                    <DefRow label="Produto" value={ticket.product} />
-                    <DefRow label="Appointment" value={ticket.appointmentId} />
-                    <DefRow label="Routing version" value={String(ticket.routingVersion)} />
-                    <DefRow label="ID interno" value={ticket.id} />
-                    <DefRow label="Requester ID" value={ticket.requesterId.slice(0, 8)} />
+                    <DefRow label="Sincronização" value={labelForSync(ticket.syncStatus)} />
+                    <DefRow label="Erro de sync" value={ticket.lastSyncErrorCode} mono />
                   </View>
+                  <Text style={styles.sectionTitle}>Identificadores</Text>
+                  <View style={styles.defList}>
+                    <DefRow label="ID interno" value={ticket.id} mono />
+                    <DefRow label="Solicitante" value={maskIdentifier(ticket.requesterId)} mono />
+                    <DefRow label="Responsável" value={maskIdentifier(ticket.assigneeProfileId)} mono />
+                    <DefRow label="Estabelecimento" value={maskIdentifier(ticket.establishmentId)} mono />
+                    <DefRow label="Organização" value={maskIdentifier(ticket.organizationId)} mono />
+                    <DefRow label="Appointment" value={maskIdentifier(ticket.appointmentId)} mono />
+                  </View>
+                  <Text style={styles.sectionTitle}>Processamento</Text>
+                  <View style={styles.defList}>
+                    <DefRow label="Produto" value={labelForProduct(ticket.product)} />
+                    <DefRow label="Versão de roteamento" value={String(ticket.routingVersion)} />
+                  </View>
+                  <Text style={styles.muted}>
+                    Plataforma, navegador e IP não são fornecidos pelo contrato atual.
+                  </Text>
                 </View>
               ) : null}
 
@@ -552,36 +631,54 @@ export function SupportTicketDetailScreen() {
               ) : null}
             </View>
 
-            {!compact ? (
-              <View style={styles.sideCol}>
-                <View style={styles.sideSection}>
-                  <Text style={styles.sectionTitle}>Pessoas envolvidas</Text>
-                  {participants.slice(0, 3).map((row) => (
-                    <View key={`side-${row.role}`} style={styles.sidePerson}>
-                      <Text style={styles.cellStrong}>{row.person}</Text>
-                      <Text style={styles.muted}>{row.role} · {row.org}</Text>
+            {showSidePanel ? (
+              <View style={[styles.sideCol, sideCompact && styles.sideColCompact]}>
+                {tab === 'overview' || tab === 'conversation' ? (
+                  <View style={styles.sideSection}>
+                    <Text style={styles.sectionTitle}>Pessoas envolvidas</Text>
+                    {participants.slice(0, sideCompact ? 2 : 3).map((row) => (
+                      <View key={`side-${row.role}`} style={styles.sidePerson}>
+                        <Text style={styles.cellStrong}>{row.person}</Text>
+                        <Text style={styles.muted}>{row.role} · {row.org}</Text>
+                      </View>
+                    ))}
+                    {tab === 'overview' ? (
+                      <Pressable accessibilityRole="button" onPress={() => setTab('participants')}>
+                        <Text style={styles.linkText}>Ver todos</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+                {tab === 'overview' ? (
+                  <>
+                    <View style={styles.sideSection}>
+                      <Text style={styles.sectionTitle}>Conta e organização</Text>
+                      <View style={styles.defList}>
+                        <DefRow label="Localização" value={ticket.locationLabel} />
+                        <DefRow label="Unidade" value={maskIdentifier(ticket.establishmentId)} mono />
+                        <DefRow label="Organização" value={maskIdentifier(ticket.organizationId)} mono />
+                      </View>
                     </View>
-                  ))}
-                  <Pressable accessibilityRole="button" onPress={() => setTab('participants')}>
-                    <Text style={styles.linkText}>Ver todos</Text>
-                  </Pressable>
-                </View>
-                <View style={styles.sideSection}>
-                  <Text style={styles.sectionTitle}>Conta e organização</Text>
-                  <View style={styles.defList}>
-                    <DefRow label="Localização" value={ticket.locationLabel ?? 'Não informado'} />
-                    <DefRow label="Unidade" value={ticket.establishmentId?.slice(0, 8) ?? '—'} />
-                    <DefRow label="Organização" value={ticket.organizationId?.slice(0, 8) ?? '—'} />
+                    <View style={styles.sideSection}>
+                      <Text style={styles.sectionTitle}>Dados técnicos</Text>
+                      <View style={styles.defList}>
+                        <DefRow label="Sync" value={labelForSync(ticket.syncStatus)} />
+                        <DefRow label="JSM" value={ticket.jsmIssueKey} mono />
+                        <DefRow label="Produto" value={labelForProduct(ticket.product)} />
+                      </View>
+                    </View>
+                  </>
+                ) : null}
+                {tab === 'history' ? (
+                  <View style={styles.sideSection}>
+                    <Text style={styles.sectionTitle}>Referência</Text>
+                    <View style={styles.defList}>
+                      <DefRow label="Protocolo" value={ticket.protocol} mono />
+                      <DefRow label="JSM" value={ticket.jsmIssueKey} mono />
+                      <DefRow label="Status" value={labelForStatus(ticket.status)} />
+                    </View>
                   </View>
-                </View>
-                <View style={styles.sideSection}>
-                  <Text style={styles.sectionTitle}>Dados técnicos</Text>
-                  <View style={styles.defList}>
-                    <DefRow label="Sync" value={syncLabel(ticket.syncStatus)} />
-                    <DefRow label="JSM" value={ticket.jsmIssueKey ?? '—'} />
-                    <DefRow label="Produto" value={ticket.product} />
-                  </View>
-                </View>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -599,7 +696,7 @@ export function SupportTicketDetailScreen() {
               {canManage ? (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => setActionsOpen((current) => !current)}
+                  onPress={() => setMenuOpen((current) => !current)}
                   style={[styles.secondaryButton, styles.mobileActionSecondary]}
                 >
                   <Text style={styles.secondaryButtonText}>Mais ações</Text>
@@ -609,8 +706,66 @@ export function SupportTicketDetailScreen() {
           ) : null}
         </>
       ) : null}
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={Boolean(pendingAction)}
+        onRequestClose={() => {
+          if (!actionBusy) {
+            setPendingAction(null);
+            setActionReason('');
+          }
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} accessibilityViewIsModal>
+            <Text style={styles.sectionTitle}>{actionTitle}</Text>
+            <Text style={styles.muted}>
+              Justificativa obrigatória para auditoria. Mínimo de 10 caracteres.
+            </Text>
+            <TextInput
+              accessibilityLabel="Justificativa da ação"
+              editable={!actionBusy}
+              maxLength={500}
+              multiline
+              onChangeText={setActionReason}
+              placeholder="Descreva o motivo da ação"
+              style={styles.input}
+              value={actionReason}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={actionBusy}
+                onPress={() => {
+                  setPendingAction(null);
+                  setActionReason('');
+                }}
+                style={[styles.secondaryButton, actionBusy && styles.disabled]}
+              >
+                <Text style={styles.secondaryButtonText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={actionBusy}
+                onPress={() => { void confirmAction(); }}
+                style={[styles.primaryButton, actionBusy && styles.disabled]}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {actionBusy ? 'Executando…' : 'Confirmar'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
+}
+
+function labelForTransitionSafe(value: string): string {
+  return value.replace(/[_-]+/g, ' ');
 }
 
 const styles = StyleSheet.create({
@@ -622,20 +777,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: cloudTheme.layout.contentPadding,
   },
-  mobileActions: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: cloudTheme.colors.border,
-    backgroundColor: cloudTheme.colors.surface,
-    // @ts-expect-error RN web sticky
-    position: Platform.OS === 'web' ? 'sticky' : 'relative',
-    bottom: 0,
-    zIndex: 5,
-  },
-  mobileActionPrimary: { flex: 1 },
-  mobileActionSecondary: { flex: 1 },
   back: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   backText: { color: '#1F6B45', fontWeight: '800', fontSize: 13 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -668,14 +809,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
   },
-  headerMain: { flex: 1, minWidth: 260, gap: 6 },
-  headerActions: { gap: 8, alignItems: 'flex-end', maxWidth: 320 },
+  headerMain: { flex: 1, minWidth: 260, gap: 8 },
+  headerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'flex-start',
+    maxWidth: 360,
+    justifyContent: 'flex-end',
+  },
   protocolRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  protocol: { color: cloudTheme.colors.textMuted, fontSize: 13, fontFamily: 'monospace', fontWeight: '700' },
+  protocol: {
+    color: cloudTheme.colors.textMuted,
+    fontSize: 13,
+    fontFamily: Platform.select({ web: 'ui-monospace, SFMono-Regular, Menlo, monospace', default: 'monospace' }),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
   title: { color: cloudTheme.colors.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
-  metaLine: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 19 },
-  updated: { color: cloudTheme.colors.textMuted, fontSize: 12 },
-  hint: { color: cloudTheme.colors.textMuted, fontSize: 11, textAlign: 'right' },
+  contextStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  contextChip: {
+    minWidth: 110,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
+    borderRadius: 4,
+    backgroundColor: '#f7f9f7',
+    gap: 2,
+  },
+  contextChipLabel: { color: cloudTheme.colors.textMuted, fontSize: 10, fontWeight: '800' },
+  contextChipValue: { color: cloudTheme.colors.text, fontSize: 12, fontWeight: '700' },
+  warnText: { color: '#8b641d' },
+  hint: { color: cloudTheme.colors.textMuted, fontSize: 11, textAlign: 'right', maxWidth: 280 },
   priTag: {
     overflow: 'hidden',
     paddingHorizontal: 8,
@@ -684,33 +850,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  actionsPanel: {
-    gap: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: cloudTheme.colors.border,
-  },
-  actionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  input: {
-    minHeight: 80,
+  menuPanel: {
     borderWidth: 1,
     borderColor: cloudTheme.colors.border,
     borderRadius: 4,
-    padding: 12,
-    color: cloudTheme.colors.text,
     backgroundColor: cloudTheme.colors.surface,
-    textAlignVertical: 'top',
+    overflow: 'hidden',
+    alignSelf: 'flex-end',
+    minWidth: 260,
   },
-  escalateButton: {
+  menuItem: {
     minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#d6b8b3',
-    borderRadius: 4,
-    backgroundColor: '#fff7f6',
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef1ee',
   },
-  escalateText: { color: '#8d3831', fontWeight: '800', fontSize: 12 },
+  menuItemText: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
   tabs: { flexDirection: 'row', gap: 4, paddingBottom: 4 },
   tab: {
     minHeight: 44,
@@ -722,112 +878,147 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: '#1F6B45' },
   tabText: { color: cloudTheme.colors.textMuted, fontSize: 13, fontWeight: '700' },
   tabTextActive: { color: '#1F6B45', fontWeight: '800' },
-  body: { flexDirection: 'row', alignItems: 'flex-start', gap: 32 },
-  bodyCompact: { flexDirection: 'column', gap: 20 },
-  mainCol: { flex: 1, minWidth: 0, gap: 16 },
+  body: { flexDirection: 'row', gap: 28, alignItems: 'flex-start' },
+  bodyCompact: { flexDirection: 'column' },
+  mainCol: { flex: 1, minWidth: 0, gap: 8 },
   sideCol: {
     width: 340,
-    flexShrink: 0,
-    gap: 16,
-    // @ts-expect-error sticky web
-    position: 'sticky',
-    top: 80,
-    alignSelf: 'flex-start',
+    gap: 4,
+    borderLeftWidth: 1,
+    borderLeftColor: cloudTheme.colors.border,
+    paddingLeft: 20,
   },
-  section: { gap: 10 },
+  sideColCompact: { width: 280 },
   sideSection: {
     gap: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: cloudTheme.colors.border,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: cloudTheme.colors.border,
   },
+  sidePerson: { gap: 2, paddingVertical: 4 },
+  section: { gap: 10 },
   sectionTitle: {
     color: cloudTheme.colors.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginTop: 8,
   },
-  subTitle: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700', marginTop: 8 },
-  bodyText: { color: cloudTheme.colors.textSecondary, fontSize: 14, lineHeight: 21 },
-  defList: { borderTopWidth: 1, borderTopColor: cloudTheme.colors.border },
+  bodyText: { color: cloudTheme.colors.text, fontSize: 14, lineHeight: 21 },
+  defList: { gap: 0 },
   defRow: {
     flexDirection: 'row',
     gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef1ee',
+  },
+  defLabel: { width: 160, color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '700' },
+  defValue: { flex: 1, color: cloudTheme.colors.text, fontSize: 13, fontWeight: '600' },
+  mono: {
+    fontFamily: Platform.select({ web: 'ui-monospace, SFMono-Regular, Menlo, monospace', default: 'monospace' }),
+    fontVariant: ['tabular-nums'],
+  },
+  metaSecondary: { color: cloudTheme.colors.textMuted, fontSize: 11 },
+  timelineItem: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef1ee',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#dcefe3',
+  },
+  avatarSupport: { backgroundColor: '#e4e8f5' },
+  avatarSystem: { backgroundColor: '#ececec' },
+  avatarText: { color: '#274936', fontSize: 11, fontWeight: '800' },
+  timelineContent: { flex: 1, gap: 2, minWidth: 0 },
+  timelineWhen: { color: cloudTheme.colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] },
+  timelineAuthor: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '800' },
+  timelineKind: { color: cloudTheme.colors.textSecondary, fontSize: 12 },
+  timelineBody: { color: cloudTheme.colors.text, fontSize: 13, lineHeight: 20, marginTop: 4 },
+  composerDisabled: {
+    gap: 10,
+    marginTop: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
+    borderRadius: 4,
+    backgroundColor: '#f7f9f7',
+  },
+  table: { width: '100%', borderTopWidth: 1, borderTopColor: cloudTheme.colors.border },
+  tableHead: {
+    flexDirection: 'row',
+    gap: 8,
     minHeight: 40,
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
-  },
-  defLabel: { width: 150, color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '800' },
-  defValue: { flex: 1, color: cloudTheme.colors.text, fontSize: 13, fontWeight: '600' },
-  timelineItem: {
-    gap: 4,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: cloudTheme.colors.border,
-  },
-  timelineSupport: { backgroundColor: '#f7fbf8', paddingHorizontal: 8, marginHorizontal: -8 },
-  timelineWhen: { color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '700' },
-  timelineAuthor: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
-  timelineBody: { color: cloudTheme.colors.textSecondary, fontSize: 14, lineHeight: 21 },
-  composerDisabled: {
-    marginTop: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: cloudTheme.colors.border,
-    borderRadius: 4,
-    backgroundColor: '#f8faf8',
-  },
-  table: { borderTopWidth: 1, borderTopColor: cloudTheme.colors.border },
-  tableHead: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: cloudTheme.colors.border,
+    backgroundColor: '#f5f7f4',
   },
   tableRow: {
     flexDirection: 'row',
     gap: 8,
-    minHeight: 44,
+    minHeight: 52,
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: cloudTheme.colors.border,
-  },
-  historyRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    minHeight: 44,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
   },
   headCell: { color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   cell: { color: cloudTheme.colors.textSecondary, fontSize: 13 },
   cellStrong: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
-  colRole: { flex: 0.9, minWidth: 100 },
+  colRole: { width: 120 },
   colPerson: { flex: 1.2, minWidth: 120 },
-  colOrg: { flex: 1.1, minWidth: 110 },
-  colStatus: { flex: 0.9, minWidth: 90 },
-  colWhen: { flex: 1.1, minWidth: 120 },
-  colActor: { flex: 0.9, minWidth: 90 },
-  colEvent: { flex: 1, minWidth: 100 },
-  colChange: { flex: 1.2, minWidth: 120 },
-  colOrigin: { flex: 1, minWidth: 100 },
-  historyWhen: { flex: 1.1, minWidth: 120, color: cloudTheme.colors.textMuted, fontSize: 12 },
-  historyActor: { flex: 0.9, minWidth: 90, color: cloudTheme.colors.text, fontSize: 12, fontWeight: '700' },
-  historyEvent: { flex: 1, minWidth: 100, color: cloudTheme.colors.text, fontSize: 12, fontWeight: '700' },
-  historyChange: { flex: 1.2, minWidth: 120, color: cloudTheme.colors.textSecondary, fontSize: 12 },
-  historyOrigin: { flex: 1, minWidth: 100, color: cloudTheme.colors.textMuted, fontSize: 12 },
-  sidePerson: { gap: 2, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: cloudTheme.colors.border },
+  colOrg: { flex: 1, minWidth: 100 },
+  colStatus: { width: 110 },
+  historyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: cloudTheme.colors.border,
+  },
+  historyWhen: { width: 140, color: cloudTheme.colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] },
+  historyActorCol: { width: 130, gap: 2 },
+  historyActor: { color: cloudTheme.colors.text, fontSize: 12, fontWeight: '700' },
+  historyActorKind: { color: cloudTheme.colors.textMuted, fontSize: 11 },
+  historyEvent: { flex: 1.2, minWidth: 120, color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
+  historyChange: { flex: 1, minWidth: 100, color: cloudTheme.colors.textSecondary, fontSize: 12 },
+  historyOrigin: { width: 120, color: cloudTheme.colors.textMuted, fontSize: 12 },
+  colWhen: { width: 140 },
+  colActor: { width: 130 },
+  colEvent: { flex: 1.2, minWidth: 120 },
+  colChange: { flex: 1, minWidth: 100 },
+  colOrigin: { width: 120 },
+  mobileActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: cloudTheme.colors.border,
+    backgroundColor: cloudTheme.colors.surface,
+    // @ts-expect-error RN web sticky
+    position: Platform.OS === 'web' ? 'sticky' : 'relative',
+    bottom: 0,
+    zIndex: 5,
+  },
+  mobileActionPrimary: { flex: 1 },
+  mobileActionSecondary: { flex: 1 },
   primaryButton: {
     minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    paddingHorizontal: 14,
     borderRadius: 4,
     backgroundColor: '#1F6B45',
   },
@@ -835,6 +1026,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#1F6B45',
@@ -844,4 +1036,32 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: '#1F6B45', fontWeight: '800', fontSize: 12 },
   linkText: { color: '#1F6B45', fontSize: 12, fontWeight: '800' },
   disabled: { opacity: 0.45 },
+  input: {
+    minHeight: 88,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
+    borderRadius: 4,
+    padding: 12,
+    color: cloudTheme.colors.text,
+    backgroundColor: cloudTheme.colors.surface,
+    textAlignVertical: 'top',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 32, 24, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 480,
+    gap: 12,
+    padding: 20,
+    borderRadius: 6,
+    backgroundColor: cloudTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: cloudTheme.colors.border,
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 });

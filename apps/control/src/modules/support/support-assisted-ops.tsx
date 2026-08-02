@@ -104,9 +104,9 @@ export function SupportAssistedOpsScreen() {
     <View style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.kicker}>SUPORTE / OPERAÇÕES ASSISTIDAS</Text>
-        <Text style={styles.title}>Operações assistidas</Text>
+        <Text style={styles.title}>Catálogo de operações</Text>
         <Text style={styles.lead}>
-          Catálogo das mutações reais do módulo. Disponibilidade reflete flags e permissões atuais — sem ações simuladas.
+          Disponibilidade reflete permissões e feature flags reais. Execução ocorre no detalhe ou na fila, conforme a linha.
         </Text>
       </View>
 

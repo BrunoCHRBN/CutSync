@@ -5,6 +5,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import {
+  clientLabel,
+  formatDateTimeOrDash,
+  formatRelative,
+  labelForStatus,
+  labelForSync,
+} from '@/modules/support/presentation';
+import {
   ControlSupportError,
   getControlSupportOverview,
   type SupportOverview,
@@ -25,15 +32,12 @@ function isSyncIssue(ticket: SupportTicketSummary): boolean {
   return ticket.syncStatus !== 'synced' || ticket.status === 'sync_failed';
 }
 
-function formatWhen(value: string | null): string {
-  return value ? new Date(value).toLocaleString('pt-BR') : '—';
-}
-
 export function SupportMonitoringScreen() {
   const { can } = useControlAuth();
   const [overview, setOverview] = useState<SupportOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
@@ -47,7 +51,10 @@ export function SupportMonitoringScreen() {
         category: null,
         limit: 40,
       });
-      if (id === requestId.current) setOverview(result);
+      if (id === requestId.current) {
+        setOverview(result);
+        setLoadedAt(Date.now());
+      }
     } catch (loadError) {
       if (id === requestId.current) {
         setOverview(null);
@@ -70,9 +77,9 @@ export function SupportMonitoringScreen() {
     <View style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.kicker}>SUPORTE / MONITORAMENTO</Text>
-        <Text style={styles.title}>Monitoramento</Text>
+        <Text style={styles.title}>Integração e sincronização</Text>
         <Text style={styles.lead}>
-          Saúde técnica da sincronização JSM a partir da overview real. Sem histórico inventado de ciclos.
+          Acompanhe o runtime JSM e irregularidades de sincronização com dados autorizados da sessão.
         </Text>
       </View>
 
@@ -154,19 +161,27 @@ export function SupportMonitoringScreen() {
                 <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
                   <Text style={[styles.protocol, styles.colProtocol]} numberOfLines={1}>{ticket.protocol}</Text>
                   <Text style={[styles.cell, styles.colClient]} numberOfLines={1}>
-                    {ticket.requesterDisplayName ?? ticket.locationLabel ?? '—'}
+                    {clientLabel(ticket)}
                   </Text>
-                  <Text style={[styles.cell, styles.colSync]} numberOfLines={1}>{ticket.syncStatus}</Text>
-                  <Text style={[styles.cell, styles.colStatus]} numberOfLines={1}>{ticket.status}</Text>
+                  <Text style={[styles.cell, styles.colSync]} numberOfLines={1}>
+                    {labelForSync(ticket.syncStatus)}
+                  </Text>
+                  <Text style={[styles.cell, styles.colStatus]} numberOfLines={1}>
+                    {labelForStatus(ticket.status)}
+                  </Text>
                   <Text style={[styles.cell, styles.colWhen]} numberOfLines={1}>
-                    {formatWhen(ticket.updatedAt)}
+                    {formatDateTimeOrDash(ticket.updatedAt)}
                   </Text>
                 </Pressable>
               </Link>
             ))}
             {!loading && syncIssues.length === 0 ? (
               <View style={styles.emptyRow}>
-                <Text style={styles.muted}>Nenhum chamado com sync irregular na página atual da overview.</Text>
+                <Text style={styles.emptyTitle}>Nenhuma irregularidade de sincronização</Text>
+                <Text style={styles.muted}>
+                  Todos os chamados analisados estão sincronizados.
+                  {loadedAt ? ` Última verificação: ${formatRelative(new Date(loadedAt).toISOString())}.` : ''}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -266,7 +281,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
   },
-  emptyRow: { padding: 16 },
+  emptyRow: { padding: 16, gap: 6 },
+  emptyTitle: { color: cloudTheme.colors.text, fontSize: 15, fontWeight: '800' },
   protocol: {
     color: cloudTheme.colors.textMuted,
     fontSize: 12,

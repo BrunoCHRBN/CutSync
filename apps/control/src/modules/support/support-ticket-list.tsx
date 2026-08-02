@@ -24,7 +24,7 @@ import {
   categoryLabels,
   categoryOptions,
   clientLabel,
-  formatDateTime,
+  formatDateTimeOrDash,
   formatRelative,
   isSlaAtRisk,
   priorityLabels,
@@ -453,9 +453,11 @@ export function SupportTicketList() {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.kicker}>SUPORTE / ATENDIMENTOS</Text>
-          <Text style={styles.title}>Atendimentos</Text>
+          <Text style={styles.title}>Fila de atendimentos</Text>
           <Text style={styles.lead}>
-            Fila operacional com foco em priorização e acompanhamento.
+            {overview
+              ? `${filtered.length} chamado${filtered.length === 1 ? '' : 's'} correspondem aos filtros atuais.`
+              : 'Busca, filtros e priorização da fila operacional.'}
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -711,14 +713,20 @@ export function SupportTicketList() {
                     </Text>
                     <Text style={styles.mono} numberOfLines={1}>{assigneeLabel(ticket)}</Text>
                     <Text style={styles.cellMuted} numberOfLines={1}>
-                      {formatDateTime(ticket.lastMessageAt ?? ticket.updatedAt)}
+                      {formatDateTimeOrDash(ticket.lastMessageAt ?? ticket.updatedAt)}
                     </Text>
                     <Text style={styles.tagNeutral} numberOfLines={1}>{statusLabels[ticket.status]}</Text>
                     <Text
-                      style={[styles.tagNeutral, ticket.syncStatus === 'failed' && styles.slaRisk]}
+                      accessibilityLabel={`Sincronização: ${syncLabel(ticket.syncStatus)}`}
+                      style={[
+                        styles.syncMark,
+                        ticket.syncStatus === 'synced' && styles.syncOk,
+                        ticket.syncStatus === 'failed' && styles.slaRisk,
+                        ticket.syncStatus !== 'synced' && ticket.syncStatus !== 'failed' && styles.tagNeutral,
+                      ]}
                       numberOfLines={1}
                     >
-                      {syncLabel(ticket.syncStatus)}
+                      {ticket.syncStatus === 'synced' ? '✓' : syncLabel(ticket.syncStatus)}
                     </Text>
                   </Pressable>
                 );
@@ -973,6 +981,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   slaRisk: { color: '#8b641d', backgroundColor: '#f8edd8', fontWeight: '800' },
+  syncMark: {
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  syncOk: { color: '#285f43', backgroundColor: 'transparent' },
   inlineInput: {
     minHeight: 44,
     paddingHorizontal: 12,

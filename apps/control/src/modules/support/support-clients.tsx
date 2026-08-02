@@ -7,7 +7,7 @@ import { cloudTheme } from '@/theme/cloud-components';
 
 /**
  * Future client projection table (not mocked):
- * columns — cliente · localização · chamados abertos · último contato · risco SLA
+ * columns — cliente · atendimentos · abertos · risco SLA · última interação
  * source — aggregated from authorized SupportTicketSummary rows when RPC/projection exists.
  */
 export function SupportClientsScreen() {
@@ -15,46 +15,39 @@ export function SupportClientsScreen() {
     <View style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.kicker}>SUPORTE / CLIENTES</Text>
-        <Text style={styles.title}>Clientes</Text>
+        <Text style={styles.title}>Visão consolidada de clientes</Text>
         <Text style={styles.lead}>
-          Escopo limitado aos chamados autorizados da equipe. A listagem agregada permanece em preparação.
+          Esta superfície está em preparação. Não há projeção agregada nesta sessão.
         </Text>
       </View>
 
-      <View style={styles.strip}>
-        <Text style={styles.stripLabel}>Estado</Text>
-        <Text style={styles.stripValue}>Em preparação</Text>
-        <View style={styles.divider} />
-        <Text style={styles.stripLabel}>Fonte</Text>
-        <Text style={styles.stripValue}>Chamados autorizados da fila</Text>
-      </View>
-
-      <View style={styles.block}>
-        <Text style={styles.blockTitle}>Consultar atendimentos</Text>
-        <Text style={styles.muted}>
-          Até a projeção de clientes existir, use a fila operacional para localizar solicitantes e contexto.
-        </Text>
-        <Link href={CLOUD_ROUTES.suporte.atendimentos} asChild>
-          <Pressable
-            accessibilityRole="link"
-            style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
-          >
-            <Text style={styles.ctaText}>Abrir atendimentos</Text>
-          </Pressable>
-        </Link>
-      </View>
-
-      <View style={styles.tableShell} accessibilityLabel="Tabela de clientes (em preparação)">
-        <View style={styles.tableHead}>
-          <Text style={[styles.headCell, styles.colClient]}>Cliente</Text>
-          <Text style={[styles.headCell, styles.colMeta]}>Localização</Text>
-          <Text style={[styles.headCell, styles.colMeta]}>Chamados</Text>
-          <Text style={[styles.headCell, styles.colMeta]}>Último contato</Text>
+      <View style={styles.defList}>
+        <View style={styles.defRow}>
+          <Text style={styles.defLabel}>Estado do módulo</Text>
+          <Text style={styles.defValue}>Em preparação</Text>
         </View>
-        <View style={styles.emptyRow}>
-          <Text style={styles.muted}>Nenhuma projeção de clientes disponível nesta sessão.</Text>
+        <View style={styles.defRow}>
+          <Text style={styles.defLabel}>Fonte atual</Text>
+          <Text style={styles.defValue}>Chamados autorizados</Text>
+        </View>
+        <View style={styles.defRow}>
+          <Text style={styles.defLabel}>Dados simulados</Text>
+          <Text style={styles.defValue}>Não utilizados</Text>
+        </View>
+        <View style={styles.defRow}>
+          <Text style={styles.defLabel}>Acesso disponível</Text>
+          <Text style={styles.defValue}>Pela fila de atendimentos</Text>
         </View>
       </View>
+
+      <Link href={CLOUD_ROUTES.suporte.atendimentos} asChild>
+        <Pressable
+          accessibilityRole="link"
+          style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
+        >
+          <Text style={styles.ctaText}>Ir para atendimentos</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
@@ -76,30 +69,21 @@ const styles = StyleSheet.create({
   },
   title: { color: cloudTheme.colors.text, fontSize: 26, fontWeight: '800' },
   lead: { color: cloudTheme.colors.textSecondary, fontSize: 14, lineHeight: 20, maxWidth: 640 },
-  strip: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: cloudTheme.colors.border,
-    borderRadius: 6,
+  defList: {
+    borderTopWidth: 1,
+    borderTopColor: cloudTheme.colors.border,
     backgroundColor: cloudTheme.colors.surface,
   },
-  stripLabel: { color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '700' },
-  stripValue: { color: cloudTheme.colors.text, fontSize: 13, fontWeight: '700' },
-  divider: { width: 1, alignSelf: 'stretch', backgroundColor: cloudTheme.colors.border, marginHorizontal: 4 },
-  block: {
-    gap: 8,
-    paddingVertical: 14,
-    borderTopWidth: 1,
+  defRow: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderColor: cloudTheme.colors.border,
+    borderBottomColor: cloudTheme.colors.border,
   },
-  blockTitle: { color: cloudTheme.colors.text, fontSize: 16, fontWeight: '800' },
-  muted: { color: cloudTheme.colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  defLabel: { width: 180, color: cloudTheme.colors.textMuted, fontSize: 12, fontWeight: '700' },
+  defValue: { flex: 1, color: cloudTheme.colors.text, fontSize: 14, fontWeight: '700' },
   cta: {
     alignSelf: 'flex-start',
     minHeight: 44,
@@ -110,24 +94,4 @@ const styles = StyleSheet.create({
   },
   ctaText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   pressed: { opacity: 0.88 },
-  tableShell: {
-    borderWidth: 1,
-    borderColor: cloudTheme.colors.border,
-    borderRadius: 6,
-    overflow: 'hidden',
-    backgroundColor: cloudTheme.colors.surface,
-  },
-  tableHead: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: cloudTheme.colors.border,
-    backgroundColor: cloudTheme.colors.canvas,
-  },
-  headCell: { color: cloudTheme.colors.textMuted, fontSize: 11, fontWeight: '800' },
-  colClient: { flex: 1.4, minWidth: 140 },
-  colMeta: { flex: 1, minWidth: 100 },
-  emptyRow: { padding: 16 },
 });
