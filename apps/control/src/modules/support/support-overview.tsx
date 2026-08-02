@@ -88,13 +88,18 @@ export function SupportOverviewScreen() {
 
   const attention = useMemo(() => {
     if (!overview) return [];
-    const rows: { key: string; label: string; detail: string; href: string }[] = [];
+    const rows: {
+      key: string;
+      label: string;
+      detail: string;
+      href: { pathname: typeof CLOUD_ROUTES.suporte.atendimentos; params: Record<string, string> };
+    }[] = [];
     if (counts && counts.slaAtRisk > 0) {
       rows.push({
         key: 'sla',
         label: `${counts.slaAtRisk} com risco de SLA`,
         detail: 'Priorizar primeira resposta fora do prazo',
-        href: `${CLOUD_ROUTES.suporte.atendimentos}?sla=at_risk`,
+        href: { pathname: CLOUD_ROUTES.suporte.atendimentos, params: { sla: 'at_risk' } },
       });
     }
     if (counts && counts.critical > 0) {
@@ -102,7 +107,7 @@ export function SupportOverviewScreen() {
         key: 'critical',
         label: `${counts.critical} críticos`,
         detail: 'Prioridade crítica na fila autorizada',
-        href: `${CLOUD_ROUTES.suporte.atendimentos}?priority=critical`,
+        href: { pathname: CLOUD_ROUTES.suporte.atendimentos, params: { priority: 'critical' } },
       });
     }
     if (counts && counts.syncFailed > 0) {
@@ -110,7 +115,7 @@ export function SupportOverviewScreen() {
         key: 'sync',
         label: `${counts.syncFailed} falhas de sync`,
         detail: 'Sincronização JSM irregular',
-        href: `${CLOUD_ROUTES.suporte.atendimentos}?status=sync_failed`,
+        href: { pathname: CLOUD_ROUTES.suporte.atendimentos, params: { status: 'sync_failed' } },
       });
     }
     const slaTickets = overview.tickets.filter(isSlaAtRisk).slice(0, 3);
@@ -119,7 +124,7 @@ export function SupportOverviewScreen() {
         key: `ticket-${ticket.id}`,
         label: ticket.protocol,
         detail: ticket.subject,
-        href: `${CLOUD_ROUTES.suporte.atendimentos}?ticketId=${ticket.id}`,
+        href: { pathname: CLOUD_ROUTES.suporte.atendimentos, params: { ticketId: ticket.id } },
       });
     }
     return rows;
