@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import React from 'react';
 import {
   Platform,
@@ -13,22 +14,29 @@ import { CloudToastProvider } from '@/components/cloud/cloud-toast';
 import { CloudTopbar } from '@/components/cloud/cloud-topbar';
 import { MobileBottomNavigation } from '@/components/cloud/mobile-bottom-navigation';
 import { getCloudEnvironmentLabel } from '@/navigation/environment-label';
+import { resolveActiveNavModule } from '@/navigation/module-nav';
 import { cloudTheme } from '@/theme/cloud-components';
 
 export function CloudShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { width } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const compact = width < cloudTheme.layout.compactBreakpoint;
   const environmentLabel = getCloudEnvironmentLabel();
+  const activeModule = resolveActiveNavModule(pathname);
+  const hideSidebar = activeModule.id === 'central';
   const bottomPad = compact
     ? cloudTheme.layout.bottomNavHeight + cloudTheme.spacing.xl
     : cloudTheme.spacing.xxl;
+
+  React.useEffect(() => {
+    if (hideSidebar) setMenuOpen(false);
+  }, [hideSidebar]);
 
   const webContentStyle = {
     ...styles.content,
     paddingBottom: bottomPad,
     overflow: 'scroll',
-    // RN Web scrollport extras (not in core ViewStyle).
     overflowY: 'auto',
     overscrollBehavior: 'contain',
   } as ViewStyle & {
@@ -43,14 +51,14 @@ export function CloudShell({ children }: { children: React.ReactNode }) {
           environmentLabel={environmentLabel}
           menuOpen={menuOpen}
           onToggleMenu={() => setMenuOpen((current) => !current)}
-          showMenuButton={compact}
+          showMenuButton={compact && !hideSidebar}
           onNavigate={() => setMenuOpen(false)}
         />
 
         <View style={[styles.body, compact && styles.bodyCompact]}>
-          {!compact ? (
+          {!hideSidebar && !compact ? (
             <CloudSidebar />
-          ) : menuOpen ? (
+          ) : !hideSidebar && compact && menuOpen ? (
             <View style={styles.compactMenu}>
               <CloudSidebar compact onNavigate={() => setMenuOpen(false)} />
             </View>
@@ -61,7 +69,11 @@ export function CloudShell({ children }: { children: React.ReactNode }) {
           ) : (
             <ScrollView
               style={styles.content}
-              contentContainerStyle={[styles.contentContainer, { paddingBottom: bottomPad }]}
+              contentContainerStyle={[
+                styles.contentContainer,
+                hideSidebar && styles.contentCentered,
+                { paddingBottom: bottomPad },
+              ]}
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled
               showsVerticalScrollIndicator
@@ -107,5 +119,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
+  },
+  contentCentered: {
+    justifyContent: 'center',
   },
 });

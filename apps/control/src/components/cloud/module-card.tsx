@@ -25,15 +25,17 @@ export function ModuleCard({
   label,
   description,
   accent,
-  availabilityLabel = 'Operacional',
+  availabilityLabel,
   workLabel,
+  compact = false,
 }: {
   href: string;
   label: string;
-  description: string;
+  description?: string;
   accent: CloudModuleAccent;
   availabilityLabel?: string;
   workLabel?: string;
+  compact?: boolean;
 }) {
   return (
     <Link href={href} asChild>
@@ -42,6 +44,7 @@ export function ModuleCard({
         accessibilityLabel={`Abrir módulo ${label}`}
         style={({ pressed }) => [
           styles.card,
+          compact && styles.cardCompact,
           {
             backgroundColor: accentSoft[accent],
             borderColor: accentStrong[accent],
@@ -49,12 +52,16 @@ export function ModuleCard({
           pressed && styles.interactive,
         ]}
       >
-        <Text style={[styles.label, { color: accentStrong[accent] }]}>{label}</Text>
-        <Text style={styles.description}>{description}</Text>
-        <View style={styles.meta}>
-          <StatusBadge label={availabilityLabel} tone="success" />
-          {workLabel ? <Text style={styles.work}>{workLabel}</Text> : null}
-        </View>
+        <Text style={[styles.label, compact && styles.labelCompact, { color: accentStrong[accent] }]}>
+          {label}
+        </Text>
+        {description ? <Text style={styles.description}>{description}</Text> : null}
+        {(availabilityLabel || workLabel) ? (
+          <View style={styles.meta}>
+            {availabilityLabel ? <StatusBadge label={availabilityLabel} tone="success" /> : null}
+            {workLabel ? <Text style={styles.work}>{workLabel}</Text> : null}
+          </View>
+        ) : null}
       </Pressable>
     </Link>
   );
@@ -70,8 +77,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: cloudTheme.radii.lg,
   },
+  cardCompact: {
+    minWidth: 0,
+    minHeight: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: cloudTheme.spacing.xl,
+  },
   interactive: { opacity: 0.9, transform: [{ translateY: -1 }] },
   label: { ...cloudTheme.type.cardTitle },
+  labelCompact: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   description: { ...cloudTheme.type.body, color: cloudTheme.colors.textSecondary, flex: 1 },
   meta: { gap: cloudTheme.spacing.xs },
   work: { ...cloudTheme.type.smallStrong, color: cloudTheme.colors.text },
