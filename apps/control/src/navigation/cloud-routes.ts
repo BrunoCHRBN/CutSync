@@ -18,6 +18,9 @@ export const CLOUD_ROUTES = {
   suporte: {
     root: '/suporte',
     atendimentos: '/suporte/atendimentos',
+    clientes: '/suporte/clientes',
+    monitoramento: '/suporte/monitoramento',
+    operacoesAssistidas: '/suporte/operacoes-assistidas',
   },
   gsp: {
     root: '/gsp',

@@ -93,6 +93,30 @@ test('last module memory ignores Central and remains in-memory only', () => {
   expect(getLastModuleId()).toBe('support');
 });
 
+test('support module uses canonical routes and selects one sidebar item per path', () => {
+  const can = canFactory(['control.support.read', 'control.support.manage']);
+  const items = navItemsForModule('support', can);
+  const byLabel = Object.fromEntries(items.map((item) => [item.label, item]));
+
+  expect(byLabel['Visão geral']?.href).toBe('/suporte');
+  expect(byLabel.Atendimentos?.href).toBe('/suporte/atendimentos');
+  expect(byLabel.Clientes?.href).toBe('/suporte/clientes');
+  expect(byLabel.Monitoramento?.href).toBe('/suporte/monitoramento');
+  expect(byLabel['Operações assistidas']?.href).toBe('/suporte/operacoes-assistidas');
+  expect(byLabel.Clientes?.section).toBeUndefined();
+  expect(byLabel.Monitoramento?.href).not.toBe('/operacao/tempo-real');
+
+  expect(isNavItemSelected('/suporte', byLabel['Visão geral']!)).toBe(true);
+  expect(isNavItemSelected('/suporte/atendimentos', byLabel['Visão geral']!)).toBe(false);
+  expect(isNavItemSelected('/suporte/atendimentos', byLabel.Atendimentos!)).toBe(true);
+  expect(isNavItemSelected('/suporte/clientes', byLabel.Clientes!)).toBe(true);
+  expect(isNavItemSelected('/suporte/clientes', byLabel.Atendimentos!)).toBe(false);
+  expect(isNavItemSelected('/suporte/monitoramento', byLabel.Monitoramento!)).toBe(true);
+  expect(isNavItemSelected('/suporte/monitoramento', byLabel['Visão geral']!)).toBe(false);
+  expect(isNavItemSelected('/suporte/operacoes-assistidas', byLabel['Operações assistidas']!)).toBe(true);
+  expect(isNavItemSelected('/operacao/tempo-real', byLabel.Monitoramento!)).toBe(false);
+});
+
 test('Editor sees finance and support; Viewer without billing does not', () => {
   const editor = modulesForSwitcher(canFactory([
     'control.dashboard.read',

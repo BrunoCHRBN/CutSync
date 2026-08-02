@@ -32,14 +32,16 @@ export function CloudSidebar({
     rememberLastModule(activeModule.id);
   }, [activeModule.id]);
 
+  const supportModule = activeModule.id === 'support';
+
   return (
-    <View style={[styles.sidebar, compact && styles.sidebarCompact]}>
+    <View style={[styles.sidebar, compact && styles.sidebarCompact, supportModule && styles.sidebarSupport]}>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>MÓDULO</Text>
         <Text style={styles.moduleTitle}>{activeModule.label}</Text>
       </View>
 
-      <View style={styles.nav}>
+      <View style={[styles.nav, supportModule && styles.navSupport]}>
         {items.map((item) => {
           const selected = isNavItemSelected(pathname, item, section);
           return (
@@ -50,11 +52,17 @@ export function CloudSidebar({
                 onPress={onNavigate}
                 style={StyleSheet.flatten([
                   styles.item,
-                  selected && styles.itemSelected,
+                  supportModule && styles.itemSupport,
+                  selected && (supportModule ? styles.itemSelectedSupport : styles.itemSelected),
                 ])}
               >
                 <View style={[styles.marker, selected && styles.markerSelected]} />
-                <Text style={[styles.itemText, selected && styles.itemTextSelected]}>
+                <Text style={[
+                  styles.itemText,
+                  supportModule && styles.itemTextSupport,
+                  selected && (supportModule ? styles.itemTextSelectedSupport : styles.itemTextSelected),
+                ]}
+                >
                   {item.label}
                 </Text>
               </Pressable>
@@ -115,6 +123,15 @@ const styles = StyleSheet.create({
     borderRadius: cloudTheme.radii.md,
   },
   itemSelected: { backgroundColor: cloudTheme.colors.brandPanel },
+  sidebarSupport: { gap: cloudTheme.spacing.md },
+  navSupport: { gap: 0 },
+  itemSupport: {
+    minHeight: 40,
+    borderRadius: 6,
+  },
+  itemSelectedSupport: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
   marker: {
     width: 3,
     height: 18,
@@ -124,6 +141,8 @@ const styles = StyleSheet.create({
   markerSelected: { backgroundColor: '#FFFFFF' },
   itemText: { flex: 1, color: cloudTheme.colors.sidebarText, fontWeight: '600', fontSize: 14 },
   itemTextSelected: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '800' },
+  itemTextSupport: { fontWeight: '500', fontSize: 13 },
+  itemTextSelectedSupport: { color: cloudTheme.colors.sidebarTextStrong, fontWeight: '700' },
   footer: {
     gap: 4,
     paddingTop: cloudTheme.spacing.md,

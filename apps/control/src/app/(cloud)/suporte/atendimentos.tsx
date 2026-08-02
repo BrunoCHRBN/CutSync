@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { PageHeader } from '@/components/cloud/page-header';
 import { ControlState } from '@/components/control-state';
 import { SupportOperations } from '@/components/support-operations';
 import { useControlAuth } from '@/contexts/control-auth-context';
@@ -21,13 +20,6 @@ export default function AtendimentosRoute() {
 
   return (
     <View style={styles.page}>
-      <PageHeader
-        eyebrow="SUPORTE"
-        title="Atendimentos"
-        description="Fila operacional com filtros, tabela de chamados e detalhe. Selecione um chamado para abrir o painel lateral."
-        badge="FILA"
-        badgeTone="info"
-      />
       <SupportOperations />
     </View>
   );

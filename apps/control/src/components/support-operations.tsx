@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -72,6 +72,10 @@ const categoryLabels: Record<SupportCategory, string> = {
 const statusOptions = supportStatuses.map((value) => ({ value, label: statusLabels[value] }));
 const priorityOptions = supportPriorities.map((value) => ({ value, label: priorityLabels[value] }));
 const categoryOptions = supportCategories.map((value) => ({ value, label: categoryLabels[value] }));
+const slaOptions = [
+  { value: 'at_risk' as const, label: 'Fora do SLA' },
+  { value: 'ok' as const, label: 'No prazo' },
+];
 
 function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleString('pt-BR') : 'Não informado';
@@ -95,18 +99,17 @@ function errorMessage(error: unknown): string {
   }
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone?: 'danger' | 'warning' }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={[styles.metricValue, tone === 'danger' && styles.dangerText, tone === 'warning' && styles.warningText]}>
-        {value.toLocaleString('pt-BR')}
-      </Text>
-    </View>
-  );
+function isSlaAtRisk(ticket: SupportTicketSummary): boolean {
+  if (!ticket.firstResponseDueAt || ticket.firstRespondedAt) return false;
+  return Date.parse(ticket.firstResponseDueAt) < Date.now();
 }
 
-function FilterGroup<T extends string>({
+function parseParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+function SupportFilterMenu<T extends string>({
   label,
   value,
   options,
@@ -117,37 +120,180 @@ function FilterGroup<T extends string>({
   options: readonly { value: T; label: string }[];
   onChange: (value: T | null) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = value
+    ? (options.find((option) => option.value === value)?.label ?? value)
+    : 'Todos';
+
   return (
-    <View style={styles.filterGroup}>
-      <Text style={styles.filterLabel}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterOptions}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => onChange(null)}
-          style={[styles.filterChip, value === null && styles.filterChipSelected]}
-        >
-          <Text style={[styles.filterChipText, value === null && styles.filterChipTextSelected]}>Todos</Text>
-        </Pressable>
-        {options.map((option) => (
+    <View style={styles.filterMenu}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((current) => !current)}
+        style={[styles.filterTrigger, value !== null && styles.filterTriggerActive]}
+      >
+        <Text style={styles.filterTriggerLabel}>{label}</Text>
+        <Text style={styles.filterTriggerValue} numberOfLines={1}>{selectedLabel}</Text>
+      </Pressable>
+      {open ? (
+        <View style={styles.filterDropdown}>
           <Pressable
-            accessibilityRole="button"
-            key={option.value}
-            onPress={() => onChange(option.value)}
-            style={[styles.filterChip, value === option.value && styles.filterChipSelected]}
+            accessibilityRole="menuitem"
+            onPress={() => { onChange(null); setOpen(false); }}
+            style={[styles.filterOption, value === null && styles.filterOptionActive]}
           >
-            <Text style={[styles.filterChipText, value === option.value && styles.filterChipTextSelected]}>
-              {option.label}
-            </Text>
+            <Text style={[styles.filterOptionText, value === null && styles.filterOptionTextActive]}>Todos</Text>
           </Pressable>
-        ))}
-      </ScrollView>
+          {options.map((option) => (
+            <Pressable
+              key={option.value}
+              accessibilityRole="menuitem"
+              onPress={() => { onChange(option.value); setOpen(false); }}
+              style={[styles.filterOption, value === option.value && styles.filterOptionActive]}
+            >
+              <Text style={[
+                styles.filterOptionText,
+                value === option.value && styles.filterOptionTextActive,
+              ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function isSlaAtRisk(ticket: SupportTicketSummary): boolean {
-  if (!ticket.firstResponseDueAt || ticket.firstRespondedAt) return false;
-  return Date.parse(ticket.firstResponseDueAt) < Date.now();
+function RuntimeToggle({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  disabled: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => onChange(!value)}
+      style={[styles.runtimeToggle, value && styles.runtimeToggleActive, disabled && styles.disabled]}
+    >
+      <Text style={[styles.runtimeToggleText, value && styles.runtimeToggleTextActive]}>
+        {label}: {value ? 'ativo' : 'pausado'}
+      </Text>
+    </Pressable>
+  );
+}
+
+function RuntimeControls({
+  capabilities,
+  onNotice,
+  onSaved,
+  compact,
+}: {
+  capabilities: SupportCapabilities;
+  onNotice: (message: string) => void;
+  onSaved: () => Promise<void>;
+  compact?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [enabled, setEnabled] = useState(capabilities.enabled);
+  const [allowNewTickets, setAllowNewTickets] = useState(capabilities.allowNewTickets);
+  const [syncEnabled, setSyncEnabled] = useState(capabilities.syncEnabled);
+  const [maintenanceMessage, setMaintenanceMessage] = useState(capabilities.maintenanceMessage ?? '');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setEnabled(capabilities.enabled);
+    setAllowNewTickets(capabilities.allowNewTickets);
+    setSyncEnabled(capabilities.syncEnabled);
+    setMaintenanceMessage(capabilities.maintenanceMessage ?? '');
+  }, [capabilities]);
+
+  const save = async () => {
+    if (reason.trim().length < 10) {
+      onNotice('Informe uma justificativa com pelo menos 10 caracteres.');
+      return;
+    }
+    setBusy(true);
+    onNotice('');
+    try {
+      await setControlSupportRuntime({
+        enabled,
+        allowNewTickets,
+        syncEnabled,
+        maintenanceMessage,
+        reason,
+      });
+      setReason('');
+      onNotice('Configuração operacional do suporte atualizada.');
+      await onSaved();
+    } catch (error) {
+      onNotice(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={[styles.runtimeInline, compact && styles.runtimeInlineFull]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((current) => !current)}
+        style={styles.runtimeTrigger}
+      >
+        <Text style={styles.runtimeSummary} numberOfLines={1}>
+          JSM {enabled ? 'ativo' : 'pausado'} · sync {syncEnabled ? 'on' : 'off'}
+        </Text>
+        <Text style={styles.runtimeConfigLink}>{expanded ? 'Ocultar' : 'Configurar'}</Text>
+      </Pressable>
+      {expanded ? (
+        <View style={styles.runtimePanel}>
+          <View style={styles.runtimeToggles}>
+            <RuntimeToggle label="Módulo" value={enabled} disabled={busy} onChange={setEnabled} />
+            <RuntimeToggle label="Novos" value={allowNewTickets} disabled={busy} onChange={setAllowNewTickets} />
+            <RuntimeToggle label="Sync" value={syncEnabled} disabled={busy} onChange={setSyncEnabled} />
+          </View>
+          <TextInput
+            editable={!busy}
+            maxLength={300}
+            onChangeText={setMaintenanceMessage}
+            placeholder="Mensagem de manutenção"
+            style={styles.input}
+            value={maintenanceMessage}
+          />
+          <View style={styles.runtimeSaveRow}>
+            <TextInput
+              editable={!busy}
+              maxLength={500}
+              onChangeText={setReason}
+              placeholder="Justificativa"
+              style={[styles.input, styles.runtimeReason]}
+              value={reason}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => { void save(); }}
+              style={[styles.primaryButton, busy && styles.disabled]}
+            >
+              <Text style={styles.primaryButtonText}>{busy ? 'Salvando...' : 'Salvar'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function TicketCard({
@@ -193,180 +339,57 @@ function TicketCard({
           ) : null}
           <Text numberOfLines={1} style={styles.protocol}>{ticket.protocol}</Text>
         </View>
-        <Text style={[styles.priority, styles[`priority_${ticket.priority}`]]}>
+        <Text style={[styles.tag, styles[`priority_${ticket.priority}`]]}>
           {priorityLabels[ticket.priority]}
         </Text>
       </View>
-      <Text numberOfLines={2} style={styles.ticketSubject}>{ticket.subject}</Text>
       <Text numberOfLines={1} style={styles.ticketClient}>
         {ticket.requesterDisplayName ?? ticket.locationLabel ?? 'Cliente não identificado'}
       </Text>
+      <Text numberOfLines={2} style={styles.ticketSubject}>{ticket.subject}</Text>
       <View style={styles.ticketMetadata}>
-        <Text style={styles.metadata}>{statusLabels[ticket.status]}</Text>
-        <Text style={styles.metadata}>{categoryLabels[ticket.category]}</Text>
-        <Text style={[styles.metadata, slaRisk && styles.slaRiskText]}>
-          SLA {slaRisk ? 'fora do prazo' : 'no prazo'}
-        </Text>
-        <Text style={styles.metadata}>
-          Resp. {ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : 'não atribuído'}
+        <Text style={styles.tagNeutral}>{statusLabels[ticket.status]}</Text>
+        <Text style={[styles.tagNeutral, slaRisk && styles.slaRiskText]}>
+          {slaRisk ? '⚠ SLA fora' : '✓ SLA ok'}
         </Text>
       </View>
-      <Text style={styles.ticketDate}>
-        Última interação {formatDate(ticket.lastMessageAt ?? ticket.updatedAt)}
-      </Text>
     </Pressable>
-  );
-}
-
-function RuntimeToggle({
-  label,
-  value,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: boolean;
-  disabled: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="switch"
-      accessibilityState={{ checked: value, disabled }}
-      disabled={disabled}
-      onPress={() => onChange(!value)}
-      style={[styles.runtimeToggle, value && styles.runtimeToggleActive, disabled && styles.disabled]}
-    >
-      <Text style={[styles.runtimeToggleText, value && styles.runtimeToggleTextActive]}>
-        {label}: {value ? 'ativo' : 'pausado'}
-      </Text>
-    </Pressable>
-  );
-}
-
-function RuntimeControls({
-  capabilities,
-  onNotice,
-  onSaved,
-}: {
-  capabilities: SupportCapabilities;
-  onNotice: (message: string) => void;
-  onSaved: () => Promise<void>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [enabled, setEnabled] = useState(capabilities.enabled);
-  const [allowNewTickets, setAllowNewTickets] = useState(capabilities.allowNewTickets);
-  const [syncEnabled, setSyncEnabled] = useState(capabilities.syncEnabled);
-  const [maintenanceMessage, setMaintenanceMessage] = useState(capabilities.maintenanceMessage ?? '');
-  const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setEnabled(capabilities.enabled);
-    setAllowNewTickets(capabilities.allowNewTickets);
-    setSyncEnabled(capabilities.syncEnabled);
-    setMaintenanceMessage(capabilities.maintenanceMessage ?? '');
-  }, [capabilities]);
-
-  const save = async () => {
-    if (reason.trim().length < 10) {
-      onNotice('Informe uma justificativa com pelo menos 10 caracteres.');
-      return;
-    }
-    setBusy(true);
-    onNotice('');
-    try {
-      await setControlSupportRuntime({
-        enabled,
-        allowNewTickets,
-        syncEnabled,
-        maintenanceMessage,
-        reason,
-      });
-      setReason('');
-      onNotice('Configuração operacional do suporte atualizada.');
-      await onSaved();
-    } catch (error) {
-      onNotice(errorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <View style={styles.runtimeCard}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        onPress={() => setExpanded((current) => !current)}
-        style={styles.runtimeHeader}
-      >
-        <View>
-          <Text style={styles.cardEyebrow}>CONTROLE DE RUNTIME</Text>
-          <Text style={styles.cardTitle}>Disponibilidade do suporte</Text>
-        </View>
-        <View style={styles.runtimeHeaderMeta}>
-          <Text style={styles.ownerBadge}>OWNER</Text>
-          <Text style={styles.refreshButtonText}>{expanded ? 'Ocultar' : 'Configurar'}</Text>
-        </View>
-      </Pressable>
-      {expanded ? (
-        <>
-          <View style={styles.runtimeToggles}>
-            <RuntimeToggle label="Módulo" value={enabled} disabled={busy} onChange={setEnabled} />
-            <RuntimeToggle label="Novos chamados" value={allowNewTickets} disabled={busy} onChange={setAllowNewTickets} />
-            <RuntimeToggle label="Sincronização" value={syncEnabled} disabled={busy} onChange={setSyncEnabled} />
-          </View>
-          <TextInput
-            editable={!busy}
-            maxLength={300}
-            onChangeText={setMaintenanceMessage}
-            placeholder="Mensagem de manutenção exibida aos usuários"
-            style={styles.input}
-            value={maintenanceMessage}
-          />
-          <View style={styles.runtimeSaveRow}>
-            <TextInput
-              editable={!busy}
-              maxLength={500}
-              onChangeText={setReason}
-              placeholder="Justificativa da alteração"
-              style={[styles.input, styles.runtimeReason]}
-              value={reason}
-            />
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={() => { void save(); }}
-              style={[styles.primaryButton, busy && styles.disabled]}
-            >
-              <Text style={styles.primaryButtonText}>{busy ? 'Salvando...' : 'Salvar runtime'}</Text>
-            </Pressable>
-          </View>
-        </>
-      ) : (
-        <Text style={styles.muted}>
-          Runtime {enabled ? 'ativo' : 'pausado'} · novos chamados {allowNewTickets ? 'ativos' : 'pausados'} · sync {syncEnabled ? 'ativa' : 'pausada'}
-        </Text>
-      )}
-    </View>
   );
 }
 
 export function SupportOperations() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ ticketId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    ticketId?: string | string[];
+    status?: string | string[];
+    priority?: string | string[];
+    sla?: string | string[];
+  }>();
   const { width } = useWindowDimensions();
   const { can, context } = useControlAuth();
   const canRead = can('control.support.read');
   const canManage = can('control.support.manage');
   const compact = width < 900;
-  const selectedTicketId = Array.isArray(params.ticketId) ? params.ticketId[0] : params.ticketId;
+  const selectedTicketId = parseParam(params.ticketId);
 
-  const [statusFilter, setStatusFilter] = useState<SupportStatus | null>(null);
-  const [priorityFilter, setPriorityFilter] = useState<SupportPriority | null>(null);
+  const initialStatus = parseParam(params.status);
+  const initialPriority = parseParam(params.priority);
+  const initialSla = parseParam(params.sla);
+
+  const [statusFilter, setStatusFilter] = useState<SupportStatus | null>(
+    initialStatus && (supportStatuses as readonly string[]).includes(initialStatus)
+      ? (initialStatus as SupportStatus)
+      : null,
+  );
+  const [priorityFilter, setPriorityFilter] = useState<SupportPriority | null>(
+    initialPriority && (supportPriorities as readonly string[]).includes(initialPriority)
+      ? (initialPriority as SupportPriority)
+      : null,
+  );
   const [categoryFilter, setCategoryFilter] = useState<SupportCategory | null>(null);
-  const [slaFilter, setSlaFilter] = useState<'all' | 'at_risk' | 'ok'>('all');
+  const [slaFilter, setSlaFilter] = useState<'all' | 'at_risk' | 'ok'>(
+    initialSla === 'at_risk' || initialSla === 'ok' ? initialSla : 'all',
+  );
   const [queueQuery, setQueueQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [overview, setOverview] = useState<SupportOverview | null>(null);
@@ -572,8 +595,6 @@ export function SupportOperations() {
   const showQueue = activeMember;
   const showOverviewPanels = !compact || !selectedTicketId;
   const detailOpen = Boolean(selectedTicketId);
-  // Desktop: full-width table until a ticket is selected; then split with detail.
-  // Mobile: list XOR detail to preserve vertical space.
   const showList = showQueue && (!compact || !detailOpen);
   const showDetail = showQueue && detailOpen;
   const splitDesktop = showQueue && !compact && detailOpen;
@@ -600,6 +621,47 @@ export function SupportOperations() {
     return true;
   });
 
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = [];
+    if (statusFilter) {
+      chips.push({
+        key: 'status',
+        label: `Status: ${statusLabels[statusFilter]}`,
+        clear: () => setStatusFilter(null),
+      });
+    }
+    if (priorityFilter) {
+      chips.push({
+        key: 'priority',
+        label: `Prioridade: ${priorityLabels[priorityFilter]}`,
+        clear: () => setPriorityFilter(null),
+      });
+    }
+    if (categoryFilter) {
+      chips.push({
+        key: 'category',
+        label: `Área: ${categoryLabels[categoryFilter]}`,
+        clear: () => setCategoryFilter(null),
+      });
+    }
+    if (slaFilter !== 'all') {
+      chips.push({
+        key: 'sla',
+        label: `SLA: ${slaFilter === 'at_risk' ? 'Fora do SLA' : 'No prazo'}`,
+        clear: () => setSlaFilter('all'),
+      });
+    }
+    return chips;
+  }, [categoryFilter, priorityFilter, slaFilter, statusFilter]);
+
+  const clearFilters = () => {
+    setStatusFilter(null);
+    setPriorityFilter(null);
+    setCategoryFilter(null);
+    setSlaFilter('all');
+    setQueueQuery('');
+  };
+
   const toggleSelected = (ticketId: string) => {
     setSelectedIds((current) => (
       current.includes(ticketId)
@@ -608,28 +670,55 @@ export function SupportOperations() {
     ));
   };
 
+  const closeDetail = () => {
+    if (compact) {
+      router.replace(CLOUD_ROUTES.suporte.atendimentos);
+      return;
+    }
+    router.setParams({ ticketId: undefined });
+  };
+
   return (
     <View style={styles.content}>
-      {createTicketAction.visible ? (
-        <View style={styles.setupCard}>
-          <Text style={styles.cardTitle}>Novo atendimento</Text>
-          <Text style={styles.muted}>
-            {createTicketAction.reason
-              ?? 'Criação liberada para operadores com permissão de gestão.'}
+      <View style={styles.pageHeader}>
+        <View style={styles.pageHeaderText}>
+          <Text style={styles.kicker}>SUPORTE / ATENDIMENTOS</Text>
+          <Text style={styles.pageTitle}>Estação da fila</Text>
+          <Text style={styles.pageLead}>
+            {overview
+              ? `${filteredTickets.length} chamados na visão filtrada · total ${overview.counts.total}`
+              : 'Fila operacional com tabela e detalhe contínuo.'}
           </Text>
+        </View>
+        <View style={styles.pageActions}>
           <Pressable
             accessibilityRole="button"
-            disabled={!createTicketAction.enabled}
-            onPress={() => {
-              setNotice(createTicketAction.enabled
-                ? 'Fluxo de criação aguarda homologação da integração CutSync → Jira.'
-                : (createTicketAction.reason ?? 'Criação bloqueada.'));
-            }}
-            style={[styles.primaryButton, !createTicketAction.enabled && styles.disabled]}
+            disabled={overviewLoading}
+            onPress={() => { void refresh(); }}
+            style={[styles.secondaryButton, overviewLoading && styles.disabled]}
           >
-            <Text style={styles.primaryButtonText}>Novo atendimento</Text>
+            <Text style={styles.secondaryButtonText}>Atualizar</Text>
           </Pressable>
+          {createTicketAction.visible ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={!createTicketAction.enabled}
+              onPress={() => {
+                setNotice(createTicketAction.enabled
+                  ? 'Fluxo de criação aguarda homologação da integração CutSync → Jira.'
+                  : (createTicketAction.reason ?? 'Criação bloqueada.'));
+              }}
+              style={[styles.primaryButton, !createTicketAction.enabled && styles.disabled]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {createTicketAction.enabled ? 'Novo atendimento' : 'Novo atendimento — indisponível'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
+      </View>
+      {createTicketAction.visible && createTicketAction.reason && !createTicketAction.enabled ? (
+        <Text style={styles.muted}>{createTicketAction.reason}</Text>
       ) : null}
 
       {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
@@ -695,56 +784,103 @@ export function SupportOperations() {
         </View>
       ) : null}
 
-      {overview && activeMember ? (
-        <View style={styles.operatorLine}>
-          <View>
-            <Text style={styles.operatorName}>{overview.operator.name}</Text>
-            <Text style={styles.muted}>
-              {overview.operator.teamName ?? overview.operator.teamCode} · {overview.operator.memberRole === 'lead' ? 'Liderança' : 'Agente'}
-            </Text>
-          </View>
-          <Text style={styles.liveBadge}>PROJEÇÃO JSM</Text>
-        </View>
-      ) : null}
-
-      {overview?.capabilities && canManage && context?.role === 'SaaS_Owner' ? (
-        <RuntimeControls
-          capabilities={overview.capabilities}
-          onNotice={setNotice}
-          onSaved={() => loadOverview()}
-        />
-      ) : null}
-
       {overview && showQueue && showOverviewPanels ? (
         <>
-          <View style={styles.metrics}>
-            <Metric label="Total filtrado" value={overview.counts.total} />
-            <Metric label="Em andamento" value={overview.counts.inProgress} />
-            <Metric label="Aguardando usuário" value={overview.counts.waitingUser} />
-            <Metric label="Críticos" value={overview.counts.critical} tone="danger" />
-            <Metric label="Risco de SLA" value={overview.counts.slaAtRisk} tone="warning" />
-            <Metric label="Falhas de sync" value={overview.counts.syncFailed} tone="danger" />
+          <View style={styles.contextStrip}>
+            <View style={styles.contextMetrics}>
+              <StripMetric label="Total" value={overview.counts.total} />
+              <View style={styles.contextDivider} />
+              <StripMetric label="Em andamento" value={overview.counts.inProgress} />
+              <View style={styles.contextDivider} />
+              <StripMetric label="Risco SLA" value={overview.counts.slaAtRisk} tone="warning" />
+              <View style={styles.contextDivider} />
+              <StripMetric label="Críticos" value={overview.counts.critical} tone="danger" />
+              <View style={styles.contextDivider} />
+              <StripMetric label="Sync falhas" value={overview.counts.syncFailed} tone="danger" />
+            </View>
+            <View style={styles.contextRight}>
+              <Text style={styles.operatorCompact} numberOfLines={1}>
+                {overview.operator.name}
+                {overview.operator.memberRole
+                  ? ` · ${overview.operator.memberRole === 'lead' ? 'Liderança' : 'Agente'}`
+                  : ''}
+              </Text>
+              {overview.capabilities && canManage && context?.role === 'SaaS_Owner' ? (
+                <RuntimeControls
+                  capabilities={overview.capabilities}
+                  onNotice={setNotice}
+                  onSaved={() => loadOverview()}
+                  compact={compact}
+                />
+              ) : overview.capabilities ? (
+                <Text style={styles.runtimeSummary} numberOfLines={1}>
+                  JSM {overview.capabilities.enabled ? 'ativo' : 'pausado'}
+                  {' · '}
+                  sync {overview.capabilities.syncEnabled ? 'on' : 'off'}
+                </Text>
+              ) : (
+                <Text style={styles.runtimeSummary}>Projeção JSM</Text>
+              )}
+            </View>
           </View>
 
-          <View style={styles.filters}>
-            <ContextualSearch
-              value={queueQuery}
-              onChangeText={setQueueQuery}
-              placeholder="Filtrar por cliente, protocolo ou motivo"
-            />
-            <FilterGroup label="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
-            <FilterGroup label="Prioridade" value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} />
-            <FilterGroup label="Área" value={categoryFilter} options={categoryOptions} onChange={setCategoryFilter} />
-            <FilterGroup
-              label="SLA"
-              value={slaFilter === 'all' ? null : slaFilter}
-              options={[
-                { value: 'at_risk' as const, label: 'Fora do SLA' },
-                { value: 'ok' as const, label: 'No prazo' },
-              ]}
-              onChange={(value) => setSlaFilter(value ?? 'all')}
-            />
+          <View style={styles.filtersBar}>
+            <View style={styles.searchWrap}>
+              <ContextualSearch
+                value={queueQuery}
+                onChangeText={setQueueQuery}
+                placeholder="Filtrar por cliente, protocolo ou motivo"
+              />
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterMenus}
+            >
+              <SupportFilterMenu
+                label="Status"
+                value={statusFilter}
+                options={statusOptions}
+                onChange={setStatusFilter}
+              />
+              <SupportFilterMenu
+                label="Prioridade"
+                value={priorityFilter}
+                options={priorityOptions}
+                onChange={setPriorityFilter}
+              />
+              <SupportFilterMenu
+                label="Área"
+                value={categoryFilter}
+                options={categoryOptions}
+                onChange={setCategoryFilter}
+              />
+              <SupportFilterMenu
+                label="SLA"
+                value={slaFilter === 'all' ? null : slaFilter}
+                options={slaOptions}
+                onChange={(value) => setSlaFilter(value ?? 'all')}
+              />
+            </ScrollView>
           </View>
+
+          {activeFilterChips.length > 0 ? (
+            <View style={styles.chipRow}>
+              {activeFilterChips.map((chip) => (
+                <Pressable
+                  key={chip.key}
+                  accessibilityRole="button"
+                  onPress={chip.clear}
+                  style={styles.activeChip}
+                >
+                  <Text style={styles.activeChipText}>{chip.label} ×</Text>
+                </Pressable>
+              ))}
+              <Pressable accessibilityRole="button" onPress={clearFilters} style={styles.clearChip}>
+                <Text style={styles.clearChipText}>Limpar</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           {canManage && selectedIds.length > 0 ? (
             <View style={styles.batchBar}>
@@ -769,103 +905,90 @@ export function SupportOperations() {
                 splitDesktop && styles.listPanelSplit,
               ]}
             >
-              <View style={styles.panelHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>Chamados</Text>
-                  <Text style={styles.muted}>
-                    {filteredTickets.length} de {overview.tickets.length} · total filtrado {overview.counts.total}
-                  </Text>
-                </View>
-                {overviewLoading ? (
-                  <ActivityIndicator color="#173d2b" />
-                ) : (
-                  <Pressable accessibilityRole="button" onPress={() => { void refresh(); }} style={styles.refreshButton}>
-                    <Text style={styles.refreshButtonText}>Atualizar</Text>
-                  </Pressable>
-                )}
-              </View>
-
               {!compact ? (
                 <View style={styles.desktopTable}>
                   <View style={styles.desktopHeader}>
                     {canManage ? <Text style={[styles.desktopHeadCell, styles.desktopCheckCol]} /> : null}
-                    <Text style={[styles.desktopHeadCell, styles.desktopPrimaryCol]}>Cliente / protocolo</Text>
+                    <Text style={[styles.desktopHeadCell, styles.desktopPrimaryCol]}>Cliente</Text>
                     {!splitDesktop ? (
                       <Text style={[styles.desktopHeadCell, styles.desktopFlex]}>Motivo</Text>
                     ) : null}
                     <Text style={[styles.desktopHeadCell, styles.desktopFixedCol]}>Prioridade</Text>
                     <Text style={[styles.desktopHeadCell, styles.desktopFixedCol]}>SLA</Text>
-                    {!splitDesktop ? (
-                      <Text style={[styles.desktopHeadCell, styles.desktopFixedCol]}>Responsável</Text>
-                    ) : null}
                     <Text style={[styles.desktopHeadCell, styles.desktopStatusCol]}>Status</Text>
                   </View>
-                  {filteredTickets.map((ticket) => {
-                    const slaRisk = isSlaAtRisk(ticket);
-                    return (
-                      <Pressable
-                        key={ticket.id}
-                        accessibilityRole="button"
-                        onPress={() => router.setParams({ ticketId: ticket.id })}
-                        style={[
-                          styles.desktopRow,
-                          ticket.id === selectedTicketId && styles.desktopRowSelected,
-                          slaRisk && styles.desktopRowSlaRisk,
-                        ]}
-                      >
-                        {canManage ? (
-                          <Pressable
-                            accessibilityRole="checkbox"
-                            accessibilityState={{ checked: selectedIds.includes(ticket.id) }}
-                            onPress={() => toggleSelected(ticket.id)}
-                            style={[styles.checkbox, selectedIds.includes(ticket.id) && styles.checkboxChecked, styles.desktopCheckCol]}
-                          >
-                            <Text style={styles.checkboxMark}>
-                              {selectedIds.includes(ticket.id) ? '✓' : ''}
-                            </Text>
-                          </Pressable>
-                        ) : null}
-                        <View style={styles.desktopPrimaryCol}>
-                          <Text numberOfLines={1} style={styles.protocol}>{ticket.protocol}</Text>
-                          <Text numberOfLines={1} style={styles.ticketClient}>
-                            {ticket.requesterDisplayName ?? ticket.locationLabel ?? '—'}
-                          </Text>
-                          {splitDesktop ? (
-                            <Text numberOfLines={1} style={styles.ticketSubjectMuted}>{ticket.subject}</Text>
-                          ) : null}
-                        </View>
-                        {!splitDesktop ? (
-                          <Text numberOfLines={2} style={[styles.ticketSubject, styles.desktopFlex]}>
-                            {ticket.subject}
-                          </Text>
-                        ) : null}
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.priority,
-                            styles.desktopFixedCol,
-                            styles[`priority_${ticket.priority}`],
+                  <ScrollView style={styles.tableScroll} nestedScrollEnabled>
+                    {filteredTickets.map((ticket) => {
+                      const slaRisk = isSlaAtRisk(ticket);
+                      return (
+                        <Pressable
+                          key={ticket.id}
+                          accessibilityRole="button"
+                          onPress={() => router.setParams({ ticketId: ticket.id })}
+                          style={({ pressed }) => [
+                            styles.desktopRow,
+                            ticket.id === selectedTicketId && styles.desktopRowSelected,
+                            slaRisk && styles.desktopRowSlaRisk,
+                            pressed && styles.rowHover,
                           ]}
                         >
-                          {priorityLabels[ticket.priority]}
-                        </Text>
-                        <Text
-                          numberOfLines={1}
-                          style={[styles.metadata, styles.desktopFixedCol, slaRisk && styles.slaRiskText]}
-                        >
-                          {slaRisk ? 'Fora do SLA' : 'No prazo'}
-                        </Text>
-                        {!splitDesktop ? (
-                          <Text numberOfLines={1} style={[styles.metadata, styles.desktopFixedCol]}>
-                            {ticket.assigneeProfileId ? ticket.assigneeProfileId.slice(0, 8) : '—'}
+                          {canManage ? (
+                            <Pressable
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: selectedIds.includes(ticket.id) }}
+                              onPress={() => toggleSelected(ticket.id)}
+                              style={[
+                                styles.checkbox,
+                                selectedIds.includes(ticket.id) && styles.checkboxChecked,
+                                styles.desktopCheckCol,
+                              ]}
+                            >
+                              <Text style={styles.checkboxMark}>
+                                {selectedIds.includes(ticket.id) ? '✓' : ''}
+                              </Text>
+                            </Pressable>
+                          ) : null}
+                          <View style={styles.desktopPrimaryCol}>
+                            <Text numberOfLines={1} style={styles.ticketClient}>
+                              {ticket.requesterDisplayName ?? ticket.locationLabel ?? '—'}
+                            </Text>
+                            <Text numberOfLines={1} style={styles.protocol}>{ticket.protocol}</Text>
+                            {splitDesktop ? (
+                              <Text numberOfLines={1} style={styles.ticketSubjectMuted}>{ticket.subject}</Text>
+                            ) : null}
+                          </View>
+                          {!splitDesktop ? (
+                            <Text numberOfLines={2} style={[styles.ticketSubject, styles.desktopFlex]}>
+                              {ticket.subject}
+                            </Text>
+                          ) : null}
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              styles.tag,
+                              styles.desktopFixedCol,
+                              styles[`priority_${ticket.priority}`],
+                            ]}
+                          >
+                            {priorityLabels[ticket.priority]}
                           </Text>
-                        ) : null}
-                        <Text numberOfLines={1} style={[styles.metadata, styles.desktopStatusCol]}>
-                          {statusLabels[ticket.status]}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              styles.tagNeutral,
+                              styles.desktopFixedCol,
+                              slaRisk && styles.slaRiskText,
+                            ]}
+                          >
+                            {slaRisk ? '⚠ Fora' : '✓ Ok'}
+                          </Text>
+                          <Text numberOfLines={1} style={[styles.tagNeutral, styles.desktopStatusCol]}>
+                            {statusLabels[ticket.status]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
               ) : (
                 <View style={styles.ticketList}>
@@ -901,23 +1024,18 @@ export function SupportOperations() {
 
           {showDetail ? (
             <View style={[styles.detailPanel, compact && styles.fullPanel, splitDesktop && styles.detailPanelSplit]}>
-              {selectedTicketId ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    if (compact) {
-                      router.replace(CLOUD_ROUTES.suporte.atendimentos);
-                      return;
-                    }
-                    router.setParams({ ticketId: undefined });
-                  }}
-                  style={styles.backButton}
-                >
+              <View style={styles.detailToolbar}>
+                <Pressable accessibilityRole="button" onPress={closeDetail} style={styles.backButton}>
                   <Text style={styles.backButtonText}>
                     {compact ? '← Voltar para a fila' : 'Fechar detalhe'}
                   </Text>
                 </Pressable>
-              ) : null}
+                {detail?.ticket.jsmIssueUrl ? (
+                  <Pressable accessibilityRole="link" onPress={() => { void openJira(); }} style={styles.jiraButton}>
+                    <Text style={styles.jiraButtonText}>Responder no Jira</Text>
+                  </Pressable>
+                ) : null}
+              </View>
 
               {detailLoading ? (
                 <View style={styles.loadingLine}>
@@ -937,45 +1055,29 @@ export function SupportOperations() {
                 </View>
               ) : null}
 
-              {!selectedTicketId && !detailLoading ? (
-                <View style={styles.detailEmpty}>
-                  <Text style={styles.cardTitle}>Selecione um chamado</Text>
-                  <Text style={styles.muted}>O conteúdo público, o histórico e as ações aparecerão aqui.</Text>
-                </View>
-              ) : null}
-
               {detail ? (
                 <>
                   <View style={styles.detailHeader}>
-                    <View style={styles.detailTitleBlock}>
-                      <Text style={styles.protocol}>{detail.ticket.protocol}</Text>
-                      <Text style={styles.detailTitle}>{detail.ticket.subject}</Text>
-                    </View>
-                    <View style={styles.headerActions}>
-                      <Text style={[styles.priority, styles[`priority_${detail.ticket.priority}`]]}>
-                        {priorityLabels[detail.ticket.priority]}
-                      </Text>
-                      {detail.ticket.jsmIssueUrl ? (
-                        <Pressable accessibilityRole="link" onPress={() => { void openJira(); }} style={styles.jiraButton}>
-                          <Text style={styles.jiraButtonText}>Responder no Jira ↗</Text>
-                        </Pressable>
-                      ) : null}
-                    </View>
+                    <Text style={styles.protocol}>{detail.ticket.protocol}</Text>
+                    <Text style={styles.detailTitle}>{detail.ticket.subject}</Text>
+                    <Text style={[styles.tag, styles[`priority_${detail.ticket.priority}`]]}>
+                      {priorityLabels[detail.ticket.priority]}
+                    </Text>
                   </View>
 
-                  <View style={styles.detailGrid}>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Status</Text><Text style={styles.fieldValue}>{statusLabels[detail.ticket.status]}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Área</Text><Text style={styles.fieldValue}>{categoryLabels[detail.ticket.category]}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Solicitante</Text><Text style={styles.fieldValue}>{detail.ticket.requesterDisplayName ?? 'Identidade minimizada'}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Localização</Text><Text style={styles.fieldValue}>{detail.ticket.locationLabel ?? 'Contexto global'}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Escalonamento</Text><Text style={styles.fieldValue}>L{detail.ticket.escalationLevel}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Primeira resposta</Text><Text style={styles.fieldValue}>{formatDate(detail.ticket.firstResponseDueAt)}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>Sincronização</Text><Text style={styles.fieldValue}>{detail.ticket.syncStatus}</Text></View>
-                    <View style={styles.detailField}><Text style={styles.fieldLabel}>JSM</Text><Text style={styles.fieldValue}>{detail.ticket.jsmIssueKey ?? 'Ainda não criado'}</Text></View>
+                  <View style={styles.definitionList}>
+                    <DefRow label="Status" value={statusLabels[detail.ticket.status]} />
+                    <DefRow label="Área" value={categoryLabels[detail.ticket.category]} />
+                    <DefRow label="Solicitante" value={detail.ticket.requesterDisplayName ?? 'Identidade minimizada'} />
+                    <DefRow label="Localização" value={detail.ticket.locationLabel ?? 'Contexto global'} />
+                    <DefRow label="Escalonamento" value={`L${detail.ticket.escalationLevel}`} />
+                    <DefRow label="Primeira resposta" value={formatDate(detail.ticket.firstResponseDueAt)} />
+                    <DefRow label="Sincronização" value={detail.ticket.syncStatus} />
+                    <DefRow label="JSM" value={detail.ticket.jsmIssueKey ?? 'Ainda não criado'} />
                   </View>
 
                   <View style={styles.section}>
-                    <Text style={styles.cardTitle}>Conversa pública</Text>
+                    <Text style={styles.sectionTitle}>Conversa</Text>
                     {detail.messages.map((message) => (
                       <View
                         key={message.id}
@@ -988,26 +1090,28 @@ export function SupportOperations() {
                         <Text selectable style={styles.messageBody}>{message.body}</Text>
                       </View>
                     ))}
-                    {detail.messages.length === 0 ? <Text style={styles.empty}>Nenhuma mensagem pública sincronizada.</Text> : null}
+                    {detail.messages.length === 0 ? (
+                      <Text style={styles.empty}>Nenhuma mensagem pública sincronizada.</Text>
+                    ) : null}
                   </View>
 
-                  {detail.events.length ? (
-                    <View style={styles.section}>
-                      <Text style={styles.cardTitle}>Histórico operacional</Text>
-                      {detail.events.slice(-8).map((event) => (
-                        <View key={event.id} style={styles.event}>
-                          <Text style={styles.eventType}>{event.eventType}</Text>
-                          <Text style={styles.muted}>
-                            {event.actorDisplayName ?? 'Sistema'} · {formatDate(event.createdAt)}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Histórico</Text>
+                    {detail.events.length ? detail.events.slice(-8).map((event) => (
+                      <View key={event.id} style={styles.event}>
+                        <Text style={styles.eventType}>{event.eventType}</Text>
+                        <Text style={styles.muted}>
+                          {event.actorDisplayName ?? 'Sistema'} · {formatDate(event.createdAt)}
+                        </Text>
+                      </View>
+                    )) : (
+                      <Text style={styles.empty}>Sem eventos operacionais nesta sessão.</Text>
+                    )}
+                  </View>
 
                   {canManage ? (
-                    <View style={styles.actionsCard}>
-                      <Text style={styles.cardTitle}>Ações operacionais</Text>
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Ações</Text>
                       <Text style={styles.muted}>
                         As respostas continuam no Jira. Informe uma justificativa para reprocessar ou escalar.
                       </Text>
@@ -1056,14 +1160,60 @@ export function SupportOperations() {
   );
 }
 
+function StripMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: 'danger' | 'warning';
+}) {
+  return (
+    <View style={styles.stripMetric}>
+      <Text style={styles.stripMetricLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.stripMetricValue,
+          tone === 'danger' && styles.dangerText,
+          tone === 'warning' && styles.warningText,
+        ]}
+      >
+        {value.toLocaleString('pt-BR')}
+      </Text>
+    </View>
+  );
+}
+
+function DefRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.defRow}>
+      <Text style={styles.defLabel}>{label}</Text>
+      <Text style={styles.defValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: { width: '100%', gap: 18 },
+  content: { width: '100%', gap: 14 },
+  pageHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  pageHeaderText: { flex: 1, minWidth: 240, gap: 4 },
+  kicker: { color: '#7b857e', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  pageTitle: { color: '#17231c', fontSize: 24, fontWeight: '800' },
+  pageLead: { color: '#667269', fontSize: 13, lineHeight: 18 },
+  pageActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   loadingLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   notice: {
-    padding: 13,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#b8d8c5',
-    borderRadius: 10,
+    borderRadius: 6,
     backgroundColor: '#f0faf4',
     color: '#285f43',
     fontWeight: '600',
@@ -1074,10 +1224,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#e6c8c4',
-    borderRadius: 12,
+    borderRadius: 6,
     backgroundColor: '#fff7f6',
   },
   errorText: { flex: 1, minWidth: 220, color: '#8d3831' },
@@ -1085,168 +1235,181 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 680,
     gap: 12,
-    padding: 22,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#d3ddd5',
-    borderRadius: 15,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
   },
   infoCard: {
     width: '100%',
     maxWidth: 680,
     gap: 8,
-    padding: 22,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#d8dfd8',
-    borderRadius: 15,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
   },
   cardEyebrow: { color: '#347452', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
-  cardTitle: { color: '#17231c', fontSize: 18, fontWeight: '800' },
+  cardTitle: { color: '#17231c', fontSize: 16, fontWeight: '800' },
   muted: { color: '#667269', fontSize: 12, lineHeight: 18 },
   input: {
-    minHeight: 46,
-    paddingHorizontal: 13,
+    minHeight: 44,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#cbd4cc',
-    borderRadius: 9,
+    borderRadius: 6,
     backgroundColor: '#fbfcfb',
     color: '#17231c',
   },
   reasonInput: { minHeight: 82, textAlignVertical: 'top' },
   primaryButton: {
-    minHeight: 46,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderRadius: 9,
+    paddingHorizontal: 14,
+    borderRadius: 6,
     backgroundColor: '#173d2b',
   },
-  primaryButtonText: { color: '#ffffff', fontWeight: '800' },
+  primaryButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 12 },
   secondaryButton: {
-    minHeight: 40,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#bdc9bf',
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
   },
-  secondaryButtonText: { color: '#274936', fontWeight: '700' },
+  secondaryButtonText: { color: '#274936', fontWeight: '700', fontSize: 12 },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.8 },
-  operatorLine: {
+  contextStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
     gap: 12,
-    padding: 15,
     borderWidth: 1,
     borderColor: '#d8dfd8',
-    borderRadius: 12,
-    backgroundColor: '#f9faf8',
-  },
-  operatorName: { color: '#17231c', fontWeight: '800' },
-  liveBadge: { color: '#347452', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
-  ownerBadge: {
-    color: '#7d4d11',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-  },
-  runtimeCard: {
-    gap: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 13,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  runtimeHeader: {
+  contextMetrics: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', flex: 1, minWidth: 260 },
+  contextDivider: { width: 1, alignSelf: 'stretch', backgroundColor: '#e2e7e2', marginHorizontal: 8 },
+  stripMetric: { gap: 2, minWidth: 72, paddingVertical: 4 },
+  stripMetricLabel: { color: '#7b857e', fontSize: 10, fontWeight: '700' },
+  stripMetricValue: { color: '#173d2b', fontSize: 18, fontWeight: '900' },
+  dangerText: { color: '#9a3f37' },
+  warningText: { color: '#916421' },
+  contextRight: { minWidth: 180, maxWidth: 320, gap: 6, justifyContent: 'center' },
+  operatorCompact: { color: '#17231c', fontSize: 12, fontWeight: '700' },
+  runtimeInline: { gap: 8 },
+  runtimeInlineFull: { width: '100%' },
+  runtimeTrigger: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
+    minHeight: 36,
   },
-  runtimeHeaderMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  runtimeToggles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  runtimeSummary: { color: '#526158', fontSize: 11, fontWeight: '700', flex: 1 },
+  runtimeConfigLink: { color: '#285f43', fontSize: 11, fontWeight: '800' },
+  runtimePanel: { gap: 8, paddingTop: 4 },
+  runtimeToggles: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   runtimeToggle: {
     minHeight: 36,
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#d3dbd4',
-    borderRadius: 18,
+    borderRadius: 6,
     backgroundColor: '#f5f7f4',
   },
   runtimeToggleActive: { borderColor: '#347452', backgroundColor: '#e3f2e8' },
   runtimeToggleText: { color: '#667269', fontSize: 11, fontWeight: '800' },
   runtimeToggleTextActive: { color: '#285f43' },
   runtimeSaveRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  runtimeReason: { minWidth: 240, flex: 1 },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  metric: {
-    minWidth: 145,
-    flexGrow: 1,
-    gap: 7,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-  },
-  metricLabel: { color: '#667269', fontSize: 11, fontWeight: '700' },
-  metricValue: { color: '#173d2b', fontSize: 25, fontWeight: '900' },
-  dangerText: { color: '#9a3f37' },
-  warningText: { color: '#916421' },
-  filters: {
-    gap: 13,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 13,
-    backgroundColor: '#ffffff',
-  },
-  filterGroup: { gap: 7 },
-  filterLabel: { color: '#344239', fontSize: 12, fontWeight: '800' },
-  filterOptions: { gap: 7, paddingRight: 8 },
-  filterChip: {
-    minHeight: 34,
+  runtimeReason: { minWidth: 180, flex: 1 },
+  filtersBar: { gap: 10 },
+  searchWrap: { width: '100%' },
+  filterMenus: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingRight: 8, zIndex: 20 },
+  filterMenu: { position: 'relative', zIndex: 30 },
+  filterTrigger: {
+    minHeight: 44,
+    minWidth: 118,
     justifyContent: 'center',
+    gap: 2,
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#d3dbd4',
-    borderRadius: 18,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
   },
-  filterChipSelected: { borderColor: '#27523b', backgroundColor: '#27523b' },
-  filterChipText: { color: '#526158', fontSize: 11, fontWeight: '700' },
-  filterChipTextSelected: { color: '#ffffff' },
+  filterTriggerActive: { borderColor: '#27523b', backgroundColor: '#f3f8f4' },
+  filterTriggerLabel: { color: '#7b857e', fontSize: 10, fontWeight: '800' },
+  filterTriggerValue: { color: '#17231c', fontSize: 12, fontWeight: '700', maxWidth: 140 },
+  filterDropdown: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    minWidth: 180,
+    maxHeight: 260,
+    borderWidth: 1,
+    borderColor: '#d3dbd4',
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    zIndex: 40,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  filterOption: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef1ee',
+  },
+  filterOptionActive: { backgroundColor: '#f0f8f3' },
+  filterOptionText: { color: '#344239', fontSize: 12, fontWeight: '600' },
+  filterOptionTextActive: { color: '#173d2b', fontWeight: '800' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  activeChip: {
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    backgroundColor: '#eef2ef',
+  },
+  activeChipText: { color: '#274936', fontSize: 11, fontWeight: '700' },
+  clearChip: { minHeight: 32, justifyContent: 'center', paddingHorizontal: 8 },
+  clearChipText: { color: '#285f43', fontSize: 11, fontWeight: '800' },
+  batchBar: {
+    gap: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e6d4a8',
+    borderRadius: 6,
+    backgroundColor: '#fffbf1',
+  },
   workspace: {
     width: '100%',
     minHeight: 560,
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 16,
+    gap: 14,
   },
   workspaceCompact: { minHeight: 0, flexDirection: 'column' },
   listPanel: {
-    gap: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 14,
-    backgroundColor: '#f9faf8',
-  },
-  listPanelFull: {
-    flex: 1,
-    width: '100%',
+    gap: 10,
     minWidth: 0,
   },
+  listPanelFull: { flex: 1, width: '100%' },
   listPanelSplit: {
     flexGrow: 1.75,
     flexShrink: 1,
@@ -1256,73 +1419,31 @@ const styles = StyleSheet.create({
   detailPanel: {
     minWidth: 0,
     flex: 1,
-    gap: 18,
-    padding: 20,
+    gap: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#d8dfd8',
-    borderRadius: 14,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
   },
   detailPanelSplit: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: '36%',
-    minWidth: 340,
-    maxWidth: 460,
+    minWidth: 380,
+    maxWidth: 440,
   },
   fullPanel: { width: '100%' },
-  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  refreshButton: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 10 },
-  refreshButtonText: { color: '#285f43', fontSize: 11, fontWeight: '800' },
-  ticketList: { gap: 9 },
-  ticketCard: {
-    minHeight: 44,
-    gap: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 11,
-    backgroundColor: '#ffffff',
-  },
-  ticketCardSelected: { borderColor: '#347452', backgroundColor: '#f0f8f3' },
-  ticketCardSlaRisk: { borderColor: '#c9892f', borderLeftWidth: 4 },
-  ticketTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  ticketIdentity: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
-  protocol: { color: '#347452', fontSize: 12, fontWeight: '900', letterSpacing: 0.7 },
-  ticketSubject: { color: '#17231c', fontSize: 14, fontWeight: '800', lineHeight: 19 },
-  ticketClient: { color: '#344239', fontSize: 12, fontWeight: '600' },
-  ticketMetadata: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  metadata: { color: '#667269', fontSize: 12, fontWeight: '600' },
-  slaRiskText: { color: '#8b641d', fontWeight: '800' },
-  ticketDate: { color: '#7b857e', fontSize: 12 },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderWidth: 1,
-    borderColor: '#bdc9bf',
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
-  checkboxChecked: { borderColor: '#27523b', backgroundColor: '#27523b' },
-  checkboxMark: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
-  batchBar: {
-    gap: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e6d4a8',
-    borderRadius: 12,
-    backgroundColor: '#fffbf1',
-  },
   desktopTable: {
-    gap: 0,
     width: '100%',
     borderWidth: 1,
     borderColor: '#d8dfd8',
-    borderRadius: 12,
+    borderRadius: 6,
     overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    maxHeight: 640,
   },
+  tableScroll: { maxHeight: 580 },
   desktopHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1332,9 +1453,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f7f4',
     borderBottomWidth: 1,
     borderBottomColor: '#d8dfd8',
+    position: 'sticky' as never,
+    top: 0,
+    zIndex: 2,
   },
   desktopRow: {
-    minHeight: 56,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -1344,107 +1468,142 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e7ebe7',
     backgroundColor: '#ffffff',
   },
-  desktopRowSelected: { backgroundColor: '#f0f8f3' },
-  desktopRowSlaRisk: { borderLeftWidth: 4, borderLeftColor: '#c9892f' },
-  desktopHeadCell: {
-    color: '#7b857e',
-    fontSize: 12,
-    fontWeight: '800',
-  },
+  desktopRowSelected: { backgroundColor: '#f3f7f4' },
+  desktopRowSlaRisk: { borderLeftWidth: 3, borderLeftColor: '#c9892f' },
+  rowHover: { backgroundColor: '#f8faf8' },
+  desktopHeadCell: { color: '#7b857e', fontSize: 11, fontWeight: '800' },
   desktopFlex: { flex: 1.2, minWidth: 140 },
-  desktopPrimaryCol: { flex: 1.4, minWidth: 160 },
-  desktopFixedCol: {
-    flexGrow: 0,
-    flexShrink: 0,
-    minWidth: 84,
-    maxWidth: 96,
-  },
-  desktopStatusCol: {
-    flexGrow: 0,
-    flexShrink: 0,
-    minWidth: 104,
-    maxWidth: 124,
-  },
+  desktopPrimaryCol: { flex: 1.4, minWidth: 160, gap: 2 },
+  desktopFixedCol: { flexGrow: 0, flexShrink: 0, minWidth: 84, maxWidth: 96 },
+  desktopStatusCol: { flexGrow: 0, flexShrink: 0, minWidth: 104, maxWidth: 124 },
   desktopCheckCol: { width: 28, minWidth: 28, flexShrink: 0 },
-  ticketSubjectMuted: {
-    color: '#667269',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
+  ticketList: { gap: 8 },
+  ticketCard: {
+    minHeight: 44,
+    gap: 6,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#d8dfd8',
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
   },
-  priority: {
+  ticketCardSelected: { backgroundColor: '#f3f7f4' },
+  ticketCardSlaRisk: { borderLeftWidth: 3, borderLeftColor: '#c9892f' },
+  ticketTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  ticketIdentity: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+  protocol: {
+    color: '#7b857e',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+    letterSpacing: 0.3,
+  },
+  ticketSubject: { color: '#344239', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  ticketSubjectMuted: { color: '#667269', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  ticketClient: { color: '#17231c', fontSize: 13, fontWeight: '800' },
+  ticketMetadata: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  ticketDate: { color: '#7b857e', fontSize: 12 },
+  tag: {
     overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    fontSize: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+    fontSize: 11,
     fontWeight: '800',
     textAlign: 'center',
   },
+  tagNeutral: {
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#526158',
+    backgroundColor: '#eef1ee',
+    textAlign: 'center',
+  },
+  slaRiskText: { color: '#8b641d', backgroundColor: '#f8edd8', fontWeight: '800' },
   priority_critical: { color: '#ffffff', backgroundColor: '#9a3f37' },
   priority_high: { color: '#7d4d11', backgroundColor: '#f9e3bd' },
   priority_normal: { color: '#285f43', backgroundColor: '#dcefe3' },
   priority_low: { color: '#526158', backgroundColor: '#e9ece9' },
-  empty: { paddingVertical: 18, color: '#7b857e', fontSize: 12, textAlign: 'center' },
-  backButton: { minHeight: 38, justifyContent: 'center', alignSelf: 'flex-start' },
-  backButtonText: { color: '#285f43', fontWeight: '800' },
-  detailEmpty: { minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 7 },
-  detailHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 15 },
-  detailTitleBlock: { minWidth: 240, flex: 1, gap: 5 },
-  detailTitle: { color: '#17231c', fontSize: 23, fontWeight: '900', lineHeight: 29 },
-  headerActions: { alignItems: 'flex-end', gap: 9 },
-  jiraButton: {
-    minHeight: 38,
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 1,
+    borderColor: '#bdc9bf',
+    borderRadius: 4,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 13,
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+  },
+  checkboxChecked: { borderColor: '#27523b', backgroundColor: '#27523b' },
+  checkboxMark: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
+  empty: { paddingVertical: 16, color: '#7b857e', fontSize: 12, textAlign: 'center' },
+  detailToolbar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  backButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 2 },
+  backButtonText: { color: '#285f43', fontWeight: '800', fontSize: 12 },
+  jiraButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 6,
     backgroundColor: '#173d2b',
   },
   jiraButtonText: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
-  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  detailField: {
-    minWidth: 145,
-    flexGrow: 1,
-    gap: 4,
-    padding: 12,
-    borderRadius: 9,
-    backgroundColor: '#f5f7f4',
+  detailHeader: { gap: 6 },
+  detailTitle: { color: '#17231c', fontSize: 20, fontWeight: '900', lineHeight: 26 },
+  definitionList: {
+    borderTopWidth: 1,
+    borderTopColor: '#e7ebe7',
   },
-  fieldLabel: { color: '#78827b', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  fieldValue: { color: '#344239', fontSize: 12, fontWeight: '700' },
-  section: { gap: 10, paddingTop: 5 },
-  message: {
-    gap: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 11,
-    backgroundColor: '#fbfcfb',
-  },
-  supportMessage: { borderColor: '#b8d8c5', backgroundColor: '#f0faf4' },
-  messageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
-  messageAuthor: { color: '#344239', fontSize: 12, fontWeight: '800' },
-  messageBody: { color: '#344239', lineHeight: 21 },
-  event: { gap: 2, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#e7ebe7' },
-  eventType: { color: '#344239', fontSize: 12, fontWeight: '800' },
-  actionsCard: {
+  defRow: {
+    flexDirection: 'row',
     gap: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d8dfd8',
-    borderRadius: 12,
-    backgroundColor: '#f9faf8',
-  },
-  actionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  escalationButton: {
     minHeight: 40,
     alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7ebe7',
+  },
+  defLabel: { width: 120, color: '#7b857e', fontSize: 11, fontWeight: '800' },
+  defValue: { flex: 1, color: '#344239', fontSize: 12, fontWeight: '700' },
+  section: {
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e7ebe7',
+  },
+  sectionTitle: { color: '#17231c', fontSize: 14, fontWeight: '800' },
+  message: {
+    gap: 6,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef1ee',
+  },
+  supportMessage: { backgroundColor: '#f7fbf8', paddingHorizontal: 8, marginHorizontal: -8 },
+  messageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
+  messageAuthor: { color: '#344239', fontSize: 12, fontWeight: '800' },
+  messageBody: { color: '#344239', lineHeight: 20 },
+  event: { gap: 2, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#e7ebe7' },
+  eventType: { color: '#344239', fontSize: 12, fontWeight: '800' },
+  actionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  escalationButton: {
+    minHeight: 44,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#d6b8b3',
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: '#fff7f6',
   },
-  escalationButtonText: { color: '#8d3831', fontWeight: '800' },
+  escalationButtonText: { color: '#8d3831', fontWeight: '800', fontSize: 12 },
 });
