@@ -414,11 +414,22 @@ BEGIN
   );
 
   -- 16: rejection persists when first order is closed
+  -- opened_at must precede the backdated started/finished/closed cycle.
   INSERT INTO public.service_orders(
-    establishment_id, appointment_id, professional_id, created_by, updated_by
+    establishment_id,
+    appointment_id,
+    professional_id,
+    opened_at,
+    created_by,
+    updated_by
   )
   VALUES (
-    unit_a_id, 'so-appt-a3', pro_a_id, owner_id, owner_id
+    unit_a_id,
+    'so-appt-a3',
+    pro_a_id,
+    now() - interval '2 hours',
+    owner_id,
+    owner_id
   )
   RETURNING id INTO order_closed_id;
 
