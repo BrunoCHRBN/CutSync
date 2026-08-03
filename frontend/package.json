@@ -1,0 +1,7 @@
+{
+  "name": "cutsync-frontend-shim",
+  "private": true,
+  "scripts": {
+    "start": "cd /app/apps/web && CI=1 EXPO_NO_TELEMETRY=1 npx expo start --web --port 3000"
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,24 +14,25 @@ import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { ClientFilterChip } from '../ui/ClientFilterChip';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
-import { atmosphericShadow, colors, glassBadge, glassSurface, layout, radii, typography } from '../../theme/tokens';
-import { accentText, logoRing, primaryButton } from '../../theme/establishment-styles';
+import { colors, layout, radii, typography } from '../../theme/tokens';
+import { clientTheme } from '../../theme/client-tokens';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
 import { formatEstablishmentDisplayName, getOpeningStatus } from '@cutsync/domain';
 
-const ShopCardSkeleton = () => {
-  return (
-    <View style={styles.shopCard}>
-      <View style={[styles.visual, { backgroundColor: '#EBEBEB' }]} />
-      <View style={styles.shopBody}>
-        <View style={{ height: 16, backgroundColor: '#E5E5E5', borderRadius: 4, width: '60%' }} />
-        <View style={{ height: 12, backgroundColor: '#F0F0F0', borderRadius: 4, width: '85%', marginTop: 12 }} />
-        <View style={{ height: 12, backgroundColor: '#F0F0F0', borderRadius: 4, width: '45%', marginTop: 8 }} />
-      </View>
+const GAP = 16;
+
+const ShopCardSkeleton = () => (
+  <View style={styles.shopCard}>
+    <View style={[styles.visual, { backgroundColor: '#EBEBE6' }]} />
+    <View style={styles.shopBody}>
+      <View style={[styles.skeletonLogo]} />
+      <View style={{ height: 16, backgroundColor: '#E5E5E0', borderRadius: 6, width: '60%', marginTop: 6 }} />
+      <View style={{ height: 12, backgroundColor: '#F0F0EB', borderRadius: 6, width: '85%', marginTop: 12 }} />
+      <View style={{ height: 12, backgroundColor: '#F0F0EB', borderRadius: 6, width: '45%', marginTop: 8 }} />
     </View>
-  );
-};
+  </View>
+);
 
 const parseAddress = (address?: string | null) => {
   if (!address) return { estado: 'Outro', cidade: 'Geral', bairro: 'Geral' };
@@ -56,6 +57,13 @@ const parseAddress = (address?: string | null) => {
   return { estado, cidade, bairro };
 };
 
+const shortAddress = (address?: string | null) => {
+  if (!address) return 'Endereço ainda não informado';
+  const { bairro, cidade } = parseAddress(address);
+  if (bairro !== 'Geral' && cidade !== 'Geral') return `${bairro}, ${cidade}`;
+  return address;
+};
+
 const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
   shop: Establishment;
   onOpen: (id: string) => void;
@@ -66,7 +74,7 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
   const opening = getOpeningStatus(shop.openingHours, shop.timezone);
   const displayName = formatEstablishmentDisplayName(shop.name, shop.slug);
   const ratingLabel = shop.averageRating ? shop.averageRating.toFixed(1) : 'Novo';
-  const hoursLabel = opening.isOpen ? `Aberto · ${opening.text}` : opening.text || 'Horários no perfil';
+  const hoursLabel = opening.isOpen ? `Aberto agora${opening.text ? ` · ${opening.text}` : ''}` : opening.text || 'Horários no perfil';
 
   return (
     <Pressable
@@ -74,11 +82,10 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
       accessibilityRole="button"
       accessibilityLabel={`Ver ${displayName}`}
       onPress={() => { tapLight(); onOpen(shop.id); }}
-      style={({ pressed }) => [styles.shopCard, pressed && styles.pressed]}
+      style={({ pressed, hovered }) => [styles.shopCard, hovered && styles.shopCardHovered, pressed && styles.pressed]}
     >
       <View style={styles.visual}>
         <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
-        <View style={[styles.visualLine, { backgroundColor: theme.muted }]} />
         <Pressable
           testID={`client-shop-card-${shop.id}-favorite`}
           accessibilityRole="button"
@@ -94,139 +101,32 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
           <Heart
             color={isFavorite ? colors.danger : colors.text}
             fill={isFavorite ? colors.danger : 'transparent'}
-            size={16}
+            size={17}
             strokeWidth={1.8}
           />
         </Pressable>
       </View>
       <View style={styles.shopBody}>
-        <View style={styles.shopHeaderRow}>
-          <View style={[styles.shopLogoCircle, logoRing(theme)]}>
-            {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, accentText(theme)]}>{initialsOf(displayName)}</Text>}
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
-            <View style={styles.ratingPriceRow}>
-              <Text style={styles.ratingText}>★ {ratingLabel}</Text>
-              {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
-              <Text style={styles.metaDivider}>·</Text>
-              <Text style={[styles.priceLevelText, accentText(theme)]}>{'$'.repeat(shop.priceLevel || 1)}</Text>
-            </View>
-          </View>
+        <View style={styles.shopLogoCircle}>
+          {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, { color: theme.primary }]}>{initialsOf(displayName)}</Text>}
         </View>
-        <View style={styles.shopMeta}><MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} /><Text numberOfLines={2} style={styles.shopMetaText}>{shop.address || 'Endereço ainda não informado'}</Text></View>
-        <View style={styles.shopMeta}><Clock3 color={colors.textSecondary} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text></View>
+        <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
+        <View style={styles.ratingPriceRow}>
+          <Text style={styles.ratingText}>★ {ratingLabel}</Text>
+          {!!shop.reviewCount && <Text style={styles.reviewCountText}>({shop.reviewCount})</Text>}
+          <Text style={styles.metaDivider}>·</Text>
+          <Text style={styles.priceLevelText}>{'$'.repeat(shop.priceLevel || 1)}</Text>
+        </View>
+        <View style={styles.shopMeta}><MapPin color={colors.textMuted} size={13} strokeWidth={1.6} /><Text numberOfLines={1} style={styles.shopMetaText}>{shortAddress(shop.address)}</Text></View>
+        <View style={styles.shopMeta}><Clock3 color={colors.textMuted} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text></View>
         <View style={styles.cardFooter}>
-          <Text testID={`client-shop-card-${shop.id}-cta`} style={[styles.footerHint, accentText(theme)]}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
-          <View style={[styles.openButton, primaryButton(theme)]}><ArrowUpRight color={theme.onPrimary} size={15} strokeWidth={1.8} /></View>
+          <Text testID={`client-shop-card-${shop.id}-cta`} style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
+          <View style={styles.openButton}><ArrowUpRight color={colors.white} size={15} strokeWidth={1.9} /></View>
         </View>
       </View>
     </Pressable>
   );
 };
-
-/* ─── Carousel Component ────────────────────────────────────────────────── */
-function ShopCarousel({
-  shops,
-  onOpen,
-  isFavorite,
-  onToggleFavorite,
-}: {
-  shops: Establishment[];
-  onOpen: (id: string) => void;
-  isFavorite: (id: string) => boolean;
-  onToggleFavorite: (id: string) => void;
-}) {
-  const scrollRef = useRef<ScrollView>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const { width: winWidth } = useWindowDimensions();
-
-  const isDesktop = winWidth >= layout.desktopBreakpoint;
-  // Banner reduzido em carrossel horizontal — cards um pouco mais estreitos no desktop.
-  const cardWidth = isDesktop ? 272 : winWidth >= layout.mobileBreakpoint ? 260 : Math.min(winWidth - 48, 280);
-  const cardGap = 14;
-  const cardsPerPage = Math.max(1, Math.floor((Math.min(winWidth, layout.contentMax) + cardGap) / (cardWidth + cardGap)));
-  const pageWidth = cardsPerPage * (cardWidth + cardGap);
-  const totalPages = Math.ceil(shops.length / cardsPerPage);
-
-  const goTo = (page: number) => {
-    const clamped = Math.max(0, Math.min(page, totalPages - 1));
-    setCurrentPage(clamped);
-    scrollRef.current?.scrollTo({ x: clamped * pageWidth, animated: true });
-  };
-
-  const handleScrollEnd = (e: any) => {
-    const x = e.nativeEvent.contentOffset.x;
-    const page = Math.round(x / pageWidth);
-    setCurrentPage(Math.max(0, Math.min(page, totalPages - 1)));
-  };
-
-  const startIdx = currentPage * cardsPerPage;
-  const endIdx = Math.min(startIdx + cardsPerPage, shops.length);
-
-  return (
-    <View testID="client-shops-grid" style={styles.carouselContainer}>
-      <View style={styles.carouselNavRow}>
-        <Text style={styles.carouselPageInfo}>
-          {shops.length === 1
-            ? '1 lugar em destaque'
-            : `${startIdx + 1}–${endIdx} de ${shops.length} lugares`}
-        </Text>
-        {totalPages > 1 ? (
-          <View style={styles.carouselNavBtns}>
-            <Pressable
-              onPress={() => goTo(currentPage - 1)}
-              disabled={currentPage === 0}
-              style={[styles.carouselNavBtn, currentPage === 0 && styles.carouselNavBtnDisabled]}
-              accessibilityLabel="Anterior"
-            >
-              <Text style={[styles.carouselNavBtnText, currentPage === 0 && styles.carouselNavBtnTextDisabled]}>‹</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => goTo(currentPage + 1)}
-              disabled={currentPage >= totalPages - 1}
-              style={[styles.carouselNavBtn, currentPage >= totalPages - 1 && styles.carouselNavBtnDisabled]}
-              accessibilityLabel="Próximo"
-            >
-              <Text style={[styles.carouselNavBtnText, currentPage >= totalPages - 1 && styles.carouselNavBtnTextDisabled]}>›</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        decelerationRate="fast"
-        snapToInterval={cardWidth + cardGap}
-        disableIntervalMomentum
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={handleScrollEnd}
-        contentContainerStyle={styles.carouselTrack}
-        style={styles.carouselScroll}
-      >
-        {shops.map((shop) => (
-          <View key={shop.id} style={{ width: cardWidth }}>
-            <ShopCard
-              shop={shop}
-              onOpen={onOpen}
-              isFavorite={isFavorite(shop.id)}
-              onToggleFavorite={onToggleFavorite}
-            />
-          </View>
-        ))}
-      </ScrollView>
-
-      {totalPages > 1 && (
-        <View style={styles.dotsRow}>
-          {Array.from({ length: totalPages }).map((_, i) => (
-            <Pressable key={i} onPress={() => goTo(i)} style={[styles.dot, i === currentPage && styles.dotActive]} />
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
 
 export const ExploreExperience = () => {
   const router = useRouter();
@@ -234,9 +134,13 @@ export const ExploreExperience = () => {
   const { profile, signOut } = useAuth();
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopViewport = viewportWidth >= layout.desktopBreakpoint;
+  const columns = viewportWidth >= layout.desktopBreakpoint ? 3 : viewportWidth >= layout.mobileBreakpoint ? 2 : 1;
+  const contentWidth = Math.min(viewportWidth, layout.contentMax) - 40;
+  const cardWidth = columns === 1 ? '100%' as const : Math.floor((contentWidth - GAP * (columns - 1)) / columns);
   const listHeadingHint = isDesktopViewport
     ? 'Veja serviços e horários.'
     : 'Toque para ver serviços e horários.';
+  const firstName = (profile?.name || '').trim().split(/\s+/)[0];
   const [barbershops, setBarbershops] = useState<Establishment[]>([]);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -345,12 +249,12 @@ export const ExploreExperience = () => {
       const matchesTerm = !term || [shop.name, shop.address, shop.slug].some((value) => value?.toLowerCase().includes(term));
       const matchesOpen = !openOnly || getOpeningStatus(shop.openingHours, shop.timezone).isOpen;
       const matchesFavorite = !favoritesOnly || favoriteIdSet.has(shop.id);
-      
+
       const { estado, cidade, bairro } = parseAddress(shop.address);
       const matchesEstado = selectedEstado === 'Todos' || estado === selectedEstado;
       const matchesCidade = selectedCidade === 'Todos' || cidade === selectedCidade;
       const matchesBairro = selectedBairro === 'Todos' || bairro === selectedBairro;
-      
+
       const matchesPrice = !selectedPriceLevel || shop.priceLevel === selectedPriceLevel;
       const matchesRating = !minRating || (shop.averageRating || 0) >= minRating;
 
@@ -382,18 +286,18 @@ export const ExploreExperience = () => {
     <ClientShell testID="client-explore-screen" activeRoute="explore" userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
         <View style={styles.hero}>
-          <Text testID="client-explore-eyebrow" style={styles.eyebrow}>Explorar</Text>
-          <Text testID="client-explore-title" style={styles.title}>Onde você quer marcar?</Text>
+          <Text testID="client-explore-eyebrow" style={styles.eyebrow}>{firstName ? `Olá, ${firstName}` : 'Explorar'}</Text>
+          <Text testID="client-explore-title" style={[styles.title, isDesktopViewport && styles.titleDesktop]}>Onde você quer marcar?</Text>
         </View>
         <View style={styles.searchSticky}>
           <View style={styles.searchBox}>
             <View style={[styles.searchField, searchFocused && styles.searchFieldFocused]}>
-              <Search color={searchFocused ? colors.textSecondary : colors.textMuted} size={17} strokeWidth={1.8} />
+              <Search color={searchFocused ? clientTheme.accent : colors.textMuted} size={18} strokeWidth={1.8} />
               <TextInput
                 testID="client-search-input"
                 placeholder="Nome, bairro ou cidade"
                 placeholderTextColor={colors.textMuted}
-                selectionColor={colors.accent}
+                selectionColor={clientTheme.accent}
                 value={search}
                 onChangeText={setSearch}
                 onFocus={() => setSearchFocused(true)}
@@ -421,8 +325,8 @@ export const ExploreExperience = () => {
                 testID="client-filter-favorites"
               >
                 <Heart
-                  color={favoritesOnly ? colors.brandPrimary : colors.textSecondary}
-                  fill={favoritesOnly ? colors.brandPrimary : 'transparent'}
+                  color={favoritesOnly ? clientTheme.accent : colors.textSecondary}
+                  fill={favoritesOnly ? clientTheme.accent : 'transparent'}
                   size={13}
                   strokeWidth={1.8}
                 />
@@ -502,12 +406,12 @@ export const ExploreExperience = () => {
         {!!favoritesError && <InlineNotice testID="client-favorites-error" tone="danger" title="Salvos" message={favoritesError} />}
 
         {loading ? (
-          <View testID="client-shops-loading-skeleton" style={styles.carouselContainer}>
-            <View style={styles.carouselTrack}>
-              <ShopCardSkeleton />
-              <ShopCardSkeleton />
-              <ShopCardSkeleton />
-            </View>
+          <View testID="client-shops-loading-skeleton" style={styles.grid}>
+            {Array.from({ length: Math.max(columns, 2) }).map((_, i) => (
+              <View key={i} style={{ width: cardWidth }}>
+                <ShopCardSkeleton />
+              </View>
+            ))}
           </View>
         ) : error && barbershops.length === 0 ? null : filtered.length === 0 ? (
           <EmptyState
@@ -528,12 +432,18 @@ export const ExploreExperience = () => {
             action={hasActiveFilters ? <AppButton testID="client-empty-clear-filters" label="Limpar filtros" onPress={clearFilters} variant="secondary" size="sm" /> : undefined}
           />
         ) : (
-          <ShopCarousel
-            shops={filtered}
-            onOpen={openShop}
-            isFavorite={isFavorite}
-            onToggleFavorite={handleToggleFavorite}
-          />
+          <View testID="client-shops-grid" style={styles.grid}>
+            {filtered.map((shop) => (
+              <View key={shop.id} style={{ width: cardWidth }}>
+                <ShopCard
+                  shop={shop}
+                  onOpen={openShop}
+                  isFavorite={isFavorite(shop.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
 
@@ -690,125 +600,156 @@ export const ExploreExperience = () => {
 const hairlineW = Platform.OS === 'web' ? (0.5 as number) : StyleSheet.hairlineWidth;
 
 const styles = StyleSheet.create({
-  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 20, paddingBottom: 120 },
-  hero: { gap: 6, marginBottom: 10 },
-  eyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' },
-  title: { color: colors.text, fontFamily: typography.display, fontSize: 26, lineHeight: 30, letterSpacing: -1 },
+  scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 20, paddingTop: 26, paddingBottom: 140 },
+  hero: { gap: 6, marginBottom: 14 },
+  eyebrow: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' },
+  title: { color: colors.text, fontFamily: typography.display, fontSize: 28, lineHeight: 34, letterSpacing: -1 },
+  titleDesktop: { fontSize: 34, lineHeight: 40 },
   searchSticky: { backgroundColor: colors.canvas, paddingBottom: 12, paddingTop: 4, zIndex: 4 },
   searchBox: { width: '100%', maxWidth: 720 },
   searchField: {
-    minHeight: 48,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderWidth: 1.5,
+    borderColor: clientTheme.cardBorder,
     borderRadius: radii.pill,
     paddingHorizontal: 18,
-    ...glassSurface,
-    ...atmosphericShadow,
-  },
-  searchFieldFocused: {
-    borderColor: colors.brandPrimary,
+    backgroundColor: colors.surface,
     ...Platform.select({
-      web: { boxShadow: '0 0 0 4px rgba(218,210,182,0.5)' } as any,
+      web: { boxShadow: '0 2px 10px rgba(24,32,27,0.05)' } as any,
       default: {},
     }),
   },
-  searchInput: { flex: 1, minHeight: 46, color: colors.text, fontFamily: typography.body, fontSize: 14, outlineStyle: 'none' } as any,
-  listHeading: { gap: 4, marginTop: 8, marginBottom: 4 },
+  searchFieldFocused: {
+    borderColor: clientTheme.accent,
+    ...Platform.select({
+      web: { boxShadow: '0 0 0 4px rgba(92,51,246,0.12)' } as any,
+      default: {},
+    }),
+  },
+  searchInput: { flex: 1, minHeight: 48, color: colors.text, fontFamily: typography.body, fontSize: 14.5, outlineStyle: 'none' } as any,
+  listHeading: { gap: 4, marginTop: 10, marginBottom: 4 },
   listHeadingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 22, letterSpacing: -0.6 },
   listHeadingHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   searchMeta: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
-  clearAll: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12, textDecorationLine: 'underline' },
+  clearAll: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 12, textDecorationLine: 'underline' },
   activeFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   filterChip: {
     alignItems: 'center',
-    borderColor: colors.borderSubtle,
+    borderColor: clientTheme.cardBorder,
     borderRadius: radii.pill,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 7,
-    minHeight: 44,
-    paddingHorizontal: 14,
-    ...glassBadge,
+    minHeight: 42,
+    paddingHorizontal: 15,
+    backgroundColor: colors.surface,
   },
-  filterChipSelected: { backgroundColor: colors.brandSecondarySoft, borderColor: colors.brandSecondary },
+  filterChipSelected: { backgroundColor: clientTheme.accentSoft, borderColor: clientTheme.accent },
   filterText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
-  filterTextSelected: { color: colors.brandPrimary },
+  filterTextSelected: { color: clientTheme.accent },
   openDot: { backgroundColor: colors.success, borderRadius: 4, height: 8, width: 8 },
   openDotMuted: { backgroundColor: colors.borderStrong },
   closedDot: { backgroundColor: colors.danger },
   loader: { margin: 50 },
 
-  /* Carousel */
-  carouselContainer: { marginTop: 12, gap: 10 },
-  carouselNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
-  carouselPageInfo: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
-  carouselNavBtns: { flexDirection: 'row', gap: 6 },
-  carouselNavBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  carouselNavBtnDisabled: { opacity: 0.35 },
-  carouselNavBtnText: { fontSize: 22, lineHeight: 26, color: colors.text, fontFamily: typography.bodyStrong },
-  carouselNavBtnTextDisabled: { color: colors.textMuted },
-  carouselScroll: { overflow: 'hidden' } as any,
-  carouselTrack: { flexDirection: 'row', gap: 14, paddingBottom: 4 },
-  dotsRow: { flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 8 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.borderStrong },
-  dotActive: { backgroundColor: colors.brandPrimary, width: 20 },
+  /* Grid */
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP, marginTop: 14 },
 
-  /* Shop Card — banner reduzido + carrossel horizontal */
+  /* Shop Card — Fresha style: banner + floating logo */
   shopCard: {
     width: '100%',
     backgroundColor: colors.surface,
-    borderWidth: hairlineW,
-    borderColor: colors.hairline,
+    borderWidth: 1,
+    borderColor: clientTheme.cardBorder,
     borderRadius: radii.lg,
     overflow: 'hidden',
-    ...atmosphericShadow,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(24,32,27,0.05)', transitionProperty: 'transform, box-shadow', transitionDuration: '160ms' } as any,
+      default: {},
+    }),
   },
-  visual: { aspectRatio: 3.6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  shopCardHovered: {
+    ...Platform.select({
+      web: { boxShadow: '0 14px 34px rgba(24,32,27,0.12)', transform: [{ translateY: -3 }] } as any,
+      default: {},
+    }),
+  },
+  visual: { height: 158, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   bannerVisualImage: { width: '100%', height: '100%' },
   favoriteButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    top: 10,
+    right: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(255,255,255,0.94)',
     borderWidth: hairlineW,
     borderColor: colors.hairline,
     zIndex: 2,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' } as any,
+      default: {},
+    }),
   },
-  shopHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  shopLogoCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  shopLogoCircle: {
+    position: 'absolute',
+    top: -26,
+    left: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    ...Platform.select({
+      web: { boxShadow: '0 4px 12px rgba(24,32,27,0.14)' } as any,
+      default: {},
+    }),
+  },
+  skeletonLogo: {
+    position: 'absolute',
+    top: -26,
+    left: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    backgroundColor: '#E5E5E0',
+  },
   shopLogoImage: { width: '100%', height: '100%' },
-  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 16 },
-  ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  ratingText: { color: '#EAB308', fontFamily: typography.bodyStrong, fontSize: 12 },
+  shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 17 },
+  ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+  ratingText: { color: clientTheme.star, fontFamily: typography.bodyStrong, fontSize: 12.5 },
   reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
   metaDivider: { color: colors.textMuted },
-  priceLevelText: { fontFamily: typography.bodyStrong, fontSize: 12 },
-  visualLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
-  shopBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 },
-  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: -0.4 },
-  shopMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 16 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 10, marginTop: 10 },
-  footerHint: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
-  openButton: { width: 36, height: 36, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', borderWidth: hairlineW },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  priceLevelText: { color: clientTheme.greenDeep, fontFamily: typography.bodyStrong, fontSize: 12.5 },
+  shopBody: { paddingHorizontal: 16, paddingTop: 32, paddingBottom: 14 },
+  shopName: { color: colors.text, fontFamily: typography.display, fontSize: 16.5, letterSpacing: -0.4 },
+  shopMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
+  shopMetaText: { flex: 1, color: colors.textSecondary, fontFamily: typography.body, fontSize: 12.5, lineHeight: 17 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: hairlineW, borderTopColor: colors.hairline, paddingTop: 12, marginTop: 12 },
+  footerHint: { flex: 1, color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 13, letterSpacing: 0.2 },
+  openButton: { width: 36, height: 36, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: clientTheme.accent },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   filterContainer: { marginTop: 12, marginBottom: 4 },
   filterScroll: { gap: 8, paddingBottom: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: 20, width: '100%', maxWidth: 320, ...atmosphericShadow },
+  modalContent: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: 20, width: '100%', maxWidth: 340, ...Platform.select({ web: { boxShadow: '0 18px 48px rgba(24,32,27,0.18)' } as any, default: {} }) },
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 16, marginBottom: 16 },
-  modalScroll: { maxHeight: 240 },
-  modalItem: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
+  modalScroll: { maxHeight: 260 },
+  modalItem: { paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
   modalItemText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14 },
-  modalItemTextActive: { color: colors.brandPrimary, fontFamily: typography.bodyStrong },
+  modalItemTextActive: { color: clientTheme.accent, fontFamily: typography.bodyStrong },
   backStepBtn: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: colors.canvasSoft, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSubtle },
   backStepText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },

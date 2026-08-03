@@ -15,6 +15,7 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, radii, typography, atmosphericShadow } from '../../theme/tokens';
+import { clientTheme } from '../../theme/client-tokens';
 import { tapLight } from '../../utils/haptics';
 import {
   appointmentFeedbackMessages,
@@ -411,7 +412,7 @@ export const AppointmentsExperience = () => {
                               label="Reagendar"
                               testID={`client-appointment-${item.id}-whatsapp-reschedule`}
                               onPress={() => sendWhatsAppReschedule(item)}
-                              variant="primary"
+                              variant="accent"
                               icon={<RefreshCw color={colors.ink} size={13} strokeWidth={1.8} />}
                               style={styles.actionBtn}
                             />
@@ -423,7 +424,7 @@ export const AppointmentsExperience = () => {
                             label="Reagendar" 
                             testID={`client-appointment-${item.id}-reschedule-button`} 
                             onPress={() => handleReschedule(item)} 
-                            variant="primary"
+                            variant="accent"
                             icon={<RefreshCw color={colors.ink} size={13} strokeWidth={1.8} />}
                             style={styles.actionBtn}
                           />
@@ -517,7 +518,7 @@ export const AppointmentsExperience = () => {
                 label="Enviar Avaliação"
                 onPress={submitReview}
                 loading={submittingReview}
-                variant="primary"
+                variant="accent"
                 fullWidth
               />
             </View>
@@ -719,8 +720,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalActions: { width: '100%' },
-  reviewedBadge: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.brandSecondarySoft, borderWidth: 1, borderColor: colors.brandSecondary },
-  reviewedBadgeText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  reviewedBadge: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: clientTheme.accentSoft, borderWidth: 1, borderColor: clientTheme.accentBorder },
+  reviewedBadgeText: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 11 },
   historyActionsRow: { marginTop: 12, width: '100%' },
   reviewBtn: { alignSelf: 'flex-start', minWidth: 140 },
 });

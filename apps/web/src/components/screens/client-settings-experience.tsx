@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { initialsOf } from '../../theme/color';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { clientTheme } from '../../theme/client-tokens';
 import { isValidClientName, isValidClientPhone, normalizeClientName, normalizeClientPhone } from '@cutsync/validation';
 import { tapLight, tapSuccess } from '../../utils/haptics';
 import { ClientShell } from '../layout/ClientShell';
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   profileSummary: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
   avatar: { width: 54, height: 54, borderRadius: radii.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSecondarySoft, borderWidth: hairlineW, borderColor: colors.brandSecondary },
   avatarImage: { width: '100%', height: '100%', borderRadius: radii.lg },
-  avatarAction: { position: 'absolute', right: -5, bottom: -5, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandPrimary, borderWidth: 2, borderColor: colors.surface },
+  avatarAction: { position: 'absolute', right: -5, bottom: -5, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: clientTheme.accent, borderWidth: 2, borderColor: colors.surface },
   avatarText: { color: colors.brandPrimary, fontFamily: typography.display, fontSize: 18 },
   profileCopy: { flex: 1, minWidth: 180 },
   profileName: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.4 },

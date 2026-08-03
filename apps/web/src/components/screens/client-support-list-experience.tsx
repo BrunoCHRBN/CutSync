@@ -40,6 +40,7 @@ export const ClientSupportListExperience = () => {
         <AppButton
           testID="client-web-support-new"
           label="Novo chamado"
+          variant="accent"
           icon={<Plus size={16} color={colors.ink} />}
           disabled={!canCreate || loadingCapabilities}
           onPress={() => router.push('/(client)/support/new')}
