@@ -1,8 +1,16 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { getTodayInTimeZone, appointmentFeedbackMessages, translateAppointmentError } from '@cutsync/domain';
+import {
+  appointmentFeedbackMessages,
+  appointmentIsLockedByServiceOrder,
+  getAppointmentOrderActionLabel,
+  getTodayInTimeZone,
+  resolveAppointmentOrderPrimaryAction,
+  translateAppointmentError,
+} from '@cutsync/domain';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useFinancialOps } from '../../../contexts/financial-ops-context';
 import { useAppointments } from '../../../hooks/useAppointments';
 import { useEstablishment } from '../../../hooks/useEstablishment';
 import { useServices } from '../../../hooks/useServices';
@@ -28,6 +36,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/toast-provider';
 import { AppCommand, useCommandPalette, useCommandRegistration } from '../../command/command-palette-provider';
 import { useAppointmentActions } from '../../../features/appointments/use-appointment-actions';
+import { useAppointmentServiceOrder } from '../../../features/service-orders/use-appointment-service-order';
 import { AgendaHeader, AgendaLayoutView } from './AgendaHeader';
 import { NextAppointmentStrip } from './NextAppointmentStrip';
 import { AbsenceModeWizard } from './AbsenceModeWizard';
@@ -109,6 +118,13 @@ export const ProfessionalAgendaScreen = () => {
   }, [refreshAppointments, refreshNextAppointment]);
 
   const actions = useAppointmentActions({ onChanged: refresh });
+  const financialOps = useFinancialOps();
+  const appointmentOrder = useAppointmentServiceOrder({
+    establishmentId: profile?.establishment_id,
+    appointmentId: selectedAppointmentId,
+    enabled: Boolean(selectedAppointmentId && financialOps.financialOpsEnabled),
+    onChanged: refresh,
+  });
 
   const {
     availableSlots: quickAvailableSlots,
@@ -383,11 +399,53 @@ export const ProfessionalAgendaScreen = () => {
     );
   }
 
+  const selectedServiceOrder = appointmentOrder.serviceOrder;
+  const financialOpsVisible = financialOps.financialOpsEnabled || financialOps.state === 'unknown';
+  const financialOpsSyncMessage = financialOps.state === 'unknown'
+    ? 'Sincronizando operações financeiras. Aguarde para concluir este atendimento com segurança.'
+    : null;
+  const canManageSelectedOrder = Boolean(
+    selectedCalendarAppointment
+    && financialOps.financialOpsEnabled
+    && (
+      financialOps.hasCapability('manage_team_orders')
+      || (
+        financialOps.hasCapability('manage_own_orders')
+        && selectedCalendarAppointment.professionalId === profile?.id
+      )
+    ),
+  );
+  const selectedOrderAction = resolveAppointmentOrderPrimaryAction({
+    financialOpsEnabled: financialOps.financialOpsEnabled,
+    accessMode: financialOps.accessMode ?? 'blocked',
+    canManageOrder: canManageSelectedOrder,
+    appointmentStatus: selectedCalendarAppointment?.status,
+    serviceOrderStatus: selectedServiceOrder?.status,
+  });
+  const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
+    ? null
+    : getAppointmentOrderActionLabel(selectedOrderAction);
+  const selectedAppointmentLockedByOrder = appointmentIsLockedByServiceOrder({
+    financialOpsEnabled: financialOps.financialOpsEnabled,
+    serviceOrderStatus: selectedServiceOrder?.status,
+  });
   const canActOnSelected = Boolean(
     selectedCalendarAppointment
     && !actions.loadingId
     && selectedCalendarAppointment.professionalId === profile?.id
     && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status),
+  );
+  const canUseLegacyComplete = Boolean(
+    selectedCalendarAppointment
+    && canActOnSelected
+    && (
+      selectedCalendarAppointment.status === 'pending'
+      || (
+        selectedCalendarAppointment.status === 'confirmed'
+        && !financialOps.financialOpsEnabled
+        && financialOps.state === 'disabled'
+      )
+    ),
   );
 
   return (
@@ -484,11 +542,18 @@ export const ProfessionalAgendaScreen = () => {
 
       <AppointmentDetailSheet
         appointment={selectedCalendarAppointment}
+        appointmentLockedByOrder={selectedAppointmentLockedByOrder}
         canCancel={canActOnSelected}
-        canComplete={canActOnSelected}
+        canComplete={canUseLegacyComplete}
         canReschedule={canActOnSelected}
         canTransfer={canActOnSelected && team.filter((member) => member.id !== profile?.id).length > 0}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
+        financialOpsEnabled={financialOpsVisible}
+        onOrderAction={() => {
+          if (selectedOrderAction === 'open_order') void appointmentOrder.open();
+          if (selectedOrderAction === 'start_order') void appointmentOrder.start();
+          if (selectedOrderAction === 'finish_order') void appointmentOrder.finish();
+        }}
         onCancel={(appointment) => {
           setSelectedAppointmentId(null);
           setCancelTargetId(appointment.id);
@@ -496,7 +561,19 @@ export const ProfessionalAgendaScreen = () => {
         onClose={() => setSelectedAppointmentId(null)}
         onComplete={(appointment) => {
           setSelectedAppointmentId(null);
-          void actions.updateStatus(appointment.id, appointment.status === 'pending' ? 'confirmed' : 'completed');
+          if (appointment.status === 'pending') {
+            void actions.updateStatus(appointment.id, 'confirmed');
+            return;
+          }
+          if (!financialOps.financialOpsEnabled && financialOps.state === 'disabled') {
+            void actions.updateStatus(appointment.id, 'completed');
+            return;
+          }
+          pushToast({
+            tone: 'warning',
+            title: 'Sincronizando operações financeiras',
+            message: 'Aguarde a confirmação antes de concluir este atendimento.',
+          });
         }}
         onReschedule={(appointment) => {
           const item = appointments.find((candidate) => candidate.id === appointment.id);
@@ -507,8 +584,24 @@ export const ProfessionalAgendaScreen = () => {
           setNewRescheduleDate(new Date(item.dateTime));
           setNewRescheduleTime(time(item.dateTime));
         }}
+        onServiceOrderRetry={() => {
+          if (financialOps.state === 'unknown') {
+            void financialOps.refresh();
+            return;
+          }
+          if (appointmentOrder.retryableCommand) {
+            void appointmentOrder.retry();
+            return;
+          }
+          void appointmentOrder.refresh();
+        }}
+        orderActionLabel={selectedOrderActionLabel}
+        orderActionLoading={Boolean(appointmentOrder.mutation)}
         onTransfer={() => setTransferOpen(true)}
         professionalName={appointments.find((item) => item.id === selectedCalendarAppointment?.id)?.barberName}
+        serviceOrder={selectedServiceOrder}
+        serviceOrderError={financialOpsSyncMessage ?? appointmentOrder.error}
+        serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
         visible={Boolean(selectedCalendarAppointment) && !transferOpen}
       />
 
