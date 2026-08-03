@@ -2,7 +2,6 @@ import { Link } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { StatusBadge } from '@/components/cloud/status-badge';
 import type { CloudModuleAccent } from '@/navigation/module-registry';
 import { cloudTheme } from '@/theme/cloud-components';
 
@@ -25,63 +24,65 @@ export function ModuleCard({
   label,
   description,
   accent,
-  availabilityLabel,
-  workLabel,
+  alertCount = 0,
   compact = false,
 }: {
   href: string;
   label: string;
   description?: string;
   accent: CloudModuleAccent;
-  availabilityLabel?: string;
-  workLabel?: string;
+  alertCount?: number;
   compact?: boolean;
 }) {
+  const showBadge = alertCount > 0;
+  const accessibilityLabel = [
+    `Abrir área ${label}`,
+    description,
+    showBadge ? `${alertCount} avisos acionáveis` : null,
+  ].filter(Boolean).join('. ');
+
   return (
-    <Link href={href} asChild>
+    <Link href={href as never} asChild>
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel={
-          description ? `Abrir módulo ${label}. ${description}` : `Abrir módulo ${label}`
-        }
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.card,
           compact && styles.cardCompact,
-          compact
-            ? {
-                backgroundColor: cloudTheme.colors.surface,
-                borderColor: cloudTheme.colors.border,
-              }
-            : {
-                backgroundColor: accentSoft[accent],
-                borderColor: accentStrong[accent],
-              },
-          pressed && styles.interactive,
+          {
+            backgroundColor: cloudTheme.colors.surface,
+            borderColor: cloudTheme.colors.border,
+          },
+          pressed && styles.pressed,
         ]}
       >
-        {compact ? (
-          <View style={[styles.accentBar, { backgroundColor: accentStrong[accent] }]} />
-        ) : null}
-        <Text
-          style={[
-            styles.label,
-            compact && styles.labelCompact,
-            { color: compact ? cloudTheme.colors.text : accentStrong[accent] },
-          ]}
-        >
-          {label}
-        </Text>
-        {description ? (
-          <Text style={[styles.description, compact && styles.descriptionCompact]}>
-            {description}
-          </Text>
-        ) : null}
-        {(availabilityLabel || workLabel) ? (
-          <View style={styles.meta}>
-            {availabilityLabel ? <StatusBadge label={availabilityLabel} tone="success" /> : null}
-            {workLabel ? <Text style={styles.work}>{workLabel}</Text> : null}
+        <View style={[styles.accentBar, { backgroundColor: accentStrong[accent] }]} />
+        <View style={styles.row}>
+          <View style={[styles.iconWrap, { backgroundColor: accentSoft[accent] }]}>
+            <Text style={[styles.iconGlyph, { color: accentStrong[accent] }]}>
+              {label.slice(0, 1)}
+            </Text>
           </View>
-        ) : null}
+          <View style={styles.copy}>
+            <View style={styles.titleRow}>
+              <Text style={styles.label}>{label}</Text>
+              {showBadge ? (
+                <View
+                  style={[styles.badge, { backgroundColor: accentSoft[accent] }]}
+                  accessibilityElementsHidden
+                >
+                  <Text style={[styles.badgeText, { color: accentStrong[accent] }]}>
+                    {alertCount > 99 ? '99+' : String(alertCount)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            {description ? <Text style={styles.description}>{description}</Text> : null}
+          </View>
+          <Text style={[styles.chevron, { color: accentStrong[accent] }]} accessibilityElementsHidden>
+            ›
+          </Text>
+        </View>
       </Pressable>
     </Link>
   );
@@ -91,27 +92,20 @@ const styles = StyleSheet.create({
   card: {
     position: 'relative',
     minWidth: 220,
-    minHeight: cloudTheme.layout.moduleCardMinHeight,
+    minHeight: 120,
     width: '100%',
     flexGrow: 1,
-    gap: cloudTheme.spacing.sm,
-    padding: cloudTheme.spacing.lg,
+    paddingTop: cloudTheme.spacing.lg + 2,
+    paddingHorizontal: cloudTheme.spacing.lg,
+    paddingBottom: cloudTheme.spacing.lg,
     borderWidth: 1,
-    borderRadius: cloudTheme.radii.lg,
+    borderRadius: cloudTheme.radii.md,
     overflow: 'hidden',
+    backgroundColor: cloudTheme.colors.surface,
   },
   cardCompact: {
     minWidth: 0,
-    minHeight: 168,
-    height: '100%',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    gap: cloudTheme.spacing.sm,
-    paddingTop: cloudTheme.spacing.xl,
-    paddingHorizontal: cloudTheme.spacing.lg,
-    paddingBottom: cloudTheme.spacing.lg,
-    borderRadius: cloudTheme.radii.md,
-    backgroundColor: cloudTheme.colors.surface,
+    minHeight: 120,
   },
   accentBar: {
     position: 'absolute',
@@ -120,25 +114,55 @@ const styles = StyleSheet.create({
     right: 0,
     height: 3,
   },
-  interactive: { opacity: 0.92, transform: [{ translateY: -1 }] },
-  label: { ...cloudTheme.type.cardTitle },
-  labelCompact: {
-    fontSize: 20,
-    lineHeight: 26,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: cloudTheme.spacing.md,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: cloudTheme.radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconGlyph: {
+    fontSize: 16,
     fontWeight: '800',
-    textAlign: 'left',
+  },
+  copy: { flex: 1, minWidth: 0, gap: 4 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: cloudTheme.spacing.xs,
+  },
+  label: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: cloudTheme.colors.text,
   },
   description: {
-    ...cloudTheme.type.body,
-    color: cloudTheme.colors.textSecondary,
-    flex: 1,
-  },
-  descriptionCompact: {
-    flex: 0,
     fontSize: 13,
     lineHeight: 19,
     color: cloudTheme.colors.textMuted,
   },
-  meta: { gap: cloudTheme.spacing.xs },
-  work: { ...cloudTheme.type.smallStrong, color: cloudTheme.colors.text },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chevron: {
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  pressed: { opacity: 0.9, transform: [{ translateY: 1 }] },
 });
