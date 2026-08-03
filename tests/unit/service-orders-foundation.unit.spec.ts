@@ -126,6 +126,33 @@ test('totals server-side, tenant integrity e freeze após finish', () => {
   expect(migration).toContain('SET search_path = pg_catalog, public');
 });
 
+test('item mutations lock the order with FOR UPDATE and keep parent immutable', () => {
+  const mutableFnMatch = migration.match(
+    /CREATE OR REPLACE FUNCTION public\.enforce_service_order_items_mutable\(\)[\s\S]*?\$\$;/,
+  );
+  expect(mutableFnMatch).not.toBeNull();
+  const mutableFn = mutableFnMatch?.[0] ?? '';
+  expect(mutableFn).toContain('FOR UPDATE');
+  expect(mutableFn).not.toContain('FOR SHARE');
+  expect(mutableFn).toContain('service_order_item_parent_immutable');
+  expect(mutableFn).toContain('NEW.service_order_id IS DISTINCT FROM OLD.service_order_id');
+  expect(mutableFn).toContain('NEW.establishment_id IS DISTINCT FROM OLD.establishment_id');
+  // Structural lock fix only — concurrency is not proven by this static test.
+  expect(migration).toContain('recalculate_service_order_totals can reuse');
+});
+
+test('actors and chronology are paired by CHECK constraints', () => {
+  expect(migration).toContain('CONSTRAINT service_orders_transition_actor_chk');
+  expect(migration).toContain('(started_at IS NULL) = (started_by IS NULL)');
+  expect(migration).toContain('(finished_at IS NULL) = (finished_by IS NULL)');
+  expect(migration).toContain('(closed_at IS NULL) = (closed_by IS NULL)');
+  expect(migration).toContain('(voided_at IS NULL) = (voided_by IS NULL)');
+  expect(migration).toContain('CONSTRAINT service_orders_transition_chronology_chk');
+  expect(migration).toContain('started_at >= opened_at');
+  expect(migration).toContain('finished_at >= started_at');
+  expect(migration).toContain('closed_at >= finished_at');
+});
+
 test('teste SQL é transacional e cobre invariantes críticos', () => {
   expect(sqlTest.trimStart().startsWith('BEGIN;')).toBe(true);
   expect(sqlTest.trimEnd().endsWith('ROLLBACK;')).toBe(true);
@@ -135,6 +162,9 @@ test('teste SQL é transacional e cobre invariantes críticos', () => {
   expect(sqlTest).toContain('service_orders_is_immutable');
   expect(sqlTest).toContain('service_order_events_is_immutable');
   expect(sqlTest).toContain('service_order_appointment_tenant_mismatch');
+  expect(sqlTest).toContain('service_order_item_parent_immutable');
+  expect(sqlTest).toContain('service_orders_transition_actor_chk');
+  expect(sqlTest).toContain('service_orders_transition_chronology_chk');
   expect(sqlTest).toContain('Etapa 3 RPCs must not exist yet');
 });
 

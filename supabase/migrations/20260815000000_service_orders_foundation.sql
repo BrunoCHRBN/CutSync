@@ -120,6 +120,26 @@ CREATE TABLE public.service_orders (
       AND char_length(btrim(void_reason)) BETWEEN 1 AND 500
       AND closed_at IS NULL
     )
+  ),
+  CONSTRAINT service_orders_transition_actor_chk CHECK (
+    (started_at IS NULL) = (started_by IS NULL)
+    AND (finished_at IS NULL) = (finished_by IS NULL)
+    AND (closed_at IS NULL) = (closed_by IS NULL)
+    AND (voided_at IS NULL) = (voided_by IS NULL)
+  ),
+  CONSTRAINT service_orders_transition_chronology_chk CHECK (
+    (started_at IS NULL OR started_at >= opened_at)
+    AND (
+      finished_at IS NULL
+      OR (started_at IS NOT NULL AND finished_at >= started_at)
+    )
+    AND (
+      closed_at IS NULL
+      OR (finished_at IS NOT NULL AND closed_at >= finished_at)
+    )
+    AND (voided_at IS NULL OR voided_at >= opened_at)
+    AND (voided_at IS NULL OR started_at IS NULL OR voided_at >= started_at)
+    AND (voided_at IS NULL OR finished_at IS NULL OR voided_at >= finished_at)
   )
 );
 
@@ -464,17 +484,31 @@ DECLARE
   order_status text;
   target_order_id uuid;
 BEGIN
+  -- Parent keys are immutable: never move an item across orders/units.
+  IF TG_OP = 'UPDATE'
+    AND (
+      NEW.service_order_id IS DISTINCT FROM OLD.service_order_id
+      OR NEW.establishment_id IS DISTINCT FROM OLD.establishment_id
+    )
+  THEN
+    RAISE EXCEPTION 'service_order_item_parent_immutable'
+      USING ERRCODE = '23514';
+  END IF;
+
   IF TG_OP = 'DELETE' THEN
     target_order_id := OLD.service_order_id;
   ELSE
     target_order_id := NEW.service_order_id;
   END IF;
 
+  -- Exclusive lock serializes item mutations and blocks concurrent status
+  -- transitions (e.g. to awaiting_payment) until this transaction finishes.
+  -- recalculate_service_order_totals can reuse this same row lock.
   SELECT service_order.status
   INTO order_status
   FROM public.service_orders AS service_order
   WHERE service_order.id = target_order_id
-  FOR SHARE;
+  FOR UPDATE;
 
   IF order_status IS NULL THEN
     RAISE EXCEPTION 'service_order_items_frozen'
@@ -577,19 +611,14 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 BEGIN
+  -- Parent immutability prevents service_order_id changes; recalculate the
+  -- single owning order (NEW for insert/update, OLD for delete).
   IF TG_OP = 'DELETE' THEN
     PERFORM public.recalculate_service_order_totals(OLD.service_order_id);
     RETURN OLD;
   END IF;
 
   PERFORM public.recalculate_service_order_totals(NEW.service_order_id);
-
-  IF TG_OP = 'UPDATE'
-    AND OLD.service_order_id IS DISTINCT FROM NEW.service_order_id
-  THEN
-    PERFORM public.recalculate_service_order_totals(OLD.service_order_id);
-  END IF;
-
   RETURN NEW;
 END;
 $$;

@@ -1099,6 +1099,11 @@ Decisão documental preservada; tabela **não** criada na Etapa 1.
 - Timestamps de ciclo + actors (`created_by`/`updated_by` obrigatórios;
   transitions opcionais ON DELETE SET NULL)
 - `version bigint` NOT NULL DEFAULT 1; `UNIQUE (id, establishment_id)`
+- `service_orders_transition_actor_chk`: timestamp e actor pareados
+  (`started_at` ↔ `started_by`, `finished_*`, `closed_*`, `voided_*`)
+- `service_orders_transition_chronology_chk`:
+  `opened_at ≤ started_at ≤ finished_at ≤ closed_at`;
+  `voided_at ≥ opened_at` e ≥ `started_at`/`finished_at` quando existirem
 
 ### Decisão final de totals
 
@@ -1112,6 +1117,12 @@ Decisão documental preservada; tabela **não** criada na Etapa 1.
 - Trigger `AFTER INSERT OR UPDATE OR DELETE` em `service_order_items`.
 - Função **não** é RPC de app; `EXECUTE` revogado de `PUBLIC`/`anon`/
   `authenticated`.
+- Mutações de item (`enforce_service_order_items_mutable`) também fazem
+  `SELECT … FOR UPDATE` na comanda **antes** de INSERT/UPDATE/DELETE, para
+  serializar concorrência e impedir transição para `awaiting_payment` no meio
+  da mutação. O recálculo reutiliza o mesmo lock da transação.
+  Correção estrutural de lock (`FOR SHARE` → `FOR UPDATE`); concorrência
+  runtime **não** foi validada só com teste estático.
 
 ### Índices
 
@@ -1153,16 +1164,19 @@ serviço/profissional (`service_order_item_*_tenant_mismatch`).
 - Events: `UPDATE`/`DELETE` → `service_order_events_is_immutable`.
 - Items mutáveis só com comanda em `open` | `in_service`; bloqueio
   `service_order_items_frozen` em `awaiting_payment` | `closed` | `voided`.
+- Parent do item imutável: `service_order_id` e `establishment_id` não mudam
+  após criação (`service_order_item_parent_immutable`). Correção operacional =
+  remover item na comanda editável e criar outro na comanda correta; comanda
+  congelada não permite remoção/alteração/transferência.
 
 ### Resultados dos testes
 
 | Suite | Resultado |
 | --- | --- |
-| `tests/unit/service-orders-foundation.unit.spec.ts` | **8 passed** (`npx playwright test --project=unit tests/unit/service-orders-foundation.unit.spec.ts`) |
-| `supabase/tests/service_orders_foundation.sql` | artefato criado; **não executado** neste ambiente (sem `psql`/`DATABASE_URL`/Docker) |
-| Homologação `supabase db reset` | **pendente** |
-| `typecheck:shared` / `typecheck:business` / `lint` | OK nesta entrega |
-| `typecheck:web` / full `--project=unit` | falhas pré-existentes fora do escopo |
+| `tests/unit/service-orders-foundation.unit.spec.ts` | reexecutar após harden (parent/lock/actor/cronologia) |
+| `supabase/tests/service_orders_foundation.sql` | ampliado (parent imutável, actor/timestamp, cronologia); **execução SQL ainda pendente** (sem `psql`/`DATABASE_URL`/Docker) |
+| Homologação `supabase db reset` | **pendente** — não declarar homologada sem execução real |
+| `typecheck:shared` / `typecheck:business` / `lint` | reexecutar nesta correção |
 
 ### Status
 

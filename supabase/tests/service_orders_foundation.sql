@@ -70,7 +70,14 @@ DECLARE
   order_closed_id uuid;
   order_service_id uuid;
   order_freeze_id uuid;
+  order_open_b_id uuid;
+  order_actor_id uuid;
+  order_chrono_id uuid;
   item_id uuid;
+  item_closed_id uuid;
+  item_voided_id uuid;
+  item_open_a_id uuid;
+  item_open_b_id uuid;
   event_id bigint;
   subtotal_v bigint;
   discount_v bigint;
@@ -632,6 +639,362 @@ BEGIN
       owner_id, item_id
     ),
     'service_order_items_frozen'
+  );
+
+  item_voided_id := item_id;
+  SELECT id INTO item_closed_id
+  FROM public.service_order_items
+  WHERE service_order_id = order_service_id
+  LIMIT 1;
+  IF item_closed_id IS NULL OR item_voided_id IS NULL THEN
+    RAISE EXCEPTION 'fixture items for parent immutability missing';
+  END IF;
+
+  -- Parent immutable + editable field updates
+  INSERT INTO public.service_orders(
+    establishment_id, professional_id, created_by, updated_by
+  )
+  VALUES (unit_a_id, pro_a_id, owner_id, owner_id)
+  RETURNING id INTO order_open_b_id;
+
+  INSERT INTO public.service_order_items(
+    service_order_id, establishment_id, service_id, professional_id,
+    description_snapshot, quantity, unit_price_cents, discount_cents,
+    created_by, updated_by
+  )
+  VALUES (
+    order_open_id, unit_a_id, 'so-service-a', pro_a_id,
+    'Open A item', 1, 1000, 0, owner_id, owner_id
+  )
+  RETURNING id INTO item_open_a_id;
+
+  INSERT INTO public.service_order_items(
+    service_order_id, establishment_id, description_snapshot,
+    quantity, unit_price_cents, created_by, updated_by
+  )
+  VALUES (
+    order_open_b_id, unit_a_id, 'Open B item', 1, 1000, owner_id, owner_id
+  )
+  RETURNING id INTO item_open_b_id;
+
+  -- 1: closed item cannot move to open order
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_order_items
+        SET service_order_id = %L, updated_by = %L
+        WHERE id = %L
+      $sql$,
+      order_open_b_id, owner_id, item_closed_id
+    ),
+    'service_order_item_parent_immutable'
+  );
+
+  -- 2: voided item cannot move to open order
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_order_items
+        SET service_order_id = %L, updated_by = %L
+        WHERE id = %L
+      $sql$,
+      order_open_b_id, owner_id, item_voided_id
+    ),
+    'service_order_item_parent_immutable'
+  );
+
+  -- 3: even between two open orders, service_order_id cannot change
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_order_items
+        SET service_order_id = %L, updated_by = %L
+        WHERE id = %L
+      $sql$,
+      order_open_b_id, owner_id, item_open_a_id
+    ),
+    'service_order_item_parent_immutable'
+  );
+
+  -- 4: establishment_id of item cannot change
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_order_items
+        SET establishment_id = %L, updated_by = %L
+        WHERE id = %L
+      $sql$,
+      unit_b_id, owner_id, item_open_a_id
+    ),
+    'service_order_item_parent_immutable'
+  );
+
+  -- 5: normal editable-field updates remain allowed on open orders
+  UPDATE public.service_order_items
+  SET
+    quantity = 2,
+    unit_price_cents = 1800,
+    discount_cents = 100,
+    service_id = 'so-service-a',
+    professional_id = pro_a_id,
+    description_snapshot = 'Open A item updated',
+    updated_by = owner_id
+  WHERE id = item_open_a_id;
+
+  SELECT total_cents INTO total_v
+  FROM public.service_orders
+  WHERE id = order_open_id;
+  IF total_v IS DISTINCT FROM 3500 THEN
+    RAISE EXCEPTION 'editable item update did not recalculate order total: %', total_v;
+  END IF;
+
+  -- Actor/timestamp pairing rejections
+  INSERT INTO public.service_orders(
+    establishment_id, professional_id, created_by, updated_by
+  )
+  VALUES (unit_a_id, pro_a_id, owner_id, owner_id)
+  RETURNING id INTO order_actor_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET status = 'in_service', started_at = now(), updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, order_actor_id
+    ),
+    'service_orders_transition_actor_chk'
+  );
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET started_by = %L, updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_actor_id
+    ),
+    'service_orders_transition_actor_chk'
+  );
+
+  UPDATE public.service_orders
+  SET
+    status = 'in_service',
+    started_at = now(),
+    started_by = owner_id,
+    updated_by = owner_id
+  WHERE id = order_actor_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'awaiting_payment',
+          finished_at = now(),
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, order_actor_id
+    ),
+    'service_orders_transition_actor_chk'
+  );
+
+  UPDATE public.service_orders
+  SET
+    status = 'awaiting_payment',
+    finished_at = now(),
+    finished_by = owner_id,
+    updated_by = owner_id
+  WHERE id = order_actor_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'closed',
+          closed_at = now(),
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, order_actor_id
+    ),
+    'service_orders_transition_actor_chk'
+  );
+
+  -- Reset actor fixture to open for voided_at without voided_by
+  INSERT INTO public.service_orders(
+    establishment_id, professional_id, created_by, updated_by
+  )
+  VALUES (unit_a_id, pro_a_id, owner_id, owner_id)
+  RETURNING id INTO order_chrono_id;
+
+  BEGIN
+    UPDATE public.service_orders
+    SET
+      status = 'voided',
+      voided_at = now(),
+      void_reason = 'missing actor',
+      updated_by = owner_id
+    WHERE id = order_chrono_id;
+    RAISE EXCEPTION 'voided_at without voided_by unexpectedly succeeded';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM LIKE '%voided_at without voided_by unexpectedly succeeded%' THEN
+        RAISE;
+      END IF;
+      -- Both actor pairing and status timeline reject this shape.
+      IF position('service_orders_transition_actor_chk' IN SQLERRM) = 0
+        AND position('service_orders_status_timeline_chk' IN SQLERRM) = 0
+      THEN
+        RAISE EXCEPTION 'unexpected voided_at/voided_by denial: %', SQLERRM;
+      END IF;
+  END;
+
+  -- Chronology rejections
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'in_service',
+          started_at = opened_at - interval '1 minute',
+          started_by = %L,
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_chrono_id
+    ),
+    'service_orders_transition_chronology_chk'
+  );
+
+  UPDATE public.service_orders
+  SET
+    status = 'in_service',
+    started_at = opened_at + interval '1 minute',
+    started_by = owner_id,
+    updated_by = owner_id
+  WHERE id = order_chrono_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'awaiting_payment',
+          finished_at = started_at - interval '1 minute',
+          finished_by = %L,
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_chrono_id
+    ),
+    'service_orders_transition_chronology_chk'
+  );
+
+  UPDATE public.service_orders
+  SET
+    status = 'awaiting_payment',
+    finished_at = started_at + interval '1 minute',
+    finished_by = owner_id,
+    updated_by = owner_id
+  WHERE id = order_chrono_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'closed',
+          closed_at = finished_at - interval '1 minute',
+          closed_by = %L,
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_chrono_id
+    ),
+    'service_orders_transition_chronology_chk'
+  );
+
+  -- Fresh open order for void chronology vs opened_at
+  INSERT INTO public.service_orders(
+    establishment_id, professional_id, created_by, updated_by,
+    opened_at
+  )
+  VALUES (
+    unit_a_id, pro_a_id, owner_id, owner_id,
+    now() - interval '10 minutes'
+  )
+  RETURNING id INTO order_actor_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'voided',
+          voided_at = opened_at - interval '1 minute',
+          voided_by = %L,
+          void_reason = 'before open',
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_actor_id
+    ),
+    'service_orders_transition_chronology_chk'
+  );
+
+  UPDATE public.service_orders
+  SET
+    status = 'in_service',
+    started_at = opened_at + interval '2 minutes',
+    started_by = owner_id,
+    updated_by = owner_id
+  WHERE id = order_actor_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'voided',
+          voided_at = started_at - interval '1 minute',
+          voided_by = %L,
+          void_reason = 'before start',
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_actor_id
+    ),
+    'service_orders_transition_chronology_chk'
+  );
+
+  UPDATE public.service_orders
+  SET
+    status = 'awaiting_payment',
+    finished_at = started_at + interval '2 minutes',
+    finished_by = owner_id,
+    updated_by = owner_id
+  WHERE id = order_actor_id;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_orders
+        SET
+          status = 'voided',
+          voided_at = finished_at - interval '1 minute',
+          voided_by = %L,
+          void_reason = 'before finish',
+          updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, owner_id, order_actor_id
+    ),
+    'service_orders_transition_chronology_chk'
   );
 
   -- 28: physical delete of service order rejected
