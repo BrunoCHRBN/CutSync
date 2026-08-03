@@ -16,6 +16,48 @@ export const BUSINESS_CAPABILITIES = [
   'manage_clients',
   'export_clients',
   'manage_data_imports',
+  'view_orders',
+  'manage_own_orders',
+  'manage_team_orders',
+  'apply_order_discounts',
+  'void_orders',
+  'view_payments',
+  'take_payments',
+  'void_payments',
+  'issue_refunds',
+  'view_cash',
+  'operate_cash',
+  'close_cash',
+  'reopen_cash',
+  'view_team_commission',
+  'manage_commission_policies',
+  'close_commission_period',
+  'record_commission_payout',
+  'view_reconciliation',
+  'manage_reconciliation',
+] as const;
+
+/** Financial-ops capability subset introduced in P0 Etapa 1. */
+export const FINANCIAL_OPS_CAPABILITIES = [
+  'view_orders',
+  'manage_own_orders',
+  'manage_team_orders',
+  'apply_order_discounts',
+  'void_orders',
+  'view_payments',
+  'take_payments',
+  'void_payments',
+  'issue_refunds',
+  'view_cash',
+  'operate_cash',
+  'close_cash',
+  'reopen_cash',
+  'view_team_commission',
+  'manage_commission_policies',
+  'close_commission_period',
+  'record_commission_payout',
+  'view_reconciliation',
+  'manage_reconciliation',
 ] as const;
 
 export type BusinessOperationalRole = 'owner' | 'admin' | 'professional';
@@ -40,6 +82,11 @@ export interface BusinessOperationalContext {
   operationalRole: BusinessOperationalRole;
   accessMode: BusinessAccessMode;
   capabilities: BusinessCapability[];
+  /**
+   * Product availability for financial-ops on the unit.
+   * Independent from capabilities (authority). Future UI requires both.
+   */
+  financialOpsEnabled: boolean;
   billingOwner: boolean;
   billingStatus: string;
   trialEndsAt: string | null;
@@ -86,7 +133,9 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 const ROLE_CAPABILITIES: Record<BusinessOperationalRole, ReadonlySet<BusinessCapability>> = {
   owner: new Set(BUSINESS_CAPABILITIES),
-  admin: new Set(BUSINESS_CAPABILITIES.filter((capability) => capability !== 'manage_admins')),
+  admin: new Set(BUSINESS_CAPABILITIES.filter((capability) => (
+    capability !== 'manage_admins' && capability !== 'reopen_cash'
+  ))),
   professional: new Set([
     'view_own_agenda',
     'view_team_agenda',
@@ -94,6 +143,9 @@ const ROLE_CAPABILITIES: Record<BusinessOperationalRole, ReadonlySet<BusinessCap
     'manage_own_blocks',
     'view_services',
     'view_own_commission',
+    'view_orders',
+    'manage_own_orders',
+    'view_payments',
   ]),
 };
 
@@ -103,6 +155,11 @@ const READ_ONLY_CAPABILITIES = new Set<BusinessCapability>([
   'view_services',
   'view_own_commission',
   'view_unit_reports',
+  'view_orders',
+  'view_payments',
+  'view_cash',
+  'view_team_commission',
+  'view_reconciliation',
 ]);
 
 const isRecord = (value: unknown): value is UnknownRecord => (
@@ -230,6 +287,13 @@ export const mapBusinessOperationalContext = (
   const coveredEstablishmentIds = asIdentifierArray(value.covered_establishment_ids);
   const payerRole = asPayerRole(value.payer_role);
   const pendingChangeAt = asNullableTimestamp(value.pending_change_at);
+  // Missing field defaults to false so Business keeps working until
+  // 20260814000000 is homologated and the RPC starts returning the column.
+  const financialOpsEnabled = typeof value.financial_ops_enabled === 'boolean'
+    ? value.financial_ops_enabled
+    : value.financial_ops_enabled === undefined
+      ? false
+      : undefined;
 
   if (
     !membershipId
@@ -242,6 +306,7 @@ export const mapBusinessOperationalContext = (
     || !operationalRole
     || !accessMode
     || typeof value.billing_owner !== 'boolean'
+    || financialOpsEnabled === undefined
     || !billingStatus
     || trialEndsAt === undefined
     || graceEndsAt === undefined
@@ -275,6 +340,7 @@ export const mapBusinessOperationalContext = (
     operationalRole,
     accessMode,
     capabilities: filterBusinessCapabilities(value.capabilities, operationalRole, accessMode),
+    financialOpsEnabled,
     billingOwner: value.billing_owner,
     billingStatus,
     trialEndsAt,
@@ -340,7 +406,7 @@ export const mapBusinessInvitationDetails = (
   if (!isRecord(value)) return null;
 
   const establishmentName = asRequiredString(value.establishment_name);
-  const invitedEmail = asRequiredString(value.invited_email);
+  const invitedEmail = asRequiredString(value.invited_contact ?? value.invited_email);
   const invitedRole = asInvitationRole(value.invited_role);
   const status = asInvitationStatus(value.invitation_status);
   const expiresAt = asTimestamp(value.expiration);
