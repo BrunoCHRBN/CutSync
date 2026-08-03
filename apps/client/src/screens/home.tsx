@@ -80,6 +80,16 @@ export function ClientHomeScreen() {
           </View>
         </Pressable>
 
+        <SettingsSectionLabel>ESTABELECIMENTOS</SettingsSectionLabel>
+        <SettingsCard>
+          <SettingsMenuRow
+            testID="client-open-establishment-links"
+            title="Estabelecimentos associados"
+            subtitle="Confirme ou rejeite solicitações de vínculo desta conta."
+            onPress={() => router.push('/establishment-links' as Href)}
+          />
+        </SettingsCard>
+
         <SettingsSectionLabel>SUPORTE</SettingsSectionLabel>
         <SettingsCard>
           <SettingsMenuRow

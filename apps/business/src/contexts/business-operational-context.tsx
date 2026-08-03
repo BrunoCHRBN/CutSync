@@ -123,9 +123,14 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
   const [error, setError] = useState<string | null>(null);
   const [contextUserId, setContextUserId] = useState<string | null>(null);
   const requestVersion = useRef(0);
+  const confirmedContextsRef = useRef<{
+    userId: string | null;
+    contexts: BusinessOperationalContext[];
+  }>({ userId: null, contexts: [] });
 
   const refreshContexts = useCallback(async (preferredEstablishmentId?: string) => {
     if (!user) {
+      confirmedContextsRef.current = { userId: null, contexts: [] };
       setContexts([]);
       setActiveEstablishmentId(null);
       setIsLoading(false);
@@ -162,6 +167,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
         stored,
       ]);
 
+      confirmedContextsRef.current = { userId: user.id, contexts: next };
       setContexts(next);
       setActiveEstablishmentId(nextActiveId);
       setConnectionError(false);
@@ -191,6 +197,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!user) {
       requestVersion.current += 1;
+      confirmedContextsRef.current = { userId: null, contexts: [] };
       setContexts([]);
       setActiveEstablishmentId(null);
       setIsLoading(false);
@@ -201,6 +208,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
       return;
     }
     if (contextUserId !== user.id) {
+      confirmedContextsRef.current = { userId: null, contexts: [] };
       setContexts([]);
       setActiveEstablishmentId(null);
       setConnectionError(false);
@@ -218,14 +226,19 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
   }, [refreshContexts, user]);
 
   const selectEstablishment = useCallback(async (establishmentId: string) => {
-    if (!user || !contexts.some((context) => context.establishmentId === establishmentId)) {
+    const confirmed = confirmedContextsRef.current;
+    if (
+      !user
+      || confirmed.userId !== user.id
+      || !confirmed.contexts.some((context) => context.establishmentId === establishmentId)
+    ) {
       return false;
     }
     setActiveEstablishmentId(establishmentId);
     setError(null);
     await persistActiveEstablishmentId(user.id, establishmentId, false);
     return true;
-  }, [contexts, user]);
+  }, [user]);
 
   const activeContext = useMemo(
     () => contexts.find((context) => context.establishmentId === activeEstablishmentId) ?? null,

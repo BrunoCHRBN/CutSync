@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
 import {
@@ -27,7 +27,7 @@ const roleLabel = {
 
 export function BusinessTodayScreen() {
   const router = useRouter();
-  const { activeContext } = useBusinessOperational();
+  const { activeContext, hasCapability } = useBusinessOperational();
   const agenda = useBusinessAgenda();
   const summary = summarizeBusinessAgenda(agenda.items);
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
@@ -48,6 +48,11 @@ export function BusinessTodayScreen() {
           />
         ) : null}
       />
+
+      {activeContext?.accessMode === 'full'
+        && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
+          <BusinessButton label="Criar encaixe" onPress={() => router.push('/(app)/walk-in' as never)} />
+        ) : null}
 
       {activeContext?.accessMode === 'read_only' ? (
         <BusinessNotice
@@ -100,6 +105,9 @@ export function BusinessTodayScreen() {
               />
             ))}
           </View>
+          <Text selectable style={styles.foundationNote}>
+            Toque em um atendimento para consultar as ações autorizadas pelo servidor.
+          </Text>
         </View>
       ) : null}
     </BusinessPage>
@@ -110,4 +118,5 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: businessTheme.spacing.sm },
   section: { gap: businessTheme.spacing.sm },
   list: { gap: businessTheme.spacing.sm },
+  foundationNote: { ...businessTheme.typography.caption, color: businessTheme.colors.textMuted },
 });

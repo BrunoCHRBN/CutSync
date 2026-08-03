@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import {
   BusinessButton,
@@ -14,6 +14,16 @@ import {
 import { useBusinessOperational } from '@/contexts/business-operational-context';
 import { useBusinessSession } from '@/contexts/business-session';
 import { businessTheme } from '@/theme/business-theme';
+import {
+  disableBusinessPushNotifications,
+  enableBusinessPushNotifications,
+  getBusinessPushStatus,
+  type BusinessPushStatus,
+} from '@/features/notifications/business-push-service';
+import {
+  downloadAvailableBusinessUpdate,
+  reloadDownloadedBusinessUpdate,
+} from '@/features/updates/business-updates';
 
 const roleLabel = {
   owner: 'Proprietário',
@@ -28,6 +38,15 @@ export function BusinessAccountScreen() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [securityNotice, setSecurityNotice] = useState<string | null>(null);
   const [exitBusy, setExitBusy] = useState(false);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const [pushStatus, setPushStatus] = useState<BusinessPushStatus>('not_determined');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushNotice, setPushNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getBusinessPushStatus().then(setPushStatus);
+  }, []);
 
   const displayName = typeof user?.user_metadata?.name === 'string'
     ? user.user_metadata.name
@@ -47,6 +66,51 @@ export function BusinessAccountScreen() {
     setExitBusy(true);
     await signOut();
     setExitBusy(false);
+  };
+
+  const checkUpdate = async () => {
+    setUpdateBusy(true);
+    setUpdateNotice(null);
+    const result = await downloadAvailableBusinessUpdate();
+    setUpdateBusy(false);
+    if (result.status === 'downloaded') {
+      Alert.alert(
+        result.rollbackToEmbedded ? 'Rollback pronto' : 'Atualização pronta',
+        'Reinicie agora para carregar o bundle validado.',
+        [
+          { text: 'Depois', style: 'cancel' },
+          { text: 'Reiniciar', onPress: () => void reloadDownloadedBusinessUpdate() },
+        ],
+      );
+      return;
+    }
+    setUpdateNotice(result.status === 'current'
+      ? 'Este build já está no update compatível mais recente.'
+      : result.status === 'disabled'
+        ? 'Updates ficam disponíveis em builds Development, Preview e Production.'
+        : 'Não foi possível consultar updates agora.');
+  };
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    setPushNotice(null);
+    if (pushStatus === 'enabled') {
+      const result = await disableBusinessPushNotifications();
+      if (result.ok) {
+        setPushStatus('not_determined');
+        setPushNotice('Este dispositivo deixou de receber notificações operacionais.');
+      } else setPushNotice(result.message);
+    } else {
+      const result = await enableBusinessPushNotifications();
+      if (result.ok) {
+        setPushStatus('enabled');
+        setPushNotice('Notificações operacionais ativadas neste dispositivo.');
+      } else {
+        setPushStatus(result.status);
+        setPushNotice(result.message);
+      }
+    }
+    setPushBusy(false);
   };
 
   return (
@@ -112,6 +176,34 @@ export function BusinessAccountScreen() {
             disabled={!user?.email}
             onPress={() => void sendRecovery()}
           />
+        </BusinessCard>
+      </View>
+
+      <View style={styles.section}>
+        <BusinessSectionTitle>Notificações Android</BusinessSectionTitle>
+        <BusinessCard>
+          <Text selectable style={styles.cardMeta}>
+            Receba novos atendimentos, cancelamentos, mudanças, convites e conflitos operacionais sem dados pessoais no push.
+          </Text>
+          {pushNotice ? <BusinessNotice message={pushNotice} tone={pushStatus === 'enabled' ? 'success' : 'neutral'} /> : null}
+          <BusinessButton
+            label={pushStatus === 'enabled' ? 'Desativar neste dispositivo' : 'Ativar neste dispositivo'}
+            variant={pushStatus === 'enabled' ? 'danger' : 'secondary'}
+            loading={pushBusy}
+            disabled={pushStatus === 'unsupported'}
+            onPress={() => void togglePush()}
+          />
+        </BusinessCard>
+      </View>
+
+      <View style={styles.section}>
+        <BusinessSectionTitle>Versão e atualizações</BusinessSectionTitle>
+        <BusinessCard>
+          <Text selectable style={styles.cardMeta}>
+            Updates são aceitos somente quando o runtime nativo é compatível com esta versão do aplicativo.
+          </Text>
+          {updateNotice ? <BusinessNotice message={updateNotice} tone={updateNotice.startsWith('Este build') ? 'success' : 'neutral'} /> : null}
+          <BusinessButton label="Verificar update compatível" variant="secondary" loading={updateBusy} onPress={() => void checkUpdate()} />
         </BusinessCard>
       </View>
 

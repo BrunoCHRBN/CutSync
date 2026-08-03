@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 
 import {
-  consumeBusinessAuthCallbackWithClient,
+  createBusinessAuthCallbackConsumer,
   isValidBusinessInvitationToken,
   type BusinessAuthCallbackClient,
   type BusinessAuthCallbackKind,
@@ -32,6 +32,7 @@ export type BusinessAuthCallbackRouteParams = Partial<Record<
 >>;
 
 const BUSINESS_SCHEME = 'cutsync-business';
+const consumeBusinessAuthCallbackOnce = createBusinessAuthCallbackConsumer();
 
 const callbackRouteByKind: Record<BusinessAuthCallbackKind, string> = {
   confirmation: 'confirm-email',
@@ -87,5 +88,5 @@ export const consumeBusinessAuthCallback = async (
   client: BusinessAuthCallbackClient | null = supabase,
 ) => {
   if (!client) throw new Error('business_auth_not_configured');
-  return consumeBusinessAuthCallbackWithClient(url, kind, client);
+  return consumeBusinessAuthCallbackOnce(url, kind, client);
 };

@@ -23,6 +23,58 @@ export const shiftLocalDate = (localDate: string, days: number) => {
   ].join('-');
 };
 
+const localDateTimeParts = (value: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(value);
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+};
+
+export const localDateTimeToIso = (
+  localDate: string,
+  localTime: string,
+  timeZone: string,
+) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate) || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(localTime)) {
+    return null;
+  }
+  const [year, month, day] = localDate.split('-').map(Number);
+  const [hour, minute] = localTime.split(':').map(Number);
+  const desiredAsUtc = Date.UTC(year, month - 1, day, hour, minute);
+  let candidate = desiredAsUtc;
+
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const rendered = localDateTimeParts(new Date(candidate), timeZone);
+      const renderedAsUtc = Date.UTC(
+        Number(rendered.year),
+        Number(rendered.month) - 1,
+        Number(rendered.day),
+        Number(rendered.hour),
+        Number(rendered.minute),
+      );
+      candidate += desiredAsUtc - renderedAsUtc;
+    }
+    const verified = localDateTimeParts(new Date(candidate), timeZone);
+    if (
+      Number(verified.year) !== year
+      || Number(verified.month) !== month
+      || Number(verified.day) !== day
+      || Number(verified.hour) !== hour
+      || Number(verified.minute) !== minute
+    ) return null;
+    return new Date(candidate).toISOString();
+  } catch {
+    return null;
+  }
+};
+
 export const formatAgendaDate = (localDate: string, timeZone: string) => {
   const [year, month, day] = localDate.split('-').map(Number);
   return new Intl.DateTimeFormat('pt-BR', {
@@ -55,6 +107,7 @@ export const getAgendaStatusLabel = (status: string) => {
     case 'confirmed': return 'Confirmado';
     case 'completed': return 'Concluído';
     case 'cancelled': return 'Cancelado';
+    case 'no_show': return 'Não compareceu';
     default: return 'Atualizado';
   }
 };

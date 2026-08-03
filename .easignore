@@ -12,10 +12,12 @@ dist-phase*-check/
 web-build/
 expo-env.d.ts
 
-# The Client is generated from app.json on EAS. Keep the local native project
-# for Android Studio, but do not upload Windows-generated native artifacts.
+# Mobile native projects are generated from app.json on EAS. Keep local native
+# projects for Android Studio, but do not upload Windows-generated artifacts.
 /apps/client/android
 /apps/client/ios
+/apps/business/android
+/apps/business/ios
 
 # Native build artifacts from other workspace apps
 .kotlin/
@@ -60,3 +62,6 @@ __pycache__/
 
 # Firebase's Android client configuration is intentionally included.
 !apps/client/google-services.json
+
+# Business receives this file through the GOOGLE_SERVICES_JSON EAS file variable.
+/apps/business/google-services.json

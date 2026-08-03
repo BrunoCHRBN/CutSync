@@ -10,6 +10,10 @@ import {
   useClientOnboarding,
 } from '@/contexts/client-onboarding-context';
 import {
+  ClientQueryProvider,
+  ClientQuerySessionReset,
+} from '@/features/connectivity/client-query-provider';
+import {
   clientNavigationIntegration,
   clientObservability,
 } from '@/features/observability/client-observability';
@@ -18,14 +22,15 @@ import { clientTheme } from '@/theme/client-theme';
 
 function ClientRootLayout() {
   return (
-    <>
+    <ClientQueryProvider>
       <ReducedMotionConfig mode={ReduceMotion.System} />
       <ClientOnboardingProvider>
         <SessionProvider>
+          <ClientQuerySessionReset />
           <ClientNavigator />
         </SessionProvider>
       </ClientOnboardingProvider>
-    </>
+    </ClientQueryProvider>
   );
 }
 

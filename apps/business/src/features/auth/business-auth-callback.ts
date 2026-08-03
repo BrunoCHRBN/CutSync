@@ -20,7 +20,15 @@ export interface BusinessAuthCallbackClient {
   };
 }
 
+type BusinessAuthCallbackConsumer = (
+  url: string,
+  kind: BusinessAuthCallbackKind,
+  client: BusinessAuthCallbackClient,
+) => Promise<BusinessAuthCallbackResult>;
+
 export const BUSINESS_INVITATION_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+const BUSINESS_TEAM_INVITATION_PATH_PATTERN = /^\/invitations\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+const MAX_COMPLETED_CALLBACKS = 8;
 
 const firstString = (value: string | string[] | undefined) => (
   Array.isArray(value) ? value[0] : value
@@ -30,6 +38,24 @@ const parseCallbackParams = (url: string) => {
   const query = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
   const fragment = url.includes('#') ? url.split('#')[1] : '';
   return new URLSearchParams([query, fragment].filter(Boolean).join('&'));
+};
+
+const getCallbackCredentialKey = (
+  url: string,
+  kind: BusinessAuthCallbackKind,
+) => {
+  const params = parseCallbackParams(url);
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const code = params.get('code');
+  const tokenHash = params.get('token_hash');
+
+  if (accessToken && refreshToken) {
+    return `${kind}:session:${accessToken}:${refreshToken}`;
+  }
+  if (code) return `${kind}:code:${code}`;
+  if (tokenHash) return `${kind}:token_hash:${tokenHash}`;
+  return null;
 };
 
 export const isValidBusinessInvitationToken = (
@@ -55,8 +81,11 @@ export const getBusinessInvitationTokenFromRedirect = (
 export const getSafeBusinessAuthRedirect = (
   redirect: string | string[] | undefined,
 ) => {
+  const value = firstString(redirect);
   const invitationToken = getBusinessInvitationTokenFromRedirect(redirect);
-  return invitationToken ? `/invite/${invitationToken}` : '/';
+  if (invitationToken) return `/invite/${invitationToken}`;
+  const teamInvitation = value ? BUSINESS_TEAM_INVITATION_PATH_PATTERN.exec(value) : null;
+  return teamInvitation ? `/invitations/${teamInvitation[1].toLowerCase()}` : '/';
 };
 
 export const getBusinessAuthInvitationTokenFromUrl = (url: string) => {
@@ -115,5 +144,42 @@ export const consumeBusinessAuthCallbackWithClient = async (
 
   return {
     invitationToken: getBusinessAuthInvitationTokenFromUrl(url),
+  };
+};
+
+export const createBusinessAuthCallbackConsumer = (): BusinessAuthCallbackConsumer => {
+  const consumptions = new Map<string, Promise<void>>();
+
+  return async (url, kind, client) => {
+    const credentialKey = getCallbackCredentialKey(url, kind);
+    if (!credentialKey) {
+      return consumeBusinessAuthCallbackWithClient(url, kind, client);
+    }
+
+    let consumption = consumptions.get(credentialKey);
+    if (!consumption) {
+      consumption = consumeBusinessAuthCallbackWithClient(url, kind, client)
+        .then(() => undefined);
+      consumptions.set(credentialKey, consumption);
+    }
+
+    try {
+      await consumption;
+    } catch (error) {
+      if (consumptions.get(credentialKey) === consumption) {
+        consumptions.delete(credentialKey);
+      }
+      throw error;
+    }
+
+    while (consumptions.size > MAX_COMPLETED_CALLBACKS) {
+      const oldestKey = consumptions.keys().next().value;
+      if (!oldestKey) break;
+      consumptions.delete(oldestKey);
+    }
+
+    return {
+      invitationToken: getBusinessAuthInvitationTokenFromUrl(url),
+    };
   };
 };

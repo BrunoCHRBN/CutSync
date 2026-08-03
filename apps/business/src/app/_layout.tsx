@@ -1,5 +1,7 @@
-import { Stack } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
+import { Stack, useNavigationContainerRef, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 
 import { BusinessOperationalProvider, useBusinessOperational } from '@/contexts/business-operational-context';
 import { BusinessSessionProvider, useBusinessSession } from '@/contexts/business-session';
@@ -7,16 +9,27 @@ import {
   BusinessQueryProvider,
   BusinessQueryScopeReset,
 } from '@/features/connectivity/business-query-provider';
+import { resolveBusinessDeepLink } from '@/features/links/business-deep-links';
+import { BusinessNotificationsProvider } from '@/features/notifications/business-notifications-provider';
+import {
+  businessNavigationIntegration,
+  businessObservability,
+} from '@/features/observability/business-observability';
+import { BusinessReleaseGate } from '@/features/updates/business-release-gate';
 import { businessTheme } from '@/theme/business-theme';
 
-export default function BusinessRootLayout() {
+function BusinessRootLayout() {
   return (
     <BusinessQueryProvider>
       <BusinessSessionProvider>
         <BusinessOperationalProvider>
           <BusinessQueryScopeReset />
-          <StatusBar style="light" />
-          <BusinessRootNavigator />
+          <BusinessNotificationsProvider>
+            <BusinessReleaseGate>
+              <StatusBar style="light" />
+              <BusinessRootNavigator />
+            </BusinessReleaseGate>
+          </BusinessNotificationsProvider>
         </BusinessOperationalProvider>
       </BusinessSessionProvider>
     </BusinessQueryProvider>
@@ -24,11 +37,32 @@ export default function BusinessRootLayout() {
 }
 
 function BusinessRootNavigator() {
-  const { session } = useBusinessSession();
-  const { activeContext } = useBusinessOperational();
-  const hasOperationalAccess = Boolean(
-    session && activeContext && activeContext.accessMode !== 'blocked',
+  const { isLoading: isSessionLoading, session, user } = useBusinessSession();
+  const { activeContext, contexts, isLoading: isOperationalLoading } = useBusinessOperational();
+  const navigationContainerRef = useNavigationContainerRef();
+  const pathname = usePathname();
+  const isAccessBootstrapping = isSessionLoading || Boolean(session && isOperationalLoading);
+  const routeLink = resolveBusinessDeepLink(pathname);
+  const canResolveAppointmentRoute = Boolean(
+    session
+    && routeLink?.kind === 'appointment'
+    && contexts.some((context) => context.accessMode !== 'blocked'),
   );
+  const hasOperationalAccess = isAccessBootstrapping
+    || canResolveAppointmentRoute
+    || Boolean(session && activeContext && activeContext.accessMode !== 'blocked');
+
+  useEffect(() => {
+    businessNavigationIntegration.registerNavigationContainer(navigationContainerRef);
+  }, [navigationContainerRef]);
+
+  useEffect(() => {
+    businessObservability.setUser(user?.id);
+  }, [user?.id]);
+
+  useEffect(() => {
+    businessObservability.setRoute(pathname);
+  }, [pathname]);
 
   return (
     <Stack
@@ -52,3 +86,5 @@ function BusinessRootNavigator() {
     </Stack>
   );
 }
+
+export default Sentry.wrap(BusinessRootLayout);

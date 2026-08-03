@@ -34,9 +34,7 @@ interface AppointmentDetail {
   shopId: string;
   shopName: string;
   shopAddress?: string;
-  serviceId?: string;
   serviceName: string;
-  professionalId?: string;
   barberName: string;
   contactPhone: string;
   shopSlug: string;
@@ -52,6 +50,7 @@ const statusMap: Record<string, { label: string; tone: 'warning' | 'info' | 'suc
   confirmed: { label: 'Confirmado', tone: 'info' },
   completed: { label: 'Concluído', tone: 'success' },
   cancelled: { label: 'Cancelado', tone: 'danger' },
+  no_show: { label: 'Não compareceu', tone: 'warning' },
 };
 
 export const AppointmentsExperience = () => {
@@ -60,7 +59,7 @@ export const AppointmentsExperience = () => {
   const router = useRouter();
   const [tab, setTab] = useState<AppointmentTab>('upcoming');
   const upcomingQuery = useAppointments({ clientId: profile?.id, statuses: ['pending', 'confirmed'] });
-  const historyQuery = useAppointments({ clientId: profile?.id, statuses: ['completed', 'cancelled'], enabled: tab === 'history' });
+  const historyQuery = useAppointments({ clientId: profile?.id, statuses: ['completed', 'cancelled', 'no_show'], enabled: tab === 'history' });
   const activeQuery = tab === 'history' ? historyQuery : upcomingQuery;
   const records = activeQuery.appointments;
   const loading = activeQuery.loading;
@@ -138,9 +137,7 @@ export const AppointmentsExperience = () => {
       shopId: item.establishment?.id || '',
       shopName: item.establishment?.name || 'Barbearia',
       shopAddress: item.establishment?.address || undefined,
-      serviceId: item.service?.id || item.serviceId || undefined,
       serviceName: item.service?.name || 'Serviço',
-      professionalId: item.professional?.id || item.professionalId || undefined,
       barberName: item.professional?.name || 'Profissional',
       contactPhone: item.establishment?.phone || '',
       shopSlug: item.establishment?.slug || '',
@@ -269,17 +266,6 @@ export const AppointmentsExperience = () => {
       pathname: '/[slug]/booking',
       params: { slug: item.shopSlug, reschedule_id: item.id },
     });
-  };
-
-  const handleRebook = (item: AppointmentDetail) => {
-    if (!item.shopId) {
-      setNotice({ tone: 'danger', message: 'Não foi possível abrir um novo agendamento para este estabelecimento.' });
-      return;
-    }
-    tapLight();
-    const params: Record<string, string> = { establishmentId: item.shopId };
-    if (item.serviceId) params.serviceId = item.serviceId;
-    router.push({ pathname: '/(client)/booking', params });
   };
 
   return (
@@ -440,16 +426,13 @@ export const AppointmentsExperience = () => {
                       )
                     ) : null}
 
-                    {tab === 'history' ? (
-                      <View style={styles.historyActionsRow}>
-                        <AppButton
-                          label="Agendar novamente"
-                          testID={`client-appointment-${item.id}-rebook-button`}
-                          onPress={() => handleRebook(item)}
-                          variant="secondary"
-                          style={styles.reviewBtn}
-                        />
-                        {item.status !== 'cancelled' && !reviewsMap.has(item.id) ? (
+                    {tab === 'history' && item.status === 'completed' ? (
+                      reviewsMap.has(item.id) ? (
+                        <View style={styles.reviewedBadge}>
+                          <Text style={styles.reviewedBadgeText}>★ {reviewsMap.get(item.id)?.rating} · Avaliado</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.historyActionsRow}>
                           <AppButton
                             label="Avaliar Atendimento"
                             testID={`client-appointment-${item.id}-review-button`}
@@ -457,16 +440,11 @@ export const AppointmentsExperience = () => {
                               tapLight();
                               setReviewingAppointment(item);
                             }}
-                            variant="ghost"
+                            variant="secondary"
                             style={styles.reviewBtn}
                           />
-                        ) : null}
-                        {item.status !== 'cancelled' && reviewsMap.has(item.id) ? (
-                          <View style={styles.reviewedBadge}>
-                            <Text style={styles.reviewedBadgeText}>★ {reviewsMap.get(item.id)?.rating} · Avaliado</Text>
-                          </View>
-                        ) : null}
-                      </View>
+                        </View>
+                      )
                     ) : null}
                   </View>
                 </AppCard>

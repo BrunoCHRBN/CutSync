@@ -63,7 +63,7 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   invitation_unavailable: 'Não foi possível consultar este convite.',
   invitation_invalid: 'Este convite é inválido.',
   invitation_expired: 'Este convite expirou. Solicite um novo link.',
-  invitation_email_mismatch: 'Entre usando exatamente o e-mail que recebeu o convite.',
+  invitation_email_mismatch: 'Entre com a conta que possui o contato confirmado do convite.',
   invitation_already_used: 'Este convite não está mais disponível.',
   invitation_accept_failed: 'Não foi possível aceitar este convite.',
   financial_ops_disabled: 'As operações financeiras ainda não estão ativas nesta unidade.',
@@ -121,7 +121,10 @@ export interface BusinessApi {
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
   inspectInvitation: (token: string) => Promise<BusinessInvitationDetails>;
-  acceptInvitation: (token: string) => Promise<BusinessInvitationAcceptance>;
+  acceptInvitation: (
+    token: string,
+    requestId: string,
+  ) => Promise<BusinessInvitationAcceptance>;
 }
 
 type RpcResult = {
@@ -151,7 +154,7 @@ const invokeRpc = async <Name extends BusinessRpcName>(
   name: Name,
   args?: BusinessRpcArgs<Name>,
 ): Promise<RpcResult> => {
-  const caller = client.rpc as unknown as RpcCaller;
+  const caller = client.rpc.bind(client) as unknown as RpcCaller;
   return caller(name, args);
 };
 
@@ -275,6 +278,11 @@ const requireToken = (token: string): string => {
   return token;
 };
 
+const requireRequestId = (requestId: string): string => {
+  if (!UUID_PATTERN.test(requestId)) throw new BusinessApiError('invalid_request');
+  return requestId;
+};
+
 export const createBusinessApi = (
   nullableClient: SupabaseClient<Database> | null,
 ): BusinessApi => ({
@@ -394,8 +402,8 @@ export const createBusinessApi = (
     const client = requireClient(nullableClient);
     let result: RpcResult;
     try {
-      result = await invokeRpc(client, 'inspect_invitation', {
-        invitation_token: invitationToken,
+      result = await invokeRpc(client, 'inspect_business_invitation_token', {
+        target_invitation_token: invitationToken,
       });
     } catch (error) {
       throw translateRpcError('inspect_invitation', error);
@@ -408,13 +416,15 @@ export const createBusinessApi = (
     return invitation;
   },
 
-  async acceptInvitation(token) {
+  async acceptInvitation(token, requestId) {
     const invitationToken = requireToken(token);
+    const commandRequestId = requireRequestId(requestId);
     const client = requireClient(nullableClient);
     let result: RpcResult;
     try {
-      result = await invokeRpc(client, 'accept_invitation', {
-        invitation_token: invitationToken,
+      result = await invokeRpc(client, 'accept_business_invitation_token', {
+        target_invitation_token: invitationToken,
+        target_request_id: commandRequestId,
       });
     } catch (error) {
       throw translateRpcError('accept_invitation', error);

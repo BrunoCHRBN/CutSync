@@ -6,6 +6,12 @@
     "orientation": "portrait",
     "scheme": "cutsync-business",
     "userInterfaceStyle": "dark",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e7525fdb-a629-40b7-b1e3-b2d043a88fea"
+    },
     "ios": {
       "bundleIdentifier": "com.cutsync.business",
       "supportsTablet": true,
@@ -17,7 +23,17 @@
       "package": "com.cutsync.business",
       "softwareKeyboardLayoutMode": "resize"
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "operations"
+        }
+      ],
+      "@sentry/react-native"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

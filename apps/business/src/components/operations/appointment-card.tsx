@@ -23,12 +23,11 @@ export function AppointmentCard({
 }) {
   const tone = item.status === 'completed'
     ? 'success'
-    : item.status === 'cancelled'
+    : item.status === 'cancelled' || item.status === 'no_show'
       ? 'danger'
       : item.status === 'pending'
         ? 'warning'
         : 'neutral';
-
   const content = (
     <>
       <View style={styles.timeColumn}>

@@ -34,6 +34,7 @@ export default function ClientAppLayout() {
           <Stack.Screen name="profile" options={{ title: 'Editar perfil' }} />
           <Stack.Screen name="preferences" options={{ title: 'Preferências' }} />
           <Stack.Screen name="security" options={{ title: 'Segurança' }} />
+          <Stack.Screen name="establishment-links" options={{ title: 'Estabelecimentos' }} />
           <Stack.Screen name="support/index" options={{ title: 'Suporte' }} />
           <Stack.Screen
             name="support/new"
