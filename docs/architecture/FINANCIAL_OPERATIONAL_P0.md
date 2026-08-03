@@ -1,15 +1,13 @@
 # Ciclo financeiro-operacional do estabelecimento — P0
 
-Status: Etapa 0–2 implementadas; **Etapa 3 implementada e endurecida** (RPCs de
-ciclo de `service_orders` — contratos SQL/TS alinhados, mappers fail-closed,
-cobertura remove/read_only/blocked; stacked sobre Etapa 2); etapas 4+
-planejadas, **não iniciadas**
+Status: Etapa 0–3 implementadas; **Etapa 4 implementada** (integração
+appointment ↔ service_order no Business e Web, atrás de `financial_ops_enabled`;
+stacked sobre Etapa 3); etapas 5+ planejadas, **não iniciadas**
 
 Data da verificação: 2026-08-03  
-Baseline Etapa 3: `p0/02-service-order-schema` @ `bf006dc49fe358e9f2216c44dc66a3fac79f699c`
-Branch de implementação da Etapa 3: `p0/03-service-order-lifecycle-rpcs`
-@ `ff1201e32fce99ec3cdb4686519ef338c5a1d772`
-(PR base inicial = `p0/02-service-order-schema` até merge da Etapa 2)
+Baseline Etapa 4: `p0/03-service-order-lifecycle-rpcs` @ `56b34a065587e777f942724d2711f3dd5082315a`
+Branch de implementação da Etapa 4: `p0/04-appointment-service-order-integration`
+(PR base = `p0/03-service-order-lifecycle-rpcs` até merge da Etapa 3)
 
 Documentos irmãos:
 
@@ -993,7 +991,26 @@ forem verdadeiros:
 - [x] Unitário estático isola cada função (claim/complete/versão/parity SQL↔TS)
 - [x] Teste SQL transacional + unitário estático (artefatos)
 - [ ] Execução SQL / homologação (**pendente** sem Postgres neste ambiente)
-- [x] Etapa 4 não iniciada
+- [x] Etapa 4 iniciada em branch empilhada
+
+### 15.5 Critério de pronto desta Etapa 4
+
+- [x] Migration `20260817000000_appointment_service_order_integration.sql`
+- [x] Bridge `get_service_order_for_appointment`
+- [x] Trigger `enforce_appointment_service_order_consistency`
+- [x] `finish_service_order` com marcador `app.service_order_finish_order_id`
+- [x] Flag off preserva confirmação/conclusão/reagendamento legados
+- [x] Flag on bloqueia `confirmed → completed` direto
+- [x] Comanda existente bloqueia cancel/no-show/reagendamento/transferência
+- [x] Business: Hoje/Agenda → detalhe + open/start/finish
+- [x] Web: profissional + admin + `AppointmentDetailSheet`
+- [x] `FinancialOpsProvider` + hook `useAppointmentServiceOrder`
+- [x] own/team + read_only/blocked
+- [x] Copy `awaiting_payment` sem texto de “pago”
+- [x] Sem payment UI / close / void / reopen / editor de itens
+- [x] Testes SQL + unitários (artefatos)
+- [ ] Execução SQL / homologação (**pendente** sem Postgres neste ambiente)
+- [x] Etapa 5 não iniciada
 
 ## 16. Plano de etapas seguintes
 
@@ -1024,7 +1041,7 @@ execução:
 | **1** | Flag `financial_ops_enabled` + capabilities granulares + contratos domain/validation — **implementada** |
 | **2** | Schema `service_orders` / items / events + `UNIQUE (appointment_id) WHERE appointment_id IS NOT NULL`; sem coluna `payment_status` — **implementada** (homologação SQL pendente) |
 | **3** | RPCs de ciclo: open / start / finish / close / void / reopen / items / get / list — **implementada + endurecida** (stacked; contratos alinhados; homologação SQL pendente) |
-| **4** | Integração appointment ↔ check-in/comanda (Business/Web, flag on) — **não iniciada** |
+| **4** | Integração appointment ↔ check-in/comanda (Business/Web, flag on) — **implementada** (stacked; homologação SQL pendente) |
 | **5** | `establishment_payment_methods` |
 | **6** | `order_payment_entries` + record/void payment |
 | **7** | `cash_registers` + `cash_sessions` + `cash_movements` |
@@ -1275,46 +1292,94 @@ Todas mutações: `SECURITY DEFINER` + `claim_mobile_command` /
 
 ### Status
 
-- Etapa 3: **implementada e endurecida no branch empilhado** (`ff1201e`)
-- Etapa 4 (UI/integração appointment): **não iniciada**
-- Pagamentos / caixa / comissão / provider / refunds / UI: **não iniciados**
+- Etapa 3: **implementada e endurecida no branch empilhado** (`ff1201e` / docs `56b34a0`)
+- Etapa 4: ver §16.6
+- Pagamentos / caixa / comissão / provider / refunds: **não iniciados**
+
+## 16.6 Etapa 4 — registro de implementação
+
+### Artefatos
+
+| Artefato | Local |
+| --- | --- |
+| Migration | `supabase/migrations/20260817000000_appointment_service_order_integration.sql` |
+| Teste SQL | `supabase/tests/appointment_service_order_integration.sql` |
+| Testes unitários | `tests/unit/appointment-service-order-integration.unit.spec.ts`, `tests/unit/appointment-service-order-presentation.unit.spec.ts` |
+| Contratos / API | `packages/database/src/business.ts`, `business-rpc.generated.ts`, `service-order-api.ts` |
+| UI helpers | `packages/domain/src/service-order-ui.ts` |
+| Business | `apps/business/src/services/business-api.ts`, `screens/appointment-operation.tsx`, Hoje/Agenda |
+| Web | `financial-ops-context.tsx`, `use-appointment-service-order.ts`, Professional/Admin + sheet |
+
+### Decisões desta etapa
+
+- Check-in = `open_service_order` com appointment confirmado; appointment permanece
+  `confirmed` durante `open`/`in_service`.
+- Só `finish_service_order` marca appointment `completed` (marcador local por
+  id da comanda); evento `appointment.completed` só pelo trigger existente.
+- Flag off: UI e RPCs legados intactos; trigger é no-op.
+- Flag on sem comanda: confirmação/cancel/no-show/reagendamento ok; conclusão
+  direta → `appointment_completion_requires_service_order`.
+- Comanda existente: mutações de status/horário/profissional/serviço/cliente →
+  `appointment_has_service_order`.
+- `awaiting_payment`: sem botão de pagamento; notice de próxima etapa.
+- close/void/reopen/itens custom/descontos: backend disponível, UI fora desta
+  fatia.
+
+### Testes / homologação
+
+| Suite | Resultado |
+| --- | --- |
+| Unit integration + presentation | **24 passed** (17 integration + 7 presentation) |
+| SQL integration (+ foundation/lifecycle) | **pendente** (sem Postgres/`DATABASE_URL`) |
+| Homologação | **pendente** — não declarar sem execução real |
+
+### Status
+
+- Etapa 4: **implementada no branch empilhado**
+- Etapa 5 (payment methods): **não iniciada**
+- Pagamentos / caixa / comissão / provider / refunds / reconciliation: **não iniciados**
 
 ## 17. Divergências código atual × arquitetura proposta
 
 Pontos em que o código de hoje **diverge** do alvo deste P0 (não são bugs desta
 etapa; são débitos explícitos a fechar nas etapas seguintes):
 
-1. **Domínio POS parcial** — Etapas 2–3 entregam schema + RPCs de ciclo de
-   `service_orders`; continuam inexistentes payment methods, payments, cash
-   registers/sessions, commission domain, provider foundation, refunds, policy
-   snapshots/resolutions e reconciliation.
+### Resolvidos nas Etapas 3–4
+
+- Check-in operacional via `open_service_order` (Business/Web, flag on).
+- Conclusão direta no Web bloqueada com flag on (UI + trigger).
+- Business com ações open/start/finish no detalhe do atendimento.
+- Integração appointment ↔ comanda (bridge + proteção server-side).
+
+### Ainda pendentes
+
+1. **Domínio POS parcial** — payment methods, payments, cash, commission,
+   provider, refunds, policy snapshots/resolutions e reconciliation ainda
+   inexistentes.
 2. **`price_charged` é `numeric(12,2)`** — domínio novo exige centavos; snapshot
    de appointment permanece decimal legado até bridge consciente.
-3. **`complete_*` ≠ `finish_service_order`** — fluxos legados ainda podem
-   concluir appointment sem comanda; Etapa 3 introduz `finish_service_order`
-   com janela `awaiting_payment`, mas UI/integração (Etapa 4) não consome isso.
-   Não há `payment_status` calculado a partir de pagamentos.
+3. **`payment_status` calculado** ainda não existe (sem `order_payment_entries`).
 4. **Separação operacional/financeiro incompleta** — status operacional da
-   comanda existe; `payment_status` permanece só calculado (sem coluna) e sem
-   entradas de pagamento ainda.
+   comanda existe; sem entradas de pagamento nem UI de quitação.
 5. **Comissão é só taxa + projeção** — sem policies/entries/adjustments/settlements.
-6. **Check-in de produto ainda não wired** — RPC `open_service_order` existe;
-   UI/agenda (Etapa 4) não iniciada.
-7. **Capabilities granulares da §6 existem na Etapa 1**; overrides por membership
-   ainda não.
+6. **Editor completo da comanda** (itens custom, descontos, close/void/reopen UI)
+   fora da Etapa 4.
+7. **Capabilities granulares da §6 existem**; overrides por membership ainda não.
 8. **Sem `membership_capability_overrides`**.
-9. **Flag `financial_ops_enabled` existe** (Etapa 1); rollout opt-in ainda
-   fechado (default `false`).
-10. **Assimetría de idempotência** — Business mobile / RPCs de comanda usam
-    `command_receipts`; Web `update_appointment_status_v2` não.
+9. **Flag `financial_ops_enabled` existe**; rollout opt-in ainda fechado
+   (default `false`).
+10. **Assimetría de idempotência** — RPCs de comanda usam `command_receipts`;
+    Web `update_appointment_status_v2` (legado, flag off) não.
 11. **Colisão semântica `service_order`** — erros de reorder de catálogo.
 12. **Dualidade de money** — ops legado decimal vs SaaS cents vs POS cents.
 13. **Contratos de produto** ainda marcam pagamento/caixa como fora do ciclo/MVP.
-14. **Business detail** não prioriza `price_charged`.
-15. **Business sem relatórios densos**.
+14. **Business detail** ainda mostra `serviceListPrice` além dos totais da
+    comanda (não usa list price como total da comanda).
+15. **Business sem relatórios financeiros densos**.
 16. **Nenhuma Edge Function de pagamento de atendimento**.
 17. **Sem Caixa principal / métodos de pagamento de unidade / provider event
     inbox**.
+18. **Homologação SQL** das migrations Etapas 2–4 ainda pendente neste ambiente.
 
 ## 18. Decisões tomadas nesta Etapa 0
 
@@ -1376,12 +1441,21 @@ etapa; são débitos explícitos a fechar nas etapas seguintes):
 - Edição de `supabase.generated.ts`.
 - Avanço para a Etapa 3 (feito depois, na Etapa 3).
 
-### Etapa 3 (atual) — fora de escopo explícito
+### Etapa 3 (histórico) — fora de escopo daquela entrega
 
 - Pagamentos, caixa, comissão, provedor, refunds, conciliação.
-- UI / rotas / hooks / integração appointment de produto (Etapa 4).
+- UI / rotas / hooks / integração appointment de produto (feito na Etapa 4).
 - Edição de `supabase.generated.ts` (contratos temporários em
   `business-rpc.generated.ts`).
+- Homologação sem execução real de SQL/`db reset`.
+
+### Etapa 4 (atual) — fora de escopo explícito
+
+- `establishment_payment_methods`, `order_payment_entries`, caixa, comissão,
+  provedor, refunds, reconciliation, policy snapshots.
+- UI de pagamento / close / void / reopen / editor completo de itens/descontos.
+- Client / Control.
+- Etapa 5.
 - Homologação sem execução real de SQL/`db reset`.
 
 ### Ainda fora do P0
