@@ -10,6 +10,7 @@ export * from './establishment-client';
 export * from './instagram-handle';
 export * from './mobile-commands';
 export * from './mobile-release';
+export * from './money';
 export * from './schedule';
 export * from './service-pricing';
 export * from './support';

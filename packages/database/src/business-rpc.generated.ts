@@ -1,12 +1,14 @@
 /**
- * Generated from the linked Supabase public schema after
- * 20260801000000_business_operational_access, with the pending Android-cycle
- * RPCs maintained here until that migration is homologated and the complete
- * Supabase types can be regenerated.
+ * Temporary Business RPC contract surface.
+ *
+ * Maintains pending/homologation-lagging RPCs until the linked Supabase schema
+ * is applied and `supabase.generated.ts` can be regenerated. Includes the
+ * `financial_ops_enabled` field from
+ * `20260814000000_financial_ops_foundation` — regenerate the monorepo-wide
+ * generated types after that migration is homologated.
  *
  * Keep this scoped surface in sync with the RPC definitions consumed by
- * CutSync Business. The monorepo-wide generated file is regenerated
- * independently because it is shared by concurrent product work.
+ * CutSync Business.
  */
 export interface BusinessRpcFunctions {
   accept_invitation: {
@@ -49,6 +51,7 @@ export interface BusinessRpcFunctions {
       establishment_id: string;
       establishment_name: string;
       establishment_slug: string;
+      financial_ops_enabled: boolean;
       grace_ends_at: string;
       membership_id: string;
       membership_role: string;
