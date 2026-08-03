@@ -455,18 +455,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS enforce_service_order_item_tenant_integrity
-  ON public.service_order_items;
-CREATE TRIGGER enforce_service_order_item_tenant_integrity
-BEFORE INSERT OR UPDATE OF
-  establishment_id,
-  service_order_id,
-  service_id,
-  professional_id
-ON public.service_order_items
-FOR EACH ROW
-EXECUTE FUNCTION public.enforce_service_order_item_tenant_integrity();
-
 REVOKE ALL ON FUNCTION public.enforce_service_order_item_tenant_integrity()
   FROM PUBLIC, anon, authenticated;
 
@@ -527,15 +515,35 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.enforce_service_order_items_mutable()
+  FROM PUBLIC, anon, authenticated;
+
+-- PostgreSQL runs same-timing triggers alphabetically. Numeric prefixes make
+-- mutability/parent immutability run before tenant checks.
+DROP TRIGGER IF EXISTS enforce_service_order_item_tenant_integrity
+  ON public.service_order_items;
 DROP TRIGGER IF EXISTS enforce_service_order_items_mutable
   ON public.service_order_items;
-CREATE TRIGGER enforce_service_order_items_mutable
-BEFORE INSERT OR UPDATE OR DELETE ON public.service_order_items
+DROP TRIGGER IF EXISTS service_order_items_10_mutability_guard
+  ON public.service_order_items;
+DROP TRIGGER IF EXISTS service_order_items_20_tenant_guard
+  ON public.service_order_items;
+
+CREATE TRIGGER service_order_items_10_mutability_guard
+BEFORE INSERT OR UPDATE OR DELETE
+ON public.service_order_items
 FOR EACH ROW
 EXECUTE FUNCTION public.enforce_service_order_items_mutable();
 
-REVOKE ALL ON FUNCTION public.enforce_service_order_items_mutable()
-  FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER service_order_items_20_tenant_guard
+BEFORE INSERT OR UPDATE OF
+  establishment_id,
+  service_order_id,
+  service_id,
+  professional_id
+ON public.service_order_items
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_service_order_item_tenant_integrity();
 
 -- ---------------------------------------------------------------------------
 -- Server-side totals recalculation

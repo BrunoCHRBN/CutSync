@@ -716,7 +716,7 @@ BEGIN
     'service_order_item_parent_immutable'
   );
 
-  -- 4: establishment_id of item cannot change
+  -- 4: establishment_id of item cannot change (parent immutability first)
   PERFORM pg_temp.expect_error(
     format(
       $sql$
@@ -727,6 +727,32 @@ BEGIN
       unit_b_id, owner_id, item_open_a_id
     ),
     'service_order_item_parent_immutable'
+  );
+
+  -- Parent unchanged: tenant integrity still rejects cross-unit service
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_order_items
+        SET service_id = 'so-service-b', updated_by = %L
+        WHERE id = %L
+      $sql$,
+      owner_id, item_open_a_id
+    ),
+    'service_order_item_service_tenant_mismatch'
+  );
+
+  -- Parent unchanged: tenant integrity still rejects cross-unit professional
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        UPDATE public.service_order_items
+        SET professional_id = %L, updated_by = %L
+        WHERE id = %L
+      $sql$,
+      pro_b_id, owner_id, item_open_a_id
+    ),
+    'service_order_item_professional_tenant_mismatch'
   );
 
   -- 5: normal editable-field updates remain allowed on open orders

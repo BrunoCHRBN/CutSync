@@ -1148,6 +1148,17 @@ Trigger `enforce_service_order_tenant_integrity` (INSERT/UPDATE das chaves):
 Itens: FK composta `(service_order_id, establishment_id)` + trigger de
 serviço/profissional (`service_order_item_*_tenant_mismatch`).
 
+Ordem explícita dos triggers `BEFORE` em `service_order_items` (PostgreSQL
+ordena alfabeticamente no mesmo timing/evento):
+
+1. `service_order_items_10_mutability_guard` →
+   `enforce_service_order_items_mutable` (parent imutável + freeze/`FOR UPDATE`)
+2. `service_order_items_20_tenant_guard` →
+   `enforce_service_order_item_tenant_integrity`
+
+Assim, UPDATE de `establishment_id`/`service_order_id` falha canonicamente com
+`service_order_item_parent_immutable` antes de qualquer mismatch de tenant.
+
 ### RLS / grants
 
 - RLS habilitado nas três tabelas.
@@ -1173,7 +1184,7 @@ serviço/profissional (`service_order_item_*_tenant_mismatch`).
 
 | Suite | Resultado |
 | --- | --- |
-| `tests/unit/service-orders-foundation.unit.spec.ts` | **10 passed** após harden (lock/parent/actor/cronologia) |
+| `tests/unit/service-orders-foundation.unit.spec.ts` | **11 passed** (inclui ordem determinística 10/20 dos triggers) |
 | `supabase/tests/service_orders_foundation.sql` | ampliado (parent imutável, actor/timestamp, cronologia); **execução SQL ainda pendente** (sem `psql`/`DATABASE_URL`/Docker) |
 | Homologação `supabase db reset` | **pendente** — não declarar homologada sem execução real |
 | `typecheck:shared` / `typecheck:business` / `lint` | OK nesta correção |

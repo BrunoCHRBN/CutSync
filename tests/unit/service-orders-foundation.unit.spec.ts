@@ -141,6 +141,38 @@ test('item mutations lock the order with FOR UPDATE and keep parent immutable', 
   expect(migration).toContain('recalculate_service_order_totals can reuse');
 });
 
+test('item BEFORE triggers run mutability before tenant via deterministic names', () => {
+  expect(migration).toContain(
+    'CREATE TRIGGER service_order_items_10_mutability_guard',
+  );
+  expect(migration).toContain(
+    'CREATE TRIGGER service_order_items_20_tenant_guard',
+  );
+  const mutabilityIdx = migration.indexOf(
+    'CREATE TRIGGER service_order_items_10_mutability_guard',
+  );
+  const tenantIdx = migration.indexOf(
+    'CREATE TRIGGER service_order_items_20_tenant_guard',
+  );
+  expect(mutabilityIdx).toBeGreaterThanOrEqual(0);
+  expect(tenantIdx).toBeGreaterThan(mutabilityIdx);
+
+  // Legacy trigger names must not remain as the final active CREATE TRIGGER.
+  expect(migration).not.toMatch(
+    /CREATE TRIGGER enforce_service_order_items_mutable\b/,
+  );
+  expect(migration).not.toMatch(
+    /CREATE TRIGGER enforce_service_order_item_tenant_integrity\b/,
+  );
+  // Functions remain; only trigger object names are ordered.
+  expect(migration).toContain(
+    'EXECUTE FUNCTION public.enforce_service_order_items_mutable()',
+  );
+  expect(migration).toContain(
+    'EXECUTE FUNCTION public.enforce_service_order_item_tenant_integrity()',
+  );
+});
+
 test('actors and chronology are paired by CHECK constraints', () => {
   expect(migration).toContain('CONSTRAINT service_orders_transition_actor_chk');
   expect(migration).toContain('(started_at IS NULL) = (started_by IS NULL)');
@@ -163,6 +195,8 @@ test('teste SQL é transacional e cobre invariantes críticos', () => {
   expect(sqlTest).toContain('service_order_events_is_immutable');
   expect(sqlTest).toContain('service_order_appointment_tenant_mismatch');
   expect(sqlTest).toContain('service_order_item_parent_immutable');
+  expect(sqlTest).toContain('service_order_item_service_tenant_mismatch');
+  expect(sqlTest).toContain('service_order_item_professional_tenant_mismatch');
   expect(sqlTest).toContain('service_orders_transition_actor_chk');
   expect(sqlTest).toContain('service_orders_transition_chronology_chk');
   expect(sqlTest).toContain('Etapa 3 RPCs must not exist yet');
