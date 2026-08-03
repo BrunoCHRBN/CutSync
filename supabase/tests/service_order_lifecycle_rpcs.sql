@@ -87,15 +87,28 @@ DECLARE
   walk_zero_finish uuid := gen_random_uuid();
   walk_zero_close uuid := gen_random_uuid();
   pro_b_open_req uuid := gen_random_uuid();
+  remove_req_id uuid := gen_random_uuid();
+  remove_other_item_req uuid := gen_random_uuid();
+  remove_pro_own_req uuid := gen_random_uuid();
+  remove_admin_req uuid := gen_random_uuid();
   order_main_id uuid;
   order_pro_b_id uuid;
   order_walk1_id uuid;
   order_walk2_id uuid;
   order_empty_id uuid;
   order_zero_id uuid;
+  order_remove_id uuid;
   item_seed_id uuid;
   item_extra_id uuid;
+  item_remove_id uuid;
+  item_keep_id uuid;
+  item_other_order_id uuid;
   version_v bigint;
+  previous_version bigint;
+  previous_subtotal bigint;
+  previous_discount bigint;
+  previous_total bigint;
+  removed_events integer;
   result jsonb;
   replay jsonb;
   detail jsonb;
@@ -107,6 +120,7 @@ DECLARE
   completed_events integer;
   local_day date;
   flag_value boolean;
+  context_record record;
   col_exists boolean;
 BEGIN
   -- Frontiers: payment/cash/commission tables must not exist yet
@@ -561,6 +575,202 @@ BEGIN
   END IF;
 
   ------------------------------------------------------------------
+  -- remove_service_order_item (named args + replay/authz/freeze)
+  ------------------------------------------------------------------
+
+  -- dedicated open order with two catalog items for removal checks
+  PERFORM pg_temp.set_actor(pro_a_id);
+  result := public.open_service_order(
+    unit_a_id, gen_random_uuid(), NULL, pro_a_id, client_a_id, NULL
+  );
+  order_remove_id := (result->>'serviceOrderId')::uuid;
+  version_v := (result->>'version')::bigint;
+
+  result := public.upsert_service_order_item(
+    unit_a_id, order_remove_id, version_v, gen_random_uuid(),
+    NULL, service_cut_id, pro_a_id, NULL, 1, 0, NULL
+  );
+  item_remove_id := (result->>'serviceOrderItemId')::uuid;
+  version_v := (result->>'version')::bigint;
+
+  result := public.upsert_service_order_item(
+    unit_a_id, order_remove_id, version_v, gen_random_uuid(),
+    NULL, service_extra_id, pro_a_id, NULL, 1, 0, NULL
+  );
+  item_keep_id := (result->>'serviceOrderItemId')::uuid;
+  version_v := (result->>'version')::bigint;
+
+  SELECT subtotal_cents, discount_cents, total_cents, version
+  INTO previous_subtotal, previous_discount, previous_total, previous_version
+  FROM public.service_orders
+  WHERE id = order_remove_id;
+
+  -- professional removes own item with named arguments
+  result := public.remove_service_order_item(
+    target_establishment_id => unit_a_id,
+    target_service_order_id => order_remove_id,
+    target_service_order_item_id => item_remove_id,
+    target_expected_version => previous_version,
+    target_request_id => remove_req_id
+  );
+  IF result->>'serviceOrderId' IS DISTINCT FROM order_remove_id::text THEN
+    RAISE EXCEPTION 'named remove returned unexpected order: %', result;
+  END IF;
+  version_v := (result->>'version')::bigint;
+  IF version_v IS DISTINCT FROM previous_version + 1 THEN
+    RAISE EXCEPTION 'remove must bump version by exactly 1: % -> %',
+      previous_version, version_v;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.service_order_items WHERE id = item_remove_id
+  ) THEN
+    RAISE EXCEPTION 'removed item still exists';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.service_orders
+    WHERE id = order_remove_id
+      AND total_cents = previous_total - 7500
+      AND subtotal_cents = previous_subtotal - 7500
+      AND discount_cents = previous_discount
+  ) THEN
+    RAISE EXCEPTION 'remove did not recalculate totals correctly';
+  END IF;
+
+  SELECT count(*)::integer INTO removed_events
+  FROM public.service_order_events
+  WHERE service_order_id = order_remove_id
+    AND event_type = 'item_removed';
+  IF removed_events IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'expected one item_removed event, got %', removed_events;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.service_order_events
+    WHERE service_order_id = order_remove_id
+      AND event_type = 'item_removed'
+      AND metadata->>'itemId' = item_remove_id::text
+      AND metadata->>'serviceId' = service_cut_id
+  ) THEN
+    RAISE EXCEPTION 'item_removed metadata missing itemId/serviceId';
+  END IF;
+
+  -- replay same request_id: no new event
+  replay := public.remove_service_order_item(
+    target_establishment_id => unit_a_id,
+    target_service_order_id => order_remove_id,
+    target_service_order_item_id => item_remove_id,
+    target_expected_version => previous_version,
+    target_request_id => remove_req_id
+  );
+  IF replay IS DISTINCT FROM result THEN
+    RAISE EXCEPTION 'remove replay mismatch: % vs %', replay, result;
+  END IF;
+  SELECT count(*)::integer INTO removed_events
+  FROM public.service_order_events
+  WHERE service_order_id = order_remove_id
+    AND event_type = 'item_removed';
+  IF removed_events IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'remove replay duplicated item_removed event';
+  END IF;
+
+  -- same request_id with different item → idempotency_conflict
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_remove_id, item_keep_id, version_v, remove_req_id
+    ),
+    'idempotency_conflict'
+  );
+
+  -- wrong version
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_remove_id, item_keep_id, version_v + 99, gen_random_uuid()
+    ),
+    'service_order_version_conflict'
+  );
+
+  -- item from another order
+  SELECT id INTO item_other_order_id
+  FROM public.service_order_items
+  WHERE service_order_id = order_main_id
+  LIMIT 1;
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_remove_id, item_other_order_id, version_v, gen_random_uuid()
+    ),
+    'service_order_item_not_found'
+  );
+
+  -- professional cannot remove from another professional's order
+  SELECT version INTO version_v
+  FROM public.service_orders WHERE id = order_pro_b_id;
+  SELECT id INTO item_other_order_id
+  FROM public.service_order_items
+  WHERE service_order_id = order_pro_b_id
+  LIMIT 1;
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_pro_b_id, item_other_order_id, version_v, remove_other_item_req
+    ),
+    'forbidden'
+  );
+
+  -- admin can remove team item
+  PERFORM pg_temp.set_actor(admin_id);
+  SELECT version INTO version_v
+  FROM public.service_orders WHERE id = order_remove_id;
+  result := public.remove_service_order_item(
+    target_establishment_id => unit_a_id,
+    target_service_order_id => order_remove_id,
+    target_service_order_item_id => item_keep_id,
+    target_expected_version => version_v,
+    target_request_id => remove_admin_req
+  );
+  IF EXISTS (SELECT 1 FROM public.service_order_items WHERE id = item_keep_id) THEN
+    RAISE EXCEPTION 'admin team remove failed to delete item';
+  END IF;
+
+  ------------------------------------------------------------------
   -- Finish / freeze / close
   ------------------------------------------------------------------
 
@@ -592,11 +802,30 @@ BEGIN
       completed_events;
   END IF;
 
-  -- items frozen after finish
+  -- items frozen after finish (upsert + remove)
   PERFORM pg_temp.expect_error(
     format(
       'SELECT public.upsert_service_order_item(%L::uuid, %L::uuid, %s::bigint, %L::uuid, NULL, %L, NULL, NULL, 1, 0, NULL)',
       unit_a_id, order_main_id, version_v, gen_random_uuid(), service_extra_id
+    ),
+    'service_order_items_frozen'
+  );
+  SELECT id INTO item_other_order_id
+  FROM public.service_order_items
+  WHERE service_order_id = order_main_id
+  LIMIT 1;
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_main_id, item_other_order_id, version_v, gen_random_uuid()
     ),
     'service_order_items_frozen'
   );
@@ -651,6 +880,29 @@ BEGIN
     RAISE EXCEPTION 'zero-total close expected closed, got %', result;
   END IF;
 
+  -- remove frozen on closed
+  SELECT version INTO version_v
+  FROM public.service_orders WHERE id = order_zero_id;
+  SELECT id INTO item_other_order_id
+  FROM public.service_order_items
+  WHERE service_order_id = order_zero_id
+  LIMIT 1;
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_zero_id, item_other_order_id, version_v, gen_random_uuid()
+    ),
+    'service_order_items_frozen'
+  );
+
   ------------------------------------------------------------------
   -- Void / reopen
   ------------------------------------------------------------------
@@ -679,6 +931,27 @@ BEGIN
     RAISE EXCEPTION 'void changed service order id';
   END IF;
   version_v := (result->>'version')::bigint;
+
+  -- remove frozen on voided
+  SELECT id INTO item_other_order_id
+  FROM public.service_order_items
+  WHERE service_order_id = order_main_id
+  LIMIT 1;
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_main_id, item_other_order_id, version_v, gen_random_uuid()
+    ),
+    'service_order_items_frozen'
+  );
 
   -- second appointment order still blocked after void
   PERFORM pg_temp.expect_error(
@@ -794,6 +1067,240 @@ BEGIN
   IF col_exists THEN
     RAISE EXCEPTION 'service_orders.payment_status must not exist';
   END IF;
+
+  ------------------------------------------------------------------
+  -- read_only / blocked via real billing access modes
+  ------------------------------------------------------------------
+
+  -- Force real read_only context (expired trial), keep financial_ops_enabled.
+  PERFORM pg_temp.clear_actor();
+  UPDATE public.billing_accounts AS account
+  SET trial_started_at = now() - interval '15 days',
+      trial_ends_at = now() - interval '1 day',
+      transition_ends_at = NULL,
+      courtesy_ends_at = NULL
+  WHERE account.establishment_id = unit_a_id;
+
+  PERFORM pg_temp.set_actor(admin_id);
+  SELECT * INTO context_record
+  FROM public.get_my_business_operational_contexts() AS context
+  WHERE context.establishment_id = unit_a_id;
+  IF context_record.access_mode IS DISTINCT FROM 'read_only' THEN
+    RAISE EXCEPTION 'expected read_only access_mode, got %', context_record.access_mode;
+  END IF;
+  IF NOT ('view_orders' = ANY (context_record.capabilities))
+     OR 'manage_team_orders' = ANY (context_record.capabilities)
+  THEN
+    RAISE EXCEPTION 'read_only capabilities unexpected: %', context_record.capabilities;
+  END IF;
+
+  -- reads allowed in scope
+  detail := public.get_service_order(unit_a_id, order_main_id);
+  IF detail->'order' IS NULL THEN
+    RAISE EXCEPTION 'read_only admin get_service_order failed';
+  END IF;
+  list_payload := public.list_service_orders_for_day(unit_a_id, local_day, 'team');
+  IF jsonb_typeof(list_payload->'items') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'read_only list team failed: %', list_payload;
+  END IF;
+
+  PERFORM pg_temp.set_actor(pro_a_id);
+  detail := public.get_service_order(unit_a_id, order_main_id);
+  IF detail->'order' IS NULL THEN
+    RAISE EXCEPTION 'read_only pro get own failed';
+  END IF;
+  list_payload := public.list_service_orders_for_day(unit_a_id, local_day, 'own');
+  IF jsonb_typeof(list_payload->'items') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'read_only list own failed';
+  END IF;
+
+  -- mutations forbidden in read_only (use current versions to avoid version_conflict)
+  PERFORM pg_temp.set_actor(admin_id);
+  SELECT version INTO version_v FROM public.service_orders WHERE id = order_main_id;
+  SELECT version INTO previous_version FROM public.service_orders WHERE id = order_remove_id;
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.open_service_order(%L::uuid, %L::uuid, NULL, %L::uuid, NULL, NULL)',
+      unit_a_id, gen_random_uuid(), pro_a_id
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.start_service_order(%L::uuid, %L::uuid, %s::bigint, %L::uuid)',
+      unit_a_id, order_remove_id, previous_version, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.upsert_service_order_item(%L::uuid, %L::uuid, %s::bigint, %L::uuid, NULL, %L, NULL, NULL, 1, 0, NULL)',
+      unit_a_id, order_remove_id, previous_version, gen_random_uuid(), service_cut_id
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_main_id, item_seed_id, version_v, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.finish_service_order(%L::uuid, %L::uuid, %s::bigint, %L::uuid)',
+      unit_a_id, order_remove_id, previous_version, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.close_service_order(%L::uuid, %L::uuid, %s::bigint, %L::uuid)',
+      unit_a_id, order_main_id, version_v, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.void_service_order(%L::uuid, %L::uuid, %s::bigint, %L, %L::uuid)',
+      unit_a_id, order_main_id, version_v, 'read only void', gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.reopen_voided_service_order(%L::uuid, %L::uuid, %s::bigint, %L, %L::uuid)',
+      unit_a_id, order_main_id, version_v, 'read only reopen', gen_random_uuid()
+    ),
+    'forbidden'
+  );
+
+  -- blocked: establishment account_status
+  PERFORM pg_temp.clear_actor();
+  UPDATE public.establishments
+  SET account_status = 'blocked'
+  WHERE id = unit_a_id;
+
+  PERFORM pg_temp.set_actor(admin_id);
+  SELECT * INTO context_record
+  FROM public.get_my_business_operational_contexts() AS context
+  WHERE context.establishment_id = unit_a_id;
+  IF context_record.access_mode IS DISTINCT FROM 'blocked'
+     OR cardinality(context_record.capabilities) <> 0
+  THEN
+    RAISE EXCEPTION 'expected blocked empty capabilities, got % / %',
+      context_record.access_mode, context_record.capabilities;
+  END IF;
+
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.get_service_order(%L::uuid, %L::uuid)',
+      unit_a_id, order_main_id
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.list_service_orders_for_day(%L::uuid, %L::date, %L)',
+      unit_a_id, local_day, 'team'
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.open_service_order(%L::uuid, %L::uuid, NULL, %L::uuid, NULL, NULL)',
+      unit_a_id, gen_random_uuid(), pro_a_id
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.start_service_order(%L::uuid, %L::uuid, %s::bigint, %L::uuid)',
+      unit_a_id, order_remove_id, previous_version, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.upsert_service_order_item(%L::uuid, %L::uuid, %s::bigint, %L::uuid, NULL, %L, NULL, NULL, 1, 0, NULL)',
+      unit_a_id, order_remove_id, previous_version, gen_random_uuid(), service_cut_id
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      $sql$
+        SELECT public.remove_service_order_item(
+          target_establishment_id => %L::uuid,
+          target_service_order_id => %L::uuid,
+          target_service_order_item_id => %L::uuid,
+          target_expected_version => %s::bigint,
+          target_request_id => %L::uuid
+        )
+      $sql$,
+      unit_a_id, order_main_id, item_seed_id, version_v, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.finish_service_order(%L::uuid, %L::uuid, %s::bigint, %L::uuid)',
+      unit_a_id, order_remove_id, previous_version, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.close_service_order(%L::uuid, %L::uuid, %s::bigint, %L::uuid)',
+      unit_a_id, order_main_id, version_v, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.void_service_order(%L::uuid, %L::uuid, %s::bigint, %L, %L::uuid)',
+      unit_a_id, order_main_id, version_v, 'blocked void', gen_random_uuid()
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.reopen_voided_service_order(%L::uuid, %L::uuid, %s::bigint, %L, %L::uuid)',
+      unit_a_id, order_main_id, version_v, 'blocked reopen', gen_random_uuid()
+    ),
+    'forbidden'
+  );
+
+  PERFORM pg_temp.set_actor(pro_a_id);
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.get_service_order(%L::uuid, %L::uuid)',
+      unit_a_id, order_main_id
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.list_service_orders_for_day(%L::uuid, %L::date, %L)',
+      unit_a_id, local_day, 'own'
+    ),
+    'forbidden'
+  );
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.open_service_order(%L::uuid, %L::uuid, NULL, %L::uuid, NULL, NULL)',
+      unit_a_id, gen_random_uuid(), pro_a_id
+    ),
+    'forbidden'
+  );
 
   RAISE NOTICE 'service_order_lifecycle_rpcs: OK';
 END;

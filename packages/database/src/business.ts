@@ -534,6 +534,38 @@ const asSafeInteger = (value: unknown, minimum = 0): number | null => (
 
 const asMoneyCentsField = (value: unknown): number | null => asSafeInteger(value, 0);
 
+/**
+ * Fields omitted by jsonb_strip_nulls are treated as null.
+ * Present but invalid values return undefined so mappers fail closed.
+ */
+const asStrippedNullableIdentifier = (
+  value: unknown,
+): string | null | undefined => {
+  if (value === undefined || value === null) return null;
+  return asIdentifier(value) ?? undefined;
+};
+
+const asStrippedNullableString = (
+  value: unknown,
+): string | null | undefined => {
+  if (value === undefined || value === null) return null;
+  return asRequiredString(value) ?? undefined;
+};
+
+const asStrippedNullableTimestamp = (
+  value: unknown,
+): string | null | undefined => {
+  if (value === undefined || value === null) return null;
+  return asTimestamp(value) ?? undefined;
+};
+
+const asStrippedNullableServiceOrderStatus = (
+  value: unknown,
+): ServiceOrderStatus | null | undefined => {
+  if (value === undefined || value === null) return null;
+  return asServiceOrderStatus(value) ?? undefined;
+};
+
 /** Fail-closed mapper for mutation receipt payloads. */
 export const mapServiceOrderCommandReceipt = (
   value: unknown,
@@ -562,12 +594,8 @@ const mapServiceOrderItem = (value: unknown): ServiceOrderItem | null => {
   const id = asIdentifier(value.id);
   const serviceOrderId = asIdentifier(value.serviceOrderId);
   const establishmentId = asIdentifier(value.establishmentId);
-  const serviceId = value.serviceId === null || value.serviceId === undefined
-    ? null
-    : asRequiredString(value.serviceId);
-  const professionalId = value.professionalId === null || value.professionalId === undefined
-    ? null
-    : asIdentifier(value.professionalId);
+  const serviceId = asStrippedNullableString(value.serviceId);
+  const professionalId = asStrippedNullableIdentifier(value.professionalId);
   const descriptionSnapshot = asRequiredString(value.descriptionSnapshot);
   const quantity = asSafeInteger(value.quantity, 1);
   const unitPriceCents = asMoneyCentsField(value.unitPriceCents);
@@ -621,32 +649,21 @@ export const mapServiceOrderDetail = (value: unknown): ServiceOrderDetail | null
 
   const id = asIdentifier(order.id);
   const establishmentId = asIdentifier(order.establishmentId);
-  const appointmentId = order.appointmentId === null || order.appointmentId === undefined
-    ? null
-    : asRequiredString(order.appointmentId);
-  const establishmentClientId = order.establishmentClientId === null
-    || order.establishmentClientId === undefined
-    ? null
-    : asIdentifier(order.establishmentClientId);
-  const professionalId = order.professionalId === null || order.professionalId === undefined
-    ? null
-    : asIdentifier(order.professionalId);
+  const appointmentId = asStrippedNullableString(order.appointmentId);
+  const establishmentClientId = asStrippedNullableIdentifier(order.establishmentClientId);
+  const professionalId = asStrippedNullableIdentifier(order.professionalId);
   const status = asServiceOrderStatus(order.status);
   const currency = order.currency === 'BRL' ? 'BRL' as const : null;
   const subtotalCents = asMoneyCentsField(order.subtotalCents);
   const discountCents = asMoneyCentsField(order.discountCents);
   const totalCents = asMoneyCentsField(order.totalCents);
-  const internalNotes = order.internalNotes === null || order.internalNotes === undefined
-    ? null
-    : asRequiredString(order.internalNotes);
+  const internalNotes = asStrippedNullableString(order.internalNotes);
   const openedAt = asTimestamp(order.openedAt);
-  const startedAt = order.startedAt === null ? null : asTimestamp(order.startedAt);
-  const finishedAt = order.finishedAt === null ? null : asTimestamp(order.finishedAt);
-  const closedAt = order.closedAt === null ? null : asTimestamp(order.closedAt);
-  const voidedAt = order.voidedAt === null ? null : asTimestamp(order.voidedAt);
-  const voidReason = order.voidReason === null || order.voidReason === undefined
-    ? null
-    : asRequiredString(order.voidReason);
+  const startedAt = asStrippedNullableTimestamp(order.startedAt);
+  const finishedAt = asStrippedNullableTimestamp(order.finishedAt);
+  const closedAt = asStrippedNullableTimestamp(order.closedAt);
+  const voidedAt = asStrippedNullableTimestamp(order.voidedAt);
+  const voidReason = asStrippedNullableString(order.voidReason);
   const version = asSafeInteger(order.version, 1);
 
   if (
@@ -682,13 +699,9 @@ export const mapServiceOrderDetail = (value: unknown): ServiceOrderDetail | null
     if (!isRecord(rawEvent)) return null;
     const eventId = asSafeInteger(rawEvent.id, 1);
     const eventType = asRequiredString(rawEvent.eventType);
-    const previousStatus = rawEvent.previousStatus === null
-      ? null
-      : asServiceOrderStatus(rawEvent.previousStatus);
+    const previousStatus = asStrippedNullableServiceOrderStatus(rawEvent.previousStatus);
     const resultingStatus = asServiceOrderStatus(rawEvent.resultingStatus);
-    const actorId = rawEvent.actorId === null || rawEvent.actorId === undefined
-      ? null
-      : asIdentifier(rawEvent.actorId);
+    const actorId = asStrippedNullableIdentifier(rawEvent.actorId);
     const createdAt = asTimestamp(rawEvent.createdAt);
     const metadata = isRecord(rawEvent.metadata) ? rawEvent.metadata : null;
     if (
@@ -743,16 +756,9 @@ export const mapServiceOrderSummary = (value: unknown): ServiceOrderSummary | nu
   if ('paymentStatus' in value || 'payment_status' in value) return null;
 
   const serviceOrderId = asIdentifier(value.serviceOrderId);
-  const appointmentId = value.appointmentId === null || value.appointmentId === undefined
-    ? null
-    : asRequiredString(value.appointmentId);
-  const professionalId = value.professionalId === null || value.professionalId === undefined
-    ? null
-    : asIdentifier(value.professionalId);
-  const establishmentClientId = value.establishmentClientId === null
-    || value.establishmentClientId === undefined
-    ? null
-    : asIdentifier(value.establishmentClientId);
+  const appointmentId = asStrippedNullableString(value.appointmentId);
+  const professionalId = asStrippedNullableIdentifier(value.professionalId);
+  const establishmentClientId = asStrippedNullableIdentifier(value.establishmentClientId);
   const status = asServiceOrderStatus(value.status);
   const currency = value.currency === 'BRL' ? 'BRL' as const : null;
   const subtotalCents = asMoneyCentsField(value.subtotalCents);

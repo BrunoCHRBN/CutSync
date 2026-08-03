@@ -1001,7 +1001,7 @@ GRANT EXECUTE ON FUNCTION public.upsert_service_order_item(
 CREATE OR REPLACE FUNCTION public.remove_service_order_item(
   target_establishment_id uuid,
   target_service_order_id uuid,
-  target_item_id uuid,
+  target_service_order_item_id uuid,
   target_expected_version bigint,
   target_request_id uuid
 )
@@ -1028,7 +1028,7 @@ BEGIN
     'service_order.item_removed',
     jsonb_build_object(
       'serviceOrderId', target_service_order_id,
-      'itemId', target_item_id,
+      'itemId', target_service_order_item_id,
       'expectedVersion', target_expected_version
     )
   );
@@ -1053,13 +1053,13 @@ BEGIN
     RAISE EXCEPTION 'service_order_items_frozen';
   END IF;
 
-  IF target_item_id IS NULL THEN
+  IF target_service_order_item_id IS NULL THEN
     RAISE EXCEPTION 'service_order_item_not_found';
   END IF;
 
   SELECT * INTO existing_item
   FROM public.service_order_items AS item
-  WHERE item.id = target_item_id
+  WHERE item.id = target_service_order_item_id
     AND item.service_order_id = order_record.id
     AND item.establishment_id = target_establishment_id
   FOR UPDATE;
@@ -1078,7 +1078,10 @@ BEGIN
     'item_removed',
     order_record.status,
     order_record.status,
-    jsonb_build_object('itemId', existing_item.id)
+    jsonb_strip_nulls(jsonb_build_object(
+      'itemId', existing_item.id,
+      'serviceId', existing_item.service_id
+    ))
   );
 
   SELECT service_order.version
