@@ -27,6 +27,8 @@ test('migration adiciona flag default false e protege escrita autenticada', () =
   );
   expect(migration).toContain('enforce_financial_ops_flag_write');
   expect(migration).toContain("RAISE EXCEPTION 'financial_ops_flag_immutable'");
+  expect(migration).toContain("TG_OP = 'INSERT'");
+  expect(migration).toContain('BEFORE INSERT OR UPDATE OF financial_ops_enabled');
   expect(migration).not.toContain(
     'CREATE INDEX IF NOT EXISTS establishments_financial_ops_enabled',
   );
@@ -96,6 +98,13 @@ test('teste SQL é transacional e cobre isolamento/flag/capabilities', () => {
   expect(sqlTest).toContain('admin must not receive reopen_cash');
   expect(sqlTest).toContain('outsider must not receive operational contexts');
   expect(sqlTest).toContain('financial_ops_flag_immutable');
+  expect(sqlTest).toContain('INSERT INTO public.superadmins');
+  expect(sqlTest).toContain('superadmin failed to enable financial_ops_enabled');
+  expect(sqlTest).toContain('owner update of financial_ops_enabled should fail');
+  expect(sqlTest).toContain('authenticated INSERT with financial_ops_enabled=true must fail');
+  expect(sqlTest).toContain('owner update of unrelated establishment field failed');
+  expect(sqlTest).toContain('same-value flag update blocked unrelated field write');
+  expect(sqlTest).toContain('privileged update of financial_ops_enabled failed');
   expect(sqlTest).toContain('billing_accounts must remain intact');
   expect(sqlTest).toContain('Etapa 1 must not create service_orders');
 });

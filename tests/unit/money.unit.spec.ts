@@ -51,18 +51,29 @@ test('converte decimal legado para centavos com arredondamento definido', () => 
 
 test('normaliza moeda e restringe suporte operacional a BRL', () => {
   expect(assertCurrencyCode('brl')).toBe('BRL');
+  expect(assertCurrencyCode('BRL')).toBe('BRL');
+  expect(assertCurrencyCode('USD')).toBe('USD');
   expect(assertSupportedOperationalCurrency('BRL')).toBe('BRL');
   expect(() => assertSupportedOperationalCurrency('USD')).toThrow(
     'unsupported_operational_currency',
   );
+  expect(() => assertCurrencyCode('BR$')).toThrow('invalid_currency_code');
+  expect(() => assertCurrencyCode('123')).toThrow('invalid_currency_code');
+  expect(() => assertCurrencyCode('ABCDE')).toThrow('invalid_currency_code');
+  expect(() => assertCurrencyCode('')).toThrow('invalid_currency_code');
+  expect(() => assertCurrencyCode('  ')).toThrow('invalid_currency_code');
   expect(validateCurrencyCode('brl').ok).toBe(true);
   expect(validateOperationalCurrency('BRL').ok).toBe(true);
   expect(validateOperationalCurrency('USD').ok).toBe(false);
+  expect(validateCurrencyCode('BR$')).toMatchObject({ ok: false });
+  expect(validateCurrencyCode('ABCDE')).toMatchObject({ ok: false });
   expect(validateCurrencyCode('')).toMatchObject({ ok: false });
 });
 
-test('formatação não é caminho de cálculo e flag financeira é boolean estrito', () => {
+test('formatação rejeita moeda inválida antes do Intl e flag é boolean estrito', () => {
   expect(formatMoneyCents(1990, 'BRL')).toContain('19');
+  expect(() => formatMoneyCents(1990, 'BR$')).toThrow('invalid_currency_code');
+  expect(() => formatMoneyCents(1990, 'ABCDE')).toThrow('invalid_currency_code');
   expect(validateFinancialOpsEnabled(false)).toBe(true);
   expect(validateFinancialOpsEnabled(true)).toBe(true);
   expect(validateFinancialOpsEnabled('false')).toBe(false);

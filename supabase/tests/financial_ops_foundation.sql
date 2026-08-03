@@ -17,6 +17,16 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION pg_temp.clear_actor()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  PERFORM set_config('request.jwt.claims', '{}', true);
+END;
+$$;
+
 DO $test$
 <<financial_ops_foundation>>
 DECLARE
@@ -24,13 +34,17 @@ DECLARE
   admin_id uuid := gen_random_uuid();
   professional_id uuid := gen_random_uuid();
   outsider_id uuid := gen_random_uuid();
+  superadmin_id uuid := gen_random_uuid();
   unit_a_id uuid := gen_random_uuid();
   unit_b_id uuid := gen_random_uuid();
+  unit_insert_id uuid := gen_random_uuid();
   organization_id uuid := gen_random_uuid();
   context_record record;
   caps text[];
   flag_value boolean;
   denied boolean;
+  updated_name text;
+  has_insert_privilege boolean;
 BEGIN
   IF NOT EXISTS (
     SELECT 1
@@ -47,7 +61,8 @@ BEGIN
     (owner_id, 'financial-ops-owner@example.test', now()),
     (admin_id, 'financial-ops-admin@example.test', now()),
     (professional_id, 'financial-ops-pro@example.test', now()),
-    (outsider_id, 'financial-ops-outsider@example.test', now());
+    (outsider_id, 'financial-ops-outsider@example.test', now()),
+    (superadmin_id, 'financial-ops-superadmin@example.test', now());
 
   INSERT INTO public.establishments(
     id, name, slug, account_status, timezone, share_agendas
@@ -79,8 +94,7 @@ BEGIN
   END IF;
 
   -- Privileged write (no jwt subject): Control/internal path.
-  PERFORM set_config('request.jwt.claim.sub', '', true);
-  PERFORM set_config('request.jwt.claims', '{}', true);
+  PERFORM pg_temp.clear_actor();
   UPDATE public.establishments
   SET financial_ops_enabled = true
   WHERE id = unit_b_id;
@@ -90,7 +104,11 @@ BEGIN
     (owner_id, unit_a_id, 'Owner', 'financial-ops-owner@example.test', 'admin'),
     (admin_id, unit_a_id, 'Admin', 'financial-ops-admin@example.test', 'admin'),
     (professional_id, unit_a_id, 'Pro', 'financial-ops-pro@example.test', 'professional'),
-    (outsider_id, NULL, 'Outsider', 'financial-ops-outsider@example.test', 'client');
+    (outsider_id, NULL, 'Outsider', 'financial-ops-outsider@example.test', 'client'),
+    (superadmin_id, NULL, 'Superadmin', 'financial-ops-superadmin@example.test', 'admin');
+
+  INSERT INTO public.superadmins(profile_id, granted_by)
+  VALUES (superadmin_id, NULL);
 
   INSERT INTO public.organizations(id, name, status, created_by)
   VALUES (organization_id, 'Financial Ops Org', 'active', owner_id);
@@ -247,7 +265,7 @@ BEGIN
     RAISE EXCEPTION 'outsider must not receive operational contexts';
   END IF;
 
-  -- 14: authenticated non-superadmin cannot flip the flag
+  -- Owner operational remains blocked from flipping the flag
   PERFORM pg_temp.set_actor(owner_id);
   denied := false;
   BEGIN
@@ -272,9 +290,110 @@ BEGIN
     RAISE EXCEPTION 'flag must remain false after denied write';
   END IF;
 
-  -- privileged path (no auth.uid) may update — Control/internal
-  PERFORM set_config('request.jwt.claim.sub', '', true);
-  PERFORM set_config('request.jwt.claims', '{}', true);
+  -- Superadmin real can toggle the flag
+  PERFORM pg_temp.set_actor(superadmin_id);
+  UPDATE public.establishments
+  SET financial_ops_enabled = true
+  WHERE id = unit_a_id;
+  SELECT financial_ops_enabled INTO flag_value
+  FROM public.establishments
+  WHERE id = unit_a_id;
+  IF flag_value IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'superadmin failed to enable financial_ops_enabled';
+  END IF;
+
+  UPDATE public.establishments
+  SET financial_ops_enabled = false
+  WHERE id = unit_a_id;
+  SELECT financial_ops_enabled INTO flag_value
+  FROM public.establishments
+  WHERE id = unit_a_id;
+  IF flag_value IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'superadmin failed to disable financial_ops_enabled';
+  END IF;
+
+  -- Owner can still update other establishment fields without touching the flag
+  PERFORM pg_temp.set_actor(owner_id);
+  UPDATE public.establishments
+  SET name = 'Financial Ops Unit A Renamed'
+  WHERE id = unit_a_id;
+  SELECT name, financial_ops_enabled INTO updated_name, flag_value
+  FROM public.establishments
+  WHERE id = unit_a_id;
+  IF updated_name IS DISTINCT FROM 'Financial Ops Unit A Renamed' THEN
+    RAISE EXCEPTION 'owner update of unrelated establishment field failed';
+  END IF;
+  IF flag_value IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'unrelated update must not change financial_ops_enabled';
+  END IF;
+
+  -- UPDATE that includes the flag with the same value must not block
+  UPDATE public.establishments
+  SET name = 'Financial Ops Unit A Stable',
+      financial_ops_enabled = false
+  WHERE id = unit_a_id;
+  SELECT name, financial_ops_enabled INTO updated_name, flag_value
+  FROM public.establishments
+  WHERE id = unit_a_id;
+  IF updated_name IS DISTINCT FROM 'Financial Ops Unit A Stable' THEN
+    RAISE EXCEPTION 'same-value flag update blocked unrelated field write';
+  END IF;
+  IF flag_value IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'same-value flag update altered the flag unexpectedly';
+  END IF;
+
+  -- INSERT with financial_ops_enabled = true must be denied for authenticated
+  -- non-superadmin (trigger), whether or not INSERT privilege exists.
+  has_insert_privilege := has_table_privilege('authenticated', 'public.establishments', 'INSERT');
+  denied := false;
+  BEGIN
+    INSERT INTO public.establishments(
+      id, name, slug, account_status, timezone, financial_ops_enabled
+    ) VALUES (
+      unit_insert_id,
+      'Financial Ops Insert Attack',
+      'financial-ops-insert-' || substr(unit_insert_id::text, 1, 8),
+      'active',
+      'America/Sao_Paulo',
+      true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      denied := true;
+    WHEN OTHERS THEN
+      denied := true;
+      IF SQLERRM NOT ILIKE '%financial_ops_flag_immutable%'
+        AND SQLSTATE <> '42501'
+      THEN
+        RAISE EXCEPTION 'unexpected INSERT denial: % / %', SQLSTATE, SQLERRM;
+      END IF;
+  END;
+  IF NOT denied THEN
+    RAISE EXCEPTION 'authenticated INSERT with financial_ops_enabled=true must fail';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.establishments WHERE id = unit_insert_id) THEN
+    RAISE EXCEPTION 'INSERT attack row must not persist';
+  END IF;
+
+  -- Default-false INSERT path remains available to privileged/internal writers
+  PERFORM pg_temp.clear_actor();
+  INSERT INTO public.establishments(
+    id, name, slug, account_status, timezone
+  ) VALUES (
+    unit_insert_id,
+    'Financial Ops Insert Default',
+    'financial-ops-insert-' || substr(unit_insert_id::text, 1, 8),
+    'active',
+    'America/Sao_Paulo'
+  );
+  SELECT financial_ops_enabled INTO flag_value
+  FROM public.establishments
+  WHERE id = unit_insert_id;
+  IF flag_value IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'privileged INSERT default must be false';
+  END IF;
+
+  -- service-role/internal path remains functional for enabling the flag
   UPDATE public.establishments
   SET financial_ops_enabled = true
   WHERE id = unit_a_id;
@@ -295,7 +414,8 @@ BEGIN
     RAISE EXCEPTION 'Etapa 1 must not create service_orders';
   END IF;
 
-  RAISE NOTICE 'financial_ops_foundation checks passed';
+  RAISE NOTICE 'financial_ops_foundation checks passed (insert_privilege=%)',
+    has_insert_privilege;
 END;
 $test$;
 

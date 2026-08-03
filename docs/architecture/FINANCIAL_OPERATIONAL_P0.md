@@ -1022,10 +1022,14 @@ coluna/RPC atualizada. Valores não booleanos continuam inválidos.
 
 ### Superfície que altera a flag
 
-- **Não:** Business, Client, nem UPDATE autenticado de membership admin.
+- **Não:** Business, Client, nem UPDATE/INSERT autenticado de membership admin
+  com `financial_ops_enabled = true`.
 - **Sim (futuro):** Control / administração interna via `service_role` ou RPC
-  administrativa dedicada (superadmin). Nesta etapa só existe proteção por
-  trigger `enforce_financial_ops_flag_write`.
+  administrativa dedicada (superadmin).
+- Proteção: trigger `enforce_financial_ops_flag_write` em
+  `BEFORE INSERT OR UPDATE OF financial_ops_enabled` — permite default `false`
+  no INSERT; rejeita `true` para authenticated não-superadmin; UPDATE com o
+  mesmo valor da flag não bloqueia.
 
 ### Web
 

@@ -21,20 +21,32 @@ COMMENT ON COLUMN public.establishments.financial_ops_enabled IS
 
 -- No secondary index on the boolean alone: no hot filter query yet justifies it.
 
--- Block authenticated non-superadmin writes to the flag. service_role (auth.uid
--- null) and Control superadmins may change it. Dedicated Control RPC is the
--- intended future mutation surface — never Business or Client.
+-- Block authenticated non-superadmin writes to the flag on INSERT and UPDATE.
+-- Default false on INSERT is allowed. service_role (auth.uid null) and Control
+-- superadmins may set true. UPDATE that keeps the same flag value is a no-op
+-- for this guard. Dedicated Control RPC is the intended future mutation
+-- surface — never Business or Client.
 CREATE OR REPLACE FUNCTION public.enforce_financial_ops_flag_write()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
+DECLARE
+  actor_id uuid := (SELECT auth.uid());
 BEGIN
-  IF TG_OP = 'UPDATE'
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.financial_ops_enabled IS TRUE
+      AND actor_id IS NOT NULL
+      AND NOT public.is_superadmin()
+    THEN
+      RAISE EXCEPTION 'financial_ops_flag_immutable'
+        USING ERRCODE = '42501';
+    END IF;
+  ELSIF TG_OP = 'UPDATE'
     AND NEW.financial_ops_enabled IS DISTINCT FROM OLD.financial_ops_enabled
   THEN
-    IF (SELECT auth.uid()) IS NOT NULL AND NOT public.is_superadmin() THEN
+    IF actor_id IS NOT NULL AND NOT public.is_superadmin() THEN
       RAISE EXCEPTION 'financial_ops_flag_immutable'
         USING ERRCODE = '42501';
     END IF;
@@ -46,7 +58,7 @@ $$;
 
 DROP TRIGGER IF EXISTS enforce_financial_ops_flag_write ON public.establishments;
 CREATE TRIGGER enforce_financial_ops_flag_write
-BEFORE UPDATE OF financial_ops_enabled ON public.establishments
+BEFORE INSERT OR UPDATE OF financial_ops_enabled ON public.establishments
 FOR EACH ROW
 EXECUTE FUNCTION public.enforce_financial_ops_flag_write();
 

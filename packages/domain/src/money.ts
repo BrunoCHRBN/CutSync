@@ -26,10 +26,12 @@ export const assertMoneyCents = (value: unknown): MoneyCents => {
   return value;
 };
 
+const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+
 export const normalizeCurrencyCode = (value: unknown): CurrencyCode | null => {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toUpperCase();
-  return normalized.length >= 3 && normalized.length <= 8 ? normalized : null;
+  return CURRENCY_CODE_PATTERN.test(normalized) ? normalized : null;
 };
 
 export const isSupportedOperationalCurrency = (
