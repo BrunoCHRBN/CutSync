@@ -293,6 +293,102 @@ export interface BusinessRpcFunctions {
   reactivate_business_team_member: { Args: { target_establishment_id: string; target_membership_id: string; target_request_id: string }; Returns: unknown };
   remove_business_team_member: { Args: { target_establishment_id: string; target_membership_id: string; target_request_id: string }; Returns: unknown };
   update_business_team_commission: { Args: { target_establishment_id: string; target_membership_id: string; target_commission_rate: number; target_request_id: string }; Returns: unknown };
+  open_service_order: {
+    Args: {
+      target_establishment_id: string;
+      target_request_id: string;
+      target_appointment_id?: string | null;
+      target_professional_id?: string | null;
+      target_establishment_client_id?: string | null;
+      target_internal_notes?: string | null;
+    };
+    Returns: unknown;
+  };
+  start_service_order: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  upsert_service_order_item: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+      target_item_id?: string | null;
+      target_service_id?: string | null;
+      target_professional_id?: string | null;
+      target_description_snapshot?: string | null;
+      target_quantity?: number;
+      target_discount_cents?: number;
+      target_custom_unit_price_cents?: number | null;
+    };
+    Returns: unknown;
+  };
+  remove_service_order_item: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_service_order_item_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  finish_service_order: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  close_service_order: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  void_service_order: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  reopen_voided_service_order: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  get_service_order: {
+    Args: { target_establishment_id: string; target_service_order_id: string };
+    Returns: unknown;
+  };
+  list_service_orders_for_day: {
+    Args: {
+      target_establishment_id: string;
+      target_local_date: string;
+      target_scope?: string;
+    };
+    Returns: unknown;
+  };
 }
 
 export type BusinessRpcName = keyof BusinessRpcFunctions;
