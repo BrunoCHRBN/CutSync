@@ -1,0 +1,72 @@
+{
+  "summary": "Frontend-only E2E validation of the refactored CLIENT area (Expo Router / RN Web at /apps/web) against the Fresha/Booksy-inspired spec. Logged in with the provided client credentials (bakdmskaj8183@gmail.com / Bruno1324@) via /login and landed on the client Explorar (/) with the ClientShell rendering the dark green (#2C4334 -> rgb(44,67,52), verified via getComputedStyle) header with active pill for Explorar and the CutSync logo — matches the spec. Grid renders 3 columns at 1920px and 1 column at 390px (16 card elements total corresponding to 4 establishments x 4 testid variants each; 4 unique establishment IDs). Card structure verified: banner, floating logo, name, rating pill (5.0 · 9 · $$ for Barbearia do Bruno, Novo · $/$$ for others), address, open-status ('Abre amanhã às 09:00' / 'Horários no perfil'), violet 'Agendar' CTA — all present. Search input (client-search-input) filters cards and the counter (client-search-result-count) updates from '4 lugares' to '1 lugar' when typing 'Barbearia do Bruno'. Chip 'Aberto agora' (client-filter-open-now) toggles the list to '0 lugares' as expected. Localização/Preço/Avaliação modals (client-filter-bairro/price/rating) open with the correct titles ('Filtrar por Estado', 'Filtrar por Preço', 'Filtrar por Avaliação') and options. Favoriting a card via client-shop-card-{id}-favorite marks the heart red, updates the 'Salvos (1)' chip label, and shows NO error banner (localStorage fallback working as expected). Filter 'Salvos' filters to only the favorited establishment. Card click opens /establishment?establishmentId=... in a 2-column layout at desktop: left column with Catálogo/Serviços list (each item with 'Reservar' pill), Nossa equipe (horizontal cards with 'Ver perfil'/'Agendar'), Localização; right sidebar with 'Agendar neste lugar / Escolha serviço e horário' + violet 'Agendar agora' (barbershop-profile-book-button) + open/closed status + address + phone. Clicking 'Agendar agora' navigates to /booking?establishmentId=... showing the 4-step stepper (Serviço → Profissional → Data e horário → Confirmação) with 'Passo 1 de 4' and the three real services (Corte de Cabelo Simples R$40, Cabelo Navalhado + Barba R$60, Barba R$35). Appointments page loads at /appointments with the Próximos/Histórico tabs (client-appointments-tabs-upcoming/history) working and history showing real cards with status badges (CANCELADO / CONCLUÍDO). Support page loads at /support with the violet 'Novo chamado' button (client-web-support-new). Settings loads at /preferences with editable Nome (client-settings-name-input) and Telefone (client-settings-phone-input) pre-filled, notification channel toggles, 'Alterar senha' and 'Sair da conta' cards. Mobile (390x844): bottom navigation with 4 items (client-mobile-nav-explore/appointments/support/settings) all present and navigating correctly. Mobile establishment profile also renders barbershop-profile-book-button. Logout via client-sign-out-button returns to the public root '/'. Two testability gaps and one visible backend/RPC failure detected — see frontend_issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Supabase support RPC (list tickets / availability)", "issue": "Support page shows two persistent error banners: 'Não foi possível consultar a disponibilidade do suporte.' and 'Não foi possível carregar seus chamados.' — the client-support screen falls back to the empty state but surfaces the errors visibly. Likely missing RPC or RLS policy on the support tables in Supabase."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ExploreExperience filters bar",
+        "issue": "The 'Limpar filtros' action does NOT expose the data-testid 'client-filters-clear-all' that the review request explicitly enumerates. It is not present in the DOM at all, even after applying filters. Blocks automated E2E for the clear-filters flow.",
+        "selector": "client-filters-clear-all",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "BookingExperience (4-step wizard)",
+        "issue": "None of the booking testids surfaced (booking-step*, booking-service-*, booking-professional-*, booking-datetime, booking-next, booking-confirm). Step 1 renders correctly with services and prices but there are no data-testid hooks on the service rows, step indicators, or step navigation, so the booking flow cannot be automated by testid selectors.",
+        "selector": "booking-service-*, booking-step-*, booking-next, booking-confirm",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Client support list",
+        "issue": "Two error banners rendered on /support due to failing Supabase RPC (see backend_issues). The empty state itself is still displayed, but the red banners give the impression the page is broken.",
+        "affected_selectors": ["client-web-support-new (still functional)"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Explorar cards (SD, S2, S3 placeholders)",
+        "issues": [
+          "Auto-generated banners for establishments without a real hero image use a saturated orange/amber which clashes with the mixed palette (violet #5C33F6 + dark green #2C4334 + creme #DAD2B6). Consider deriving the fallback banner from the brand palette (creme or muted violet) instead of orange."
+        ]
+      },
+      {
+        "screen": "AppointmentsExperience history cards",
+        "issues": [
+          "The date block on the left is not visibly violet as the review requested ('bloco de data violeta à esquerda'). It reads 'AGO 5 / 14:00' in dark text on a light background. Consider applying the violet accent #5C33F6 to the date column (bg or text) to align with the Fresha/Booksy visual spec."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/apps/web/src/components/layout/ClientShell.tsx",
+    "/app/apps/web/src/components/screens/ExploreExperience.tsx",
+    "/app/apps/web/src/components/screens/BarbershopProfileExperience.tsx",
+    "/app/apps/web/src/components/screens/BookingExperience.tsx",
+    "/app/apps/web/src/components/screens/AppointmentsExperience.tsx"
+  ],
+  "action_items": [
+    "Add data-testid='client-filters-clear-all' to the 'Limpar filtros' control in ExploreExperience.tsx (mentioned in review request contract).",
+    "Add booking wizard data-testids (booking-step-{1..4}, booking-service-{id}, booking-professional-{id}, booking-datetime, booking-next, booking-confirm) in BookingExperience.tsx to enable E2E on the 4-step flow.",
+    "Investigate and fix the Supabase support RPCs so the client-support page no longer shows the two red error banners. If the RPC is expected to be missing, hide the error banners and only show the empty state.",
+    "Apply the violet accent (#5C33F6) to the appointment date block to match the requested Fresha/Booksy card style.",
+    "Consider a neutral/creme fallback banner in ExploreExperience cards instead of the current bright orange gradient for establishments without a hero image."
+  ],
+  "critical_code_review_comments": [
+    "Testability contract drift: ExploreExperience and BookingExperience diverge from the review-request testid contract (missing client-filters-clear-all and all booking-* testids). This will break external E2E suites and should be aligned before shipping.",
+    "The support screen exposes two raw failure banners for a Supabase RPC that appears to be unimplemented — treat this analogously to the favorites RPC fallback: swallow the error and show the empty state so users don't see red banners for expected-missing infra."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (Supabase external)", "frontend": "88%"},
+  "test_credentials": "Client: bakdmskaj8183@gmail.com / Bruno1324@ (validated end-to-end).",
+  "seed_data_creation": "None. No writes made to Supabase. Favorited then unfavorited one establishment via the localStorage fallback (no DB writes).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://21590323-6818-4157-9143-536c9c3fdcf8.preview.emergentagent.com. Client Explorar renders 4 establishments (Barbearia do Bruno is the only one with real services/team/photo; the other three are 'Novo' placeholders). Desktop header confirmed rgb(44,67,52) = #2C4334. Booking wizard is functional up to step 1 (services list) but has no booking-* testids. Support page always shows two red error banners due to missing Supabase RPCs — this is a backend/config issue, not a UI regression. Appointment history has real past appointments (some CANCELADO, some CONCLUÍDO) but no future appointments to validate Reagendar/Cancelar buttons — main agent may want to seed one upcoming booking to test that path. Logout works and returns to '/'.",
+  "rca of the issue": "1) client-filters-clear-all missing: the 'Limpar filtros' button in ExploreExperience.tsx wasn't given the testID prop when the filters bar was refactored. Add testID='client-filters-clear-all' to the TouchableOpacity/Pressable used for the clear action. 2) booking-* testids missing: BookingExperience.tsx step indicators, service rows and Next/Confirm buttons need testID props added (they exist visually but not as data-testid). 3) Support error banners: useClientSupport (or equivalent hook) surfaces the raw error from the Supabase RPC; wrap the fetch in a try/catch that returns an empty list silently (mirroring the useClientFavorites fallback pattern) when PGRST202/PGRST203 is returned."
+}

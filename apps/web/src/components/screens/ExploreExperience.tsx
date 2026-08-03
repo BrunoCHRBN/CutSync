@@ -77,35 +77,17 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
   const hoursLabel = opening.isOpen ? `Aberto agora${opening.text ? ` · ${opening.text}` : ''}` : opening.text || 'Horários no perfil';
 
   return (
-    <Pressable
-      testID={`client-shop-card-${shop.id}`}
-      accessibilityRole="button"
-      accessibilityLabel={`Ver ${displayName}`}
-      onPress={() => { tapLight(); onOpen(shop.id); }}
-      style={({ pressed, hovered }) => [styles.shopCard, hovered && styles.shopCardHovered, pressed && styles.pressed]}
-    >
-      <View style={styles.visual}>
-        <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
-        <Pressable
-          testID={`client-shop-card-${shop.id}-favorite`}
-          accessibilityRole="button"
-          accessibilityState={{ selected: isFavorite }}
-          accessibilityLabel={isFavorite ? `Remover ${displayName} dos salvos` : `Salvar ${displayName}`}
-          onPress={(event) => {
-            event?.stopPropagation?.();
-            tapLight();
-            onToggleFavorite(shop.id);
-          }}
-          style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}
-        >
-          <Heart
-            color={isFavorite ? colors.danger : colors.text}
-            fill={isFavorite ? colors.danger : 'transparent'}
-            size={17}
-            strokeWidth={1.8}
-          />
-        </Pressable>
-      </View>
+    <View style={styles.shopCardWrap}>
+      <Pressable
+        testID={`client-shop-card-${shop.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver ${displayName}`}
+        onPress={() => { tapLight(); onOpen(shop.id); }}
+        style={({ pressed, hovered }) => [styles.shopCard, hovered && styles.shopCardHovered, pressed && styles.pressed]}
+      >
+        <View style={styles.visual}>
+          <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
+        </View>
       <View style={styles.shopBody}>
         <View style={styles.shopLogoCircle}>
           {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, { color: theme.primary }]}>{initialsOf(displayName)}</Text>}
@@ -124,7 +106,27 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
           <View style={styles.openButton}><ArrowUpRight color={colors.white} size={15} strokeWidth={1.9} /></View>
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+      <Pressable
+        testID={`client-shop-card-${shop.id}-favorite`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isFavorite }}
+        accessibilityLabel={isFavorite ? `Remover ${displayName} dos salvos` : `Salvar ${displayName}`}
+        onPress={(event) => {
+          event?.stopPropagation?.();
+          tapLight();
+          onToggleFavorite(shop.id);
+        }}
+        style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}
+      >
+        <Heart
+          color={isFavorite ? colors.danger : colors.text}
+          fill={isFavorite ? colors.danger : 'transparent'}
+          size={17}
+          strokeWidth={1.8}
+        />
+      </Pressable>
+    </View>
   );
 };
 
@@ -659,6 +661,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP, marginTop: 14 },
 
   /* Shop Card — Fresha style: banner + floating logo */
+  shopCardWrap: { width: '100%', position: 'relative' },
   shopCard: {
     width: '100%',
     backgroundColor: colors.surface,

@@ -4,7 +4,7 @@
 
 ## Cliente
 - E-mail: `bakdmskaj8183@gmail.com`
-- Senha: `bruno1324`
+- Senha: `Bruno1324@` (atualizada em 03/08/2026, validada via Auth 200)
 
 ## Profissional
 - E-mail: `brusantos7178@outlook.com`
