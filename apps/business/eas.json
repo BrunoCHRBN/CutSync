@@ -7,17 +7,20 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "environment": "development"
+      "environment": "development",
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "environment": "preview",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "environment": "production",
+      "channel": "production",
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
@@ -25,6 +28,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal"
+      }
+    }
   }
 }

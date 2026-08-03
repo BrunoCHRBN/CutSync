@@ -51,4 +51,4 @@ export const hasBusinessManagementNavigation = (
 
 export const getActiveEstablishmentStorageKey = (
   userId: string,
-) => `cutsync:business:active-establishment:${userId}`;
+) => `cutsync.business.active-establishment.${userId}`;

@@ -42,7 +42,12 @@ export interface ClientAppointment {
 }
 
 const asStatus = (status: string): ClientAppointmentStatus => {
-  if (status === 'confirmed' || status === 'cancelled' || status === 'completed') return status;
+  if (
+    status === 'confirmed'
+    || status === 'cancelled'
+    || status === 'completed'
+    || status === 'no_show'
+  ) return status;
   return 'pending';
 };
 

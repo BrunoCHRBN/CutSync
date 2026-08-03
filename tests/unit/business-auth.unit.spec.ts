@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   consumeBusinessAuthCallbackWithClient,
+  createBusinessAuthCallbackConsumer,
   getBusinessAuthInvitationTokenFromUrl,
   getBusinessInvitationTokenFromRedirect,
   getSafeBusinessAuthRedirect,
@@ -12,6 +13,7 @@ import {
 } from '../../apps/business/src/features/auth/business-auth-callback';
 
 const token = 'a'.repeat(64);
+const teamInvitationId = '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7';
 
 const callbackClient = () => {
   const calls: string[] = [];
@@ -41,6 +43,9 @@ test('aceita somente token opaco de 64 hex e sanitiza redirect externo', () => {
   expect(getBusinessInvitationTokenFromRedirect(`/invite/${token}`)).toBe(token);
   expect(getSafeBusinessAuthRedirect('https://evil.example/invite/token')).toBe('/');
   expect(getSafeBusinessAuthRedirect('/management')).toBe('/');
+  expect(getSafeBusinessAuthRedirect(`/invitations/${teamInvitationId}`))
+    .toBe(`/invitations/${teamInvitationId}`);
+  expect(getSafeBusinessAuthRedirect('/invitations/../management')).toBe('/');
 });
 
 test('consome callbacks Supabase por sessão, PKCE e token_hash', async () => {
@@ -67,6 +72,24 @@ test('consome callbacks Supabase por sessão, PKCE e token_hash', async () => {
     otp.client,
   );
   expect(otp.calls).toEqual(['verifyOtp']);
+});
+
+test('consome apenas uma vez o mesmo callback entregue por Linking e Router', async () => {
+  const session = callbackClient();
+  const consumeOnce = createBusinessAuthCallbackConsumer();
+
+  await consumeOnce(
+    'cutsync-business://reset-password#access_token=access&refresh_token=refresh',
+    'recovery',
+    session.client,
+  );
+  await consumeOnce(
+    'cutsync-business://reset-password?refresh_token=refresh&access_token=access',
+    'recovery',
+    session.client,
+  );
+
+  expect(session.calls).toEqual(['setSession']);
 });
 
 test('preserva o convite no callback sem incluí-lo no resultado de erro', async () => {

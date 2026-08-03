@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
@@ -25,7 +26,8 @@ const roleLabel = {
 } as const;
 
 export function BusinessTodayScreen() {
-  const { activeContext } = useBusinessOperational();
+  const router = useRouter();
+  const { activeContext, hasCapability } = useBusinessOperational();
   const agenda = useBusinessAgenda();
   const summary = summarizeBusinessAgenda(agenda.items);
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
@@ -43,6 +45,11 @@ export function BusinessTodayScreen() {
           />
         ) : null}
       />
+
+      {activeContext?.accessMode === 'full'
+        && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
+          <BusinessButton label="Criar encaixe" onPress={() => router.push('/(app)/walk-in' as never)} />
+        ) : null}
 
       {activeContext?.accessMode === 'read_only' ? (
         <BusinessNotice
@@ -72,6 +79,7 @@ export function BusinessTodayScreen() {
             testID="business-next-appointment"
             item={summary.next}
             timeZone={timeZone}
+            onPress={() => router.push(`/(app)/appointments/${summary.next?.id}` as never)}
           />
         ) : (
           <BusinessNotice
@@ -86,11 +94,16 @@ export function BusinessTodayScreen() {
           <BusinessSectionTitle>Sequência do dia</BusinessSectionTitle>
           <View style={styles.list}>
             {agenda.items.slice(0, 6).map((item) => (
-              <AppointmentCard key={item.id} item={item} timeZone={timeZone} />
+              <AppointmentCard
+                key={item.id}
+                item={item}
+                timeZone={timeZone}
+                onPress={() => router.push(`/(app)/appointments/${item.id}` as never)}
+              />
             ))}
           </View>
           <Text selectable style={styles.foundationNote}>
-            Atualização em tempo real e ações de atendimento entram na próxima fatia.
+            Toque em um atendimento para consultar as ações autorizadas pelo servidor.
           </Text>
         </View>
       ) : null}

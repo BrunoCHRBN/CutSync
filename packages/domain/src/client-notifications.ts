@@ -1,8 +1,11 @@
+import { normalizeOpaqueAppointmentId } from './appointment-id';
+
 export const CLIENT_APPOINTMENT_NOTIFICATION_EVENTS = [
   'appointment_received',
   'appointment_confirmed',
   'appointment_rescheduled',
   'appointment_cancelled',
+  'appointment_no_show',
   'appointment_reminder',
 ] as const;
 
@@ -28,26 +31,29 @@ export interface ClientSupportNotificationRoute {
   params: { id: string };
 }
 
+export interface ClientEstablishmentLinkNotificationRoute {
+  pathname: '/establishment-links';
+}
+
 export type ClientNotificationRoute =
   | ClientAppointmentNotificationRoute
-  | ClientSupportNotificationRoute;
+  | ClientSupportNotificationRoute
+  | ClientEstablishmentLinkNotificationRoute;
 
-const appointmentIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ticketIdPattern = appointmentIdPattern;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ticketIdPattern = uuidPattern;
 
 export const getClientAppointmentNotificationRoute = (
   payload: Record<string, unknown> | null | undefined,
 ): ClientAppointmentNotificationRoute | null => {
   if (!payload) return null;
 
-  const appointmentId = typeof payload.appointmentId === 'string'
-    ? payload.appointmentId.trim()
-    : '';
+  const appointmentId = normalizeOpaqueAppointmentId(payload.appointmentId);
   const eventType = typeof payload.eventType === 'string'
     ? payload.eventType.trim()
     : '';
 
-  if (!appointmentIdPattern.test(appointmentId)) return null;
+  if (!appointmentId) return null;
   if (!CLIENT_APPOINTMENT_NOTIFICATION_EVENTS.includes(
     eventType as ClientAppointmentNotificationEvent,
   )) return null;
@@ -81,9 +87,22 @@ export const getClientSupportNotificationRoute = (
   };
 };
 
+export const getClientEstablishmentLinkNotificationRoute = (
+  payload: Record<string, unknown> | null | undefined,
+): ClientEstablishmentLinkNotificationRoute | null => {
+  if (!payload || payload.eventType !== 'establishment_client_link_requested') return null;
+  const linkId = typeof payload.linkId === 'string' ? payload.linkId.trim() : '';
+  const establishmentId = typeof payload.establishmentId === 'string'
+    ? payload.establishmentId.trim()
+    : '';
+  if (!uuidPattern.test(linkId) || !uuidPattern.test(establishmentId)) return null;
+  return { pathname: '/establishment-links' };
+};
+
 export const getClientNotificationRoute = (
   payload: Record<string, unknown> | null | undefined,
 ): ClientNotificationRoute | null => (
   getClientAppointmentNotificationRoute(payload)
   ?? getClientSupportNotificationRoute(payload)
+  ?? getClientEstablishmentLinkNotificationRoute(payload)
 );

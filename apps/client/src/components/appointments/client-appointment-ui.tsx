@@ -28,6 +28,8 @@ export const appointmentColors = {
   completedSoft: '#E4F0E7',
   cancelled: '#99463D',
   cancelledSoft: '#F8E8E5',
+  noShow: '#74502B',
+  noShowSoft: '#F5EBDD',
 };
 
 export function AppointmentStatusBadge({ appointment }: { appointment: ClientAppointment }) {
@@ -36,6 +38,7 @@ export function AppointmentStatusBadge({ appointment }: { appointment: ClientApp
     confirmed: { background: appointmentColors.confirmedSoft, text: appointmentColors.confirmed },
     completed: { background: appointmentColors.completedSoft, text: appointmentColors.completed },
     cancelled: { background: appointmentColors.cancelledSoft, text: appointmentColors.cancelled },
+    no_show: { background: appointmentColors.noShowSoft, text: appointmentColors.noShow },
   }[appointment.status];
 
   return (

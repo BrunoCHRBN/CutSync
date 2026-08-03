@@ -1,5 +1,5 @@
 import type { BusinessAgendaItem } from '@cutsync/database';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   formatAgendaTime,
@@ -12,20 +12,22 @@ export function AppointmentCard({
   item,
   timeZone,
   testID,
+  onPress,
 }: {
   item: BusinessAgendaItem;
   timeZone: string;
   testID?: string;
+  onPress?: () => void;
 }) {
   const tone = item.status === 'completed'
     ? 'success'
-    : item.status === 'cancelled'
+    : item.status === 'cancelled' || item.status === 'no_show'
       ? 'danger'
       : item.status === 'pending'
         ? 'warning'
         : 'neutral';
-  return (
-    <BusinessCard testID={testID} style={styles.card}>
+  const content = (
+    <BusinessCard testID={onPress ? undefined : testID} style={styles.card}>
       <View style={styles.timeColumn}>
         <Text selectable style={styles.time}>
           {formatAgendaTime(item.startsAt, timeZone)}
@@ -41,6 +43,18 @@ export function AppointmentCard({
       </View>
       <BusinessPill label={getAgendaStatusLabel(item.status)} tone={tone} />
     </BusinessCard>
+  );
+  if (!onPress) return content;
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir atendimento de ${item.clientDisplayName}`}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -64,4 +78,5 @@ const styles = StyleSheet.create({
   client: { color: businessTheme.colors.text, fontSize: 14, fontWeight: '800' },
   service: { color: businessTheme.colors.textSoft, fontSize: 12, fontWeight: '600' },
   professional: { color: businessTheme.colors.textMuted, fontSize: 11 },
+  pressed: { opacity: businessTheme.opacity.pressed },
 });

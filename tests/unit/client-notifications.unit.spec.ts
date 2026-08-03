@@ -6,9 +6,14 @@ import { expect, test } from '@playwright/test';
 
 import {
   getClientAppointmentNotificationRoute,
+  getClientEstablishmentLinkNotificationRoute,
   getClientNotificationRoute,
   getClientSupportNotificationRoute,
 } from '../../packages/domain/src/client-notifications';
+import {
+  sanitizeClientAppointmentPushPayload,
+  sanitizeClientSupportPushPayload,
+} from '../../supabase/functions/dispatch-client-notifications/client-push-payload';
 
 const root = process.cwd();
 const readSource = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -67,6 +72,7 @@ test('sincroniza token rotacionado e retorno do aplicativo sem solicitar nova pe
 test('enfileira eventos de agendamento com deduplicação, tentativas e recibos', () => {
   const migration = readSource('supabase/migrations/20260724010000_client_push_notifications.sql');
   const dispatcher = readSource('supabase/functions/dispatch-client-notifications/index.ts');
+  const sharedDispatcher = readSource('supabase/functions/_shared/expo-push.ts');
   const sqlTest = readSource('supabase/tests/client_push_notifications.sql');
 
   expect(migration).toContain('CREATE TABLE public.client_push_deliveries');
@@ -77,14 +83,53 @@ test('enfileira eventos de agendamento com deduplicação, tentativas e recibos'
   expect(migration).toContain('complete_client_push_receipt');
   expect(migration).toContain("target_error_code = 'DeviceNotRegistered'");
   expect(dispatcher).toContain('NOTIFICATION_DISPATCH_SECRET');
-  expect(dispatcher).toContain('AbortSignal.timeout');
+  expect(dispatcher).toContain('dispatchExpoPushDeliveries');
+  expect(dispatcher).toContain('checkExpoPushReceipts');
+  expect(dispatcher).toContain('sanitizeClientAppointmentPushPayload');
+  expect(dispatcher).toContain('sanitizeClientSupportPushPayload');
+  expect(sharedDispatcher).toContain('AbortSignal.timeout');
   expect(dispatcher).not.toContain('console.log');
   expect(sqlTest).toContain('reminder queue is not idempotent');
   expect(sqlTest).toContain('permission denied');
 });
 
+test('dispatcher Client envia somente tipo de evento e identificadores validados', () => {
+  expect(sanitizeClientAppointmentPushPayload({
+    eventType: 'appointment_no_show',
+    appointmentId: 'Legacy Appointment_42',
+    url: '/security',
+    clientName: 'Pessoa sigilosa',
+    price: 150,
+  })).toEqual({
+    eventType: 'appointment_no_show',
+    appointmentId: 'Legacy Appointment_42',
+  });
+  expect(sanitizeClientAppointmentPushPayload({
+    eventType: 'establishment_client_link_requested',
+    linkId: '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7',
+    establishmentId: 'ca68f734-51ad-4bf5-bc4f-dac1b14bf1b5',
+    notes: 'não transportar',
+  })).toEqual({
+    eventType: 'establishment_client_link_requested',
+    linkId: '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7',
+    establishmentId: 'ca68f734-51ad-4bf5-bc4f-dac1b14bf1b5',
+  });
+  expect(sanitizeClientSupportPushPayload({
+    eventType: 'support_resolved',
+    ticketId: '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7',
+    message: 'não transportar',
+  })).toEqual({
+    eventType: 'support_resolved',
+    ticketId: '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7',
+  });
+  expect(sanitizeClientAppointmentPushPayload({
+    eventType: 'appointment_confirmed',
+    appointmentId: '../security',
+  })).toBeNull();
+});
+
 test('aceita somente deep links de eventos conhecidos e IDs válidos', () => {
-  const appointmentId = '9cabb0db-fe1a-4467-847c-9afa5be33239';
+  const appointmentId = 'Legacy Appointment_42';
 
   expect(getClientAppointmentNotificationRoute({
     appointmentId,
@@ -99,8 +144,32 @@ test('aceita somente deep links de eventos conhecidos e IDs válidos', () => {
     eventType: 'appointment_confirmed',
   })).toBeNull();
   expect(getClientAppointmentNotificationRoute({
+    appointmentId: 'unsafe?redirect=/profile',
+    eventType: 'appointment_confirmed',
+  })).toBeNull();
+  expect(getClientAppointmentNotificationRoute({
     appointmentId,
     eventType: 'arbitrary_route',
+  })).toBeNull();
+  expect(getClientAppointmentNotificationRoute({
+    appointmentId,
+    eventType: 'appointment_no_show',
+  })).toEqual({ pathname: '/appointments/[id]', params: { id: appointmentId } });
+});
+
+test('solicitação de vínculo abre somente a rota fixa após validar os dois IDs', () => {
+  const linkId = '2b28df1d-8fc1-4cf0-b4c2-54a97b89d2f7';
+  const establishmentId = 'ca68f734-51ad-4bf5-bc4f-dac1b14bf1b5';
+  expect(getClientEstablishmentLinkNotificationRoute({
+    eventType: 'establishment_client_link_requested',
+    linkId,
+    establishmentId,
+    url: '/security',
+  })).toEqual({ pathname: '/establishment-links' });
+  expect(getClientEstablishmentLinkNotificationRoute({
+    eventType: 'establishment_client_link_requested',
+    linkId: '../security',
+    establishmentId,
   })).toBeNull();
 });
 
@@ -148,5 +217,11 @@ test('processa toque em foreground, background e abertura a frio uma única vez'
   expect(provider).toContain('getLastNotificationResponseAsync');
   expect(provider).toContain('clearLastNotificationResponse');
   expect(provider).toContain('handledResponseId.current === notificationId');
+  expect(provider).toContain('loadClientAppointment');
+  expect(provider).toContain('loadClientSupportTicket');
+  expect(provider).toContain('listMyEstablishmentClientLinks');
+  expect(provider.indexOf('const preflight = async')).toBeLessThan(
+    provider.indexOf('router.push(route'),
+  );
   expect(provider).toContain('router.push(route');
 });

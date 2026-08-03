@@ -1,69 +1,91 @@
-import type { BusinessAgendaItem, BusinessAgendaScope } from '@cutsync/database';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { BusinessAgendaScope } from '@cutsync/database';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useId, useState } from 'react';
 
 import { useBusinessOperational } from '@/contexts/business-operational-context';
-import { getLocalDateInTimeZone } from '@/features/agenda/business-agenda';
+import { useBusinessSession } from '@/contexts/business-session';
+import {
+  businessQueryClient,
+  createBusinessQueryKey,
+} from '@/features/connectivity/business-query';
+import { supabase } from '@/lib/supabase';
 import { businessApi } from '@/services/business-api';
 
+import { getLocalDateInTimeZone } from './business-agenda';
+
 export function useBusinessAgenda() {
+  const { user } = useBusinessSession();
   const { activeContext, hasCapability } = useBusinessOperational();
   const preferredScope: BusinessAgendaScope =
     activeContext?.operationalRole === 'professional' ? 'own' : 'team';
   const [scope, setScopeState] = useState<BusinessAgendaScope>(preferredScope);
   const [localDate, setLocalDate] = useState(() =>
     getLocalDateInTimeZone(activeContext?.timezone ?? 'America/Sao_Paulo'));
-  const [items, setItems] = useState<BusinessAgendaItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const requestVersion = useRef(0);
+  const channelInstanceId = useId().replace(/:/g, '');
+  const userId = user?.id ?? 'signed-out';
+  const establishmentId = activeContext?.establishmentId ?? 'none';
+  const agendaKey = createBusinessQueryKey(userId, establishmentId, 'agenda', localDate, scope);
 
   useEffect(() => {
-    const nextScope: BusinessAgendaScope =
-      activeContext?.operationalRole === 'professional' ? 'own' : 'team';
-    setScopeState(nextScope);
+    setScopeState(activeContext?.operationalRole === 'professional' ? 'own' : 'team');
     setLocalDate(getLocalDateInTimeZone(activeContext?.timezone ?? 'America/Sao_Paulo'));
-    setItems([]);
   }, [activeContext?.establishmentId, activeContext?.operationalRole, activeContext?.timezone]);
 
-  const refresh = useCallback(async () => {
-    if (!activeContext) {
-      setItems([]);
-      setIsLoading(false);
-      return [];
-    }
-    const version = ++requestVersion.current;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const next = await businessApi.getAgendaDay(activeContext.establishmentId, localDate, scope);
-      if (version === requestVersion.current) setItems(next);
-      return next;
-    } catch {
-      if (version === requestVersion.current) {
-        setError('Não foi possível carregar a agenda deste dia.');
-      }
-      return [];
-    } finally {
-      if (version === requestVersion.current) setIsLoading(false);
-    }
-  }, [activeContext, localDate, scope]);
+  const query = useQuery({
+    queryKey: agendaKey,
+    enabled: Boolean(user && activeContext),
+    queryFn: () => businessApi.getAgendaDay(establishmentId, localDate, scope),
+  });
 
   useEffect(() => {
-    void refresh();
+    if (!supabase || !user || !activeContext) return undefined;
+    const channel = supabase
+      .channel(`business-agenda-${activeContext.establishmentId}-${channelInstanceId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `establishment_id=eq.${activeContext.establishmentId}`,
+      }, () => {
+        void businessQueryClient.invalidateQueries({
+          queryKey: createBusinessQueryKey(user.id, activeContext.establishmentId, 'agenda'),
+        });
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'schedule_blocks',
+        filter: `establishment_id=eq.${activeContext.establishmentId}`,
+      }, () => {
+        void Promise.all([
+          businessQueryClient.invalidateQueries({
+            queryKey: createBusinessQueryKey(user.id, activeContext.establishmentId, 'agenda'),
+          }),
+          businessQueryClient.invalidateQueries({
+            queryKey: createBusinessQueryKey(user.id, activeContext.establishmentId, 'schedule-blocks'),
+          }),
+        ]);
+      })
+      .subscribe();
     return () => {
-      requestVersion.current += 1;
+      void supabase?.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [activeContext?.establishmentId, channelInstanceId, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setScope = useCallback((nextScope: BusinessAgendaScope) => {
     if (nextScope === 'team' && !hasCapability('view_team_agenda')) return;
     setScopeState(nextScope);
   }, [hasCapability]);
 
+  const refresh = useCallback(async () => {
+    const result = await query.refetch();
+    return result.data ?? [];
+  }, [query]);
+
   return {
-    items,
-    isLoading,
-    error,
+    items: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? 'Não foi possível carregar a agenda deste dia.' : null,
     localDate,
     setLocalDate,
     scope,

@@ -64,7 +64,7 @@ export const getPublicCancellationReasonLabel = (
   legacyReason?: string | null,
   cancelledByRole?: string | null,
 ) => cancellationReasonLabels[getPublicCancellationReasonCode(code, legacyReason, cancelledByRole)];
-export type ClientAppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type ClientAppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 export type ClientAppointmentBlockReason =
   | 'appointment_status_immutable'
   | 'appointment_already_started'
@@ -100,6 +100,7 @@ export const clientAppointmentStatusLabels: Record<ClientAppointmentStatus, stri
   confirmed: 'Confirmado',
   cancelled: 'Cancelado',
   completed: 'Concluído',
+  no_show: 'Não compareceu',
 };
 
 export const getClientAppointmentBlockMessage = (
@@ -112,7 +113,7 @@ export const getClientAppointmentBlockMessage = (
   if (reason === 'reschedule_limit_reached') return 'Este atendimento já atingiu o limite de dois reagendamentos.';
   if (reason === 'establishment_unavailable') return 'Este estabelecimento não está disponível para reagendamentos.';
   if (reason === 'appointment_already_started') return 'Este atendimento já começou ou está no passado.';
-  if (reason === 'appointment_status_immutable') return 'Atendimentos concluídos ou cancelados não podem ser alterados.';
+  if (reason === 'appointment_status_immutable') return 'Atendimentos concluídos, cancelados ou marcados como ausência não podem ser alterados.';
   return null;
 };
 

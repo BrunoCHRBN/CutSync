@@ -51,7 +51,7 @@ export function SignInScreen({ redirect }: SignInScreenProps) {
   const openForgotPassword = () => {
     router.push({
       pathname: '/forgot-password',
-      params: invitationToken ? { redirect: safeRedirect } : {},
+      params: safeRedirect !== '/' ? { redirect: safeRedirect } : {},
     } as never);
   };
 

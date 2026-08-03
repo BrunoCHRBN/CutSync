@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
@@ -17,7 +18,8 @@ import { useBusinessAgenda } from '@/features/agenda/use-business-agenda';
 import { businessTheme } from '@/theme/business-theme';
 
 export function BusinessAgendaScreen() {
-  const { activeContext } = useBusinessOperational();
+  const router = useRouter();
+  const { activeContext, hasCapability } = useBusinessOperational();
   const agenda = useBusinessAgenda();
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
   const today = getLocalDateInTimeZone(timeZone);
@@ -29,6 +31,17 @@ export function BusinessAgendaScreen() {
         title="Agenda"
         description={activeContext?.establishmentName}
       />
+
+      {activeContext?.accessMode === 'full' ? (
+        <View style={styles.quickActions}>
+          {(hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
+            <BusinessButton label="Novo encaixe" onPress={() => router.push('/(app)/walk-in' as never)} />
+          ) : null}
+          {(hasCapability('manage_own_blocks') || hasCapability('manage_team_blocks')) ? (
+            <BusinessButton label="Gerir bloqueios" variant="secondary" onPress={() => router.push('/(app)/schedule-blocks' as never)} />
+          ) : null}
+        </View>
+      ) : null}
 
       {activeContext?.accessMode === 'read_only' ? (
         <BusinessNotice
@@ -106,7 +119,12 @@ export function BusinessAgendaScreen() {
       ) : (
         <View testID="business-agenda-list" style={styles.list}>
           {agenda.items.map((item) => (
-            <AppointmentCard key={item.id} item={item} timeZone={timeZone} />
+            <AppointmentCard
+              key={item.id}
+              item={item}
+              timeZone={timeZone}
+              onPress={() => router.push(`/(app)/appointments/${item.id}` as never)}
+            />
           ))}
         </View>
       )}
@@ -160,4 +178,5 @@ const styles = StyleSheet.create({
   centerState: { gap: businessTheme.spacing.md, paddingVertical: businessTheme.spacing.xl },
   stateText: { ...businessTheme.typography.body, color: businessTheme.colors.textMuted, textAlign: 'center' },
   list: { gap: businessTheme.spacing.sm },
+  quickActions: { gap: businessTheme.spacing.sm },
 });

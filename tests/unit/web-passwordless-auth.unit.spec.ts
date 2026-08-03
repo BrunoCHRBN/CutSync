@@ -17,3 +17,12 @@ test('consome o callback do login sem senha no navegador', () => {
   expect(login).toContain('emailRedirectTo: redirectUrl');
   expect(login).toContain("const callbackUrl = new URL('/login', window.location.origin)");
 });
+
+test('carrega o perfil fora do callback de autenticação para evitar deadlock', () => {
+  const authContext = readSource('apps/web/src/contexts/AuthContext.tsx');
+
+  expect(authContext).toContain('supabase.auth.onAuthStateChange((_event, session) =>');
+  expect(authContext).not.toContain('supabase.auth.onAuthStateChange(async');
+  expect(authContext).toContain('pendingAuthTask = setTimeout(() =>');
+  expect(authContext).toContain('void fetchProfile(session.user.id).finally');
+});

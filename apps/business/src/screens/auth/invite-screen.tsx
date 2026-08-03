@@ -1,6 +1,7 @@
 import type { BusinessInvitationDetails } from '@cutsync/database';
+import { createMobileRequestId } from '@cutsync/domain';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AuthButton } from '@/components/auth/auth-button';
@@ -64,6 +65,7 @@ export function InviteScreen({ token }: InviteScreenProps) {
   );
   const [details, setDetails] = useState<BusinessInvitationDetails | null>(null);
   const [accepting, setAccepting] = useState(false);
+  const acceptRequestId = useRef<string | null>(null);
   const [failureMessage, setFailureMessage] = useState<string>(
     BUSINESS_AUTH_MESSAGES.invitationInspect,
   );
@@ -96,6 +98,7 @@ export function InviteScreen({ token }: InviteScreenProps) {
   }, [user, validToken]);
 
   useEffect(() => {
+    acceptRequestId.current = null;
     void inspectInvitation();
   }, [inspectInvitation]);
 
@@ -104,7 +107,9 @@ export function InviteScreen({ token }: InviteScreenProps) {
 
     setAccepting(true);
     try {
-      await businessApi.acceptInvitation(validToken);
+      acceptRequestId.current ??= createMobileRequestId();
+      await businessApi.acceptInvitation(validToken, acceptRequestId.current);
+      acceptRequestId.current = null;
       router.replace('/' as never);
     } catch (error) {
       setFailureMessage(BUSINESS_AUTH_MESSAGES.invitationAccept);
@@ -185,7 +190,7 @@ export function InviteScreen({ token }: InviteScreenProps) {
           <View style={styles.details}>
             <Detail label="Estabelecimento" value={details.establishmentName} />
             <Detail label="Papel" value={roleLabel} />
-            <Detail label="E-mail autorizado" value={details.invitedEmail} />
+            <Detail label="Contato autorizado" value={details.invitedEmail} />
             <Detail label="Expira em" value={formatExpiration(details.expiresAt)} />
           </View>
           <AuthButton

@@ -65,7 +65,9 @@ Continuam no projeto EAS de cada aplicativo:
 
 - project ID, bundle identifier, Android package e scheme;
 - Sentry DSN, organização e projeto;
-- Firebase/FCM e arquivos nativos;
+- Firebase/FCM e arquivos nativos. No Business, o arquivo cliente usa a file
+  variable `GOOGLE_SERVICES_JSON`, sem prefixo `EXPO_PUBLIC_` e sem ser
+  versionado;
 - canais, runtime e metadados de distribuição.
 
 ## Barreira pré-build

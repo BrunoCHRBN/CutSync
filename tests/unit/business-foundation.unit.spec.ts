@@ -21,8 +21,9 @@ const establishment = (establishmentId: string) => ({ establishmentId });
 
 test('persiste a unidade em chave isolada por usuário e dispositivo', () => {
   expect(getActiveEstablishmentStorageKey('user-a')).toBe(
-    'cutsync:business:active-establishment:user-a',
+    'cutsync.business.active-establishment.user-a',
   );
+  expect(getActiveEstablishmentStorageKey('user-a')).toMatch(/^[\w.-]+$/);
   expect(getActiveEstablishmentStorageKey('user-a')).not.toBe(
     getActiveEstablishmentStorageKey('user-b'),
   );
@@ -155,4 +156,11 @@ test('falha de persistência local não bloqueia contexto operacional confirmado
   expect(provider).toContain("throw new BusinessContextRefreshError('rpc', error)");
   expect(provider).toContain("throw new BusinessContextRefreshError('storage_read', error)");
   expect(provider).toContain("throw new BusinessContextRefreshError('storage_write', error)");
+});
+
+test('RPCs do Business preservam o vínculo com o cliente Supabase', () => {
+  const api = read('apps/business/src/services/business-api.ts');
+
+  expect(api).toContain('client.rpc.bind(client)');
+  expect(api).not.toContain('const caller = client.rpc as unknown as RpcCaller');
 });
