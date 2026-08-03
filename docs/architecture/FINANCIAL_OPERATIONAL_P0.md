@@ -1158,9 +1158,11 @@ serviço/profissional (`service_order_item_*_tenant_mismatch`).
 
 | Suite | Resultado |
 | --- | --- |
-| `tests/unit/service-orders-foundation.unit.spec.ts` | a executar no CI local desta entrega |
+| `tests/unit/service-orders-foundation.unit.spec.ts` | **8 passed** (`npx playwright test --project=unit tests/unit/service-orders-foundation.unit.spec.ts`) |
 | `supabase/tests/service_orders_foundation.sql` | artefato criado; **não executado** neste ambiente (sem `psql`/`DATABASE_URL`/Docker) |
 | Homologação `supabase db reset` | **pendente** |
+| `typecheck:shared` / `typecheck:business` / `lint` | OK nesta entrega |
+| `typecheck:web` / full `--project=unit` | falhas pré-existentes fora do escopo |
 
 ### Status
 
