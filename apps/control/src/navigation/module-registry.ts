@@ -28,7 +28,7 @@ export const CLOUD_MODULES: CloudModule[] = [
   {
     id: 'operation',
     label: 'Operação',
-    description: 'Indicadores, tempo real, saúde dos dados e incidentes.',
+    description: 'Monitoramento e confiabilidade da plataforma.',
     href: CLOUD_ROUTES.operacao.root,
     readPermission: 'control.dashboard.read',
     searchPlaceholder: 'Buscar serviços, alertas e latência',
@@ -37,7 +37,7 @@ export const CLOUD_MODULES: CloudModule[] = [
   {
     id: 'support',
     label: 'Suporte',
-    description: 'Fila de atendimentos, SLA e distribuição da equipe.',
+    description: 'Atendimento e acompanhamento de solicitações.',
     href: CLOUD_ROUTES.suporte.root,
     readPermission: 'control.support.read',
     managePermission: 'control.support.manage',
@@ -47,7 +47,7 @@ export const CLOUD_MODULES: CloudModule[] = [
   {
     id: 'gsp',
     label: 'GSP',
-    description: 'Governança, segurança, políticas, conhecimento e acessos.',
+    description: 'Governança, segurança e gestão de acessos.',
     href: CLOUD_ROUTES.gsp.root,
     readPermission: 'control.governance.read',
     managePermission: 'control.access.manage',
@@ -57,7 +57,7 @@ export const CLOUD_MODULES: CloudModule[] = [
   {
     id: 'finance',
     label: 'Financeiro',
-    description: 'Cobranças, assinaturas, movimentações e conciliação.',
+    description: 'Cobranças, assinaturas e conciliação.',
     href: CLOUD_ROUTES.financeiro.root,
     readPermission: 'control.billing.read',
     managePermission: 'control.billing.manage',

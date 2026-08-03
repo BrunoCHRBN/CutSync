@@ -11,24 +11,46 @@ import {
 
 import { useControlAuth } from '@/contexts/control-auth-context';
 import {
-  modulesForSwitcher,
+  areasVisibleTo,
+  type CloudArea,
+} from '@/navigation/cloud-area-registry';
+import {
   resolveActiveNavModule,
-  type CloudNavModule,
+  type CloudNavModuleId,
 } from '@/navigation/module-nav';
 import { cloudTheme } from '@/theme/cloud-components';
 
+const accentSoft = {
+  brand: cloudTheme.colors.brandSoft,
+  blue: cloudTheme.colors.accentBlueSoft,
+  green: cloudTheme.colors.accentGreenSoft,
+  violet: cloudTheme.colors.accentVioletSoft,
+  amber: cloudTheme.colors.accentAmberSoft,
+} as const;
+
+const accentStrong = {
+  brand: cloudTheme.colors.brand,
+  blue: cloudTheme.colors.accentBlue,
+  green: cloudTheme.colors.accentGreen,
+  violet: cloudTheme.colors.accentViolet,
+  amber: cloudTheme.colors.accentAmber,
+} as const;
+
 export function ModuleSwitcher({
   onNavigate,
+  alertCounts,
 }: {
   onNavigate?: () => void;
+  alertCounts?: Partial<Record<Exclude<CloudNavModuleId, 'central'>, number>>;
 }) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const { can } = useControlAuth();
   const [open, setOpen] = React.useState(false);
-  const modules = modulesForSwitcher(can);
+  const areas = areasVisibleTo(can, { includeCentral: true });
   const active = resolveActiveNavModule(pathname);
   const compact = width < cloudTheme.layout.compactBreakpoint;
+  const triggerRef = React.useRef<View>(null);
 
   const close = React.useCallback(() => setOpen(false), []);
 
@@ -38,20 +60,28 @@ export function ModuleSwitcher({
   }, [close, onNavigate]);
 
   React.useEffect(() => {
+    close();
+  }, [pathname, close]);
+
+  React.useEffect(() => {
     if (!open || typeof document === 'undefined') return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [close, open]);
 
   return (
-    <View style={styles.wrap}>
+    <View ref={triggerRef} style={styles.wrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Módulo atual: ${active.label}. Abrir seletor de módulos`}
+        accessibilityLabel={`Área atual: ${active.label}. Alternar área`}
         accessibilityState={{ expanded: open }}
+        accessibilityHint="Abre o seletor de áreas"
         onPress={() => setOpen((current) => !current)}
         style={({ pressed }) => [
           styles.trigger,
@@ -60,7 +90,7 @@ export function ModuleSwitcher({
         ]}
       >
         <View style={styles.triggerCopy}>
-          <Text style={styles.triggerEyebrow}>MÓDULO</Text>
+          <Text style={styles.triggerEyebrow}>ÁREA</Text>
           <Text numberOfLines={1} style={styles.triggerLabel}>{active.label}</Text>
         </View>
         <Text style={styles.chevron} accessibilityElementsHidden>
@@ -74,38 +104,42 @@ export function ModuleSwitcher({
         visible={open}
         onRequestClose={close}
       >
-        <View style={styles.modalRoot}>
+        <View style={[styles.modalRoot, compact && styles.modalRootCompact]}>
           <Pressable
-            accessibilityLabel="Fechar seletor de módulos"
+            accessibilityLabel="Fechar seletor de áreas"
             accessibilityRole="button"
             onPress={close}
-            style={styles.backdrop}
+            style={[styles.backdrop, !compact && styles.backdropDesktop]}
           />
           <View
             accessibilityRole="menu"
             style={[styles.panel, compact ? styles.panelCompact : styles.panelDesktop]}
           >
             <View style={styles.panelHeader}>
-              <View>
-                <Text style={styles.panelEyebrow}>CUTSYNC CLOUD</Text>
-                <Text style={styles.panelTitle}>Alternar módulo</Text>
-              </View>
-              <Pressable
-                accessibilityLabel="Fechar"
-                accessibilityRole="button"
-                onPress={close}
-                style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.closeButtonText}>Fechar</Text>
-              </Pressable>
+              <Text style={styles.panelTitle}>Alternar área</Text>
+              {compact ? (
+                <Pressable
+                  accessibilityLabel="Fechar"
+                  accessibilityRole="button"
+                  onPress={close}
+                  style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.closeButtonText}>Fechar</Text>
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={styles.list}>
-              {modules.map((module) => (
-                <ModuleMenuItem
-                  key={module.id}
-                  module={module}
-                  selected={module.id === active.id}
+              {areas.map((area) => (
+                <AreaMenuItem
+                  key={area.id}
+                  area={area}
+                  selected={area.id === active.id}
+                  alertCount={
+                    area.id === 'central'
+                      ? 0
+                      : (alertCounts?.[area.id] ?? 0)
+                  }
                   onPress={handleSelect}
                 />
               ))}
@@ -117,21 +151,32 @@ export function ModuleSwitcher({
   );
 }
 
-function ModuleMenuItem({
-  module,
+function AreaMenuItem({
+  area,
   selected,
+  alertCount,
   onPress,
 }: {
-  module: CloudNavModule;
+  area: CloudArea;
   selected: boolean;
+  alertCount: number;
   onPress: () => void;
 }) {
+  const soft = accentSoft[area.accent];
+  const strong = accentStrong[area.accent];
+  const showBadge = alertCount > 0;
+
   return (
-    <Link href={module.href} asChild>
+    <Link href={area.href as never} asChild>
       <Pressable
         accessibilityRole="menuitem"
         accessibilityState={{ selected }}
-        accessibilityLabel={`Abrir módulo ${module.label}`}
+        accessibilityLabel={[
+          `Abrir área ${area.label}`,
+          area.shortDescription,
+          selected ? 'área atual' : null,
+          showBadge ? `${alertCount} avisos` : null,
+        ].filter(Boolean).join('. ')}
         onPress={onPress}
         style={({ pressed }) => [
           styles.item,
@@ -139,24 +184,27 @@ function ModuleMenuItem({
           pressed && styles.pressed,
         ]}
       >
-        <View style={[styles.itemMarker, selected && styles.itemMarkerSelected]} />
-        <View style={styles.itemCopy}>
-          <Text style={[styles.itemLabel, selected && styles.itemLabelSelected]}>
-            {module.label}
-          </Text>
-          <Text style={styles.itemHint}>
-            {module.id === 'central'
-              ? 'Hub e prioridades'
-              : module.id === 'operation'
-                ? 'Indicadores e tempo real'
-                : module.id === 'support'
-                  ? 'Fila e atendimentos'
-                  : module.id === 'gsp'
-                    ? 'Governança e acessos'
-                    : 'Cobrança da plataforma'}
+        <View style={[styles.itemIcon, { backgroundColor: soft }]}>
+          <Text style={[styles.itemIconText, { color: strong }]}>
+            {area.label.slice(0, 1)}
           </Text>
         </View>
-        {selected ? <Text style={styles.itemCurrent}>Atual</Text> : null}
+        <View style={styles.itemCopy}>
+          <Text style={[styles.itemLabel, selected && styles.itemLabelSelected]}>
+            {area.label}
+          </Text>
+          <Text style={styles.itemHint}>{area.shortDescription}</Text>
+        </View>
+        {showBadge ? (
+          <View style={[styles.badge, { backgroundColor: soft }]}>
+            <Text style={[styles.badgeText, { color: strong }]}>
+              {alertCount > 99 ? '99+' : String(alertCount)}
+            </Text>
+          </View>
+        ) : null}
+        {selected ? (
+          <Text style={styles.check} accessibilityElementsHidden>✓</Text>
+        ) : null}
       </Pressable>
     </Link>
   );
@@ -165,8 +213,8 @@ function ModuleMenuItem({
 const styles = StyleSheet.create({
   wrap: {
     position: 'relative',
-    minWidth: 160,
-    maxWidth: 240,
+    minWidth: 148,
+    maxWidth: 220,
   },
   trigger: {
     minHeight: cloudTheme.layout.touchTarget,
@@ -203,9 +251,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
   },
+  modalRootCompact: {
+    justifyContent: 'flex-end',
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(23, 35, 28, 0.42)',
+    backgroundColor: 'rgba(23, 35, 28, 0.35)',
+  },
+  backdropDesktop: {
+    backgroundColor: 'transparent',
   },
   panel: {
     zIndex: 2,
@@ -216,19 +270,18 @@ const styles = StyleSheet.create({
   },
   panelDesktop: {
     alignSelf: 'flex-start',
-    width: 360,
+    width: 380,
     maxWidth: '92%',
-    marginTop: 72,
-    marginLeft: 148,
-    borderRadius: cloudTheme.radii.lg,
+    marginTop: 68,
+    marginLeft: 132,
+    borderRadius: cloudTheme.radii.md,
     shadowColor: '#17231C',
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   panelCompact: {
-    marginTop: 'auto',
     width: '100%',
     maxHeight: '78%',
     borderTopLeftRadius: cloudTheme.radii.xl,
@@ -237,7 +290,7 @@ const styles = StyleSheet.create({
   },
   panelHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: cloudTheme.spacing.md,
     paddingHorizontal: cloudTheme.spacing.lg,
@@ -245,10 +298,6 @@ const styles = StyleSheet.create({
     paddingBottom: cloudTheme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: cloudTheme.colors.border,
-  },
-  panelEyebrow: {
-    ...cloudTheme.type.eyebrow,
-    color: cloudTheme.colors.accent,
   },
   panelTitle: {
     ...cloudTheme.type.sectionTitle,
@@ -268,7 +317,7 @@ const styles = StyleSheet.create({
     gap: cloudTheme.spacing.xxs,
   },
   item: {
-    minHeight: cloudTheme.layout.touchTarget,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     gap: cloudTheme.spacing.sm,
@@ -279,14 +328,16 @@ const styles = StyleSheet.create({
   itemSelected: {
     backgroundColor: cloudTheme.colors.brandSoft,
   },
-  itemMarker: {
-    width: 3,
-    height: 28,
-    borderRadius: cloudTheme.radii.pill,
-    backgroundColor: 'transparent',
+  itemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: cloudTheme.radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  itemMarkerSelected: {
-    backgroundColor: cloudTheme.colors.brand,
+  itemIconText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
   itemCopy: { flex: 1, minWidth: 0, gap: 2 },
   itemLabel: {
@@ -301,9 +352,21 @@ const styles = StyleSheet.create({
     ...cloudTheme.type.small,
     color: cloudTheme.colors.textMuted,
   },
-  itemCurrent: {
-    ...cloudTheme.type.caption,
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  check: {
     color: cloudTheme.colors.brand,
+    fontSize: 16,
     fontWeight: '800',
   },
   pressed: { opacity: 0.86 },

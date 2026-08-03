@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Link } from 'expo-router';
 
 import { GlobalSearch } from '@/components/cloud/global-search';
 import { ModuleSwitcher } from '@/components/cloud/module-switcher';
 import { useControlAuth } from '@/contexts/control-auth-context';
+import {
+  loadCloudActionableAlerts,
+  type CloudAlertSummary,
+} from '@/modules/central/central-alerts';
+import { CLOUD_ROUTES } from '@/navigation/cloud-routes';
 import { cloudTheme } from '@/theme/cloud-components';
 
 const roleLabels = {
@@ -25,8 +31,24 @@ export function CloudTopbar({
   showMenuButton: boolean;
   onNavigate?: () => void;
 }) {
-  const { context, signOut } = useControlAuth();
-  const [profileOpen, setProfileOpen] = React.useState(false);
+  const { context, can, signOut } = useControlAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [alerts, setAlerts] = useState<CloudAlertSummary | null>(null);
+
+  const refreshAlerts = useCallback(async () => {
+    try {
+      setAlerts(await loadCloudActionableAlerts(can));
+    } catch {
+      setAlerts(null);
+    }
+  }, [can]);
+
+  useEffect(() => {
+    void refreshAlerts();
+  }, [refreshAlerts]);
+
+  const alertTotal = alerts?.total ?? 0;
+  const alertHref = alerts?.alerts[0]?.href ?? CLOUD_ROUTES.central;
 
   return (
     <View style={styles.bar}>
@@ -36,7 +58,10 @@ export function CloudTopbar({
       </View>
 
       <View style={styles.switcher}>
-        <ModuleSwitcher onNavigate={onNavigate} />
+        <ModuleSwitcher
+          onNavigate={onNavigate}
+          alertCounts={alerts?.byArea}
+        />
       </View>
 
       <View style={styles.search}>
@@ -48,15 +73,29 @@ export function CloudTopbar({
 
       <View style={styles.meta}>
         <View style={styles.envBadge}>
+          <Text style={styles.envDot}>●</Text>
           <Text style={styles.envText}>{environmentLabel}</Text>
         </View>
-        <Pressable
-          accessibilityLabel="Notificações"
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.iconButtonText}>Alertas</Text>
-        </Pressable>
+        <Link href={alertHref as never} asChild>
+          <Pressable
+            accessibilityLabel={
+              alertTotal > 0
+                ? `Alertas, ${alertTotal} avisos acionáveis`
+                : 'Alertas'
+            }
+            accessibilityRole="link"
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.iconButtonText}>Alertas</Text>
+            {alertTotal > 0 ? (
+              <View style={styles.alertBadge}>
+                <Text style={styles.alertBadgeText}>
+                  {alertTotal > 99 ? '99+' : String(alertTotal)}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </Link>
         <View>
           <Pressable
             accessibilityLabel="Menu do perfil"
@@ -134,8 +173,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  switcher: { minWidth: 160, maxWidth: 240 },
-  search: { flexGrow: 1, minWidth: 180, maxWidth: 420 },
+  switcher: { minWidth: 148, maxWidth: 220 },
+  search: { flexGrow: 1, minWidth: 200, maxWidth: 520 },
   meta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -144,13 +183,16 @@ const styles = StyleSheet.create({
   },
   envBadge: {
     minHeight: 32,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: cloudTheme.spacing.sm,
     borderWidth: 1,
     borderColor: cloudTheme.colors.border,
     borderRadius: cloudTheme.radii.pill,
     backgroundColor: cloudTheme.colors.surfaceMuted,
   },
+  envDot: { color: cloudTheme.colors.success, fontSize: 10 },
   envText: {
     color: cloudTheme.colors.textSecondary,
     fontSize: 12,
@@ -158,6 +200,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   iconButton: {
+    position: 'relative',
     minHeight: cloudTheme.layout.touchTarget,
     minWidth: cloudTheme.layout.touchTarget,
     alignItems: 'center',
@@ -169,6 +212,23 @@ const styles = StyleSheet.create({
     backgroundColor: cloudTheme.colors.surface,
   },
   iconButtonText: { ...cloudTheme.type.caption, color: cloudTheme.colors.text },
+  alertBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    backgroundColor: cloudTheme.colors.danger,
+  },
+  alertBadgeText: {
+    color: cloudTheme.colors.surface,
+    fontSize: 10,
+    fontWeight: '800',
+  },
   profileButton: {
     minHeight: cloudTheme.layout.touchTarget,
     minWidth: 120,
