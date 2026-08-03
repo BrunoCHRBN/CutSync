@@ -1,3 +1,298 @@
+BEGIN;
+
+SET LOCAL search_path = pg_catalog, public, extensions;
+
+-- P0 Etapa 3 — RPCs de ciclo de vida de service_orders.
+-- Não cria pagamentos, caixa, comissão, provedor, refunds nem UI.
+-- close_service_order só fecha total_cents = 0 (saldo positivo fica awaiting_payment).
+
+-- ---------------------------------------------------------------------------
+-- Safe mobile command response: allow service-order receipt keys
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.is_safe_mobile_command_response(value jsonb)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+  SELECT jsonb_typeof(value) = 'object'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM jsonb_object_keys(value) AS key_name
+      WHERE key_name <> ALL (ARRAY[
+        'appointmentId', 'status', 'startsAt', 'endsAt',
+        'establishmentClientId', 'establishmentId', 'linkId',
+        'scheduleBlockId', 'serviceId', 'membershipId',
+        'invitationId', 'expiresAt', 'survivorClientId',
+        'duplicateClientId', 'professionalId', 'errorCode',
+        'serviceOrderId', 'serviceOrderItemId', 'version'
+      ]::text[])
+    )
+    AND (
+      NOT (value ? 'errorCode')
+      OR (
+        jsonb_typeof(value->'errorCode') = 'string'
+        AND value->>'errorCode' IN (
+          'appointment_conflict', 'schedule_block_conflict'
+        )
+      )
+    )
+    AND (
+      NOT (value ? 'version')
+      OR (
+        jsonb_typeof(value->'version') = 'number'
+        AND (value->>'version') ~ '^[0-9]+$'
+        AND (value->>'version')::bigint >= 1
+        AND (value->>'version')::bigint <= 9007199254740991
+      )
+    )
+    AND (
+      NOT (value ? 'serviceOrderId')
+      OR (
+        jsonb_typeof(value->'serviceOrderId') = 'string'
+        AND (value->>'serviceOrderId')
+          ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      )
+    )
+    AND (
+      NOT (value ? 'serviceOrderItemId')
+      OR (
+        jsonb_typeof(value->'serviceOrderItemId') = 'string'
+        AND (value->>'serviceOrderItemId')
+          ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      )
+    );
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Internal helpers
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.assert_financial_ops_enabled(
+  target_establishment_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  flag_value boolean;
+BEGIN
+  IF target_establishment_id IS NULL THEN
+    RAISE EXCEPTION 'establishment_required';
+  END IF;
+
+  SELECT establishment.financial_ops_enabled
+  INTO flag_value
+  FROM public.establishments AS establishment
+  WHERE establishment.id = target_establishment_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'establishment_not_found';
+  END IF;
+
+  IF flag_value IS NOT TRUE THEN
+    RAISE EXCEPTION 'financial_ops_disabled';
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.assert_service_order_mutation_access(
+  target_establishment_id uuid,
+  target_professional_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  actor_id uuid := (SELECT auth.uid());
+BEGIN
+  IF actor_id IS NULL THEN
+    RAISE EXCEPTION 'authentication_required';
+  END IF;
+
+  IF public.has_business_capability(
+    target_establishment_id, 'manage_team_orders'
+  ) THEN
+    RETURN;
+  END IF;
+
+  IF public.has_business_capability(
+       target_establishment_id, 'manage_own_orders'
+     )
+     AND target_professional_id IS NOT NULL
+     AND target_professional_id = actor_id
+  THEN
+    RETURN;
+  END IF;
+
+  RAISE EXCEPTION 'forbidden';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.assert_service_order_read_access(
+  target_establishment_id uuid,
+  target_professional_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  actor_id uuid := (SELECT auth.uid());
+  identity_record record;
+BEGIN
+  IF actor_id IS NULL THEN
+    RAISE EXCEPTION 'authentication_required';
+  END IF;
+
+  IF NOT public.has_business_capability(
+    target_establishment_id, 'view_orders'
+  ) THEN
+    RAISE EXCEPTION 'forbidden';
+  END IF;
+
+  SELECT * INTO identity_record
+  FROM public.resolve_business_operational_identity(
+    target_establishment_id, actor_id
+  )
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'forbidden';
+  END IF;
+
+  IF identity_record.operational_role IN ('owner', 'admin') THEN
+    RETURN;
+  END IF;
+
+  IF target_professional_id IS NOT NULL
+     AND target_professional_id = actor_id
+  THEN
+    RETURN;
+  END IF;
+
+  RAISE EXCEPTION 'forbidden';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.lock_service_order_for_mutation(
+  target_establishment_id uuid,
+  target_service_order_id uuid,
+  target_expected_version bigint
+)
+RETURNS public.service_orders
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  order_record public.service_orders%ROWTYPE;
+BEGIN
+  IF target_service_order_id IS NULL THEN
+    RAISE EXCEPTION 'service_order_required';
+  END IF;
+  IF target_expected_version IS NULL OR target_expected_version < 1 THEN
+    RAISE EXCEPTION 'service_order_version_required';
+  END IF;
+
+  SELECT * INTO order_record
+  FROM public.service_orders AS service_order
+  WHERE service_order.id = target_service_order_id
+    AND service_order.establishment_id = target_establishment_id
+  FOR UPDATE;
+
+  IF order_record.id IS NULL THEN
+    RAISE EXCEPTION 'service_order_not_found';
+  END IF;
+
+  IF order_record.version IS DISTINCT FROM target_expected_version THEN
+    RAISE EXCEPTION 'service_order_version_conflict';
+  END IF;
+
+  RETURN order_record;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.numeric_money_to_cents(
+  target_amount numeric
+)
+RETURNS bigint
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  cents bigint;
+  max_safe constant bigint := 9007199254740991;
+BEGIN
+  IF target_amount IS NULL THEN
+    RAISE EXCEPTION 'invalid_money_amount';
+  END IF;
+  IF target_amount < 0 THEN
+    RAISE EXCEPTION 'invalid_money_amount';
+  END IF;
+
+  cents := round(target_amount * 100)::bigint;
+
+  IF cents < 0 OR cents > max_safe THEN
+    RAISE EXCEPTION 'invalid_money_amount';
+  END IF;
+
+  RETURN cents;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.build_service_order_mutation_response(
+  target_service_order_id uuid,
+  target_status text,
+  target_version bigint,
+  target_item_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+  SELECT CASE
+    WHEN target_item_id IS NULL THEN
+      jsonb_build_object(
+        'serviceOrderId', target_service_order_id,
+        'status', target_status,
+        'version', target_version
+      )
+    ELSE
+      jsonb_build_object(
+        'serviceOrderId', target_service_order_id,
+        'serviceOrderItemId', target_item_id,
+        'status', target_status,
+        'version', target_version
+      )
+  END;
+$$;
+
+REVOKE ALL ON FUNCTION public.assert_financial_ops_enabled(uuid)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.assert_service_order_mutation_access(uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.assert_service_order_read_access(uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.lock_service_order_for_mutation(uuid, uuid, bigint)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.numeric_money_to_cents(numeric)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.build_service_order_mutation_response(uuid, text, bigint, uuid)
+  FROM PUBLIC, anon, authenticated;
+
+
 -- P0 Etapa 3 — public RPC definitions for service_order lifecycle.
 -- Helpers live in the main migration; this fragment has functions only.
 -- No BEGIN/COMMIT — intended to be spliced into the lifecycle migration.
@@ -160,7 +455,10 @@ BEGIN
       )
       RETURNING * INTO order_record;
     EXCEPTION WHEN unique_violation THEN
-      RAISE EXCEPTION 'service_order_already_exists';
+      IF SQLERRM LIKE '%service_orders_one_per_appointment%' THEN
+        RAISE EXCEPTION 'service_order_already_exists';
+      END IF;
+      RAISE;
     END;
 
     PERFORM public.insert_service_order_event(
@@ -580,14 +878,12 @@ BEGIN
       END IF;
     END IF;
 
-    resolved_description := COALESCE(
-      NULLIF(btrim(COALESCE(target_description_snapshot, '')), ''),
-      service_record.name
-    );
+    -- Historical label comes from catalog name, never client-supplied text.
+    resolved_description := service_record.name;
     IF char_length(btrim(resolved_description)) < 1
        OR char_length(btrim(resolved_description)) > 240
     THEN
-      RAISE EXCEPTION 'invalid_item_description';
+      RAISE EXCEPTION 'service_order_item_description_required';
     END IF;
 
     resolved_unit_price := public.numeric_money_to_cents(service_record.price);
@@ -601,18 +897,24 @@ BEGIN
        OR char_length(resolved_description) < 1
        OR char_length(resolved_description) > 240
     THEN
-      RAISE EXCEPTION 'invalid_item_description';
+      RAISE EXCEPTION 'service_order_item_description_required';
     END IF;
 
     IF target_custom_unit_price_cents IS NULL THEN
-      RAISE EXCEPTION 'service_order_custom_price_required';
+      RAISE EXCEPTION 'service_order_item_price_required';
     END IF;
 
-    IF target_custom_unit_price_cents < 0 THEN
+    IF target_custom_unit_price_cents < 0
+       OR target_custom_unit_price_cents > 9007199254740991
+    THEN
       RAISE EXCEPTION 'invalid_money_amount';
     END IF;
 
     resolved_unit_price := target_custom_unit_price_cents;
+  END IF;
+
+  IF normalized_discount > (normalized_quantity::bigint * resolved_unit_price) THEN
+    RAISE EXCEPTION 'invalid_item_discount';
   END IF;
 
   IF target_item_id IS NULL THEN
@@ -1490,8 +1792,7 @@ BEGIN
       service_order.id,
       service_order.opened_at,
       jsonb_strip_nulls(jsonb_build_object(
-        'id', service_order.id,
-        'establishmentId', service_order.establishment_id,
+        'serviceOrderId', service_order.id,
         'appointmentId', service_order.appointment_id,
         'establishmentClientId', service_order.establishment_client_id,
         'professionalId', service_order.professional_id,
@@ -1501,10 +1802,6 @@ BEGIN
         'discountCents', service_order.discount_cents,
         'totalCents', service_order.total_cents,
         'openedAt', service_order.opened_at,
-        'startedAt', service_order.started_at,
-        'finishedAt', service_order.finished_at,
-        'closedAt', service_order.closed_at,
-        'voidedAt', service_order.voided_at,
         'version', service_order.version
       )) AS payload
     FROM public.service_orders AS service_order
@@ -1526,3 +1823,5 @@ REVOKE ALL ON FUNCTION public.list_service_orders_for_day(uuid, date, text)
   FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.list_service_orders_for_day(uuid, date, text)
   TO authenticated, service_role;
+
+COMMIT;

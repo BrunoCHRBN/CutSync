@@ -71,6 +71,83 @@ export type BusinessPayerRole = 'owner' | 'finance' | 'billing_owner';
 export type BusinessInvitationRole = 'admin' | 'professional';
 export type BusinessInvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 
+/** Operational status of a service order (comanda). Not payment state. */
+export type ServiceOrderStatus =
+  | 'open'
+  | 'in_service'
+  | 'awaiting_payment'
+  | 'closed'
+  | 'voided';
+
+export interface ServiceOrderCommandReceipt {
+  serviceOrderId: string;
+  status: ServiceOrderStatus;
+  version: number;
+  serviceOrderItemId?: string;
+}
+
+export interface ServiceOrderItem {
+  id: string;
+  serviceOrderId: string;
+  establishmentId: string;
+  serviceId: string | null;
+  professionalId: string | null;
+  descriptionSnapshot: string;
+  quantity: number;
+  unitPriceCents: number;
+  discountCents: number;
+  subtotalCents: number;
+  totalCents: number;
+  sortOrder: number;
+}
+
+export interface ServiceOrderDetail {
+  id: string;
+  establishmentId: string;
+  appointmentId: string | null;
+  establishmentClientId: string | null;
+  professionalId: string | null;
+  status: ServiceOrderStatus;
+  currency: 'BRL';
+  subtotalCents: number;
+  discountCents: number;
+  totalCents: number;
+  internalNotes: string | null;
+  openedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  closedAt: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  version: number;
+  items: ServiceOrderItem[];
+  events: ServiceOrderEventSummary[];
+}
+
+export interface ServiceOrderEventSummary {
+  id: number;
+  eventType: string;
+  previousStatus: ServiceOrderStatus | null;
+  resultingStatus: ServiceOrderStatus;
+  actorId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ServiceOrderSummary {
+  serviceOrderId: string;
+  appointmentId: string | null;
+  professionalId: string | null;
+  establishmentClientId: string | null;
+  status: ServiceOrderStatus;
+  currency: 'BRL';
+  subtotalCents: number;
+  discountCents: number;
+  totalCents: number;
+  openedAt: string;
+  version: number;
+}
+
 export interface BusinessOperationalContext {
   membershipId: string;
   membershipRole: BusinessMembershipRole;
@@ -430,4 +507,287 @@ export const mapBusinessInvitationAcceptance = (
   const establishmentId = asIdentifier(value.accepted_establishment_id);
   const role = asInvitationRole(value.accepted_role);
   return establishmentId && role ? { establishmentId, role } : null;
+};
+
+const SERVICE_ORDER_STATUSES = new Set<ServiceOrderStatus>([
+  'open',
+  'in_service',
+  'awaiting_payment',
+  'closed',
+  'voided',
+]);
+
+const asServiceOrderStatus = (value: unknown): ServiceOrderStatus | null => (
+  typeof value === 'string' && SERVICE_ORDER_STATUSES.has(value as ServiceOrderStatus)
+    ? value as ServiceOrderStatus
+    : null
+);
+
+const asSafeInteger = (value: unknown, minimum = 0): number | null => (
+  typeof value === 'number'
+  && Number.isInteger(value)
+  && Number.isSafeInteger(value)
+  && value >= minimum
+    ? value
+    : null
+);
+
+const asMoneyCentsField = (value: unknown): number | null => asSafeInteger(value, 0);
+
+/** Fail-closed mapper for mutation receipt payloads. */
+export const mapServiceOrderCommandReceipt = (
+  value: unknown,
+): ServiceOrderCommandReceipt | null => {
+  if (!isRecord(value)) return null;
+  if ('paymentStatus' in value || 'payment_status' in value) return null;
+
+  const serviceOrderId = asIdentifier(value.serviceOrderId);
+  const status = asServiceOrderStatus(value.status);
+  const version = asSafeInteger(value.version, 1);
+  const serviceOrderItemId = value.serviceOrderItemId === undefined
+    ? undefined
+    : asIdentifier(value.serviceOrderItemId);
+
+  if (!serviceOrderId || !status || version === null) return null;
+  if (value.serviceOrderItemId !== undefined && !serviceOrderItemId) return null;
+  if (value.currency !== undefined && value.currency !== 'BRL') return null;
+
+  return serviceOrderItemId
+    ? { serviceOrderId, status, version, serviceOrderItemId }
+    : { serviceOrderId, status, version };
+};
+
+const mapServiceOrderItem = (value: unknown): ServiceOrderItem | null => {
+  if (!isRecord(value)) return null;
+  const id = asIdentifier(value.id);
+  const serviceOrderId = asIdentifier(value.serviceOrderId);
+  const establishmentId = asIdentifier(value.establishmentId);
+  const serviceId = value.serviceId === null || value.serviceId === undefined
+    ? null
+    : asRequiredString(value.serviceId);
+  const professionalId = value.professionalId === null || value.professionalId === undefined
+    ? null
+    : asIdentifier(value.professionalId);
+  const descriptionSnapshot = asRequiredString(value.descriptionSnapshot);
+  const quantity = asSafeInteger(value.quantity, 1);
+  const unitPriceCents = asMoneyCentsField(value.unitPriceCents);
+  const discountCents = asMoneyCentsField(value.discountCents);
+  const subtotalCents = asMoneyCentsField(value.subtotalCents);
+  const totalCents = asMoneyCentsField(value.totalCents);
+  const sortOrder = asSafeInteger(value.sortOrder, 0);
+
+  if (
+    !id
+    || !serviceOrderId
+    || !establishmentId
+    || serviceId === undefined
+    || professionalId === undefined
+    || !descriptionSnapshot
+    || quantity === null
+    || quantity > 999
+    || unitPriceCents === null
+    || discountCents === null
+    || subtotalCents === null
+    || totalCents === null
+    || sortOrder === null
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    serviceOrderId,
+    establishmentId,
+    serviceId,
+    professionalId,
+    descriptionSnapshot,
+    quantity,
+    unitPriceCents,
+    discountCents,
+    subtotalCents,
+    totalCents,
+    sortOrder,
+  };
+};
+
+/** Fail-closed mapper for get_service_order JSON. */
+export const mapServiceOrderDetail = (value: unknown): ServiceOrderDetail | null => {
+  if (!isRecord(value)) return null;
+  if ('paymentStatus' in value || 'payment_status' in value) return null;
+
+  const order = isRecord(value.order) ? value.order : null;
+  if (!order) return null;
+  if ('paymentStatus' in order || 'payment_status' in order) return null;
+
+  const id = asIdentifier(order.id);
+  const establishmentId = asIdentifier(order.establishmentId);
+  const appointmentId = order.appointmentId === null || order.appointmentId === undefined
+    ? null
+    : asRequiredString(order.appointmentId);
+  const establishmentClientId = order.establishmentClientId === null
+    || order.establishmentClientId === undefined
+    ? null
+    : asIdentifier(order.establishmentClientId);
+  const professionalId = order.professionalId === null || order.professionalId === undefined
+    ? null
+    : asIdentifier(order.professionalId);
+  const status = asServiceOrderStatus(order.status);
+  const currency = order.currency === 'BRL' ? 'BRL' as const : null;
+  const subtotalCents = asMoneyCentsField(order.subtotalCents);
+  const discountCents = asMoneyCentsField(order.discountCents);
+  const totalCents = asMoneyCentsField(order.totalCents);
+  const internalNotes = order.internalNotes === null || order.internalNotes === undefined
+    ? null
+    : asRequiredString(order.internalNotes);
+  const openedAt = asTimestamp(order.openedAt);
+  const startedAt = order.startedAt === null ? null : asTimestamp(order.startedAt);
+  const finishedAt = order.finishedAt === null ? null : asTimestamp(order.finishedAt);
+  const closedAt = order.closedAt === null ? null : asTimestamp(order.closedAt);
+  const voidedAt = order.voidedAt === null ? null : asTimestamp(order.voidedAt);
+  const voidReason = order.voidReason === null || order.voidReason === undefined
+    ? null
+    : asRequiredString(order.voidReason);
+  const version = asSafeInteger(order.version, 1);
+
+  if (
+    !id
+    || !establishmentId
+    || appointmentId === undefined
+    || establishmentClientId === undefined
+    || professionalId === undefined
+    || !status
+    || !currency
+    || subtotalCents === null
+    || discountCents === null
+    || totalCents === null
+    || internalNotes === undefined
+    || !openedAt
+    || startedAt === undefined
+    || finishedAt === undefined
+    || closedAt === undefined
+    || voidedAt === undefined
+    || voidReason === undefined
+    || version === null
+    || !Array.isArray(value.items)
+    || !Array.isArray(value.events)
+  ) {
+    return null;
+  }
+
+  const items = value.items.map(mapServiceOrderItem);
+  if (items.some((item) => item === null)) return null;
+
+  const events: ServiceOrderEventSummary[] = [];
+  for (const rawEvent of value.events) {
+    if (!isRecord(rawEvent)) return null;
+    const eventId = asSafeInteger(rawEvent.id, 1);
+    const eventType = asRequiredString(rawEvent.eventType);
+    const previousStatus = rawEvent.previousStatus === null
+      ? null
+      : asServiceOrderStatus(rawEvent.previousStatus);
+    const resultingStatus = asServiceOrderStatus(rawEvent.resultingStatus);
+    const actorId = rawEvent.actorId === null || rawEvent.actorId === undefined
+      ? null
+      : asIdentifier(rawEvent.actorId);
+    const createdAt = asTimestamp(rawEvent.createdAt);
+    const metadata = isRecord(rawEvent.metadata) ? rawEvent.metadata : null;
+    if (
+      eventId === null
+      || !eventType
+      || previousStatus === undefined
+      || !resultingStatus
+      || actorId === undefined
+      || !createdAt
+      || !metadata
+    ) {
+      return null;
+    }
+    events.push({
+      id: eventId,
+      eventType,
+      previousStatus,
+      resultingStatus,
+      actorId,
+      metadata,
+      createdAt,
+    });
+  }
+
+  return {
+    id,
+    establishmentId,
+    appointmentId,
+    establishmentClientId,
+    professionalId,
+    status,
+    currency,
+    subtotalCents,
+    discountCents,
+    totalCents,
+    internalNotes,
+    openedAt,
+    startedAt,
+    finishedAt,
+    closedAt,
+    voidedAt,
+    voidReason,
+    version,
+    items: items as ServiceOrderItem[],
+    events,
+  };
+};
+
+/** Fail-closed mapper for list_service_orders_for_day item rows. */
+export const mapServiceOrderSummary = (value: unknown): ServiceOrderSummary | null => {
+  if (!isRecord(value)) return null;
+  if ('paymentStatus' in value || 'payment_status' in value) return null;
+
+  const serviceOrderId = asIdentifier(value.serviceOrderId);
+  const appointmentId = value.appointmentId === null || value.appointmentId === undefined
+    ? null
+    : asRequiredString(value.appointmentId);
+  const professionalId = value.professionalId === null || value.professionalId === undefined
+    ? null
+    : asIdentifier(value.professionalId);
+  const establishmentClientId = value.establishmentClientId === null
+    || value.establishmentClientId === undefined
+    ? null
+    : asIdentifier(value.establishmentClientId);
+  const status = asServiceOrderStatus(value.status);
+  const currency = value.currency === 'BRL' ? 'BRL' as const : null;
+  const subtotalCents = asMoneyCentsField(value.subtotalCents);
+  const discountCents = asMoneyCentsField(value.discountCents);
+  const totalCents = asMoneyCentsField(value.totalCents);
+  const openedAt = asTimestamp(value.openedAt);
+  const version = asSafeInteger(value.version, 1);
+
+  if (
+    !serviceOrderId
+    || appointmentId === undefined
+    || professionalId === undefined
+    || establishmentClientId === undefined
+    || !status
+    || !currency
+    || subtotalCents === null
+    || discountCents === null
+    || totalCents === null
+    || !openedAt
+    || version === null
+  ) {
+    return null;
+  }
+
+  return {
+    serviceOrderId,
+    appointmentId,
+    professionalId,
+    establishmentClientId,
+    status,
+    currency,
+    subtotalCents,
+    discountCents,
+    totalCents,
+    openedAt,
+    version,
+  };
 };
