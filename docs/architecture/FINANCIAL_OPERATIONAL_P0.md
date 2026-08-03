@@ -1173,10 +1173,10 @@ serviço/profissional (`service_order_item_*_tenant_mismatch`).
 
 | Suite | Resultado |
 | --- | --- |
-| `tests/unit/service-orders-foundation.unit.spec.ts` | reexecutar após harden (parent/lock/actor/cronologia) |
+| `tests/unit/service-orders-foundation.unit.spec.ts` | **10 passed** após harden (lock/parent/actor/cronologia) |
 | `supabase/tests/service_orders_foundation.sql` | ampliado (parent imutável, actor/timestamp, cronologia); **execução SQL ainda pendente** (sem `psql`/`DATABASE_URL`/Docker) |
 | Homologação `supabase db reset` | **pendente** — não declarar homologada sem execução real |
-| `typecheck:shared` / `typecheck:business` / `lint` | reexecutar nesta correção |
+| `typecheck:shared` / `typecheck:business` / `lint` | OK nesta correção |
 
 ### Status
 
