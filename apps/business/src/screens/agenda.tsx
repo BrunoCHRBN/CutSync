@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
@@ -17,10 +18,14 @@ import { useBusinessAgenda } from '@/features/agenda/use-business-agenda';
 import { businessTheme } from '@/theme/business-theme';
 
 export function BusinessAgendaScreen() {
+  const router = useRouter();
   const { activeContext } = useBusinessOperational();
   const agenda = useBusinessAgenda();
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
   const today = getLocalDateInTimeZone(timeZone);
+  const openAppointment = (appointmentId: string) => {
+    router.push(`/(app)/appointments/${appointmentId}`);
+  };
 
   return (
     <BusinessPage testID="business-agenda-screen">
@@ -106,7 +111,12 @@ export function BusinessAgendaScreen() {
       ) : (
         <View testID="business-agenda-list" style={styles.list}>
           {agenda.items.map((item) => (
-            <AppointmentCard key={item.id} item={item} timeZone={timeZone} />
+            <AppointmentCard
+              key={item.id}
+              item={item}
+              timeZone={timeZone}
+              onPress={() => openAppointment(item.id)}
+            />
           ))}
         </View>
       )}

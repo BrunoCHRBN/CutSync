@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
 import {
@@ -25,10 +26,14 @@ const roleLabel = {
 } as const;
 
 export function BusinessTodayScreen() {
+  const router = useRouter();
   const { activeContext } = useBusinessOperational();
   const agenda = useBusinessAgenda();
   const summary = summarizeBusinessAgenda(agenda.items);
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
+  const openAppointment = (appointmentId: string) => {
+    router.push(`/(app)/appointments/${appointmentId}`);
+  };
 
   return (
     <BusinessPage testID="business-today-screen">
@@ -72,6 +77,7 @@ export function BusinessTodayScreen() {
             testID="business-next-appointment"
             item={summary.next}
             timeZone={timeZone}
+            onPress={() => openAppointment(summary.next!.id)}
           />
         ) : (
           <BusinessNotice
@@ -86,12 +92,14 @@ export function BusinessTodayScreen() {
           <BusinessSectionTitle>Sequência do dia</BusinessSectionTitle>
           <View style={styles.list}>
             {agenda.items.slice(0, 6).map((item) => (
-              <AppointmentCard key={item.id} item={item} timeZone={timeZone} />
+              <AppointmentCard
+                key={item.id}
+                item={item}
+                timeZone={timeZone}
+                onPress={() => openAppointment(item.id)}
+              />
             ))}
           </View>
-          <Text selectable style={styles.foundationNote}>
-            Atualização em tempo real e ações de atendimento entram na próxima fatia.
-          </Text>
         </View>
       ) : null}
     </BusinessPage>
@@ -102,5 +110,4 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: businessTheme.spacing.sm },
   section: { gap: businessTheme.spacing.sm },
   list: { gap: businessTheme.spacing.sm },
-  foundationNote: { ...businessTheme.typography.caption, color: businessTheme.colors.textMuted },
 });
