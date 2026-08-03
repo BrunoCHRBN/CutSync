@@ -1015,6 +1015,11 @@ A flag **não** remove capabilities do contexto quando está `false`. A UI/RPC
 futura deve exigir as duas condições. Nenhum fluxo atual depende de
 `financial_ops_enabled = true`.
 
+Até a homologação de `20260814000000`, o mapper TypeScript
+(`mapBusinessOperationalContext`) trata ausência de `financial_ops_enabled` no
+payload como `false`, para não quebrar o Business contra backends ainda sem a
+coluna/RPC atualizada. Valores não booleanos continuam inválidos.
+
 ### Superfície que altera a flag
 
 - **Não:** Business, Client, nem UPDATE autenticado de membership admin.
