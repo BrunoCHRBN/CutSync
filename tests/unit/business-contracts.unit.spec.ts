@@ -57,7 +57,7 @@ test('mapeia contexto operacional e descarta capabilities desconhecidas', () => 
   expect(context?.capabilities).not.toContain('unknown_privilege');
 });
 
-test('mapeia financial_ops_enabled true e rejeita ausência do campo', () => {
+test('mapeia financial_ops_enabled e defaulta ausência para false até homologação', () => {
   expect(mapBusinessOperationalContext({
     ...fullContextRow,
     financial_ops_enabled: true,
@@ -67,7 +67,7 @@ test('mapeia financial_ops_enabled true e rejeita ausência do campo', () => {
     financial_ops_enabled: 'true',
   })).toBeNull();
   const { financial_ops_enabled: _removed, ...withoutFlag } = fullContextRow;
-  expect(mapBusinessOperationalContext(withoutFlag)).toBeNull();
+  expect(mapBusinessOperationalContext(withoutFlag)?.financialOpsEnabled).toBe(false);
 });
 
 test('nega contexto com papel, acesso, membership ou identificadores inválidos', () => {

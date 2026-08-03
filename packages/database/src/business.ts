@@ -287,9 +287,13 @@ export const mapBusinessOperationalContext = (
   const coveredEstablishmentIds = asIdentifierArray(value.covered_establishment_ids);
   const payerRole = asPayerRole(value.payer_role);
   const pendingChangeAt = asNullableTimestamp(value.pending_change_at);
+  // Missing field defaults to false so Business keeps working until
+  // 20260814000000 is homologated and the RPC starts returning the column.
   const financialOpsEnabled = typeof value.financial_ops_enabled === 'boolean'
     ? value.financial_ops_enabled
-    : undefined;
+    : value.financial_ops_enabled === undefined
+      ? false
+      : undefined;
 
   if (
     !membershipId
