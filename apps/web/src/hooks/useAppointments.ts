@@ -134,7 +134,10 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
       }
 
       let query = supabase.from('appointments').select(`
-        *,
+        id, establishment_id, client_id, client_name, professional_id, service_id,
+        date_time, ends_at, duration_minutes, status, cancellation_reason,
+        cancellation_reason_code, cancelled_by_role, reschedule_count,
+        original_date_time, created_at, updated_at, deleted_at,
         service:services(id,name,price,duration_minutes),
         establishment:establishments(id,name,slug,address,phone,timezone,currency,min_cancellation_hours)
       `);

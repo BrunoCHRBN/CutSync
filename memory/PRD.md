@@ -1095,3 +1095,28 @@ de Fresha/Mercury/Superhuman. Conversões: busca/agendamento (Cliente) e contato
   configurar variáveis públicas na Vercel; validar a RPC como visitante anônimo.
 - **P1**: regerar snapshots visuais 390/1440 (os arquivos atuais são `-win32`); painel Supabase para triagem das solicitações.
 - **P2**: depoimentos reais com autorização; status operacional após telemetria; métricas de claims após amostra aprovada.
+
+---
+
+# Auditoria de controle de acesso (2026-06)
+
+## Solicitação
+Code review das roles client, admin/dono e professional; apontar não conformidades de lógica e auditar a segurança do controle de acessos (backend + frontend), com severidades e correção dos itens Crítico/Alto.
+
+## Entregue
+- Relatório completo: `/app/SECURITY_AUDIT_ACCESS_CONTROL.md`.
+- Correções aplicadas (migração `supabase/migrations/20260811000000_access_control_audit_hardening.sql`):
+  - A1 (Alto): `get_establishment_team` deixa de expor comissão/e-mail/telefone dos colegas a profissionais.
+  - A2 (Alto): `establishment_reviews` não é mais legível por `anon`; leitura restrita a autor/admin/superadmin.
+  - A3 (Alto): notas internas (`cancellation_note_internal`, `business_notes`) revogadas de anon/authenticated + selects explícitos no frontend.
+  - M1 (Médio): `REVOKE UPDATE (email)` em `profiles`.
+  - M2 (Médio): review só para agendamento `completed`.
+- Frontend: `apps/web/src/hooks/useAppointments.ts` e `useNextAppointment.ts` (colunas explícitas).
+
+## Ação pendente do usuário
+- Aplicar a migração no Supabase (`supabase db push` / pipeline). Não há Postgres local para executar aqui.
+
+## Backlog (não bloqueante)
+- M3: depreciar `update_appointment_status` v1.
+- B1: remover `LegacyRegisterScreen`.
+- B2: bloquear render do dashboard até o contexto operacional resolver.
