@@ -90,10 +90,13 @@ export type Database = {
           establishment_id: string
           id: string
           original_date_time: string | null
+          price_charged: number
           professional_id: string
           reschedule_count: number
           service_id: string
           status: string
+          transfer_reason: string | null
+          transferred_from_professional_id: string | null
           updated_at: string
         }
         Insert: {
@@ -113,10 +116,13 @@ export type Database = {
           establishment_id: string
           id?: string
           original_date_time?: string | null
+          price_charged?: number
           professional_id: string
           reschedule_count?: number
           service_id: string
           status?: string
+          transfer_reason?: string | null
+          transferred_from_professional_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -136,10 +142,13 @@ export type Database = {
           establishment_id?: string
           id?: string
           original_date_time?: string | null
+          price_charged?: number
           professional_id?: string
           reschedule_count?: number
           service_id?: string
           status?: string
+          transfer_reason?: string | null
+          transferred_from_professional_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3803,6 +3812,102 @@ export type Database = {
           },
         ]
       }
+      service_combo_items: {
+        Row: {
+          combo_id: string
+          created_at: string
+          id: string
+          service_id: string
+          sort_order: number
+        }
+        Insert: {
+          combo_id: string
+          created_at?: string
+          id?: string
+          service_id: string
+          sort_order?: number
+        }
+        Update: {
+          combo_id?: string
+          created_at?: string
+          id?: string
+          service_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_combo_items_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_combo_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_promotions: {
+        Row: {
+          created_at: string
+          days_of_week: number[]
+          discount_type: string
+          ends_at: string | null
+          establishment_id: string
+          id: string
+          is_active: boolean
+          service_id: string | null
+          starts_at: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          days_of_week: number[]
+          discount_type: string
+          ends_at?: string | null
+          establishment_id: string
+          id?: string
+          is_active?: boolean
+          service_id?: string | null
+          starts_at?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: number[]
+          discount_type?: string
+          ends_at?: string | null
+          establishment_id?: string
+          id?: string
+          is_active?: boolean
+          service_id?: string | null
+          starts_at?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_promotions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_promotions_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           created_at: string
@@ -3811,6 +3916,7 @@ export type Database = {
           establishment_id: string
           id: string
           is_active: boolean
+          kind: string
           name: string
           price: number
           sort_order: number
@@ -3823,6 +3929,7 @@ export type Database = {
           establishment_id: string
           id?: string
           is_active?: boolean
+          kind?: string
           name: string
           price: number
           sort_order?: number
@@ -3835,6 +3942,7 @@ export type Database = {
           establishment_id?: string
           id?: string
           is_active?: boolean
+          kind?: string
           name?: string
           price?: number
           sort_order?: number
@@ -6673,9 +6781,56 @@ export type Database = {
         Returns: number
       }
       push_changes: { Args: { changes: Json }; Returns: undefined }
+      get_effective_price: {
+        Args: {
+          target_service_id: string
+          target_local_date: string
+          target_professional_id?: string
+        }
+        Returns: {
+          service_id: string
+          establishment_id: string
+          kind: string
+          list_price: number
+          effective_price: number
+          duration_minutes: number
+          discount_type: string
+          discount_value: number
+          promotion_id: string
+          savings: number
+        }[]
+      }
+      list_establishment_service_prices: {
+        Args: {
+          target_establishment_id: string
+          target_local_date?: string
+        }
+        Returns: {
+          service_id: string
+          kind: string
+          name: string
+          list_price: number
+          effective_price: number
+          duration_minutes: number
+          discount_type: string
+          discount_value: number
+          promotion_id: string
+          savings: number
+          members_total: number
+          is_active: boolean
+          sort_order: number
+        }[]
+      }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
+      }
+      replace_service_combo_items: {
+        Args: {
+          target_combo_id: string
+          target_member_service_ids: string[]
+        }
+        Returns: undefined
       }
       queue_establishment_client_match: {
         Args: {
@@ -6807,6 +6962,15 @@ export type Database = {
           target_appointment_id: string
         }
         Returns: string
+      }
+      transfer_professional_absence: {
+        Args: {
+          range_end: string
+          range_start: string
+          target_professional_id: string
+          transfers: Json
+        }
+        Returns: Json
       }
       reschedule_appointment_before_schedule_blocks: {
         Args: {

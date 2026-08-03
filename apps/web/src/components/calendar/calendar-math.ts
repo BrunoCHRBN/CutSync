@@ -1,5 +1,15 @@
 export const SLOT_MINUTES = 30;
-export const SLOT_HEIGHT = 36;
+export type CalendarDensity = 'compact' | 'comfortable';
+
+export const SLOT_HEIGHT_BY_DENSITY: Record<CalendarDensity, number> = {
+  compact: 36,
+  comfortable: 52,
+};
+
+/** Default slot height (comfortable density). */
+export const SLOT_HEIGHT = SLOT_HEIGHT_BY_DENSITY.comfortable;
+export const EVENT_VERTICAL_GAP = 2;
+export const EVENT_MIN_HEIGHT = 44;
 export const FALLBACK_START = 8 * 60;
 export const FALLBACK_END = 20 * 60;
 
@@ -115,9 +125,79 @@ export const buildCalendarRange = ({
   return { startMinute, endMinute, slots };
 };
 
-export const calculateEventGeometry = (startsAt: Date, endsAt: Date, startMinute: number, timezone?: string) => {
-  const top = ((minutesOfDay(startsAt, timezone) - startMinute) / SLOT_MINUTES) * SLOT_HEIGHT + 2;
-  const durationMinutes = Math.max(SLOT_MINUTES, (endsAt.getTime() - startsAt.getTime()) / 60_000);
-  const height = Math.max(44, (durationMinutes / SLOT_MINUTES) * SLOT_HEIGHT - 4);
+export const calculateEventGeometry = (
+  startsAt: Date,
+  endsAt: Date,
+  startMinute: number,
+  timezone?: string,
+  slotHeight: number = SLOT_HEIGHT,
+) => {
+  const top = ((minutesOfDay(startsAt, timezone) - startMinute) / SLOT_MINUTES) * slotHeight + EVENT_VERTICAL_GAP;
+  const durationMinutes = Math.max(1, (endsAt.getTime() - startsAt.getTime()) / 60_000);
+  const height = Math.max(EVENT_MIN_HEIGHT, (durationMinutes / SLOT_MINUTES) * slotHeight - EVENT_VERTICAL_GAP * 2);
   return { top, height, durationMinutes };
+};
+
+export type ConcurrentLayout = {
+  column: number;
+  columnCount: number;
+};
+
+/** Pack overlapping events into side-by-side columns within each conflict cluster. */
+export const layoutConcurrentEvents = (
+  events: { id: string; startsAt: Date; endsAt: Date }[],
+): Map<string, ConcurrentLayout> => {
+  const sorted = [...events].sort((left, right) => {
+    const startDiff = left.startsAt.getTime() - right.startsAt.getTime();
+    if (startDiff !== 0) return startDiff;
+    return right.endsAt.getTime() - left.endsAt.getTime();
+  });
+
+  const layout = new Map<string, ConcurrentLayout>();
+  type Active = { id: string; endsAt: number; column: number };
+  let active: Active[] = [];
+  let clusterIds: string[] = [];
+  let nextColumn = 0;
+
+  const flushCluster = () => {
+    if (!clusterIds.length) return;
+    const columnCount = Math.max(1, nextColumn);
+    for (const id of clusterIds) {
+      const current = layout.get(id);
+      if (current) layout.set(id, { column: current.column, columnCount });
+    }
+    clusterIds = [];
+    nextColumn = 0;
+  };
+
+  for (const event of sorted) {
+    const start = event.startsAt.getTime();
+    const end = event.endsAt.getTime();
+    active = active.filter((item) => item.endsAt > start);
+    if (active.length === 0) flushCluster();
+
+    const used = new Set(active.map((item) => item.column));
+    let column = 0;
+    while (used.has(column)) column += 1;
+    nextColumn = Math.max(nextColumn, column + 1);
+    active.push({ id: event.id, endsAt: end, column });
+    clusterIds.push(event.id);
+    layout.set(event.id, { column, columnCount: 1 });
+  }
+  flushCluster();
+  return layout;
+};
+
+export type AppointmentCardDensity = 'single' | 'double' | 'full';
+
+export const appointmentCardDensity = (height: number): AppointmentCardDensity => {
+  if (height < 48) return 'single';
+  if (height <= 70) return 'double';
+  return 'full';
+};
+
+export const shortDisplayName = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return parts[0] || name;
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
 };

@@ -29,6 +29,7 @@ import { useEstablishmentRouteParams } from '../../hooks/use-establishment-route
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { useAvailableSlots } from '../../hooks/useAvailableSlots';
+import { useEstablishmentServicePrices } from '../../features/services/use-establishment-service-prices';
 import { scheduleAppointmentNotification } from '../../services/notifications';
 import { supabase } from '../../services/supabase';
 import { colors, layout, radii, typography } from '../../theme/tokens';
@@ -53,6 +54,7 @@ import { getBookingDateOptions, getTodayInTimeZone, translateAppointmentError } 
 import { InlineNotice } from '../ui/InlineNotice';
 import { AppButton } from '../ui/AppButton';
 import { BookingStepper } from '../ui/BookingStepper';
+import { StatusBadge } from '../ui/StatusBadge';
 
 const ANY_PROFESSIONAL = 'any';
 
@@ -165,6 +167,14 @@ export const EstablishmentBookingExperience = () => {
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const { prices: pricedServices } = useEstablishmentServicePrices(
+    barbershop?.id,
+    selectedDate || new Date(),
+  );
+  const priceByServiceId = useMemo(
+    () => new Map(pricedServices.map((item) => [item.serviceId, item])),
+    [pricedServices],
+  );
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showFullCalendar, setShowFullCalendar] = useState(false);
 
@@ -271,10 +281,13 @@ export const EstablishmentBookingExperience = () => {
     return prices.length > 0 ? Math.min(...prices) : null;
   }, [filteredBarbers, selectedService, barberServices, services]);
 
-  const { price: summaryPrice } = getServicePriceAndDuration(
+  const { price: baseSummaryPrice } = getServicePriceAndDuration(
     selectedService,
     isAnyProfessional ? null : selectedBarber,
   );
+  const summaryPrice = selectedService
+    ? (priceByServiceId.get(selectedService)?.effectivePrice ?? baseSummaryPrice)
+    : baseSummaryPrice;
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -598,6 +611,10 @@ export const EstablishmentBookingExperience = () => {
               <View style={styles.servicesGrid}>
                 {services.map((srv) => {
                   const isSelected = selectedService === srv.id;
+                  const priced = priceByServiceId.get(srv.id);
+                  const listPrice = priced?.listPrice ?? srv.price;
+                  const effectivePrice = priced?.effectivePrice ?? srv.price;
+                  const onPromo = Boolean(priced && priced.savings > 0);
                   return (
                     <Pressable
                       key={srv.id}
@@ -620,14 +637,21 @@ export const EstablishmentBookingExperience = () => {
                       </View>
 
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={styles.serviceName}>{srv.name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={styles.serviceName}>{srv.name}</Text>
+                          {srv.kind === 'combo' ? <StatusBadge label="Combo" tone="info" /> : null}
+                          {onPromo ? <StatusBadge label="Promo" tone="warning" /> : null}
+                        </View>
                         <Text style={styles.serviceMeta}>
                           <Clock size={11} color={colors.textMuted} /> {srv.durationMinutes} min
                         </Text>
                       </View>
 
                       <View style={[styles.priceTag, outlineSurface(theme)]}>
-                        <Text style={[styles.priceTagText, accentText(theme)]}>R$ {Number(srv.price).toFixed(2)}</Text>
+                        {onPromo ? (
+                          <Text style={styles.priceTagStrike}>R$ {Number(listPrice).toFixed(2)}</Text>
+                        ) : null}
+                        <Text style={[styles.priceTagText, accentText(theme)]}>R$ {Number(effectivePrice).toFixed(2)}</Text>
                       </View>
 
                       <ChevronRight size={16} color={colors.textMuted} />
@@ -1294,6 +1318,13 @@ const styles = StyleSheet.create({
   priceTagText: {
     fontSize: 12,
     fontFamily: typography.bodyStrong,
+  },
+  priceTagStrike: {
+    fontSize: 10,
+    fontFamily: typography.body,
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
+    textAlign: 'right',
   },
 
   /* Barbers Grid */

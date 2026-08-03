@@ -1,4 +1,5 @@
 export * from './appointment-errors';
+export * from './appointment-id';
 export * from './booking-dates';
 export * from './booking-offer';
 export * from './client-appointments';
@@ -8,7 +9,9 @@ export * from './display-name';
 export * from './establishment-client';
 export * from './instagram-handle';
 export * from './mobile-commands';
+export * from './mobile-release';
 export * from './schedule';
+export * from './service-pricing';
 export * from './support';
 export * from './totp-enrollment';
 export * from './totp-qr-code';

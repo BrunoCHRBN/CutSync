@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,14 +16,39 @@ import { InlineNotice } from '../ui/InlineNotice';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusBadge } from '../ui/StatusBadge';
 import {
+  appointmentCardDensity,
   buildCalendarRange,
   calculateEventGeometry,
+  CalendarDensity,
   isSameCalendarDay,
+  layoutConcurrentEvents,
   minutesOfDay,
-  SLOT_HEIGHT,
+  shortDisplayName,
+  SLOT_HEIGHT_BY_DENSITY,
   SLOT_MINUTES,
   zonedDateAtMinute,
 } from './calendar-math';
+
+const DENSITY_STORAGE_KEY = 'cutsync.calendar.density';
+
+const readStoredDensity = (): CalendarDensity => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return 'comfortable';
+  try {
+    const value = window.localStorage.getItem(DENSITY_STORAGE_KEY);
+    return value === 'compact' ? 'compact' : 'comfortable';
+  } catch {
+    return 'comfortable';
+  }
+};
+
+const persistDensity = (density: CalendarDensity) => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  } catch {
+    // ignore storage failures
+  }
+};
 
 export type CalendarView = 'mine' | 'team';
 
@@ -39,9 +65,15 @@ export interface CalendarAppointment {
   serviceName: string;
   startsAt: Date;
   endsAt: Date;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   price?: number;
+  durationMinutes?: number;
   clientPhone?: string;
+  serviceId?: string;
+  rescheduleCount?: number;
+  originalDateTime?: Date | null;
+  cancellationReason?: string | null;
+  cancellationReasonCode?: string | null;
 }
 
 export interface CalendarBlock {
@@ -58,6 +90,8 @@ export interface CalendarSlotSelection {
   startsAt: Date;
 }
 
+export type CalendarLayoutView = 'day' | 'week' | 'list';
+
 interface OperationalCalendarProps {
   date: Date;
   timezone?: string;
@@ -65,6 +99,7 @@ interface OperationalCalendarProps {
   appointments: CalendarAppointment[];
   blocks?: CalendarBlock[];
   view?: CalendarView;
+  layoutView?: CalendarLayoutView;
   ownProfessionalId?: string;
   loading?: boolean;
   error?: string | null;
@@ -83,6 +118,8 @@ interface OperationalCalendarProps {
   onAppointmentPress?: (appointment: CalendarAppointment) => void;
   onBlockPress?: (block: CalendarBlock) => void;
   onManageTeam?: () => void;
+  onEmptyQuickBook?: () => void;
+  onEmptyBlock?: () => void;
   legacyTestIDs?: {
     panel?: string;
     previousDay?: string;
@@ -102,6 +139,7 @@ const statusConfig: Record<CalendarAppointment['status'], { label: string; backg
   confirmed: { label: 'Confirmado', background: colors.infoSoft, border: '#88A5CE', text: colors.info },
   completed: { label: 'Concluído', background: colors.successSoft, border: '#8DB496', text: colors.success },
   cancelled: { label: 'Cancelado', background: colors.dangerSoft, border: '#D69999', text: colors.danger },
+  no_show: { label: 'Não compareceu', background: colors.warningSoft, border: '#B98A4A', text: colors.warning },
 };
 
 const blockLabels: Record<CalendarBlock['kind'], string> = {
@@ -141,6 +179,7 @@ export const OperationalCalendar = ({
   appointments,
   blocks = [],
   view = 'team',
+  layoutView = 'day',
   ownProfessionalId,
   loading = false,
   error,
@@ -159,6 +198,8 @@ export const OperationalCalendar = ({
   onAppointmentPress,
   onBlockPress,
   onManageTeam,
+  onEmptyQuickBook,
+  onEmptyBlock,
   legacyTestIDs,
 }: OperationalCalendarProps) => {
   const { width } = useWindowDimensions();
@@ -166,12 +207,19 @@ export const OperationalCalendar = ({
   const verticalScrollRef = useRef<ScrollView>(null);
 
   const [selectedProfessionalFilter, setSelectedProfessionalFilter] = useState<string>('all');
+  const [density, setDensity] = useState<CalendarDensity>(readStoredDensity);
+  const slotHeight = SLOT_HEIGHT_BY_DENSITY[density];
 
   useEffect(() => {
     if (view === 'mine') {
       setSelectedProfessionalFilter('all');
     }
   }, [view]);
+
+  const changeDensity = (next: CalendarDensity) => {
+    setDensity(next);
+    persistDensity(next);
+  };
 
   const visibleResources = useMemo(() => {
     if (view === 'team') {
@@ -186,7 +234,7 @@ export const OperationalCalendar = ({
     () =>
       appointments
         .filter((appointment) => visibleResources.some((resource) => resource.id === appointment.professionalId))
-        .filter((appointment) => showFinished || !['completed', 'cancelled'].includes(appointment.status))
+        .filter((appointment) => showFinished || !['completed', 'cancelled', 'no_show'].includes(appointment.status))
         .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime()),
     [appointments, showFinished, visibleResources],
   );
@@ -207,19 +255,28 @@ export const OperationalCalendar = ({
   }, [timezone, visibleAppointments, visibleBlocks, workingHours]);
 
   useEffect(() => {
-    if (!desktop || loading || closed) return;
+    if (loading || closed || layoutView !== 'day') return;
     const firstAppointmentMinute = visibleAppointments[0] ? minutesOfDay(visibleAppointments[0].startsAt, timezone) : null;
     const nowMinute = isSameCalendarDay(date, new Date(), timezone) ? minutesOfDay(new Date(), timezone) - 60 : null;
     const targetMinute = Math.max(startMinute, nowMinute ?? firstAppointmentMinute ?? startMinute);
-    const y = Math.max(0, ((targetMinute - startMinute) / SLOT_MINUTES) * SLOT_HEIGHT);
+    const y = Math.max(0, ((targetMinute - startMinute) / SLOT_MINUTES) * slotHeight);
     const timer = setTimeout(() => verticalScrollRef.current?.scrollTo({ y, animated: false }), 0);
     return () => clearTimeout(timer);
-  }, [closed, date, desktop, loading, startMinute, timezone, visibleAppointments]);
+  }, [closed, date, layoutView, loading, slotHeight, startMinute, timezone, visibleAppointments]);
 
-  const gridHeight = slots.length * SLOT_HEIGHT;
+  const weekDays = useMemo(() => {
+    const monday = new Date(date);
+    const day = monday.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    monday.setDate(monday.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
+  }, [date]);
+
+  const gridHeight = slots.length * slotHeight;
   const now = new Date();
   const showNowLine = isSameCalendarDay(date, now, timezone) && minutesOfDay(now, timezone) >= startMinute && minutesOfDay(now, timezone) <= endMinute;
-  const nowTop = ((minutesOfDay(now, timezone) - startMinute) / SLOT_MINUTES) * SLOT_HEIGHT;
+  const nowTop = ((minutesOfDay(now, timezone) - startMinute) / SLOT_MINUTES) * slotHeight;
 
   const toolbar = (
     <View style={styles.toolbar}>
@@ -283,6 +340,17 @@ export const OperationalCalendar = ({
             variant="secondary"
           />
         ) : null}
+        <View style={styles.densityWrap}>
+          <SegmentedControl
+            onChange={(next) => changeDensity(next as CalendarDensity)}
+            options={[
+              { label: 'Compacto', value: 'compact' },
+              { label: 'Confortável', value: 'comfortable' },
+            ]}
+            testID={`${testID}-density`}
+            value={density}
+          />
+        </View>
       </View>
     </View>
   );
@@ -369,7 +437,11 @@ export const OperationalCalendar = ({
       {filterChips}
       {!loading && !closed && visibleAppointments.length === 0 && visibleBlocks.length === 0 ? (
         <View style={styles.freeState} testID={legacyTestIDs?.empty || `${testID}-empty`}>
-          <Text style={styles.freeStateText}>Agenda livre — selecione um horário para começar.</Text>
+          <Text style={styles.freeStateText}>Dia livre — criar encaixe ou bloquear período.</Text>
+          <View style={styles.freeStateActions}>
+            {onEmptyQuickBook ? <AppButton label="Criar encaixe" onPress={onEmptyQuickBook} size="sm" testID={`${testID}-empty-quickbook`} /> : null}
+            {onEmptyBlock ? <AppButton label="Bloquear período" onPress={onEmptyBlock} size="sm" testID={`${testID}-empty-block`} variant="secondary" /> : null}
+          </View>
         </View>
       ) : null}
       {closed ? (
@@ -384,6 +456,23 @@ export const OperationalCalendar = ({
           <Text style={styles.emptyText}>Organizando horários e atendimentos…</Text>
           <View style={styles.skeletonGrid} />
         </View>
+      ) : layoutView === 'week' ? (
+        <WeekCalendar
+          appointments={visibleAppointments}
+          days={weekDays}
+          onAppointmentPress={onAppointmentPress}
+          onDateChange={onDateChange}
+          testID={testID}
+          timezone={timezone}
+        />
+      ) : layoutView === 'list' ? (
+        <ListCalendar
+          appointments={visibleAppointments}
+          onAppointmentPress={onAppointmentPress}
+          onSlotPress={ownProfessionalId ? () => onSlotPress?.({ professionalId: ownProfessionalId, startsAt: date }) : undefined}
+          testID={testID}
+          timezone={timezone}
+        />
       ) : desktop ? (
         <DesktopCalendar
           appointments={visibleAppointments}
@@ -397,6 +486,7 @@ export const OperationalCalendar = ({
           resources={visibleResources}
           scrollRef={verticalScrollRef}
           showNowLine={showNowLine}
+          slotHeight={slotHeight}
           slots={slots}
           startMinute={startMinute}
           testID={testID}
@@ -411,12 +501,112 @@ export const OperationalCalendar = ({
           onBlockPress={onBlockPress}
           onSlotPress={onSlotPress}
           resources={visibleResources}
+          slotHeight={slotHeight}
           slots={slots}
           testID={testID}
           timezone={timezone}
           view={view}
         />
       )}
+    </View>
+  );
+};
+
+const WeekCalendar = ({
+  days,
+  appointments,
+  timezone,
+  testID,
+  onAppointmentPress,
+  onDateChange,
+}: {
+  days: Date[];
+  appointments: CalendarAppointment[];
+  timezone?: string;
+  testID: string;
+  onAppointmentPress?: (appointment: CalendarAppointment) => void;
+  onDateChange?: (date: Date) => void;
+}) => (
+  <View style={styles.weekGrid} testID={`${testID}-week`}>
+    {days.map((day) => {
+      const dayItems = appointments.filter((item) => isSameCalendarDay(item.startsAt, day, timezone));
+      return (
+        <Pressable
+          key={day.toISOString()}
+          onPress={() => onDateChange?.(day)}
+          style={styles.weekColumn}
+          testID={`${testID}-week-day-${day.toISOString().slice(0, 10)}`}
+        >
+          <Text style={styles.weekDayLabel}>
+            {day.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' })}
+          </Text>
+          <Text style={styles.weekCount}>{dayItems.length} atend.</Text>
+          {dayItems.slice(0, 4).map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() => onAppointmentPress?.(item)}
+              style={styles.weekItem}
+            >
+              <Text numberOfLines={1} style={styles.weekItemText}>
+                {formatTime(item.startsAt, timezone)} {item.clientName}
+              </Text>
+            </Pressable>
+          ))}
+          {dayItems.length > 4 ? <Text style={styles.weekMore}>+{dayItems.length - 4}</Text> : null}
+        </Pressable>
+      );
+    })}
+  </View>
+);
+
+const ListCalendar = ({
+  appointments,
+  timezone,
+  testID,
+  onAppointmentPress,
+  onSlotPress,
+}: {
+  appointments: CalendarAppointment[];
+  timezone?: string;
+  testID: string;
+  onAppointmentPress?: (appointment: CalendarAppointment) => void;
+  onSlotPress?: () => void;
+}) => {
+  const grouped = appointments.reduce<Record<string, CalendarAppointment[]>>((acc, item) => {
+    const key = formatTime(item.startsAt, timezone);
+    acc[key] = acc[key] || [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+  const hours = Object.keys(grouped).sort();
+
+  if (hours.length === 0) {
+    return (
+      <View style={styles.emptyState} testID={`${testID}-list-empty`}>
+        <Text style={styles.emptyText}>Nenhum atendimento nesta lista.</Text>
+        {onSlotPress ? <AppButton label="Criar encaixe" onPress={onSlotPress} size="sm" testID={`${testID}-list-quickbook`} /> : null}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.listView} testID={`${testID}-list`}>
+      {hours.map((hour) => (
+        <View key={hour} style={styles.listGroup}>
+          <Text style={styles.listHour}>{hour}</Text>
+          {grouped[hour].map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() => onAppointmentPress?.(item)}
+              style={styles.listItem}
+              testID={`${testID}-list-item-${item.id}`}
+            >
+              <Text style={styles.listItemTitle}>{item.clientName}</Text>
+              <Text style={styles.listItemMeta}>{item.serviceName}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ))}
     </View>
   );
 };
@@ -430,6 +620,7 @@ interface DesktopCalendarProps {
   slots: number[];
   startMinute: number;
   gridHeight: number;
+  slotHeight: number;
   showNowLine: boolean;
   nowTop: number;
   testID: string;
@@ -448,6 +639,7 @@ const DesktopCalendar = ({
   slots,
   startMinute,
   gridHeight,
+  slotHeight,
   showNowLine,
   nowTop,
   testID,
@@ -472,7 +664,7 @@ const DesktopCalendar = ({
           <View style={[styles.gridRow, { height: gridHeight }]}>
             <View style={styles.timeColumn}>
               {slots.map((minute) => (
-                <View key={minute} style={styles.timeSlot}>
+                <View key={minute} style={[styles.timeSlot, { height: slotHeight }]}>
                   <Text style={styles.timeText}>{formatTime(zonedDateAtMinute(date, minute, timezone), timezone)}</Text>
                 </View>
               ))}
@@ -480,6 +672,7 @@ const DesktopCalendar = ({
             {resources.map((resource) => {
               const resourceAppointments = appointments.filter((item) => item.professionalId === resource.id);
               const resourceBlocks = blocks.filter((item) => item.professionalId === resource.id);
+              const concurrentLayout = layoutConcurrentEvents(resourceAppointments);
               return (
                 <View key={resource.id} style={styles.resourceColumn}>
                   {slots.map((minute) => (
@@ -487,7 +680,7 @@ const DesktopCalendar = ({
                       accessibilityLabel={`Novo atendimento com ${resource.name} às ${formatTime(zonedDateAtMinute(date, minute, timezone), timezone)}`}
                       key={minute}
                       onPress={() => onSlotPress?.({ professionalId: resource.id, startsAt: zonedDateAtMinute(date, minute, timezone) })}
-                      style={({ hovered, pressed }: any) => [styles.gridSlot, (hovered || pressed) && styles.gridSlotActive]}
+                      style={({ hovered, pressed }: any) => [styles.gridSlot, { height: slotHeight }, (hovered || pressed) && styles.gridSlotActive]}
                       testID={`${testID}-slot-${resource.id}-${minute}`}
                     >
                       <Plus color={colors.brandPrimary} size={14} style={styles.slotPlus} />
@@ -498,6 +691,7 @@ const DesktopCalendar = ({
                       block={block}
                       key={block.id}
                       onPress={onBlockPress}
+                      slotHeight={slotHeight}
                       startMinute={startMinute}
                       timezone={timezone}
                     />
@@ -505,8 +699,10 @@ const DesktopCalendar = ({
                   {resourceAppointments.map((appointment) => (
                     <AppointmentCard
                       appointment={appointment}
+                      columnLayout={concurrentLayout.get(appointment.id)}
                       key={appointment.id}
                       onPress={onAppointmentPress}
+                      slotHeight={slotHeight}
                       startMinute={startMinute}
                       testID={`${testID}-appointment-${appointment.id}`}
                       timezone={timezone}
@@ -530,6 +726,7 @@ interface MobileCalendarProps {
   appointments: CalendarAppointment[];
   blocks: CalendarBlock[];
   slots: number[];
+  slotHeight: number;
   view: CalendarView;
   testID: string;
   onSlotPress?: (selection: CalendarSlotSelection) => void;
@@ -544,6 +741,7 @@ const MobileCalendar = ({
   appointments,
   blocks,
   slots,
+  slotHeight,
   view,
   testID,
   onSlotPress,
@@ -557,9 +755,9 @@ const MobileCalendar = ({
       const slotAppointments = appointments.filter((item) => item.startsAt < slotEnd && item.endsAt > slotStart);
       const slotBlocks = blocks.filter((item) => item.startsAt < slotEnd && item.endsAt > slotStart);
       return (
-        <View key={minute} style={styles.mobileSlot}>
+        <View key={minute} style={[styles.mobileSlot, { minHeight: Math.max(60, slotHeight) }]}>
           <Text style={styles.mobileTime}>{formatTime(slotStart, timezone)}</Text>
-          <View style={styles.mobileSlotContent}>
+          <View style={[styles.mobileSlotContent, { minHeight: Math.max(60, slotHeight) }]}>
             {slotAppointments.map((appointment) => {
               const resource = resources.find((item) => item.id === appointment.professionalId);
               return (
@@ -606,26 +804,74 @@ const MobileCalendar = ({
 interface AppointmentCardProps {
   appointment: CalendarAppointment;
   startMinute: number;
+  slotHeight: number;
   timezone?: string;
   testID: string;
+  columnLayout?: { column: number; columnCount: number };
   onPress?: (appointment: CalendarAppointment) => void;
 }
 
-const AppointmentCard = ({ appointment, startMinute, timezone, testID, onPress }: AppointmentCardProps) => {
+const AppointmentCard = ({
+  appointment,
+  startMinute,
+  slotHeight,
+  timezone,
+  testID,
+  columnLayout,
+  onPress,
+}: AppointmentCardProps) => {
   const config = statusConfig[appointment.status];
-  const { top, height } = calculateEventGeometry(appointment.startsAt, appointment.endsAt, startMinute, timezone);
+  const { top, height } = calculateEventGeometry(appointment.startsAt, appointment.endsAt, startMinute, timezone, slotHeight);
+  const density = appointmentCardDensity(height);
+  const columnCount = Math.max(1, columnLayout?.columnCount ?? 1);
+  const column = columnLayout?.column ?? 0;
+  const inset = 3;
+  const leftStyle = {
+    left: `${(column * 100) / columnCount}%`,
+    right: `${((columnCount - column - 1) * 100) / columnCount}%`,
+    marginLeft: column === 0 ? inset : 1,
+    marginRight: column === columnCount - 1 ? inset : 1,
+  };
+  const timeLabel = formatTime(appointment.startsAt, timezone);
+  const singleLine = `${timeLabel} · ${shortDisplayName(appointment.clientName)} · ${appointment.serviceName}`;
+
   return (
     <Pressable
-      accessibilityLabel={`${appointment.clientName}, ${appointment.serviceName}, ${formatTime(appointment.startsAt, timezone)}`}
+      accessibilityLabel={`${appointment.clientName}, ${appointment.serviceName}, ${timeLabel}`}
       accessibilityRole="button"
       onPress={() => onPress?.(appointment)}
-      style={({ pressed }) => [styles.appointmentCard, { top, height, backgroundColor: config.background, borderColor: config.border }, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.appointmentCard,
+        {
+          top,
+          height,
+          backgroundColor: config.background,
+          borderColor: config.border,
+          ...leftStyle,
+        },
+        pressed && styles.pressed,
+      ]}
       testID={testID}
     >
-      <Text numberOfLines={1} style={[styles.appointmentTime, { color: config.text }]}>{formatTime(appointment.startsAt, timezone)}</Text>
-      <Text numberOfLines={1} style={styles.appointmentClient}>{appointment.clientName}</Text>
-      <Text numberOfLines={1} style={styles.appointmentService}>{appointment.serviceName}</Text>
-      {appointment.price != null && height >= 70 ? <Text style={styles.appointmentMeta}>{currency.format(appointment.price)}</Text> : null}
+      {density === 'single' ? (
+        <Text numberOfLines={1} style={[styles.appointmentClient, { color: config.text }]}>{singleLine}</Text>
+      ) : null}
+      {density === 'double' ? (
+        <>
+          <Text numberOfLines={1} style={[styles.appointmentTime, { color: config.text }]}>
+            {timeLabel} · {shortDisplayName(appointment.clientName)}
+          </Text>
+          <Text numberOfLines={1} style={styles.appointmentService}>{appointment.serviceName}</Text>
+        </>
+      ) : null}
+      {density === 'full' ? (
+        <>
+          <Text numberOfLines={1} style={[styles.appointmentTime, { color: config.text }]}>{timeLabel}</Text>
+          <Text numberOfLines={1} style={styles.appointmentClient}>{appointment.clientName}</Text>
+          <Text numberOfLines={1} style={styles.appointmentService}>{appointment.serviceName}</Text>
+          {appointment.price != null ? <Text style={styles.appointmentMeta}>{currency.format(appointment.price)}</Text> : null}
+        </>
+      ) : null}
     </Pressable>
   );
 };
@@ -633,12 +879,13 @@ const AppointmentCard = ({ appointment, startMinute, timezone, testID, onPress }
 interface BlockCardProps {
   block: CalendarBlock;
   startMinute: number;
+  slotHeight: number;
   timezone?: string;
   onPress?: (block: CalendarBlock) => void;
 }
 
-const BlockCard = ({ block, startMinute, timezone, onPress }: BlockCardProps) => {
-  const { top, height } = calculateEventGeometry(block.startsAt, block.endsAt, startMinute, timezone);
+const BlockCard = ({ block, startMinute, slotHeight, timezone, onPress }: BlockCardProps) => {
+  const { top, height } = calculateEventGeometry(block.startsAt, block.endsAt, startMinute, timezone, slotHeight);
   return (
     <Pressable onPress={() => onPress?.(block)} style={({ pressed }) => [styles.blockCard, { top, height }, pressed && styles.pressed]}>
       <LockKeyhole color={colors.textSecondary} size={14} />
@@ -660,10 +907,25 @@ const styles = StyleSheet.create({
   dateLabel: { ...typeScale.bodyStrong, color: colors.textPrimary, textTransform: 'capitalize' },
   toolbarActions: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   segmentedWrap: { minWidth: 240 },
+  densityWrap: { minWidth: 220 },
   singleViewLabel: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
   singleViewText: { ...typeScale.bodyStrong, color: colors.textSecondary },
-  freeState: { backgroundColor: colors.brandSecondarySoft, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  freeState: { backgroundColor: colors.brandSecondarySoft, borderRadius: radii.md, gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   freeStateText: { ...typeScale.small, color: colors.textSecondary },
+  freeStateActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  weekGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  weekColumn: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, flexGrow: 1, gap: spacing.xs, minWidth: 120, padding: spacing.sm },
+  weekDayLabel: { ...typeScale.bodyStrong, color: colors.textPrimary, textTransform: 'capitalize' },
+  weekCount: { ...typeScale.small, color: colors.textMuted },
+  weekItem: { backgroundColor: colors.surface, borderRadius: radii.sm, paddingHorizontal: spacing.xs, paddingVertical: 4 },
+  weekItemText: { ...typeScale.small, color: colors.textSecondary },
+  weekMore: { ...typeScale.label, color: colors.textMuted },
+  listView: { gap: spacing.md },
+  listGroup: { gap: spacing.xs },
+  listHour: { ...typeScale.label, color: colors.brandPrimary, letterSpacing: 1 },
+  listItem: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, gap: 2, padding: spacing.md },
+  listItemTitle: { ...typeScale.bodyStrong, color: colors.textPrimary },
+  listItemMeta: { ...typeScale.small, color: colors.textSecondary },
   desktopFrame: { borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden' },
   desktopCanvas: { flex: 1 },
   resourceHeaderRow: { backgroundColor: colors.surfaceMuted, borderBottomColor: colors.borderSubtle, borderBottomWidth: 1, flexDirection: 'row', height: 54 },
@@ -675,13 +937,13 @@ const styles = StyleSheet.create({
   gridViewport: { maxHeight: 540 },
   gridRow: { flexDirection: 'row' },
   timeColumn: { backgroundColor: colors.surfaceMuted, borderRightColor: colors.borderSubtle, borderRightWidth: 1, width: TIME_GUTTER_WIDTH },
-  timeSlot: { alignItems: 'flex-end', borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth, height: SLOT_HEIGHT, paddingRight: spacing.sm, paddingTop: 5 },
+  timeSlot: { alignItems: 'flex-end', borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth, paddingRight: spacing.sm, paddingTop: 5 },
   timeText: { ...typeScale.label, color: colors.textMuted, fontVariant: ['tabular-nums'] },
   resourceColumn: { flex: 1, borderRightColor: colors.borderSubtle, borderRightWidth: 1, minWidth: RESOURCE_MIN_WIDTH, position: 'relative' },
-  gridSlot: { alignItems: 'flex-end', borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth, height: SLOT_HEIGHT, justifyContent: 'center', paddingRight: spacing.xs },
+  gridSlot: { alignItems: 'flex-end', borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth, justifyContent: 'center', paddingRight: spacing.xs },
   gridSlotActive: { backgroundColor: colors.brandSecondarySoft },
   slotPlus: { opacity: 0 },
-  appointmentCard: { borderLeftWidth: 3, borderRadius: radii.sm, left: 3, overflow: 'hidden', paddingHorizontal: spacing.sm, paddingVertical: 5, position: 'absolute', right: 3, zIndex: 3 },
+  appointmentCard: { borderLeftWidth: 3, borderRadius: radii.sm, overflow: 'hidden', paddingHorizontal: spacing.sm, paddingVertical: 4, position: 'absolute', zIndex: 3 },
   appointmentTime: { ...typeScale.label, fontVariant: ['tabular-nums'] },
   appointmentClient: { ...typeScale.bodyStrong, color: colors.textPrimary },
   appointmentService: { ...typeScale.small, color: colors.textSecondary },

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Banknote,
@@ -7,7 +7,6 @@ import {
   Check,
   ChevronRight,
   CircleAlert,
-  Clock3,
   Plus,
   TrendingUp,
 } from 'lucide-react-native';
@@ -19,18 +18,24 @@ import { useServices } from '../../hooks/useServices';
 import { useTeam } from '../../hooks/useTeam';
 import { useNextAppointment } from '../../hooks/useNextAppointment';
 import { useAdminReport } from '../../hooks/use-admin-report';
+import { useAvailableSlots } from '../../hooks/useAvailableSlots';
 import { supabase } from '../../services/supabase';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { InlineNotice } from '../ui/InlineNotice';
+import { PromptDialog } from '../ui/PromptDialog';
 import { SectionHeading } from '../ui/SectionHeading';
 import { StatusBadge } from '../ui/StatusBadge';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { AdminQuickBook } from '../admin/AdminQuickBook';
 import { AdminReschedule } from '../admin/AdminReschedule';
+import { DashboardSidePanel } from '../admin/dashboard/dashboard-side-panel';
+import { DashboardSyncIndicator } from '../admin/dashboard/dashboard-sync-indicator';
+import { DashboardTeamPreview } from '../admin/dashboard/dashboard-team-preview';
 import { DashboardAppointment } from '../../types/dashboard';
 import { AppointmentRecord } from '@cutsync/database';
-import { GlobalNextAppointmentCard } from '../admin/GlobalNextAppointmentCard';
 import { OperationalCalendar, CalendarAppointment, CalendarSlotSelection } from '../calendar/operational-calendar';
 import { AppointmentDetailSheet } from '../calendar/appointment-detail-sheet';
 import { PageHeader } from '../ui/page-header';
@@ -40,6 +45,19 @@ import { useScheduleBlocks } from '../../hooks/use-schedule-blocks';
 import { SlotActionSheet } from '../calendar/slot-action-sheet';
 import { ScheduleBlockDraft, ScheduleBlockModal } from '../calendar/schedule-block-modal';
 import { AppCommand, useCommandPalette, useCommandRegistration } from '../command/command-palette-provider';
+import {
+  clockToMinutes,
+  getAvailableSlots,
+  ScheduleWindow,
+} from '../../features/availability/get-available-slots';
+import { minutesOfDay } from '../calendar/calendar-math';
+
+const greetingForNow = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Bom dia';
+  if (hour < 18) return 'Boa tarde';
+  return 'Boa noite';
+};
 
 type RichAppointment = DashboardAppointment;
 
@@ -50,14 +68,23 @@ const toRichAppointment = (item: AppointmentRecord): RichAppointment => ({
   clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
   clientPhone: item.client?.phone || '',
   serviceName: item.service?.name || 'Serviço indisponível',
-  price: item.service?.price || 0,
+  price: item.priceCharged ?? item.service?.price ?? 0,
   professionalId: item.professionalId,
   cancellationReason: item.cancellationReason || '',
 });
 
-const quickTimes = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
-
 const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const dayWindow = (scheduleJson: string | null | undefined, day: number): ScheduleWindow | null => {
+  const schedule = parseSchedule(scheduleJson);
+  if (!schedule.length) return null;
+  const configured = schedule.find((item) => item.day === day);
+  if (!configured?.isOpen) return null;
+  const openMinutes = clockToMinutes(configured.open);
+  const closeMinutes = clockToMinutes(configured.close);
+  if (openMinutes == null || closeMinutes == null || openMinutes >= closeMinutes) return null;
+  return { openMinutes, closeMinutes };
+};
 
 const comparisonNote = (current: number, previous: number) => {
   if (previous === 0) return current === 0 ? 'sem variação contra ontem' : 'sem base no dia anterior';
@@ -87,6 +114,9 @@ export const AdminDashboardExperience = () => {
   const [blockSelection, setBlockSelection] = useState<CalendarSlotSelection | null>(null);
   const [blockLoading, setBlockLoading] = useState(false);
   const [blockError, setBlockError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ tone: 'success' | 'danger' | 'warning'; message: string } | null>(null);
+  const [cancelPromptId, setCancelPromptId] = useState<string | null>(null);
+  const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
@@ -159,11 +189,48 @@ export const AdminDashboardExperience = () => {
   const [newRescheduleDate, setNewRescheduleDate] = useState<Date>(new Date());
   const [newRescheduleTime, setNewRescheduleTime] = useState<string | null>(null);
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
-  const [occupiedTimes, setOccupiedTimes] = useState<string[]>([]);
 
   // Estados locais para Encaixe Rápido
   const [quickDate, setQuickDate] = useState<Date>(new Date());
-  const [quickOccupiedTimes, setQuickOccupiedTimes] = useState<string[]>([]);
+
+  const rescheduleSource = rescheduleItem
+    ? appointmentRecords.find((item) => item.id === rescheduleItem.id) || null
+    : null;
+
+  const {
+    slots: quickAvailabilitySlots,
+    loading: quickSlotsLoading,
+    emptyMessage: quickSlotsEmptyMessage,
+    error: quickSlotsError,
+  } = useAvailableSlots({
+    establishmentId: activeEstablishmentId,
+    professionalId: quickBarber,
+    serviceId: quickService,
+    date: quickOpen ? quickDate : null,
+  });
+
+  const {
+    slots: rescheduleAvailabilitySlots,
+    loading: rescheduleSlotsLoading,
+    emptyMessage: rescheduleSlotsEmptyMessage,
+    error: rescheduleSlotsError,
+  } = useAvailableSlots({
+    establishmentId: activeEstablishmentId,
+    professionalId: rescheduleSource?.professionalId,
+    serviceId: rescheduleSource?.serviceId,
+    date: rescheduleItem ? newRescheduleDate : null,
+    appointmentId: rescheduleItem?.id,
+  });
+
+  const quickTimes = quickAvailabilitySlots.map((slot) => slot.localTime);
+  const quickOccupiedTimes = quickAvailabilitySlots.filter((slot) => !slot.available).map((slot) => slot.localTime);
+  const rescheduleTimes = rescheduleAvailabilitySlots.map((slot) => slot.localTime);
+  const occupiedTimes = rescheduleAvailabilitySlots.filter((slot) => !slot.available).map((slot) => slot.localTime);
+  const quickTimesHint = !quickService || !quickBarber
+    ? 'Selecione profissional e serviço para ver horários reais.'
+    : quickSlotsError || (!quickSlotsLoading && !quickTimes.length ? quickSlotsEmptyMessage : null);
+  const rescheduleTimesHint = rescheduleSlotsError
+    || (!rescheduleSlotsLoading && !rescheduleTimes.length ? rescheduleSlotsEmptyMessage : null);
 
   const weekOffset = useMemo(() => {
     const today = new Date();
@@ -192,74 +259,16 @@ export const AdminDashboardExperience = () => {
     setLoading(dailyLoading);
   }, [appointmentRecords, dailyLoading]);
 
-  useEffect(() => {
-    if (!rescheduleItem || !newRescheduleDate) {
-      setOccupiedTimes([]);
-      return;
-    }
-    const startOfDay = new Date(newRescheduleDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(newRescheduleDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    void (async () => {
-      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', rescheduleItem.professionalId)
-        .neq('status', 'cancelled').neq('id', rescheduleItem.id)
-        .gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
-      setOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
-    })();
-  }, [rescheduleItem, newRescheduleDate]);
-
-  useEffect(() => {
-    if (!quickOpen || !quickBarber || !quickDate) {
-      setQuickOccupiedTimes([]);
-      return;
-    }
-    const startOfDay = new Date(quickDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(quickDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    void (async () => {
-      const { data } = await supabase.from('appointments').select('date_time').eq('professional_id', quickBarber)
-        .neq('status', 'cancelled').gte('date_time', startOfDay.toISOString()).lte('date_time', endOfDay.toISOString());
-      setQuickOccupiedTimes((data || []).map(item => new Date(item.date_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })));
-    })();
-  }, [quickOpen, quickBarber, quickDate]);
-
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled' | 'completed', reason?: string) => {
     if (status === 'cancelled' && !reason) {
-      if (Platform.OS === 'web') {
-        const val = window.prompt('Motivo do Cancelamento:', 'Cliente solicitou');
-        if (val === null) {
-          setActionLoadingId(null);
-          return;
-        }
-        updateStatus(id, 'cancelled', val || 'Cliente solicitou');
-      } else {
-        Alert.alert(
-          'Motivo do Cancelamento',
-          'Selecione a justificativa:',
-          [
-            { text: 'Cliente solicitou', onPress: () => updateStatus(id, 'cancelled', 'Cliente solicitou') },
-            { text: 'Falta do profissional', onPress: () => updateStatus(id, 'cancelled', 'Profissional indisponível') },
-            { text: 'Erro de agenda', onPress: () => updateStatus(id, 'cancelled', 'Erro de agenda') },
-            { text: 'Voltar', style: 'cancel', onPress: () => setActionLoadingId(null) }
-          ]
-        );
-      }
+      setCancelPromptId(id);
       return;
     }
     setActionLoadingId(id);
     try {
       const appointment = appointmentRecords.find((item) => item.id === id);
       if (status === 'completed' && appointment && appointment.dateTime.getTime() > Date.now()) {
-        const msg = 'Não é possível concluir um agendamento no futuro.';
-        if (Platform.OS === 'web') {
-          window.alert(msg);
-        } else {
-          Alert.alert('Atenção', msg);
-        }
+        setFeedback({ tone: 'warning', message: 'Não é possível concluir um agendamento no futuro.' });
         setActionLoadingId(null);
         return;
       }
@@ -277,15 +286,11 @@ export const AdminDashboardExperience = () => {
       }
       const { error } = await supabase.rpc('update_appointment_status_v2', rpcParams);
       if (error) throw error;
+      setFeedback({ tone: 'success', message: status === 'cancelled' ? 'Atendimento cancelado.' : status === 'completed' ? 'Atendimento concluído.' : 'Atendimento confirmado.' });
       await refresh();
     } catch (err) {
       console.error('[AdminDashboard] update_appointment_status falhou:', err);
-      const msg = 'Não foi possível atualizar este atendimento.';
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('Erro', msg);
-      }
+      setFeedback({ tone: 'danger', message: 'Não foi possível atualizar este atendimento.' });
     } finally {
       setActionLoadingId(null);
     }
@@ -309,17 +314,17 @@ export const AdminDashboardExperience = () => {
       });
       if (error) throw error;
       setRescheduleItem(null);
-      if (Platform.OS === 'web') window.alert('Atendimento reagendado com sucesso!');
-      else Alert.alert('Sucesso', 'Atendimento reagendado com sucesso!');
+      setFeedback({ tone: 'success', message: 'Atendimento reagendado com sucesso.' });
       await refresh();
     } catch (err) {
       console.error('[AdminDashboard] reschedule_appointment falhou:', err);
       const message = err instanceof Error ? err.message : String(err);
-      const msg = message.includes('appointment_conflict')
-        ? 'Esse horário conflita com outro atendimento. Escolha outro horário.'
-        : 'Não foi possível reagendar este atendimento.';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Erro', msg);
+      setFeedback({
+        tone: 'danger',
+        message: message.includes('appointment_conflict')
+          ? 'Esse horário conflita com outro atendimento. Escolha outro horário.'
+          : 'Não foi possível reagendar este atendimento.',
+      });
     } finally {
       setRescheduleLoading(false);
     }
@@ -327,12 +332,7 @@ export const AdminDashboardExperience = () => {
 
   const createQuickBooking = async () => {
     if (!quickName.trim() || !quickService || !quickBarber || !quickTime || !barbershop?.id) {
-      const msg = 'Informe cliente, serviço, profissional e horário para criar o encaixe.';
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('Atenção', msg);
-      }
+      setFeedback({ tone: 'warning', message: 'Informe cliente, serviço, profissional e horário para criar o encaixe.' });
       return;
     }
     const dateTime = new Date(quickDate);
@@ -340,21 +340,16 @@ export const AdminDashboardExperience = () => {
     dateTime.setHours(hours, minutes, 0, 0);
     const service = services.find((item) => item.id === quickService);
     const end = dateTime.getTime() + (service?.durationMinutes || 30) * 60 * 1000;
-    
+
     const conflict = appointments.some((item) => {
       if (item.professionalId !== quickBarber || item.status === 'cancelled') return false;
       const itemService = services.find((candidate) => candidate.name === item.serviceName);
       const itemEnd = item.dateTime.getTime() + (itemService?.durationMinutes || 30) * 60 * 1000;
       return dateTime.getTime() < itemEnd && end > item.dateTime.getTime();
     });
-    
+
     if (conflict) {
-      const msg = 'Esse horário conflita com outro atendimento do profissional selecionado.';
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('Atenção', msg);
-      }
+      setFeedback({ tone: 'warning', message: 'Esse horário conflita com outro atendimento do profissional selecionado.' });
       return;
     }
 
@@ -369,23 +364,22 @@ export const AdminDashboardExperience = () => {
         target_client_id: null,
       });
       if (error) throw error;
-      setQuickOpen(false); 
-      setQuickName(''); 
-      setQuickService(null); 
-      setQuickBarber(null); 
+      setQuickOpen(false);
+      setQuickName('');
+      setQuickService(null);
+      setQuickBarber(null);
       setQuickTime(null);
+      setFeedback({ tone: 'success', message: 'Encaixe criado com sucesso.' });
       await refresh();
     } catch (err) {
       console.error('[AdminDashboard] create_appointment falhou:', err);
       const message = err instanceof Error ? err.message : String(err);
-      const msg = message.includes('appointment_conflict')
-        ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
-        : 'Não foi possível criar o encaixe.';
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('Erro', msg);
-      }
+      setFeedback({
+        tone: 'danger',
+        message: message.includes('appointment_conflict')
+          ? 'Esse horário acabou de ser reservado. Escolha outro horário.'
+          : 'Não foi possível criar o encaixe.',
+      });
     } finally {
       setQuickLoading(false);
     }
@@ -397,11 +391,42 @@ export const AdminDashboardExperience = () => {
 
   const reportSummary = dayReport?.summary;
   const previousSummary = dayReport?.previous_summary;
+  const openReports = (params?: Record<string, string>) => {
+    router.push({ pathname: '/(admin)/reports', params: { period: '7d', ...params } } as never);
+  };
   const metrics = [
-    { key: 'production', label: 'Produção realizada hoje', value: currency(reportSummary?.production_realized || 0), note: previousSummary ? comparisonNote(reportSummary?.production_realized || 0, previousSummary.production_realized) : `${reportSummary?.completed_count || 0} concluídos`, Icon: Banknote },
-    { key: 'scheduled', label: 'Valor ainda agendado', value: currency(reportSummary?.scheduled_value || 0), note: `${reportSummary?.active_count || 0} atendimentos ativos`, Icon: CalendarClock },
-    { key: 'occupancy', label: 'Ocupação real', value: `${(reportSummary?.occupancy_rate || 0).toFixed(1).replace('.', ',')}%`, note: reportSummary?.available_minutes ? `${Math.round(reportSummary.occupied_minutes / 60)}h ocupadas` : 'configure jornadas e horários', Icon: TrendingUp },
-    { key: 'pending', label: 'Aguardando confirmação', value: String(reportSummary?.pending_count || 0), note: 'atendimentos pendentes hoje', Icon: CircleAlert },
+    {
+      key: 'production',
+      label: 'Produção realizada hoje',
+      value: currency(reportSummary?.production_realized || 0),
+      note: previousSummary ? comparisonNote(reportSummary?.production_realized || 0, previousSummary.production_realized) : `${reportSummary?.completed_count || 0} concluídos`,
+      Icon: Banknote,
+      onPress: () => openReports({ status: 'completed' }),
+    },
+    {
+      key: 'scheduled',
+      label: 'Valor ainda agendado',
+      value: currency(reportSummary?.scheduled_value || 0),
+      note: `${reportSummary?.active_count || 0} atendimentos ativos`,
+      Icon: CalendarClock,
+      onPress: () => openReports(),
+    },
+    {
+      key: 'occupancy',
+      label: 'Ocupação real',
+      value: `${(reportSummary?.occupancy_rate || 0).toFixed(1).replace('.', ',')}%`,
+      note: reportSummary?.available_minutes ? `${Math.round(reportSummary.occupied_minutes / 60)}h ocupadas` : 'configure jornadas e horários',
+      Icon: TrendingUp,
+      onPress: () => openReports(),
+    },
+    {
+      key: 'pending',
+      label: 'Aguardando confirmação',
+      value: String(reportSummary?.pending_count || 0),
+      note: 'atendimentos pendentes hoje',
+      Icon: CircleAlert,
+      onPress: () => openReports({ status: 'pending' }),
+    },
   ];
 
   const calendarResources = useMemo(
@@ -418,9 +443,9 @@ export const AdminDashboardExperience = () => {
       clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
       serviceName: item.service?.name || 'Serviço indisponível',
       startsAt: item.dateTime,
-      endsAt: new Date(item.dateTime.getTime() + (item.service?.durationMinutes || 30) * 60_000),
+      endsAt: new Date(item.dateTime.getTime() + (item.durationMinutes || item.service?.durationMinutes || 30) * 60_000),
       status: item.status,
-      price: item.service?.price,
+      price: item.priceCharged ?? item.service?.price,
     })),
     [appointmentRecords],
   );
@@ -437,52 +462,60 @@ export const AdminDashboardExperience = () => {
   const pendingAppointments = visibleCalendarAppointments.filter((item) => item.status === 'pending');
   const cancelledAppointments = visibleCalendarAppointments.filter((item) => item.status === 'cancelled').slice(0, 3);
   const nextFreeSlots = useMemo(() => {
-    if (!selectedWorkingDay?.isOpen || !calendarResources.length) return [];
-    const [openHour, openMinute] = selectedWorkingDay.open.split(':').map(Number);
-    const [closeHour, closeMinute] = selectedWorkingDay.close.split(':').map(Number);
-    const cursor = new Date(selectedDate);
-    cursor.setHours(openHour, openMinute, 0, 0);
-    const close = new Date(selectedDate);
-    close.setHours(closeHour, closeMinute, 0, 0);
-    if (cursor.toDateString() === new Date().toDateString() && cursor.getTime() < Date.now()) {
-      const now = new Date();
-      now.setSeconds(0, 0);
-      now.setMinutes(Math.ceil(now.getMinutes() / 30) * 30);
-      cursor.setTime(now.getTime());
-    }
+    const establishmentWindow = dayWindow(barbershop?.openingHours, selectedDate.getDay());
+    if (!establishmentWindow || !calendarResources.length) return [];
+
+    const activeDurations = services.filter((service) => service.isActive).map((service) => service.durationMinutes);
+    const serviceDurationMinutes = activeDurations.length ? Math.min(...activeDurations) : 30;
+    const isToday = selectedDate.toDateString() === new Date().toDateString();
+    const nowMinutes = isToday ? minutesOfDay(new Date(), barbershop?.timezone) : null;
+    const timezone = barbershop?.timezone;
+
     const slots: { id: string; professionalName: string; startsAt: Date }[] = [];
-    while (cursor.getTime() + 30 * 60_000 <= close.getTime() && slots.length < 3) {
-      for (const professional of calendarResources) {
-        const startsAt = new Date(cursor);
-        const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
-        const professionalSchedule = parseSchedule(barbers.find((barber) => barber.id === professional.id)?.workHours);
-        const professionalDay = professionalSchedule.find((day) => day.day === selectedDate.getDay());
-        if (professionalSchedule.length) {
-          if (!professionalDay?.isOpen) continue;
-          const professionalOpen = new Date(selectedDate);
-          const [professionalOpenHour, professionalOpenMinute] = professionalDay.open.split(':').map(Number);
-          professionalOpen.setHours(professionalOpenHour, professionalOpenMinute, 0, 0);
-          const professionalClose = new Date(selectedDate);
-          const [professionalCloseHour, professionalCloseMinute] = professionalDay.close.split(':').map(Number);
-          professionalClose.setHours(professionalCloseHour, professionalCloseMinute, 0, 0);
-          if (startsAt < professionalOpen || endsAt > professionalClose) continue;
-        }
-        const conflictsAppointment = calendarAppointments.some((appointment) => appointment.professionalId === professional.id
-          && appointment.status !== 'cancelled'
-          && startsAt < appointment.endsAt
-          && endsAt > appointment.startsAt);
-        const conflictsBlock = scheduleBlocks.some((block) => block.professionalId === professional.id
-          && startsAt < block.endsAt
-          && endsAt > block.startsAt);
-        if (!conflictsAppointment && !conflictsBlock) {
-          slots.push({ id: `${professional.id}-${startsAt.toISOString()}`, professionalName: professional.name, startsAt });
-          if (slots.length === 3) break;
-        }
+    for (const professional of calendarResources) {
+      const barber = barbers.find((item) => item.id === professional.id);
+      const professionalSchedule = parseSchedule(barber?.workHours);
+      const professionalWindow = professionalSchedule.length
+        ? dayWindow(barber?.workHours, selectedDate.getDay())
+        : undefined;
+
+      const busyIntervals = calendarAppointments
+        .filter((appointment) => appointment.professionalId === professional.id && appointment.status !== 'cancelled')
+        .map((appointment) => ({
+          startMinutes: minutesOfDay(appointment.startsAt, timezone),
+          endMinutes: minutesOfDay(appointment.endsAt, timezone),
+        }));
+      const blockIntervals = scheduleBlocks
+        .filter((block) => block.professionalId === professional.id)
+        .map((block) => ({
+          startMinutes: minutesOfDay(block.startsAt, timezone),
+          endMinutes: minutesOfDay(block.endsAt, timezone),
+        }));
+
+      const available = getAvailableSlots({
+        serviceDurationMinutes,
+        establishmentWindow,
+        professionalWindow,
+        busyIntervals,
+        blockIntervals,
+        nowMinutes,
+      }).filter((slot) => slot.available);
+
+      for (const slot of available) {
+        const startsAt = new Date(selectedDate);
+        startsAt.setHours(Math.floor(slot.startMinutes / 60), slot.startMinutes % 60, 0, 0);
+        slots.push({
+          id: `${professional.id}-${slot.localTime}`,
+          professionalName: professional.name,
+          startsAt,
+        });
       }
-      cursor.setMinutes(cursor.getMinutes() + 30);
     }
-    return slots;
-  }, [barbers, calendarAppointments, calendarResources, scheduleBlocks, selectedDate, selectedWorkingDay]);
+
+    return slots
+      .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime())
+      .slice(0, 3);
+  }, [barbers, barbershop?.openingHours, barbershop?.timezone, calendarAppointments, calendarResources, scheduleBlocks, selectedDate, services]);
 
   const setupItems = [
     { label: 'Configurar horários da unidade', complete: Boolean(parseSchedule(barbershop?.openingHours).length), route: '/(admin)/settings' },
@@ -526,18 +559,19 @@ export const AdminDashboardExperience = () => {
   };
 
   const deleteBlock = async (blockId: string) => {
-    const confirmed = Platform.OS === 'web'
-      ? window.confirm('Remover este bloqueio da agenda?')
-      : await new Promise<boolean>((resolve) => Alert.alert('Remover bloqueio', 'Deseja liberar este horário?', [
-        { text: 'Voltar', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Remover', style: 'destructive', onPress: () => resolve(true) },
-      ], { cancelable: true, onDismiss: () => resolve(false) }));
-    if (!confirmed) return;
-    const { error } = await supabase.rpc('delete_schedule_block', { target_block_id: blockId });
+    setBlockToDelete(blockId);
+  };
+
+  const confirmDeleteBlock = async () => {
+    if (!blockToDelete) return;
+    const { error } = await supabase.rpc('delete_schedule_block', { target_block_id: blockToDelete });
+    setBlockToDelete(null);
     if (error) {
       setBlockError('Não foi possível remover o bloqueio.');
+      setFeedback({ tone: 'danger', message: 'Não foi possível remover o bloqueio.' });
       return;
     }
+    setFeedback({ tone: 'success', message: 'Bloqueio removido.' });
     await refreshScheduleBlocks();
   };
 
@@ -579,12 +613,13 @@ export const AdminDashboardExperience = () => {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <PageHeader
         testID="admin-dashboard-heading"
-        eyebrow="Central de operação"
-        title={`Bom dia, ${profile?.name?.split(' ')[0] || 'gestor'}.`}
-        description="Acompanhe o ritmo da unidade e mantenha a agenda no centro da operação."
+        eyebrow={selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+        title={`${greetingForNow()}, ${profile?.name?.split(' ')[0] || 'gestor'}.`}
+        description="Agenda no centro. Métricas e pendências ao lado."
         actions={<View style={styles.headerActions}>
+          <DashboardSyncIndicator state={syncError ? 'offline' : isSyncing ? 'syncing' : 'live'} />
           <AppButton
-            label="+ Novo Agendamento"
+            label="Novo agendamento"
             testID="admin-new-booking-button"
             onPress={() => {
               setQuickOpen(true);
@@ -599,29 +634,16 @@ export const AdminDashboardExperience = () => {
         </View>}
       />
 
-      <AppCard style={styles.statusInfoCard} testID="admin-status-updated-card">
-        <View style={styles.statusInfoRow}>
-          <Check color={colors.success} size={18} />
-          <Text style={styles.statusInfoText}>
-            Tudo atualizado por aqui, você está visualizando os dados mais recentes!
-          </Text>
-        </View>
-      </AppCard>
-
-      <GlobalNextAppointmentCard
-        appointment={nextAppointment}
-        loading={nextAppointmentLoading}
-        error={nextAppointmentError}
-        style={styles.nextAppointmentCard}
-      />
+      {feedback ? <InlineNotice testID="admin-feedback-notice" tone={feedback.tone} message={feedback.message} /> : null}
 
       <MetricStrip
         testID="admin-metrics-grid"
-        items={metrics.map(({ key, label, value, note, Icon }) => ({
+        items={metrics.map(({ key, label, value, note, Icon, onPress }) => ({
           key,
           label,
           value,
           note,
+          onPress,
           icon: <Icon color={colors.textMuted} size={16} strokeWidth={1.8} />,
         }))}
       />
@@ -681,13 +703,7 @@ export const AdminDashboardExperience = () => {
             onManageTeam={() => router.push('/(admin)/team')}
             onRetry={() => { void refreshDaily(); }}
             onSlotPress={(selection) => {
-              const { professionalId, startsAt } = selection;
-              setQuickBarber(professionalId);
-              setQuickDate(startsAt);
-              const slotHour = String(startsAt.getHours()).padStart(2, '0');
-              const slotMin = String(startsAt.getMinutes()).padStart(2, '0');
-              setQuickTime(`${slotHour}:${slotMin}`);
-              setQuickOpen(true);
+              setSlotSelection(selection);
             }}
             onToggleFinished={() => setShowFinished((current) => !current)}
             resources={calendarResources}
@@ -698,55 +714,45 @@ export const AdminDashboardExperience = () => {
             workingHours={selectedWorkingDay?.isOpen ? { start: selectedWorkingDay.open, end: selectedWorkingDay.close } : null}
           />
         </View>
-        <AppCard testID="admin-day-insights" style={[styles.dayInsights, !isWide && styles.dayInsightsMobile]}>
-          <View style={styles.insightSection}>
-            <View style={styles.insightTitleRow}><CircleAlert color={colors.warning} size={17} /><Text style={styles.insightTitle}>Pendências</Text><StatusBadge testID="admin-pending-total" label={String(pendingAppointments.length)} tone={pendingAppointments.length ? 'warning' : 'success'} /></View>
-            {pendingAppointments.slice(0, 3).map((appointment) => <Text key={appointment.id} style={styles.insightLine}>{time(appointment.startsAt)} · {appointment.clientName}</Text>)}
-            {!pendingAppointments.length ? <Text style={styles.insightEmpty}>Nenhuma confirmação pendente.</Text> : null}
-          </View>
-          <View style={styles.insightSection}>
-            <View style={styles.insightTitleRow}><Clock3 color={colors.info} size={17} /><Text style={styles.insightTitle}>Próximas janelas livres</Text></View>
-            {nextFreeSlots.map((slot) => <Text key={slot.id} style={styles.insightLine}>{time(slot.startsAt)} · {slot.professionalName}</Text>)}
-            {!nextFreeSlots.length ? <Text style={styles.insightEmpty}>Sem janelas de 30 min neste dia.</Text> : null}
-          </View>
-          <View style={styles.insightSection}>
-            <View style={styles.insightTitleRow}><CircleAlert color={colors.danger} size={17} /><Text style={styles.insightTitle}>Cancelamentos</Text></View>
-            {cancelledAppointments.map((appointment) => <Text key={appointment.id} style={styles.insightLine}>{time(appointment.startsAt)} · {appointment.clientName}</Text>)}
-            {!cancelledAppointments.length ? <Text style={styles.insightEmpty}>Nenhum cancelamento no dia.</Text> : null}
-          </View>
-        </AppCard>
+        <View style={[styles.dayInsights, !isWide && styles.dayInsightsMobile]}>
+          <DashboardSidePanel
+            nextAppointmentLabel={
+              nextAppointment
+                ? `${time(nextAppointment.dateTime)} · ${nextAppointment.client?.name || nextAppointment.clientName || 'Cliente'} · ${nextAppointment.service?.name || 'Serviço'}`
+                : nextAppointmentLoading
+                  ? 'Carregando…'
+                  : undefined
+            }
+            pending={pendingAppointments.slice(0, 3).map((appointment) => ({
+              id: appointment.id,
+              label: `${time(appointment.startsAt)} · ${appointment.clientName}`,
+            }))}
+            freeSlots={nextFreeSlots.map((slot) => ({
+              id: slot.id,
+              label: `${time(slot.startsAt)} · ${slot.professionalName}`,
+            }))}
+            cancelled={cancelledAppointments.map((appointment) => ({
+              id: appointment.id,
+              label: `${time(appointment.startsAt)} · ${appointment.clientName}`,
+            }))}
+          />
+        </View>
       </View>
 
-      <View style={[styles.workspace, isWide && styles.workspaceWide]}>
-        <AppCard testID="admin-team-performance-panel" style={styles.performancePanel}>
-          <View style={styles.performanceCardHeader}>
-            <View style={{ flex: 1, minWidth: 160 }}>
-              <Text style={styles.panelTitle}>Prévia da equipe hoje</Text>
-              <Text style={styles.panelSubtitle}>Produção concluída e ocupação dos profissionais</Text>
-            </View>
-            <AppButton label="Ver relatórios" testID="admin-open-reports-button" variant="secondary" size="sm" onPress={() => router.push('/(admin)/reports')} trailingIcon={<ChevronRight color={colors.text} size={15} />} />
-          </View>
-
-          <View style={styles.teamList}>
-            {(dayReport?.professionals || []).slice(0, 3).map((barber) => {
-              return (
-                <View key={barber.id} testID={`admin-team-performance-${barber.id}`} style={styles.teamRow}>
-                  <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
-                  <View style={styles.teamCopy}>
-                    <Text style={styles.teamName}>{barber.name}</Text>
-                    <Text testID={`admin-team-performance-${barber.id}-summary`} style={styles.teamMeta}>{barber.completed_count} concluídos · {barber.occupancy_rate.toFixed(1).replace('.', ',')}% ocupação</Text>
-                  </View>
-                  <View style={styles.teamValue}>
-                    <Text testID={`admin-team-performance-${barber.id}-gross`} style={styles.teamGross}>{currency(barber.production_realized)}</Text>
-                    <Text testID={`admin-team-performance-${barber.id}-commission`} style={styles.teamCommission}>{currency(barber.commission_amount)} repasse</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-          {!dayReport?.professionals.length && <Text testID="admin-team-performance-empty" style={styles.emptyText}>Nenhum profissional vinculado.</Text>}
-        </AppCard>
-      </View>
+      <DashboardTeamPreview
+        members={(dayReport?.professionals || []).slice(0, 6).map((barber) => ({
+          id: barber.id,
+          name: barber.name,
+          completedCount: barber.completed_count,
+          occupancyRate: barber.occupancy_rate,
+          production: currency(barber.production_realized),
+        }))}
+        currencyLabel={(id) => {
+          const barber = (dayReport?.professionals || []).find((item) => item.id === id);
+          return barber ? currency(barber.production_realized) : '—';
+        }}
+        onOpenReports={() => router.push('/(admin)/reports')}
+      />
       </ScrollView>
 
       <SlotActionSheet
@@ -779,9 +785,9 @@ export const AdminDashboardExperience = () => {
 
       <AppointmentDetailSheet
         appointment={selectedCalendarAppointment}
-        canCancel={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled'].includes(selectedCalendarAppointment.status))}
-        canComplete={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled'].includes(selectedCalendarAppointment.status))}
-        canReschedule={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled'].includes(selectedCalendarAppointment.status))}
+        canCancel={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status))}
+        canComplete={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status))}
+        canReschedule={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status))}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         onCancel={(appointment) => {
           setSelectedAppointmentId(null);
@@ -820,6 +826,8 @@ export const AdminDashboardExperience = () => {
         onServiceChange={(value) => { setQuickService(value); setQuickTime(null); }}
         times={quickTimes}
         occupiedTimes={quickOccupiedTimes}
+        timesLoading={quickSlotsLoading}
+        timesHint={quickTimesHint}
         selectedTime={quickTime}
         onTimeChange={setQuickTime}
         currency={currency}
@@ -832,12 +840,41 @@ export const AdminDashboardExperience = () => {
         dates={dateOptions}
         selectedDate={newRescheduleDate}
         onDateChange={(value) => { setNewRescheduleDate(value); setNewRescheduleTime(null); }}
-        times={quickTimes}
+        times={rescheduleTimes}
         occupiedTimes={occupiedTimes}
+        timesLoading={rescheduleSlotsLoading}
+        timesHint={rescheduleTimesHint}
         selectedTime={newRescheduleTime}
         onTimeChange={setNewRescheduleTime}
         loading={rescheduleLoading}
         onSubmit={executeReschedule}
+      />
+
+      <PromptDialog
+        visible={Boolean(cancelPromptId)}
+        title="Cancelar atendimento"
+        message="Informe o motivo do cancelamento (visível só para a equipe)."
+        defaultValue="Cliente solicitou"
+        placeholder="Motivo do cancelamento"
+        confirmLabel="Confirmar cancelamento"
+        testID="admin-cancel-prompt"
+        onConfirm={(value) => {
+          const id = cancelPromptId;
+          setCancelPromptId(null);
+          if (id) void updateStatus(id, 'cancelled', value.trim() || 'Cliente solicitou');
+        }}
+        onCancel={() => setCancelPromptId(null)}
+      />
+
+      <ConfirmDialog
+        visible={Boolean(blockToDelete)}
+        title="Remover bloqueio"
+        message="Remover este bloqueio da agenda?"
+        confirmLabel="Remover"
+        destructive
+        testID="admin-delete-block-confirm"
+        onConfirm={() => { void confirmDeleteBlock(); }}
+        onCancel={() => setBlockToDelete(null)}
       />
     </AdminShell>
   );

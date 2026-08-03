@@ -8,6 +8,7 @@ export interface AdminReportSummary {
   idle_minutes: number;
   completed_count: number;
   cancelled_count: number;
+  no_show_count: number;
   pending_count: number;
   confirmed_count: number;
   active_count: number;
@@ -22,6 +23,7 @@ export interface AdminReportDay {
   occupancy_rate: number;
   completed_count: number;
   cancelled_count: number;
+  no_show_count: number;
   appointment_count: number;
 }
 
@@ -31,6 +33,7 @@ export interface AdminReportService {
   appointment_count: number;
   completed_count: number;
   cancelled_count: number;
+  no_show_count: number;
   production_realized: number;
   average_ticket: number;
   average_duration_minutes: number;
@@ -44,6 +47,7 @@ export interface AdminReportProfessional {
   appointment_count: number;
   completed_count: number;
   cancelled_count: number;
+  no_show_count: number;
   production_realized: number;
   commission_amount: number;
   production_share: number;
@@ -99,7 +103,7 @@ export interface AdminReport {
 }
 
 export type AdminReportTab = 'overview' | 'operations' | 'team' | 'services' | 'clients';
-export type AdminReportStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type AdminReportStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
 export type AdminReportDetailDimension = 'appointments' | 'clients';
 
 export interface AdminReportFilters {
@@ -149,6 +153,7 @@ export const emptyAdminReportSummary = (): AdminReportSummary => ({
   idle_minutes: 0,
   completed_count: 0,
   cancelled_count: 0,
+  no_show_count: 0,
   pending_count: 0,
   confirmed_count: 0,
   active_count: 0,

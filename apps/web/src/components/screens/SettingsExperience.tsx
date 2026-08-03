@@ -16,7 +16,9 @@ import { FormSection } from '../ui/FormSection';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
 import { colors, layout, radii, typography } from '../../theme/tokens';
+import { parseOptionalCoordinate } from '../../utils/coordinate-validation';
 import { getErrorMessage } from '../../utils/errors';
+import { isValidClockTime, maskTimeInput } from '../../utils/time-input-mask';
 import { StickyActionBar } from '../ui/sticky-action-bar';
 import { normalizeInstagramHandle } from '@cutsync/domain';
 
@@ -390,6 +392,25 @@ export const SettingsExperience = () => {
       setNotice({ tone: 'danger', message: formError || 'Nome e endereço digital são obrigatórios.' });
       return;
     }
+    const invalidDay = schedule.find((day) => day.isOpen && (!isValidClockTime(day.open) || !isValidClockTime(day.close)));
+    if (invalidDay) {
+      setNotice({ tone: 'danger', message: `Horário inválido em ${invalidDay.name}. Use HH:MM.` });
+      return;
+    }
+    const lat = parseOptionalCoordinate(latitude, 'latitude');
+    const lng = parseOptionalCoordinate(longitude, 'longitude');
+    if (!lat.ok) {
+      setNotice({ tone: 'danger', message: lat.message });
+      return;
+    }
+    if (!lng.ok) {
+      setNotice({ tone: 'danger', message: lng.message });
+      return;
+    }
+    if ((lat.value == null) !== (lng.value == null)) {
+      setNotice({ tone: 'danger', message: 'Informe latitude e longitude juntas, ou deixe ambas vazias.' });
+      return;
+    }
     if (!barbershop) return;
 
     setSaving(true);
@@ -403,8 +424,8 @@ export const SettingsExperience = () => {
         instant_booking_enabled: instantBookingEnabled,
         min_cancellation_hours: parseInt(minCancellationHours, 10) || 24,
         no_show_fee_percent: parseFloat(noShowFeePercent) || 0.00,
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null,
+        latitude: lat.value,
+        longitude: lng.value,
         professional_pix_allowed: professionalPixAllowed,
       }).eq('id', barbershop.id)
         .select('id')
@@ -420,8 +441,8 @@ export const SettingsExperience = () => {
         instantBookingEnabled: instantBookingEnabled,
         minCancellationHours: parseInt(minCancellationHours, 10) || 24,
         noShowFeePercent: parseFloat(noShowFeePercent) || 0.00,
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null,
+        latitude: lat.value,
+        longitude: lng.value,
         professionalPixAllowed: professionalPixAllowed,
       }));
       setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
@@ -582,6 +603,7 @@ export const SettingsExperience = () => {
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Nome comercial" testID="settings-name-input" icon={<Store color={colors.textMuted} size={17} />} value={name} onChangeText={setName} placeholder="Nome da barbearia" />
               </View>
+              <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens. Aparece em cutsync.com/salon/…" />
               <BrandColorPicker value={primaryColor} onChange={setPrimaryColor} />
             </FormSection> : null}
 
@@ -602,8 +624,30 @@ export const SettingsExperience = () => {
                 <AppInput containerStyle={styles.flexField} label="Multa No-Show (%)" value={noShowFeePercent} onChangeText={setNoShowFeePercent} keyboardType="numeric" placeholder="0" hint="Taxa cobrada em faltas." />
               </View>
               <View style={styles.fieldsRow}>
-                <AppInput containerStyle={styles.flexField} label="Latitude Geográfica (Opcional)" value={latitude} onChangeText={setLatitude} keyboardType="numeric" placeholder="Ex: -23.550520" hint="Para exibir a rota ao cliente." />
-                <AppInput containerStyle={styles.flexField} label="Longitude Geográfica (Opcional)" value={longitude} onChangeText={setLongitude} keyboardType="numeric" placeholder="Ex: -46.633308" hint="Para exibir a rota ao cliente." />
+                <AppInput
+                  containerStyle={styles.flexField}
+                  label="Latitude Geográfica (Opcional)"
+                  value={latitude}
+                  onChangeText={setLatitude}
+                  keyboardType="numeric"
+                  placeholder="Ex: -23.550520"
+                  hint={(() => {
+                    const parsed = parseOptionalCoordinate(latitude, 'latitude');
+                    return parsed.ok ? 'Entre -90 e 90. Informe junto com a longitude.' : parsed.message;
+                  })()}
+                />
+                <AppInput
+                  containerStyle={styles.flexField}
+                  label="Longitude Geográfica (Opcional)"
+                  value={longitude}
+                  onChangeText={setLongitude}
+                  keyboardType="numeric"
+                  placeholder="Ex: -46.633308"
+                  hint={(() => {
+                    const parsed = parseOptionalCoordinate(longitude, 'longitude');
+                    return parsed.ok ? 'Entre -180 e 180. Informe junto com a latitude.' : parsed.message;
+                  })()}
+                />
               </View>
               <View style={styles.visibilityRow}>
                 <View style={styles.visibilityCopy}>
@@ -700,10 +744,12 @@ export const SettingsExperience = () => {
                           value={dayItem.open}
                           onChangeText={(val) => {
                             const copy = [...schedule];
-                            copy[idx].open = val;
+                            copy[idx].open = maskTimeInput(val);
                             setSchedule(copy);
                           }}
                           placeholder="09:00"
+                          keyboardType="number-pad"
+                          maxLength={5}
                           placeholderTextColor="#666"
                         />
                         <Text style={{ color: colors.textMuted, fontSize: 11 }}>às</Text>
@@ -713,10 +759,12 @@ export const SettingsExperience = () => {
                           value={dayItem.close}
                           onChangeText={(val) => {
                             const copy = [...schedule];
-                            copy[idx].close = val;
+                            copy[idx].close = maskTimeInput(val);
                             setSchedule(copy);
                           }}
                           placeholder="20:00"
+                          keyboardType="number-pad"
+                          maxLength={5}
                           placeholderTextColor="#666"
                         />
                       </View>
@@ -755,7 +803,6 @@ export const SettingsExperience = () => {
               primaryColor={primaryColor}
               onCopyLink={copyPublicLink}
             />
-            <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens." />
           </View>
         </View>
         </ScrollView>

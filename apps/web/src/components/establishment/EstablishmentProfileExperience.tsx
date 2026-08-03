@@ -7,11 +7,13 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useEstablishmentRouteParams } from '../../hooks/use-establishment-route-params';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
+import { useEstablishmentServicePrices } from '../../features/services/use-establishment-service-prices';
 import { ProfileRecord } from '@cutsync/database';
 import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { SectionHeading } from '../ui/SectionHeading';
+import { StatusBadge } from '../ui/StatusBadge';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { EstablishmentThemeProvider, useEstablishmentTheme } from '../../contexts/establishment-theme-context';
 import { EstablishmentThemeScope } from '../theme/establishment-theme-scope';
@@ -74,8 +76,29 @@ export const EstablishmentProfileExperience = () => {
 
   const { establishment: barbershop, loading } = useEstablishment(identifier, by);
   const { services } = useServices(barbershop?.id, true);
+  const { prices: pricedServices } = useEstablishmentServicePrices(barbershop?.id);
   const { team: barbers } = usePublicTeam(barbershop?.id);
   const [mapUrl, setMapUrl] = useState<string | null>(null);
+  const showcaseServices = useMemo(() => {
+    if (pricedServices.length) {
+      return pricedServices.filter((service) => service.isActive);
+    }
+    return services.map((service) => ({
+      serviceId: service.id,
+      kind: service.kind,
+      name: service.name,
+      listPrice: service.price,
+      effectivePrice: service.price,
+      durationMinutes: service.durationMinutes,
+      discountType: null as 'percent' | 'fixed_price' | null,
+      discountValue: null as number | null,
+      promotionId: null as string | null,
+      savings: 0,
+      membersTotal: null as number | null,
+      isActive: service.isActive,
+      sortOrder: service.sortOrder,
+    }));
+  }, [pricedServices, services]);
 
   useEffect(() => {
     if (!barbershop?.address) return;
@@ -364,20 +387,40 @@ function EstablishmentProfileBody({
         {/* Serviços */}
         <View style={styles.section}>
           <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços" description="" />
-          {services.length === 0 ? (
+          {showcaseServices.length === 0 ? (
             <EmptyState testID="barbershop-services-empty" title="Catálogo" description="O estabelecimento ainda não publicou serviços ativos." icon={<Scissors color={colors.textSecondary} size={22} strokeWidth={1.6} />} />
           ) : (
             <View testID="barbershop-services-grid" style={styles.cardsGrid}>
-              {services.map((service) => (
-                <View key={service.id} testID={`barbershop-service-${service.id}`} style={[styles.serviceCard, accentBorderLeft(theme)]}>
-                  <View style={[styles.cardIcon, iconSoftBackground(theme)]}>
-                    <Scissors color={theme.primary} size={14} strokeWidth={1.6} />
+              {showcaseServices.map((service) => {
+                const onPromo = service.savings > 0;
+                const comboSavings = service.kind === 'combo' && service.membersTotal && service.membersTotal > service.listPrice
+                  ? service.membersTotal - service.listPrice
+                  : 0;
+                return (
+                  <View key={service.serviceId} testID={`barbershop-service-${service.serviceId}`} style={[styles.serviceCard, accentBorderLeft(theme), service.kind === 'combo' && styles.comboCard]}>
+                    <View style={styles.serviceBadgeRow}>
+                      <View style={[styles.cardIcon, iconSoftBackground(theme)]}>
+                        <Scissors color={theme.primary} size={14} strokeWidth={1.6} />
+                      </View>
+                      {service.kind === 'combo' ? <StatusBadge label="Combo" tone="info" /> : null}
+                      {onPromo ? <StatusBadge label="Promo" tone="warning" /> : null}
+                    </View>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <View style={styles.priceRow}>
+                      {onPromo ? (
+                        <Text style={styles.listPrice}>{currency(service.listPrice)}</Text>
+                      ) : null}
+                      <Text testID={`barbershop-service-${service.serviceId}-price`} style={[styles.servicePrice, accentText(theme)]}>
+                        {currency(service.effectivePrice)}
+                      </Text>
+                    </View>
+                    {comboSavings > 0 && !onPromo ? (
+                      <Text style={styles.comboSavings}>Economia de {currency(comboSavings)} vs avulsos</Text>
+                    ) : null}
+                    <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
                   </View>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text testID={`barbershop-service-${service.id}-price`} style={[styles.servicePrice, accentText(theme)]}>{currency(service.price)}</Text>
-                  <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
@@ -634,9 +677,14 @@ const styles = StyleSheet.create({
   section: { marginTop: 44, paddingHorizontal: 20, gap: 16 },
   cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   serviceCard: { flex: 1, minWidth: 160, maxWidth: 260, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 18, ...atmosphericShadow },
+  comboCard: { borderColor: colors.brandSecondary },
+  serviceBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   cardIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 16 },
-  servicePrice: { fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4, marginTop: 8 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  listPrice: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, textDecorationLine: 'line-through' },
+  servicePrice: { fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4 },
+  comboSavings: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
   serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
   // Equipe
   professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 18, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, ...atmosphericShadow },

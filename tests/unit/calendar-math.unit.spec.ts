@@ -1,10 +1,14 @@
 import { expect, test } from '@playwright/test';
 import {
+  appointmentCardDensity,
   buildCalendarRange,
   calculateEventGeometry,
   isSameCalendarDay,
+  layoutConcurrentEvents,
   minutesOfDay,
   parseClock,
+  shortDisplayName,
+  SLOT_HEIGHT,
   zonedDateAtMinute,
 } from '../../apps/web/src/components/calendar/calendar-math';
 
@@ -52,17 +56,45 @@ test('expande a grade para eventos fora da jornada e mantém slots de 30 minutos
   expect(range.slots.every((minute, index) => index === 0 || minute - range.slots[index - 1] === 30)).toBe(true);
 });
 
-test('calcula posição e altura mínima do atendimento', () => {
+test('calcula posição e altura mínima do atendimento com slot confortável', () => {
+  expect(SLOT_HEIGHT).toBe(52);
   expect(calculateEventGeometry(
     new Date('2026-07-19T09:15:00.000Z'),
     new Date('2026-07-19T10:15:00.000Z'),
     8 * 60,
     'UTC',
-  )).toEqual({ top: 92, height: 68, durationMinutes: 60 });
+  )).toEqual({ top: 132, height: 100, durationMinutes: 60 });
   expect(calculateEventGeometry(
     new Date('2026-07-19T08:00:00.000Z'),
-    new Date('2026-07-19T08:15:00.000Z'),
+    new Date('2026-07-19T08:25:00.000Z'),
     8 * 60,
     'UTC',
   ).height).toBe(44);
+  expect(appointmentCardDensity(44)).toBe('single');
+  expect(appointmentCardDensity(56)).toBe('double');
+  expect(appointmentCardDensity(100)).toBe('full');
+});
+
+test('empacota eventos simultâneos em colunas lado a lado', () => {
+  const layout = layoutConcurrentEvents([
+    {
+      id: 'a',
+      startsAt: new Date('2026-07-19T12:00:00.000Z'),
+      endsAt: new Date('2026-07-19T13:00:00.000Z'),
+    },
+    {
+      id: 'b',
+      startsAt: new Date('2026-07-19T12:30:00.000Z'),
+      endsAt: new Date('2026-07-19T13:30:00.000Z'),
+    },
+    {
+      id: 'c',
+      startsAt: new Date('2026-07-19T14:00:00.000Z'),
+      endsAt: new Date('2026-07-19T14:30:00.000Z'),
+    },
+  ]);
+  expect(layout.get('a')).toEqual({ column: 0, columnCount: 2 });
+  expect(layout.get('b')).toEqual({ column: 1, columnCount: 2 });
+  expect(layout.get('c')).toEqual({ column: 0, columnCount: 1 });
+  expect(shortDisplayName('Bruno Vieira')).toBe('Bruno V.');
 });

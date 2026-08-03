@@ -53,3 +53,9 @@ test('descarta valores de URL desconhecidos e não serializa padrões', () => {
     status: undefined,
   });
 });
+
+test('preserva o filtro operacional de não comparecimento', () => {
+  const state = parseAdminReportUrlState({ status: 'no_show' });
+  expect(state.filters.status).toBe('no_show');
+  expect(adminReportUrlParams(state)).toMatchObject({ status: 'no_show' });
+});

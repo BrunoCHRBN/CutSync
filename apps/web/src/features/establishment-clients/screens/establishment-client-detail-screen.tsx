@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -14,7 +13,9 @@ import {
 import { AdminShell } from '../../../components/layout/AdminShell';
 import { AppButton } from '../../../components/ui/AppButton';
 import { AppCard } from '../../../components/ui/AppCard';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { InlineNotice } from '../../../components/ui/InlineNotice';
+import { MetricStrip } from '../../../components/ui/metric-strip';
 import { SectionHeading } from '../../../components/ui/SectionHeading';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOperationalContext } from '../../../contexts/operational-context';
@@ -30,7 +31,11 @@ import {
   establishmentClientsApi,
 } from '../services/establishment-clients-api';
 import {
+  APPOINTMENT_STATUS_LABELS,
   CONFIDENCE_LABELS,
+  LINK_LABELS,
+  LINK_MATCH_LABELS,
+  maskProfileId,
   type EstablishmentClientFormValues,
 } from '../types/establishment-client';
 
@@ -74,6 +79,7 @@ export const EstablishmentClientDetailScreen = () => {
   const [selectedDuplicateId, setSelectedDuplicateId] = useState('');
   const [mergeReason, setMergeReason] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmKind, setConfirmKind] = useState<'archive' | 'merge' | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger' | 'warning'; message: string } | null>(null);
   const updateRequestId = useRef<string | null>(null);
   const archiveRequestId = useRef<string | null>(null);
@@ -94,6 +100,34 @@ export const EstablishmentClientDetailScreen = () => {
     if (!detail.client) return [];
     return suggestDuplicateClients(detail.client, directory.clients);
   }, [detail.client, directory.clients]);
+
+  const clientMetrics = useMemo(() => {
+    const appointments = detail.client?.appointments ?? [];
+    const completed = appointments.filter((item) => item.status === 'completed');
+    const cancelled = appointments.filter((item) => item.status === 'cancelled' || item.status === 'no_show');
+    const favorite = completed.reduce<Record<string, number>>((acc, item) => {
+      acc[item.serviceName] = (acc[item.serviceName] || 0) + 1;
+      return acc;
+    }, {});
+    const favoriteService = Object.entries(favorite).sort((left, right) => right[1] - left[1])[0]?.[0] || '—';
+    return {
+      visits: completed.length,
+      cancelled: cancelled.length,
+      favoriteService,
+    };
+  }, [detail.client?.appointments]);
+
+  const historyByMonth = useMemo(() => {
+    type HistoryItem = NonNullable<typeof detail.client>['appointments'][number];
+    const groups = new Map<string, HistoryItem[]>();
+    for (const appointment of detail.client?.appointments ?? []) {
+      const key = new Date(appointment.startsAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const bucket = groups.get(key) ?? [];
+      bucket.push(appointment);
+      groups.set(key, bucket);
+    }
+    return [...groups.entries()];
+  }, [detail.client?.appointments]);
 
   const run = async (
     kind: string,
@@ -140,31 +174,21 @@ export const EstablishmentClientDetailScreen = () => {
     );
   };
 
-  const confirmArchive = () => {
-    Alert.alert(
-      'Arquivar cliente',
-      'O cliente sai da busca padrão. Agendamentos futuros ativos bloqueiam o arquivamento.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Arquivar',
-          style: 'destructive',
-          onPress: () => {
-            if (!activeEstablishmentId) return;
-            archiveRequestId.current ??= createMobileRequestId();
-            void run(
-              'archive',
-              () => establishmentClientsApi.archive(
-                activeEstablishmentId,
-                clientId,
-                archiveRequestId.current!,
-              ),
-              'Cliente arquivado.',
-              () => { archiveRequestId.current = null; },
-            );
-          },
-        },
-      ],
+  const confirmArchive = () => setConfirmKind('archive');
+
+  const executeArchive = () => {
+    if (!activeEstablishmentId) return;
+    setConfirmKind(null);
+    archiveRequestId.current ??= createMobileRequestId();
+    void run(
+      'archive',
+      () => establishmentClientsApi.archive(
+        activeEstablishmentId,
+        clientId,
+        archiveRequestId.current!,
+      ),
+      'Cliente arquivado.',
+      () => { archiveRequestId.current = null; },
     );
   };
 
@@ -188,37 +212,29 @@ export const EstablishmentClientDetailScreen = () => {
       setNotice({ tone: 'warning', message: 'Selecione explicitamente o cadastro duplicado.' });
       return;
     }
-    Alert.alert(
-      'Unificar cadastros',
-      'Este cadastro será preservado. O duplicado deixa de existir e o histórico migra para cá. Consentimento fica com a opção mais restritiva.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Unificar',
-          style: 'destructive',
-          onPress: () => {
-            if (!activeEstablishmentId) return;
-            mergeRequestId.current ??= createMobileRequestId();
-            void run(
-              'merge',
-              () => establishmentClientsApi.merge({
-                establishmentId: activeEstablishmentId,
-                survivorClientId: clientId,
-                duplicateClientId: selectedDuplicateId,
-                requestId: mergeRequestId.current!,
-                reason: mergeReason,
-              }),
-              'Cadastros unificados.',
-              () => {
-                mergeRequestId.current = null;
-                setSelectedDuplicateId('');
-                setMergeReason('');
-                setDuplicateQuery('');
-              },
-            );
-          },
-        },
-      ],
+    setConfirmKind('merge');
+  };
+
+  const executeMerge = () => {
+    if (!activeEstablishmentId || !selectedDuplicateId) return;
+    setConfirmKind(null);
+    mergeRequestId.current ??= createMobileRequestId();
+    void run(
+      'merge',
+      () => establishmentClientsApi.merge({
+        establishmentId: activeEstablishmentId,
+        survivorClientId: clientId,
+        duplicateClientId: selectedDuplicateId,
+        requestId: mergeRequestId.current!,
+        reason: mergeReason,
+      }),
+      'Cadastros unificados.',
+      () => {
+        mergeRequestId.current = null;
+        setSelectedDuplicateId('');
+        setMergeReason('');
+        setDuplicateQuery('');
+      },
     );
   };
 
@@ -257,6 +273,15 @@ export const EstablishmentClientDetailScreen = () => {
 
       {detail.client && form ? (
         <>
+          <MetricStrip
+            testID="client-mini-metrics"
+            items={[
+              { key: 'visits', label: 'Visitas', value: String(clientMetrics.visits), note: 'concluídas' },
+              { key: 'cancelled', label: 'Cancelamentos', value: String(clientMetrics.cancelled), note: 'inclui faltas' },
+              { key: 'favorite', label: 'Serviço favorito', value: clientMetrics.favoriteService, note: 'mais recorrente' },
+            ]}
+          />
+
           <AppCard style={styles.block}>
             {editing ? (
               <>
@@ -329,8 +354,12 @@ export const EstablishmentClientDetailScreen = () => {
               <Text style={styles.muted}>Nenhum vínculo registrado para este cadastro.</Text>
             ) : detail.client.links.map((link) => (
               <View key={link.id} style={styles.linkRow}>
-                <Text style={styles.contact}>Perfil {link.profileId.slice(0, 8)}…</Text>
-                <Text style={styles.muted}>{link.status} · {link.matchKind}</Text>
+                <Text style={styles.contact}>Conta {maskProfileId(link.profileId)}</Text>
+                <Text style={styles.muted}>
+                  {LINK_LABELS[link.status] ?? link.status}
+                  {' · '}
+                  {LINK_MATCH_LABELS[link.matchKind] ?? link.matchKind}
+                </Text>
               </View>
             ))}
           </AppCard>
@@ -339,16 +368,21 @@ export const EstablishmentClientDetailScreen = () => {
             <Text style={styles.sectionTitle}>Histórico de atendimentos</Text>
             {detail.client.appointments.length === 0 ? (
               <Text style={styles.muted}>Nenhum atendimento vinculado.</Text>
-            ) : detail.client.appointments.map((appointment) => (
-              <View key={appointment.appointmentId} style={styles.appointmentRow}>
-                <Text style={styles.contact}>{appointment.serviceName}</Text>
-                <Text style={styles.muted}>
-                  {appointment.professionalName}
-                  {' · '}
-                  {new Date(appointment.startsAt).toLocaleString('pt-BR')}
-                  {' · '}
-                  {appointment.status}
-                </Text>
+            ) : historyByMonth.map(([monthLabel, appointments]) => (
+              <View key={monthLabel} style={styles.monthGroup}>
+                <Text style={styles.monthLabel}>{monthLabel}</Text>
+                {appointments.map((appointment) => (
+                  <View key={appointment.appointmentId} style={styles.appointmentRow}>
+                    <Text style={styles.contact}>{appointment.serviceName}</Text>
+                    <Text style={styles.muted}>
+                      {appointment.professionalName}
+                      {' · '}
+                      {new Date(appointment.startsAt).toLocaleString('pt-BR')}
+                      {' · '}
+                      {APPOINTMENT_STATUS_LABELS[appointment.status] ?? appointment.status}
+                    </Text>
+                  </View>
+                ))}
               </View>
             ))}
           </AppCard>
@@ -422,6 +456,27 @@ export const EstablishmentClientDetailScreen = () => {
           ) : null}
         </>
       ) : null}
+
+      <ConfirmDialog
+        visible={confirmKind === 'archive'}
+        title="Arquivar cliente"
+        message="O cliente sai da busca padrão. Agendamentos futuros ativos bloqueiam o arquivamento."
+        confirmLabel="Arquivar"
+        destructive
+        testID="client-archive-confirm"
+        onConfirm={executeArchive}
+        onCancel={() => setConfirmKind(null)}
+      />
+      <ConfirmDialog
+        visible={confirmKind === 'merge'}
+        title="Unificar cadastros"
+        message="Este cadastro será preservado. O duplicado deixa de existir e o histórico migra para cá. Consentimento fica com a opção mais restritiva."
+        confirmLabel="Unificar"
+        destructive
+        testID="client-merge-confirm"
+        onConfirm={executeMerge}
+        onCancel={() => setConfirmKind(null)}
+      />
     </AdminShell>
   );
 };
@@ -436,6 +491,8 @@ const styles = StyleSheet.create({
   notes: { ...typeScale.body, color: colors.textMuted },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   linkRow: { gap: 2, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
+  monthGroup: { gap: 4, marginTop: 8 },
+  monthLabel: { ...typeScale.label, color: colors.textSecondary, textTransform: 'capitalize', marginBottom: 2 },
   appointmentRow: { gap: 2, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSubtle },
   search: {
     borderWidth: 1,

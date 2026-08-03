@@ -23,7 +23,7 @@ interface Props {
 }
 
 const statusLabel: Record<string, string> = {
-  pending: 'Pendente', confirmed: 'Confirmado', completed: 'Concluído', cancelled: 'Cancelado',
+  pending: 'Pendente', confirmed: 'Confirmado', completed: 'Concluído', cancelled: 'Cancelado', no_show: 'Não compareceu',
 };
 
 export const ReportDetailPanel = ({

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, Linking } from 'react-native';
-import { CalendarClock, Scissors, UserRound, X, MessageCircle } from 'lucide-react-native';
+import { CalendarClock, Copy, Scissors, UserRound, X, MessageCircle, ArrowRightLeft } from 'lucide-react-native';
 import { colors, elevations, layout, radii, spacing, typeScale } from '../../theme/tokens';
 import { CalendarAppointment } from './operational-calendar';
 import { AppButton } from '../ui/AppButton';
@@ -13,11 +13,13 @@ interface AppointmentDetailSheetProps {
   canReschedule?: boolean;
   canCancel?: boolean;
   canComplete?: boolean;
+  canTransfer?: boolean;
   completeLabel?: string;
   onClose: () => void;
   onReschedule?: (appointment: CalendarAppointment) => void;
   onCancel?: (appointment: CalendarAppointment) => void;
   onComplete?: (appointment: CalendarAppointment) => void;
+  onTransfer?: (appointment: CalendarAppointment) => void;
 }
 
 const toneByStatus = {
@@ -25,6 +27,7 @@ const toneByStatus = {
   confirmed: 'info',
   completed: 'success',
   cancelled: 'danger',
+  no_show: 'warning',
 } as const;
 
 const labelByStatus = {
@@ -32,7 +35,13 @@ const labelByStatus = {
   confirmed: 'Confirmado',
   completed: 'Concluído',
   cancelled: 'Cancelado',
+  no_show: 'Não compareceu',
 };
+
+const currency = (value?: number) =>
+  typeof value === 'number'
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+    : null;
 
 export const AppointmentDetailSheet = ({
   appointment,
@@ -41,11 +50,13 @@ export const AppointmentDetailSheet = ({
   canReschedule = false,
   canCancel = false,
   canComplete = false,
+  canTransfer = false,
   completeLabel = 'Concluir',
   onClose,
   onReschedule,
   onCancel,
   onComplete,
+  onTransfer,
 }: AppointmentDetailSheetProps) => {
   const { width } = useWindowDimensions();
   const desktop = width >= layout.desktopBreakpoint;
@@ -71,14 +82,24 @@ export const AppointmentDetailSheet = ({
 
     Linking.canOpenURL(url)
       .then((supported) => {
-        if (supported) {
-          return Linking.openURL(url);
-        } else {
-          return Linking.openURL(webUrl);
-        }
+        if (supported) return Linking.openURL(url);
+        return Linking.openURL(webUrl);
       })
       .catch((err) => console.warn('Erro ao abrir WhatsApp:', err));
   };
+
+  const handleCopyPhone = async () => {
+    if (!appointment.clientPhone) return;
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(appointment.clientPhone);
+    }
+  };
+
+  const priceLabel = currency(appointment.price);
+  const durationLabel = appointment.durationMinutes ? `${appointment.durationMinutes} min` : null;
+  const originalLabel = appointment.originalDateTime
+    ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(appointment.originalDateTime)
+    : null;
 
   return (
     <Modal animationType={Platform.OS === 'web' ? 'fade' : 'slide'} onRequestClose={onClose} transparent visible={visible}>
@@ -101,16 +122,54 @@ export const AppointmentDetailSheet = ({
           <StatusBadge label={labelByStatus[appointment.status]} showDot testID="appointment-detail-status" tone={toneByStatus[appointment.status]} />
           <View style={styles.details}>
             <View style={styles.detailRow}><CalendarClock color={colors.textMuted} size={18} /><Text style={styles.detailText}>{time}</Text></View>
-            <View style={styles.detailRow}><Scissors color={colors.textMuted} size={18} /><Text style={styles.detailText}>{appointment.serviceName}</Text></View>
+            <View style={styles.detailRow}>
+              <Scissors color={colors.textMuted} size={18} />
+              <Text style={styles.detailText}>
+                {appointment.serviceName}
+                {durationLabel ? ` · ${durationLabel}` : ''}
+                {priceLabel ? ` · ${priceLabel}` : ''}
+              </Text>
+            </View>
             {professionalName ? <View style={styles.detailRow}><UserRound color={colors.textMuted} size={18} /><Text style={styles.detailText}>{professionalName}</Text></View> : null}
+            {(appointment.rescheduleCount || 0) > 0 ? (
+              <Text style={styles.metaText} testID="appointment-detail-reschedule-count">
+                Reagendado {appointment.rescheduleCount}x
+                {originalLabel ? ` · horário original ${originalLabel}` : ''}
+              </Text>
+            ) : null}
+            {appointment.status === 'cancelled' && (appointment.cancellationReason || appointment.cancellationReasonCode) ? (
+              <Text style={styles.cancelText} testID="appointment-detail-cancel-reason">
+                Motivo: {appointment.cancellationReason || appointment.cancellationReasonCode}
+              </Text>
+            ) : null}
             {appointment.clientPhone ? (
-              <Pressable accessibilityLabel="Enviar WhatsApp para cliente" onPress={handleWhatsApp} style={styles.whatsappRow}>
-                <MessageCircle color="#2E7D32" size={18} />
-                <Text style={styles.whatsappText}>WhatsApp ({appointment.clientPhone})</Text>
-              </Pressable>
+              <>
+                <Pressable accessibilityLabel="Enviar WhatsApp para cliente" onPress={handleWhatsApp} style={styles.whatsappRow}>
+                  <MessageCircle color="#2E7D32" size={18} />
+                  <Text style={styles.whatsappText}>WhatsApp ({appointment.clientPhone})</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel="Copiar telefone"
+                  onPress={() => { void handleCopyPhone(); }}
+                  style={styles.copyRow}
+                  testID="appointment-detail-copy-phone"
+                >
+                  <Copy color={colors.textSecondary} size={16} />
+                  <Text style={styles.copyText}>Copiar telefone</Text>
+                </Pressable>
+              </>
             ) : null}
           </View>
           <View style={styles.actions}>
+            {canTransfer && onTransfer ? (
+              <AppButton
+                icon={<ArrowRightLeft color={colors.textPrimary} size={16} />}
+                label="Transferir profissional"
+                onPress={() => onTransfer(appointment)}
+                testID="appointment-detail-transfer"
+                variant="secondary"
+              />
+            ) : null}
             {canReschedule && onReschedule ? <AppButton label="Reagendar" onPress={() => onReschedule(appointment)} testID="appointment-detail-reschedule" variant="secondary" /> : null}
             {canComplete && onComplete ? <AppButton label={completeLabel} onPress={() => onComplete(appointment)} testID="appointment-detail-complete" /> : null}
             {canCancel && onCancel ? <AppButton label="Cancelar atendimento" onPress={() => onCancel(appointment)} testID="appointment-detail-cancel" variant="danger" /> : null}
@@ -134,7 +193,11 @@ const styles = StyleSheet.create({
   details: { borderBottomColor: colors.borderSubtle, borderBottomWidth: 1, borderTopColor: colors.borderSubtle, borderTopWidth: 1, gap: spacing.md, paddingVertical: spacing.lg },
   detailRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   detailText: { ...typeScale.body, color: colors.textSecondary, flex: 1 },
+  metaText: { ...typeScale.small, color: colors.textMuted },
+  cancelText: { ...typeScale.small, color: colors.danger },
   actions: { gap: spacing.sm, marginTop: 'auto' },
   whatsappRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: '#E8F5E9', padding: spacing.md, borderRadius: radii.md, marginTop: spacing.sm, borderWidth: 1, borderColor: '#C8E6C9' },
   whatsappText: { ...typeScale.bodyStrong, color: '#2E7D32', flex: 1 },
+  copyRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  copyText: { ...typeScale.small, color: colors.textSecondary },
 });

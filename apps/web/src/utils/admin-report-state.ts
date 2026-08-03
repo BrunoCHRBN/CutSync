@@ -12,7 +12,7 @@ export interface AdminReportUrlState {
 
 const tabs: AdminReportTab[] = ['overview', 'operations', 'team', 'services', 'clients'];
 const presets: AdminReportPreset[] = ['7d', '30d', '90d', 'month', 'custom'];
-const statuses: AdminReportStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
+const statuses: AdminReportStatus[] = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
 const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
 
 export const toDateKey = (date: Date) => {

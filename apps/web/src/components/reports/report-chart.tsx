@@ -10,6 +10,8 @@ interface ReportChartProps {
   testID: string;
   onSelectDay?: (day: AdminReportDay) => void;
   selectedDate?: string | null;
+  /** Average value from the previous comparable period (ghost reference line). */
+  previousAverage?: number | null;
 }
 
 const WIDTH = 720;
@@ -19,9 +21,9 @@ const TOP = 18;
 const RIGHT = 16;
 const BOTTOM = 34;
 
-export const ReportChart = ({ data, mode, testID, onSelectDay, selectedDate }: ReportChartProps) => {
+export const ReportChart = ({ data, mode, testID, onSelectDay, selectedDate, previousAverage }: ReportChartProps) => {
   const values = data.map((item) => mode === 'production' ? item.production_realized : item.occupancy_rate);
-  const maximum = Math.max(mode === 'occupancy' ? 100 : 0, ...values, 1);
+  const maximum = Math.max(mode === 'occupancy' ? 100 : 0, ...values, previousAverage || 0, 1);
   const plotWidth = WIDTH - LEFT - RIGHT;
   const plotHeight = HEIGHT - TOP - BOTTOM;
   const xForIndex = (index: number) => LEFT + (data.length <= 1 ? plotWidth / 2 : index * plotWidth / (data.length - 1));
@@ -65,14 +67,38 @@ export const ReportChart = ({ data, mode, testID, onSelectDay, selectedDate }: R
               opacity={0.82}
             />
           );
-        }) : (
+        }        ) : (
           <>
+            {previousAverage != null && previousAverage > 0 ? (
+              <Line
+                x1={LEFT}
+                x2={WIDTH - RIGHT}
+                y1={yForValue(previousAverage)}
+                y2={yForValue(previousAverage)}
+                stroke={colors.textMuted}
+                strokeWidth={1.5}
+                strokeDasharray="6 5"
+                opacity={0.75}
+              />
+            ) : null}
             <Path d={path} fill="none" stroke={colors.brandPrimary} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
             {data.length <= 31 ? data.map((item, index) => (
               <Circle key={item.date} cx={xForIndex(index)} cy={yForValue(item.production_realized)} r={3.5} fill={colors.surface} stroke={colors.brandPrimary} strokeWidth={2} />
             )) : null}
           </>
         )}
+        {mode === 'occupancy' && previousAverage != null && previousAverage > 0 ? (
+          <Line
+            x1={LEFT}
+            x2={WIDTH - RIGHT}
+            y1={yForValue(previousAverage)}
+            y2={yForValue(previousAverage)}
+            stroke={colors.textMuted}
+            strokeWidth={1.5}
+            strokeDasharray="6 5"
+            opacity={0.75}
+          />
+        ) : null}
         {data.map((item, index) => labelIndexes.has(index) ? (
           <React.Fragment key={`label-${item.date}`}>
             <Line x1={xForIndex(index)} x2={xForIndex(index)} y1={HEIGHT - BOTTOM + 4} y2={HEIGHT - BOTTOM + 8} stroke={colors.textMuted} />

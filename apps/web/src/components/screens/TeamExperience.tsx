@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { AlertTriangle, BadgePercent, BarChart3, CalendarDays, ChevronDown, ChevronUp, Clock, Copy, Mail, ShieldCheck, Trash2, UserPlus, UsersRound } from 'lucide-react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { AlertTriangle, BadgePercent, BarChart3, CalendarDays, ChevronDown, ChevronUp, Clock, Copy, Mail, ShieldCheck, Trash2, UserPlus, UsersRound, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOperationalContext } from '../../contexts/operational-context';
@@ -8,6 +8,7 @@ import { useEstablishment } from '../../hooks/useEstablishment';
 import { useTeam } from '../../hooks/useTeam';
 import { supabase } from '../../services/supabase';
 import { ProfileRecord } from '@cutsync/database';
+import { isValidClockTime, maskTimeInput } from '../../utils/time-input-mask';
 import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
@@ -15,7 +16,7 @@ import { AppInput } from '../ui/AppInput';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { SectionHeading } from '../ui/SectionHeading';
-import { colors, layout, radii, typography } from '../../theme/tokens';
+import { colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 
 interface DaySchedule {
   day: number; // 1 = Segunda, 2 = Terça, etc., 0 = Domingo
@@ -46,8 +47,6 @@ const defaultSchedule: DaySchedule[] = [
 
 export const TeamExperience = () => {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
   const { activeEstablishmentId } = useOperationalContext();
   const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
@@ -67,11 +66,13 @@ export const TeamExperience = () => {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [invitations, setInvitations] = useState<InvitationRecord[]>([]);
   const [showInvitationHistory, setShowInvitationHistory] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const pendingInvitations = invitations.filter((invitation) => invitation.status === 'pending' && new Date(invitation.expires_at).getTime() > Date.now());
   const invitationHistory = invitations.filter((invitation) => !pendingInvitations.some((pending) => pending.id === invitation.id));
@@ -144,6 +145,11 @@ export const TeamExperience = () => {
 
   const saveWorkHours = async (barberId: string) => {
     if (!activeEstablishmentId) return;
+    const invalid = workHoursSchedule.find((day) => day.isOpen && (!isValidClockTime(day.open) || !isValidClockTime(day.close)));
+    if (invalid) {
+      setNotice({ tone: 'danger', message: `Horário inválido em ${invalid.name}. Use HH:MM.` });
+      return;
+    }
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('admin_update_professional', {
@@ -217,48 +223,35 @@ export const TeamExperience = () => {
   return (
     <AdminShell testID="team-screen" activeRoute="team" shopName={barbershop?.name || 'Sua barbearia'} userName={profile?.name} onSignOut={signOut}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <SectionHeading testID="team-heading" eyebrow="Pessoas" title="Equipe e escalas" description="Convide profissionais, configure jornadas de trabalho, folgas e comissões." />
+      <SectionHeading
+        testID="team-heading"
+        eyebrow="Pessoas"
+        title="Equipe e escalas"
+        description="Convide profissionais, configure jornadas de trabalho, folgas e comissões."
+        action={(
+          <AppButton
+            label="Convidar"
+            testID="team-open-invite-button"
+            variant="admin"
+            icon={<UserPlus color={colors.white} size={16} />}
+            onPress={() => { setInviteOpen(true); setNotice(null); }}
+          />
+        )}
+      />
 
       {!!notice && <InlineNotice testID="team-action-notice" tone={notice.tone} message={notice.message} />}
 
-        <View style={[styles.workspace, isWide && styles.workspaceWide]}>
-          <AppCard testID="team-invite-card" style={styles.inviteCard} elevated>
-            <View style={styles.inviteIcon}><UserPlus color={colors.text} size={22} /></View>
-            <Text style={styles.inviteEyebrow}>CONVITE DE EQUIPE</Text>
-            <Text testID="team-invite-title" style={styles.inviteTitle}>Traga seu time para o CutSync.</Text>
-            <Text style={styles.inviteDescription}>O link é pessoal, exige o mesmo e-mail, funciona uma vez e expira em 24 horas.</Text>
-            <AppInput label="E-mail do profissional" testID="team-invite-email-input" icon={<Mail color={colors.textMuted} size={17} />} value={inviteEmail} onChangeText={setInviteEmail} keyboardType="email-address" autoCapitalize="none" placeholder="profissional@exemplo.com" />
-            <AppButton label="Gerar convite seguro" testID="team-create-invite-button" onPress={createInvite} loading={inviteLoading} icon={<ShieldCheck color={colors.ink} size={16} />} fullWidth />
-            {!!inviteLink && <View testID="team-generated-invite-link" style={styles.codeBox}>
-              <Text selectable numberOfLines={2} style={styles.code}>{inviteLink}</Text>
-              <Pressable testID="team-copy-invite-link-button" accessibilityRole="button" accessibilityLabel="Copiar link de convite" onPress={copyInvite} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.white} size={16} /></Pressable>
-            </View>}
-            <Text style={styles.inviteHint}>Nunca compartilhe o endereço público como credencial de equipe.</Text>
-            {pendingInvitations.length > 0 && <View testID="team-invitations-list" style={styles.invitationList}>
-              <Text style={styles.invitationSectionTitle}>PENDENTES</Text>
-              {pendingInvitations.map((invitation) => (
-              <View key={invitation.id} testID={`team-invitation-${invitation.id}`} style={styles.invitationRow}>
-                <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>Pendente · expira em {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
-              </View>
-            ))}</View>}
-            {invitationHistory.length > 0 ? (
-              <View style={styles.historyBlock}>
-                <AppButton
-                  label={`${showInvitationHistory ? 'Ocultar' : 'Ver'} histórico (${invitationHistory.length})`}
-                  testID="team-toggle-invitation-history"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => setShowInvitationHistory((current) => !current)}
-                  trailingIcon={showInvitationHistory ? <ChevronUp color={colors.textSecondary} size={15} /> : <ChevronDown color={colors.textSecondary} size={15} />}
-                />
-                {showInvitationHistory ? <View testID="team-invitation-history" style={styles.historyList}>{invitationHistory.map((invitation) => (
-                  <View key={invitation.id} testID={`team-invitation-history-${invitation.id}`} style={styles.invitationRow}>
-                    <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>{invitationStatus(invitation)} · {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
-                  </View>
-                ))}</View> : null}
-              </View>
-            ) : null}
-          </AppCard>
+        <View style={styles.workspace}>
+          {pendingInvitations.length > 0 ? (
+            <AppCard testID="team-invitations-list" style={styles.pendingStrip}>
+              <Text style={styles.invitationSectionTitle}>CONVITES PENDENTES · {pendingInvitations.length}</Text>
+              {pendingInvitations.slice(0, 3).map((invitation) => (
+                <Text key={invitation.id} testID={`team-invitation-${invitation.id}`} style={styles.invitationMeta}>
+                  {invitation.invited_email} · expira {new Date(invitation.expires_at).toLocaleString('pt-BR')}
+                </Text>
+              ))}
+            </AppCard>
+          ) : null}
 
           <View style={styles.teamColumn}>
             <View style={styles.listHeader}>
@@ -272,37 +265,44 @@ export const TeamExperience = () => {
             {loading ? (
               <ActivityIndicator testID="team-loading" color={colors.accent} style={styles.loader} />
             ) : barbers.length === 0 ? (
-              <EmptyState testID="team-empty-state" title="Sua equipe começa aqui" description="Compartilhe o código de convite para vincular o primeiro profissional." icon={<UsersRound color={colors.textSecondary} size={22} />} />
+              <EmptyState testID="team-empty-state" title="Sua equipe começa aqui" description="Use Convidar para vincular o primeiro profissional." icon={<UsersRound color={colors.textSecondary} size={22} />} />
             ) : (
               <View style={styles.teamList}>
-                {barbers.map((barber) => (
+                {barbers.map((barber) => {
+                  const expanded = expandedId === barber.id || editingId === barber.id || editingWorkHoursId === barber.id || removingId === barber.id;
+                  return (
                   <AppCard key={barber.id} testID={`team-member-${barber.id}`} style={styles.memberCard}>
-                    <View style={styles.memberMain}>
+                    <Pressable
+                      testID={`team-member-${barber.id}-toggle`}
+                      accessibilityRole="button"
+                      onPress={() => setExpandedId((current) => (current === barber.id ? null : barber.id))}
+                      style={styles.memberMain}
+                    >
                       <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                       <View style={styles.memberCopy}>
                         <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
                         <Text testID={`team-member-${barber.id}-title`} style={{ color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 }}>
                           {barber.tituloProfissional || 'Especialista'}{barber.specialties ? ` • ${barber.specialties}` : ''}
                         </Text>
-                        <Text style={styles.memberContact}>{barber.email}</Text>
-                        <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
+                        {!expanded ? <Text style={styles.memberContact} numberOfLines={1}>{barber.email}</Text> : null}
                       </View>
                       <View style={styles.commissionBadge}>
                         <BadgePercent color={colors.textSecondary} size={14} />
                         <Text testID={`team-member-${barber.id}-commission`} style={styles.commissionText}>{Math.round((barber.commissionRate ?? 0.5) * 100)}%</Text>
                       </View>
-                    </View>
+                      {expanded ? <ChevronUp color={colors.textMuted} size={18} /> : <ChevronDown color={colors.textMuted} size={18} />}
+                    </Pressable>
 
-                    {(!barber.workHours || !barber.tituloProfissional || !barber.tituloProfissional.trim()) && (
+                    {expanded && (!barber.workHours || !barber.tituloProfissional || !barber.tituloProfissional.trim()) ? (
                       <View testID={`team-member-${barber.id}-warning`} style={styles.warningContainer}>
                         <AlertTriangle color={colors.warning} size={14} />
                         <Text style={styles.warningText}>
                           Profissional não aparecerá na vitrine até que tenha uma jornada de trabalho salva ou título profissional cadastrado.
                         </Text>
                       </View>
-                    )}
+                    ) : null}
 
-                    {editingId === barber.id ? (
+                    {!expanded ? null : editingId === barber.id ? (
                       <View testID={`team-member-${barber.id}-commission-form`} style={styles.expandedForm}>
                         <Text style={styles.workHoursTitle}>Configurações do Profissional (LGPD Safe)</Text>
                         <View style={styles.fieldsRow}>
@@ -342,10 +342,12 @@ export const TeamExperience = () => {
                                     value={dayItem.open}
                                     onChangeText={(val) => {
                                       const copy = [...workHoursSchedule];
-                                      copy[idx].open = val;
+                                      copy[idx].open = maskTimeInput(val);
                                       setWorkHoursSchedule(copy);
                                     }}
                                     placeholder="09:00"
+                                    keyboardType="number-pad"
+                                    maxLength={5}
                                     placeholderTextColor="#666"
                                   />
                                   <Text style={{ color: colors.textMuted, fontSize: 11 }}>às</Text>
@@ -355,10 +357,12 @@ export const TeamExperience = () => {
                                     value={dayItem.close}
                                     onChangeText={(val) => {
                                       const copy = [...workHoursSchedule];
-                                      copy[idx].close = val;
+                                      copy[idx].close = maskTimeInput(val);
                                       setWorkHoursSchedule(copy);
                                     }}
                                     placeholder="20:00"
+                                    keyboardType="number-pad"
+                                    maxLength={5}
                                     placeholderTextColor="#666"
                                   />
                                 </View>
@@ -382,39 +386,84 @@ export const TeamExperience = () => {
                         action={<View style={styles.confirmActions}><AppButton label="Remover" testID={`team-member-${barber.id}-remove-confirm-button`} onPress={() => removeBarber(barber.id)} loading={actionLoading} variant="danger" style={styles.smallButton} /><AppButton label="Cancelar" testID={`team-member-${barber.id}-remove-cancel-button`} onPress={() => setRemovingId(null)} variant="secondary" style={styles.smallButton} /></View>}
                       />
                     ) : (
-                      <View style={styles.memberActions}>
-                        <AppButton label="Desempenho" testID={`team-member-${barber.id}-reports-button`} onPress={() => router.push({ pathname: '/(admin)/reports', params: { professionalId: barber.id } } as never)} variant="secondary" icon={<BarChart3 color={colors.text} size={15} />} style={styles.smallButton} />
-                        <AppButton label="Ver agenda" testID={`team-member-${barber.id}-agenda-button`} onPress={() => router.push({ pathname: '/(admin)', params: { professionalId: barber.id } } as never)} variant="secondary" icon={<CalendarDays color={colors.text} size={15} />} style={styles.smallButton} />
-                        <AppButton label="Editar perfil" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
-                        <AppButton label="Jornada / Escala" testID={`team-member-${barber.id}-edit-hours-button`} onPress={() => startEditingWorkHours(barber)} variant="secondary" icon={<Clock color={colors.text} size={15} />} style={styles.smallButton} />
-                        <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
+                      <View style={styles.memberExpanded}>
+                        <Text style={styles.memberContact}>{barber.email}</Text>
+                        <Text style={styles.memberContact}>{barber.phone || 'Telefone não informado'}</Text>
+                        <View style={styles.memberActions}>
+                          <AppButton label="Desempenho" testID={`team-member-${barber.id}-reports-button`} onPress={() => router.push({ pathname: '/(admin)/reports', params: { professionalId: barber.id } } as never)} variant="secondary" icon={<BarChart3 color={colors.text} size={15} />} style={styles.smallButton} />
+                          <AppButton label="Ver agenda" testID={`team-member-${barber.id}-agenda-button`} onPress={() => router.push({ pathname: '/(admin)', params: { professionalId: barber.id } } as never)} variant="secondary" icon={<CalendarDays color={colors.text} size={15} />} style={styles.smallButton} />
+                          <AppButton label="Editar perfil" testID={`team-member-${barber.id}-edit-commission-button`} onPress={() => startEditing(barber)} variant="secondary" icon={<BadgePercent color={colors.text} size={15} />} style={styles.smallButton} />
+                          <AppButton label="Jornada / Escala" testID={`team-member-${barber.id}-edit-hours-button`} onPress={() => startEditingWorkHours(barber)} variant="secondary" icon={<Clock color={colors.text} size={15} />} style={styles.smallButton} />
+                          <AppButton label="Remover" testID={`team-member-${barber.id}-remove-button`} onPress={() => setRemovingId(barber.id)} variant="danger" icon={<Trash2 color={colors.danger} size={15} />} style={styles.smallButton} />
+                        </View>
                       </View>
                     )}
                   </AppCard>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>
         </View>
       </ScrollView>
+
+      <Modal visible={inviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => !inviteLoading && setInviteOpen(false)}>
+          <Pressable onPress={(event) => event.stopPropagation?.()} style={styles.modalCardPressable}>
+            <AppCard testID="team-invite-card" style={styles.inviteModal} elevated>
+              <View style={styles.inviteModalHeader}>
+                <View style={styles.inviteIcon}><UserPlus color={colors.text} size={22} /></View>
+                <Pressable testID="team-invite-close" onPress={() => setInviteOpen(false)} style={styles.closeButton}>
+                  <X color={colors.textSecondary} size={18} />
+                </Pressable>
+              </View>
+              <Text style={styles.inviteEyebrow}>CONVITE DE EQUIPE</Text>
+              <Text testID="team-invite-title" style={styles.inviteTitle}>Traga seu time para o CutSync.</Text>
+              <Text style={styles.inviteDescription}>O link é pessoal, exige o mesmo e-mail, funciona uma vez e expira em 24 horas.</Text>
+              <AppInput label="E-mail do profissional" testID="team-invite-email-input" icon={<Mail color={colors.textMuted} size={17} />} value={inviteEmail} onChangeText={setInviteEmail} keyboardType="email-address" autoCapitalize="none" placeholder="profissional@exemplo.com" />
+              <AppButton label="Gerar convite seguro" testID="team-create-invite-button" onPress={createInvite} loading={inviteLoading} icon={<ShieldCheck color={colors.ink} size={16} />} fullWidth />
+              {!!inviteLink && <View testID="team-generated-invite-link" style={styles.codeBox}>
+                <Text selectable numberOfLines={2} style={styles.code}>{inviteLink}</Text>
+                <Pressable testID="team-copy-invite-link-button" accessibilityRole="button" accessibilityLabel="Copiar link de convite" onPress={copyInvite} style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}><Copy color={colors.white} size={16} /></Pressable>
+              </View>}
+              <Text style={styles.inviteHint}>Nunca compartilhe o endereço público como credencial de equipe.</Text>
+              {invitationHistory.length > 0 ? (
+                <View style={styles.historyBlock}>
+                  <AppButton
+                    label={`${showInvitationHistory ? 'Ocultar' : 'Ver'} histórico (${invitationHistory.length})`}
+                    testID="team-toggle-invitation-history"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => setShowInvitationHistory((current) => !current)}
+                    trailingIcon={showInvitationHistory ? <ChevronUp color={colors.textSecondary} size={15} /> : <ChevronDown color={colors.textSecondary} size={15} />}
+                  />
+                  {showInvitationHistory ? <View testID="team-invitation-history" style={styles.historyList}>{invitationHistory.map((invitation) => (
+                    <View key={invitation.id} testID={`team-invitation-history-${invitation.id}`} style={styles.invitationRow}>
+                      <View style={styles.invitationCopy}><Text style={styles.invitationEmail}>{invitation.invited_email}</Text><Text style={styles.invitationMeta}>{invitationStatus(invitation)} · {new Date(invitation.expires_at).toLocaleString('pt-BR')}</Text></View>
+                    </View>
+                  ))}</View> : null}
+                </View>
+              ) : null}
+            </AppCard>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </AdminShell>
   );
 };
 
 const styles = StyleSheet.create({
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 24, paddingTop: 30, paddingBottom: 110, gap: 20 },
-  workspace: { gap: 18, marginTop: 28 },
-  workspaceWide: { flexDirection: 'row', alignItems: 'flex-start' },
-  inviteCard: { flex: 0.75, minWidth: 300 },
+  workspace: { gap: 18, marginTop: 12 },
+  pendingStrip: { gap: 6, padding: 14 },
   inviteIcon: { width: 46, height: 46, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
-  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6, marginTop: 22 },
+  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6, marginTop: 12 },
   inviteTitle: { color: colors.text, fontFamily: typography.display, fontSize: 23, lineHeight: 28, letterSpacing: -0.8, marginTop: 7 },
   inviteDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: 10 },
   codeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 10, marginTop: 22 },
   code: { flex: 1, color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: 0.5 },
   copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 14, marginTop: 10 },
-  invitationList: { gap: 8, marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 },
   invitationSectionTitle: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.2 },
   invitationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: colors.canvasSoft, borderRadius: radii.sm },
   invitationCopy: { flex: 1 },
@@ -422,13 +471,13 @@ const styles = StyleSheet.create({
   invitationMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   historyBlock: { marginTop: 8, alignItems: 'flex-start' },
   historyList: { width: '100%', gap: 8, marginTop: 6 },
-  teamColumn: { flex: 1.4 },
+  teamColumn: { flex: 1 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },
   listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   loader: { margin: 50 },
   teamList: { gap: 10 },
-  memberCard: { gap: 14 },
+  memberCard: { gap: 10 },
   memberMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
   avatarText: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
@@ -437,7 +486,23 @@ const styles = StyleSheet.create({
   memberContact: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
   commissionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surfacePressed, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
   commissionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
-  memberActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  memberExpanded: { gap: 4 },
+  memberActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 8 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 15, 18, 0.72)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    ...Platform.select({
+      web: { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } as object,
+      default: {},
+    }),
+  },
+  modalCardPressable: { width: '100%', maxWidth: 480 },
+  inviteModal: { width: '100%', padding: 22, gap: 4, ...glassSurface },
+  inviteModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  closeButton: { padding: 6, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   expandedForm: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, backgroundColor: colors.surface, borderRadius: radii.md },
   fieldsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   formActions: { flexDirection: 'row', gap: 8, marginTop: 10 },

@@ -37,6 +37,22 @@ const date = (value?: string | null) =>
 const money = (cents: number, currency = 'BRL') =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(cents / 100);
 
+const billingStatusMeta = (status?: string | null) => {
+  switch (status) {
+    case 'active':
+    case 'trialing':
+      return { tone: 'ok' as const, label: status === 'trialing' ? 'Em trial' : 'Assinatura ativa', detail: 'Operação liberada normalmente.' };
+    case 'past_due':
+      return { tone: 'warn' as const, label: 'Em tolerância', detail: 'Regularize o pagamento antes do fim da tolerância.' };
+    case 'cancelled':
+    case 'canceled':
+    case 'expired':
+      return { tone: 'danger' as const, label: 'Modo leitura', detail: 'Cobrança inativa: agenda e cadastros ficam apenas para consulta.' };
+    default:
+      return { tone: 'neutral' as const, label: 'Sem assinatura', detail: 'Assine para liberar a operação completa.' };
+  }
+};
+
 export function BillingExperience() {
   const { checkout } = useLocalSearchParams<{ checkout?: string }>();
   const { profile, signOut } = useAuth();
@@ -129,6 +145,20 @@ export function BillingExperience() {
           </AppCard>
         ) : loading ? <ActivityIndicator color={colors.accent} /> : (
           <>
+            {(() => {
+              const status = billingStatusMeta(access.billing_status);
+              return (
+                <AppCard testID="billing-status-card" style={[styles.statusCard, status.tone === 'ok' && styles.statusOk, status.tone === 'warn' && styles.statusWarn, status.tone === 'danger' && styles.statusDanger]}>
+                  <View style={styles.statusRow}>
+                    <View style={[styles.statusDot, status.tone === 'ok' && styles.dotOk, status.tone === 'warn' && styles.dotWarn, status.tone === 'danger' && styles.dotDanger]} />
+                    <View style={styles.copy}>
+                      <Text style={styles.cardTitle}>{status.label}</Text>
+                      <Text style={styles.body}>{status.detail}</Text>
+                    </View>
+                  </View>
+                </AppCard>
+              );
+            })()}
             <AppCard>
               <View style={styles.row}><CreditCard color={colors.accent} /><Text style={styles.cardTitle}>{overview?.plan.name ?? 'CutSync para estabelecimentos'}</Text></View>
               <Text style={styles.price}>{money(overview?.plan.price_cents ?? 4990, overview?.plan.currency)}<Text style={styles.priceSuffix}> / mês</Text></Text>
@@ -145,10 +175,10 @@ export function BillingExperience() {
                     <Text style={styles.warning}>Se a tolerância terminar, todos os locais desta cobrança entram juntos em modo leitura.</Text>
                   </>
                 ) : null}
-                <Text style={styles.body}>Situação: {access.billing_status}</Text>
+                <Text style={styles.section}>Linha do tempo de cobrança</Text>
                 <Text style={styles.body}>Trial até: {date(access.trial_ends_at)}</Text>
-                <Text style={styles.body}>Tolerância até: {date(access.grace_ends_at)}</Text>
                 <Text style={styles.body}>Período pago até: {date(access.current_period_ends_at)}</Text>
+                <Text style={styles.body}>Tolerância até: {date(access.grace_ends_at)}</Text>
                 <Text style={styles.body}>Próxima alteração de cobertura: {date(access.pending_change_at)}</Text>
               </View>
               <View style={styles.actions}>
@@ -190,7 +220,16 @@ const styles = StyleSheet.create({
   price: { color: colors.text, fontFamily: typography.display, fontSize: 30, marginTop: 18 },
   priceSuffix: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14 },
   actions: { gap: 9, marginTop: 20, alignItems: 'flex-start' },
-  section: { color: colors.text, fontFamily: typography.display, fontSize: 21 },
+  section: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 10 },
   error: { color: colors.danger, fontFamily: typography.bodyStrong },
   warning: { color: colors.warning, fontFamily: typography.bodyStrong, fontSize: 13, lineHeight: 19, marginTop: 8 },
+  statusCard: { borderLeftWidth: 4, borderLeftColor: colors.border },
+  statusOk: { borderLeftColor: colors.success, backgroundColor: colors.successSoft },
+  statusWarn: { borderLeftColor: colors.warning, backgroundColor: colors.warningSoft },
+  statusDanger: { borderLeftColor: colors.danger, backgroundColor: colors.dangerSoft },
+  statusRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  statusDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4, backgroundColor: colors.textMuted },
+  dotOk: { backgroundColor: colors.success },
+  dotWarn: { backgroundColor: colors.warning },
+  dotDanger: { backgroundColor: colors.danger },
 });

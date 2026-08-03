@@ -7,10 +7,13 @@ import {
 } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { useAdminReport } from '../../hooks/use-admin-report';
 import { useAdminReportDetails, AdminReportDetailSelection } from '../../hooks/use-admin-report-details';
 import { useAdminReportFilterOptions } from '../../hooks/use-admin-report-filter-options';
 import { useEstablishment } from '../../hooks/useEstablishment';
+import { useServicePromotions } from '../../features/services/use-service-promotions';
+import { useServices } from '../../hooks/useServices';
 import { AdminReport, AdminReportFilters, AdminReportTab } from '../../types/admin-report';
 import {
   adminReportUrlParams, AdminReportPreset, parseAdminReportUrlState, rangeForReportPreset,
@@ -59,20 +62,22 @@ const buildCsv = (report: AdminReport, filters: AdminReportFilters) => {
   const lines: (string | number)[][] = [
     ['CutSync - relatório agregado do estabelecimento'],
     ['Período', report.period.start, report.period.end],
+    ['Nota', 'Valores monetários usam price_charged (snapshot no agendamento)'],
     ['Filtros', `profissional=${filters.professionalId || 'todos'}`, `serviço=${filters.serviceId || 'todos'}`, `status=${filters.status || 'todos'}`],
     [], ['Resumo'],
-    ['Produção realizada', report.summary.production_realized],
-    ['Valor agendado', report.summary.scheduled_value],
-    ['Ticket médio', report.summary.average_ticket],
+    ['Produção realizada (price_charged)', report.summary.production_realized],
+    ['Valor agendado (price_charged)', report.summary.scheduled_value],
+    ['Ticket médio (price_charged)', report.summary.average_ticket],
     ['Ocupação (%)', report.summary.occupancy_rate],
     ['Concluídos', report.summary.completed_count],
     ['Cancelados', report.summary.cancelled_count],
-    [], ['Série diária'], ['Data', 'Produção realizada', 'Valor agendado', 'Ocupação (%)', 'Concluídos', 'Cancelados'],
-    ...report.daily_series.map((day) => [day.date, day.production_realized, day.scheduled_value, day.occupancy_rate, day.completed_count, day.cancelled_count]),
-    [], ['Serviços'], ['Serviço', 'Agendamentos', 'Concluídos', 'Cancelados', 'Produção', 'Participação (%)'],
-    ...report.services.map((service) => [service.name, service.appointment_count, service.completed_count, service.cancelled_count, service.production_realized, service.demand_share]),
-    [], ['Profissionais'], ['Profissional', 'Atendimentos', 'Concluídos', 'Cancelados', 'Produção', 'Repasse projetado', 'Ocupação (%)'],
-    ...report.professionals.map((professional) => [professional.name, professional.appointment_count, professional.completed_count, professional.cancelled_count, professional.production_realized, professional.commission_amount, professional.occupancy_rate]),
+    ['Não compareceram', report.summary.no_show_count],
+    [], ['Série diária'], ['Data', 'Produção (price_charged)', 'Valor agendado (price_charged)', 'Ocupação (%)', 'Concluídos', 'Cancelados', 'Não compareceram'],
+    ...report.daily_series.map((day) => [day.date, day.production_realized, day.scheduled_value, day.occupancy_rate, day.completed_count, day.cancelled_count, day.no_show_count]),
+    [], ['Serviços'], ['Serviço', 'Agendamentos', 'Concluídos', 'Cancelados', 'Não compareceram', 'Produção (price_charged)', 'Participação (%)'],
+    ...report.services.map((service) => [service.name, service.appointment_count, service.completed_count, service.cancelled_count, service.no_show_count, service.production_realized, service.demand_share]),
+    [], ['Profissionais'], ['Profissional', 'Atendimentos', 'Concluídos', 'Cancelados', 'Não compareceram', 'Produção (price_charged)', 'Repasse projetado', 'Ocupação (%)'],
+    ...report.professionals.map((professional) => [professional.name, professional.appointment_count, professional.completed_count, professional.cancelled_count, professional.no_show_count, professional.production_realized, professional.commission_amount, professional.occupancy_rate]),
   ];
   return `\uFEFF${lines.map((line) => line.map(csvCell).join(';')).join('\n')}`;
 };
@@ -91,7 +96,8 @@ export const AdminReportsExperience = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const establishmentId = profile?.establishment_id;
+  const { activeEstablishmentId } = useOperationalContext();
+  const establishmentId = activeEstablishmentId;
   const { establishment } = useEstablishment(establishmentId);
   const { professionals: professionalOptions, services: serviceOptions } = useAdminReportFilterOptions(establishmentId);
   const [draftStart, setDraftStart] = useState(urlState.start);
@@ -123,7 +129,18 @@ export const AdminReportsExperience = () => {
     filters: urlState.filters,
     selection: detail,
   });
+  const { services: catalogServices } = useServices(establishmentId, true);
+  const { promotions } = useServicePromotions(establishmentId);
   const currency = useMemo(() => currencyFormatter(establishment?.currency || 'BRL'), [establishment?.currency]);
+  const hasActivePromotions = promotions.some((promotion) => promotion.isActive);
+  const discountGranted = useMemo(() => {
+    if (!report || !hasActivePromotions) return 0;
+    return report.services.reduce((total, reportService) => {
+      const catalog = catalogServices.find((service) => service.id === reportService.id);
+      if (!catalog || !reportService.completed_count) return total;
+      return total + Math.max(0, catalog.price * reportService.completed_count - reportService.production_realized);
+    }, 0);
+  }, [catalogServices, hasActivePromotions, report]);
 
   const choosePreset = (preset: AdminReportPreset) => {
     setRangeError(null);
@@ -173,11 +190,23 @@ export const AdminReportsExperience = () => {
   const heatmapHours = Array.from({ length: 13 }, (_, index) => index + 8);
   const heatmapDays = [{ value: 1, label: 'Seg' }, { value: 2, label: 'Ter' }, { value: 3, label: 'Qua' }, { value: 4, label: 'Qui' }, { value: 5, label: 'Sex' }, { value: 6, label: 'Sáb' }, { value: 0, label: 'Dom' }];
   const heatmapMaximum = Math.max(1, ...(report?.hourly_demand || []).map((item) => item.appointment_count));
+  const previousProductionAvg = previous && report?.period.days
+    ? previous.production_realized / Math.max(report.period.days, 1)
+    : null;
+  const previousOccupancyAvg = previous?.occupancy_rate ?? null;
   const metricItems = summary && previous ? [
     { key: 'production', label: 'Produção realizada', value: currency.format(summary.production_realized), note: deltaLabel(summary.production_realized, previous.production_realized), icon: <Banknote color={colors.textMuted} size={16} />, onPress: () => openAppointments('Atendimentos concluídos', { status: 'completed' }) },
     { key: 'scheduled', label: 'Valor agendado', value: currency.format(summary.scheduled_value), note: `${summary.active_count} atendimentos ativos`, icon: <CalendarRange color={colors.textMuted} size={16} />, onPress: () => openAppointments('Atendimentos ativos') },
     { key: 'ticket', label: 'Ticket médio', value: currency.format(summary.average_ticket), note: deltaLabel(summary.average_ticket, previous.average_ticket), icon: <TicketCheck color={colors.textMuted} size={16} />, onPress: () => openAppointments('Base do ticket médio', { status: 'completed' }) },
     { key: 'occupancy', label: 'Ocupação real', value: `${summary.occupancy_rate.toFixed(1).replace('.', ',')}%`, note: deltaLabel(summary.occupancy_rate, previous.occupancy_rate), icon: <TrendingUp color={colors.textMuted} size={16} />, onPress: () => openAppointments('Atendimentos que ocupam a agenda') },
+    ...(hasActivePromotions ? [{
+      key: 'discount',
+      label: 'Desconto concedido',
+      value: currency.format(discountGranted),
+      note: 'estimado vs preço atual do catálogo',
+      icon: <TicketCheck color={colors.textMuted} size={16} />,
+      onPress: () => openAppointments('Atendimentos concluídos', { status: 'completed' as const }),
+    }] : []),
   ] : [];
   const contextLabel = `${urlState.start.split('-').reverse().join('/')} a ${urlState.end.split('-').reverse().join('/')} · filtros ativos preservados`;
 
@@ -224,17 +253,18 @@ export const AdminReportsExperience = () => {
             <View style={[styles.grid, isWide && styles.gridWide]}>
               <AppCard testID="reports-production-card" style={styles.chartCard}>
                 <View style={styles.cardHeader}><View style={styles.sectionCopy}><Text style={styles.cardTitle}>Produção ao longo do período</Text><Text style={styles.cardSubtitle}>Selecione um dia para abrir os registros concluídos</Text></View><StatusBadge testID="reports-completed-count" label={`${summary.completed_count} concluídos`} tone="success" /></View>
-                <ReportChart testID="reports-production-chart" data={report.daily_series} mode="production" onSelectDay={(day) => openAppointments(`Produção de ${new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}`, { day: day.date, status: 'completed' })} selectedDate={detail?.day} />
+                <ReportChart testID="reports-production-chart" data={report.daily_series} mode="production" previousAverage={previousProductionAvg} onSelectDay={(day) => openAppointments(`Produção de ${new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}`, { day: day.date, status: 'completed' })} selectedDate={detail?.day} />
               </AppCard>
               <AppCard testID="reports-occupancy-card" style={styles.chartCard}>
                 <View style={styles.cardHeader}><View style={styles.sectionCopy}><Text style={styles.cardTitle}>Ocupação da capacidade</Text><Text style={styles.cardSubtitle}>{formatMinutes(summary.occupied_minutes)} ocupadas de {formatMinutes(summary.available_minutes)}</Text></View><StatusBadge testID="reports-idle-time" label={`${formatMinutes(summary.idle_minutes)} livres`} tone="neutral" /></View>
-                <ReportChart testID="reports-occupancy-chart" data={report.daily_series} mode="occupancy" onSelectDay={(day) => openAppointments(`Ocupação de ${new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}`, { day: day.date })} selectedDate={detail?.day} />
+                <ReportChart testID="reports-occupancy-chart" data={report.daily_series} mode="occupancy" previousAverage={previousOccupancyAvg} onSelectDay={(day) => openAppointments(`Ocupação de ${new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}`, { day: day.date })} selectedDate={detail?.day} />
               </AppCard>
             </View>
             <AppCard testID="reports-overview-alerts">
               <View style={styles.cardHeader}><View style={styles.sectionCopy}><Text style={styles.cardTitle}>Pontos de atenção</Text><Text style={styles.cardSubtitle}>Atalhos para investigar o período selecionado</Text></View></View>
               <View style={styles.alertGrid}>
                 <Pressable accessibilityRole="button" onPress={() => openAppointments('Cancelamentos do período', { status: 'cancelled' })} style={styles.alertItem}><Text selectable style={styles.alertValue}>{summary.cancelled_count}</Text><Text style={styles.rankingMeta}>cancelamentos</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => openAppointments('Não comparecimentos do período', { status: 'no_show' })} style={styles.alertItem}><Text selectable style={styles.alertValue}>{summary.no_show_count}</Text><Text style={styles.rankingMeta}>não compareceram</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => openAppointments('Atendimentos pendentes', { status: 'pending' })} style={styles.alertItem}><Text selectable style={styles.alertValue}>{summary.pending_count}</Text><Text style={styles.rankingMeta}>aguardando confirmação</Text></Pressable>
                 <View style={styles.alertItem}><Text selectable style={styles.alertValue}>{formatMinutes(summary.idle_minutes)}</Text><Text style={styles.rankingMeta}>de capacidade livre</Text></View>
               </View>
@@ -246,8 +276,8 @@ export const AdminReportsExperience = () => {
             <AppCard testID="reports-daily-table" style={styles.tableCard}>
               <View style={styles.paddedHeader}><View style={styles.sectionCopy}><Text style={styles.cardTitle}>Detalhamento diário</Text><Text style={styles.cardSubtitle}>Selecione uma linha para investigar os atendimentos</Text></View></View>
               <ScrollView horizontal showsHorizontalScrollIndicator><View style={styles.dailyTable}>
-                <View style={[styles.tableRow, styles.tableHeader]}><Text style={[styles.tableCell, styles.dateCell, styles.tableHeaderText]}>Data</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Produção</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Ocupação</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Concluídos</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Cancelados</Text></View>
-                {report.daily_series.map((day) => <Pressable key={day.date} testID={`reports-daily-row-${day.date}`} accessibilityRole="button" onPress={() => openAppointments(`Atendimentos de ${new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}`, { day: day.date })} style={({ pressed }) => [styles.tableRow, pressed && styles.rowPressed]}><Text selectable style={[styles.tableCell, styles.dateCell]}>{new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}</Text><Text selectable style={styles.tableCell}>{currency.format(day.production_realized)}</Text><Text selectable style={styles.tableCell}>{day.occupancy_rate.toFixed(1).replace('.', ',')}%</Text><Text selectable style={styles.tableCell}>{day.completed_count}</Text><Text selectable style={styles.tableCell}>{day.cancelled_count}</Text></Pressable>)}
+                <View style={[styles.tableRow, styles.tableHeader]}><Text style={[styles.tableCell, styles.dateCell, styles.tableHeaderText]}>Data</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Produção</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Ocupação</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Concluídos</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Cancelados</Text><Text style={[styles.tableCell, styles.tableHeaderText]}>Não compareceram</Text></View>
+                {report.daily_series.map((day) => <Pressable key={day.date} testID={`reports-daily-row-${day.date}`} accessibilityRole="button" onPress={() => openAppointments(`Atendimentos de ${new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}`, { day: day.date })} style={({ pressed }) => [styles.tableRow, pressed && styles.rowPressed]}><Text selectable style={[styles.tableCell, styles.dateCell]}>{new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR')}</Text><Text selectable style={styles.tableCell}>{currency.format(day.production_realized)}</Text><Text selectable style={styles.tableCell}>{day.occupancy_rate.toFixed(1).replace('.', ',')}%</Text><Text selectable style={styles.tableCell}>{day.completed_count}</Text><Text selectable style={styles.tableCell}>{day.cancelled_count}</Text><Text selectable style={styles.tableCell}>{day.no_show_count}</Text></Pressable>)}
               </View></ScrollView>
             </AppCard>
             <AppCard testID="reports-demand-heatmap" style={styles.heatmapCard}>
@@ -270,13 +300,13 @@ export const AdminReportsExperience = () => {
 
           {urlState.tab === 'team' ? <AppCard testID="reports-team-card">
             <View style={styles.cardHeader}><View style={styles.sectionCopy}><Text style={styles.cardTitle}>Desempenho da equipe</Text><Text style={styles.cardSubtitle}>Selecione um profissional para aplicar o filtro global</Text></View><UsersRound color={colors.textMuted} size={20} /></View>
-            <View style={styles.rankingList}>{report.professionals.map((professional) => <Pressable key={professional.id} testID={`reports-professional-${professional.id}`} accessibilityRole="button" onPress={() => updateUrl({ filters: { ...urlState.filters, professionalId: professional.id } })} style={({ pressed }) => [styles.rankingRow, pressed && styles.rowPressed]}><View style={styles.rankingHeader}><View style={styles.sectionCopy}><Text style={styles.rankingName}>{professional.name}</Text><Text style={styles.rankingMeta}>{professional.completed_count} concluídos · {professional.cancelled_count} cancelados</Text></View><View style={styles.alignEnd}><Text selectable style={styles.rankingValue}>{currency.format(professional.production_realized)}</Text><Text style={styles.commissionText}>{currency.format(professional.commission_amount)} repasse projetado</Text></View></View><ProgressBar value={professional.occupancy_rate} tone={colors.info} /><Text style={styles.rankingMeta}>{professional.occupancy_rate.toFixed(1).replace('.', ',')}% de ocupação · {professional.production_share.toFixed(1).replace('.', ',')}% da produção</Text></Pressable>)}</View>
+            <View style={styles.rankingList}>{report.professionals.map((professional) => <Pressable key={professional.id} testID={`reports-professional-${professional.id}`} accessibilityRole="button" onPress={() => updateUrl({ filters: { ...urlState.filters, professionalId: professional.id } })} style={({ pressed }) => [styles.rankingRow, pressed && styles.rowPressed]}><View style={styles.rankingHeader}><View style={styles.sectionCopy}><Text style={styles.rankingName}>{professional.name}</Text><Text style={styles.rankingMeta}>{professional.completed_count} concluídos · {professional.cancelled_count} cancelados · {professional.no_show_count} não compareceram</Text></View><View style={styles.alignEnd}><Text selectable style={styles.rankingValue}>{currency.format(professional.production_realized)}</Text><Text style={styles.commissionText}>{currency.format(professional.commission_amount)} repasse projetado</Text></View></View><ProgressBar value={professional.occupancy_rate} tone={colors.info} /><Text style={styles.rankingMeta}>{professional.occupancy_rate.toFixed(1).replace('.', ',')}% de ocupação · {professional.production_share.toFixed(1).replace('.', ',')}% da produção</Text></Pressable>)}</View>
             {!report.professionals.length ? <EmptyState testID="reports-team-empty" title="Nenhum profissional encontrado" description="Revise os filtros ou vincule profissionais ativos à unidade." /> : null}
           </AppCard> : null}
 
           {urlState.tab === 'services' ? <AppCard testID="reports-services-card">
             <View style={styles.cardHeader}><View style={styles.sectionCopy}><Text style={styles.cardTitle}>Serviços que puxam a demanda</Text><Text style={styles.cardSubtitle}>Selecione um serviço para aplicar o filtro global</Text></View></View>
-            <View style={styles.rankingList}>{report.services.filter((item) => item.appointment_count > 0).map((service) => <Pressable key={service.id} testID={`reports-service-${service.id}`} accessibilityRole="button" onPress={() => updateUrl({ filters: { ...urlState.filters, serviceId: service.id } })} style={({ pressed }) => [styles.rankingRow, pressed && styles.rowPressed]}><View style={styles.rankingHeader}><Text style={styles.rankingName}>{service.name}</Text><Text selectable style={styles.rankingValue}>{currency.format(service.production_realized)}</Text></View><ProgressBar value={service.demand_share} /><Text style={styles.rankingMeta}>{service.appointment_count} agend. · {service.demand_share.toFixed(1).replace('.', ',')}% da demanda · ticket {currency.format(service.average_ticket)} · {service.average_duration_minutes} min médios · {service.cancelled_count} cancelados</Text></Pressable>)}</View>
+            <View style={styles.rankingList}>{report.services.filter((item) => item.appointment_count > 0).map((service) => <Pressable key={service.id} testID={`reports-service-${service.id}`} accessibilityRole="button" onPress={() => updateUrl({ filters: { ...urlState.filters, serviceId: service.id } })} style={({ pressed }) => [styles.rankingRow, pressed && styles.rowPressed]}><View style={styles.rankingHeader}><Text style={styles.rankingName}>{service.name}</Text><Text selectable style={styles.rankingValue}>{currency.format(service.production_realized)}</Text></View><ProgressBar value={service.demand_share} /><Text style={styles.rankingMeta}>{service.appointment_count} agend. · {service.demand_share.toFixed(1).replace('.', ',')}% da demanda · ticket {currency.format(service.average_ticket)} · {service.average_duration_minutes} min médios · {service.cancelled_count} cancelados · {service.no_show_count} não compareceram</Text></Pressable>)}</View>
             {!report.services.some((item) => item.appointment_count > 0) ? <EmptyState testID="reports-services-empty" title="Sem demanda no período" description="Revise os filtros ou selecione outro período." /> : null}
           </AppCard> : null}
 
@@ -320,7 +350,7 @@ const styles = StyleSheet.create({
   cardTitle: { ...typeScale.cardTitle, color: colors.text },
   cardSubtitle: { ...typeScale.small, color: colors.textMuted, marginTop: 3 },
   tableCard: { padding: 0, overflow: 'hidden' },
-  dailyTable: { minWidth: 760 },
+  dailyTable: { minWidth: 900 },
   tableRow: { flexDirection: 'row', minHeight: 44, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingHorizontal: 16 },
   tableHeader: { backgroundColor: colors.canvasSoft, borderTopWidth: 0 },
   tableCell: { width: 140, ...typeScale.small, color: colors.textSecondary, fontVariant: ['tabular-nums'] },

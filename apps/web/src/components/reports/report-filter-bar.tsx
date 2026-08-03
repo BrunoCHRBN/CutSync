@@ -10,6 +10,7 @@ const statusOptions: { id: AdminReportStatus; name: string }[] = [
   { id: 'confirmed', name: 'Confirmado' },
   { id: 'completed', name: 'Concluído' },
   { id: 'cancelled', name: 'Cancelado' },
+  { id: 'no_show', name: 'Não compareceu' },
 ];
 
 interface Props {

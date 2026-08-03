@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Building2, CreditCard, Download, Plus, Trash2, UserPlus } from 'lucide-react-native';
 import { OrganizationContext, OrganizationReport, OrganizationRole } from '@cutsync/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,6 +10,7 @@ import { AdminShell } from '../layout/AdminShell';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { PageHeader } from '../ui/page-header';
@@ -55,6 +56,7 @@ export const OrganizationExperience = () => {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger' | 'info'; message: string } | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
+  const [unitToRemove, setUnitToRemove] = useState<string | null>(null);
 
   const load = useCallback(async (preferredId?: string) => {
     setLoading(true);
@@ -186,19 +188,19 @@ export const OrganizationExperience = () => {
     }
   };
 
-  const removeUnit = async (establishmentId: string) => {
-    if (!selectedId) return;
-    const confirmed = Platform.OS === 'web'
-      ? window.confirm('Remover esta unidade do grupo? O histórico será preservado.')
-      : await new Promise<boolean>((resolve) => Alert.alert('Remover unidade', 'O histórico será preservado.', [
-        { text: 'Voltar', onPress: () => resolve(false) },
-        { text: 'Remover', style: 'destructive', onPress: () => resolve(true) },
-      ]));
-    if (!confirmed) return;
+  const removeUnit = (establishmentId: string) => {
+    setUnitToRemove(establishmentId);
+  };
+
+  const confirmRemoveUnit = async () => {
+    if (!selectedId || !unitToRemove) return;
+    const establishmentId = unitToRemove;
+    setUnitToRemove(null);
     setSubmitting(true);
     try {
       await organizationService.removeEstablishment(selectedId, establishmentId);
       await load(selectedId);
+      setNotice({ tone: 'success', message: 'Unidade removida do grupo. O histórico foi preservado.' });
     } catch (cause) {
       setNotice({ tone: 'danger', message: cause instanceof Error ? cause.message : 'Não foi possível remover a unidade.' });
     } finally {
@@ -337,7 +339,21 @@ export const OrganizationExperience = () => {
                 <View style={styles.headingRow}>
                   <View>
                     <Text style={styles.cardTitle}>Cobrança do grupo</Text>
-                    <Text style={styles.muted}>{billing.subscription?.plan_name ?? 'Plano ainda não configurado'} · {billing.subscription?.status ?? 'sem assinatura'}</Text>
+                    <Text style={styles.muted}>{billing.subscription?.plan_name ?? 'Plano ainda não configurado'}</Text>
+                    <Text style={[
+                      styles.muted,
+                      ['active', 'trialing'].includes(billing.subscription?.status ?? '') && styles.statusOkText,
+                      billing.subscription?.status === 'past_due' && styles.statusWarnText,
+                      ['canceled', 'cancelled', 'expired'].includes(billing.subscription?.status ?? '') && styles.statusDangerText,
+                    ]}>
+                      {billing.subscription?.status === 'active' ? 'Assinatura ativa'
+                        : billing.subscription?.status === 'trialing' ? 'Em trial'
+                        : billing.subscription?.status === 'past_due' ? 'Em tolerância'
+                        : billing.subscription?.status
+                          ? 'Modo leitura / cobrança inativa'
+                          : 'Sem assinatura'}
+                      {billing.subscription?.grace_ends_at ? ` · tolerância até ${new Date(billing.subscription.grace_ends_at).toLocaleDateString('pt-BR')}` : ''}
+                    </Text>
                   </View>
                   <CreditCard color={colors.brandPrimary} size={22} />
                 </View>
@@ -447,6 +463,17 @@ export const OrganizationExperience = () => {
           </>
         ) : null}
       </ScrollView>
+      <ConfirmDialog
+        visible={Boolean(unitToRemove)}
+        title="Remover unidade do grupo"
+        message="Remover esta unidade do grupo? O histórico será preservado."
+        confirmLabel="Remover"
+        destructive
+        loading={submitting}
+        testID="organization-remove-unit-confirm"
+        onConfirm={() => { void confirmRemoveUnit(); }}
+        onCancel={() => setUnitToRemove(null)}
+      />
     </AdminShell>
   );
 };
@@ -471,4 +498,7 @@ const styles = StyleSheet.create({
   metricValue: { ...typeScale.sectionTitle, color: colors.text },
   billingUnit: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   billingTotal: { ...typeScale.sectionTitle, color: colors.text, marginTop: 12 },
+  statusOkText: { color: colors.success },
+  statusWarnText: { color: colors.warning },
+  statusDangerText: { color: colors.danger },
 });

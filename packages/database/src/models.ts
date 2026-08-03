@@ -1,6 +1,6 @@
 import { Database, Json, Tables } from './supabase.generated';
 
-export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 export type ProfileRole = 'client' | 'professional' | 'admin';
 export type OrganizationRole = 'owner' | 'manager' | 'finance';
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'suspended' | 'canceled';
@@ -111,6 +111,8 @@ type TeamRow = Database['public']['Functions']['get_establishment_team']['Return
 type PublicTeamRow = Database['public']['Functions']['get_public_team']['Returns'][number];
 
 export type AppointmentQueryRow = Tables<'appointments'> & {
+  establishment_client_id?: string | null;
+  business_notes?: string | null;
   client: Pick<ProfileRow, 'id' | 'name' | 'phone'> | null;
   professional: Pick<ProfileRow, 'id' | 'name' | 'phone'> | null;
   service: Pick<ServiceRow, 'id' | 'establishment_id' | 'name' | 'price' | 'duration_minutes' | 'is_active'> | null;
@@ -172,6 +174,8 @@ export interface ProfileRecord {
   profileSlug?: string | null;
 }
 
+export type ServiceKind = 'single' | 'combo';
+
 export interface ServiceRecord {
   id: string;
   establishmentId: string;
@@ -180,6 +184,28 @@ export interface ServiceRecord {
   durationMinutes: number;
   isActive: boolean;
   sortOrder: number;
+  kind: ServiceKind;
+}
+
+export interface ServiceComboItemRecord {
+  id: string;
+  comboId: string;
+  serviceId: string;
+  sortOrder: number;
+}
+
+export type PromotionDiscountType = 'percent' | 'fixed_price';
+
+export interface ServicePromotionRecord {
+  id: string;
+  establishmentId: string;
+  serviceId: string | null;
+  daysOfWeek: number[];
+  discountType: PromotionDiscountType;
+  value: number;
+  startsAt: string;
+  endsAt: string | null;
+  isActive: boolean;
 }
 
 export interface ProfessionalGalleryItem {
@@ -204,17 +230,25 @@ export interface ProfessionalPublicProfile {
 export interface AppointmentRecord {
   id: string;
   establishmentId: string;
+  establishmentClientId?: string | null;
   clientId?: string | null;
   clientName?: string | null;
+  businessNotes?: string | null;
   professionalId: string;
   serviceId: string;
   dateTime: Date;
+  /** Duration snapshot frozen at booking/reschedule. */
+  durationMinutes: number;
+  /** Monetary snapshot frozen at booking/reschedule. */
+  priceCharged: number;
   status: AppointmentStatus;
   cancellationReason?: string | null;
   cancellationReasonCode?: string | null;
   cancelledByRole?: 'client' | 'professional' | 'admin' | null;
   rescheduleCount: number;
   originalDateTime?: Date | null;
+  transferredFromProfessionalId?: string | null;
+  transferReason?: string | null;
   client?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   professional?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   service?: Pick<ServiceRecord, 'id' | 'name' | 'price' | 'durationMinutes'> | null;
@@ -227,7 +261,12 @@ const toProfileRole = (role: string): ProfileRole => {
 };
 
 const toAppointmentStatus = (status: string): AppointmentStatus => {
-  if (status === 'confirmed' || status === 'cancelled' || status === 'completed') return status;
+  if (
+    status === 'confirmed'
+    || status === 'cancelled'
+    || status === 'completed'
+    || status === 'no_show'
+  ) return status;
   return 'pending';
 };
 
@@ -295,16 +334,59 @@ export const mapService = (row: ServiceRow): ServiceRecord => ({
   durationMinutes: Number(row.duration_minutes),
   isActive: Boolean(row.is_active),
   sortOrder: Number(row.sort_order || 0),
+  kind: (row as ServiceRow & { kind?: string }).kind === 'combo' ? 'combo' : 'single',
+});
+
+export const mapServiceComboItem = (row: {
+  id: string;
+  combo_id: string;
+  service_id: string;
+  sort_order: number;
+}): ServiceComboItemRecord => ({
+  id: row.id,
+  comboId: row.combo_id,
+  serviceId: row.service_id,
+  sortOrder: Number(row.sort_order || 0),
+});
+
+export const mapServicePromotion = (row: {
+  id: string;
+  establishment_id: string;
+  service_id: string | null;
+  days_of_week: number[];
+  discount_type: string;
+  value: number;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+}): ServicePromotionRecord => ({
+  id: row.id,
+  establishmentId: row.establishment_id,
+  serviceId: row.service_id,
+  daysOfWeek: Array.isArray(row.days_of_week) ? row.days_of_week.map(Number) : [],
+  discountType: row.discount_type === 'fixed_price' ? 'fixed_price' : 'percent',
+  value: Number(row.value),
+  startsAt: row.starts_at,
+  endsAt: row.ends_at,
+  isActive: Boolean(row.is_active),
 });
 
 export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => ({
   id: row.id,
   establishmentId: row.establishment_id,
+  establishmentClientId: row.establishment_client_id ?? null,
   clientId: row.client_id,
   clientName: row.client_name,
+  businessNotes: row.business_notes ?? null,
   professionalId: row.professional_id,
   serviceId: row.service_id,
   dateTime: new Date(row.date_time),
+  durationMinutes: Number(row.duration_minutes || row.service?.duration_minutes || 30),
+  priceCharged: Number(
+    'price_charged' in row && row.price_charged != null
+      ? row.price_charged
+      : (row.service?.price ?? 0),
+  ),
   status: toAppointmentStatus(row.status),
   cancellationReason: row.cancellation_reason,
   cancellationReasonCode: 'cancellation_reason_code' in row ? (row as any).cancellation_reason_code : null,
@@ -313,6 +395,10 @@ export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => (
     : null,
   rescheduleCount: Number(row.reschedule_count || 0),
   originalDateTime: row.original_date_time ? new Date(row.original_date_time) : null,
+  transferredFromProfessionalId: 'transferred_from_professional_id' in row
+    ? ((row as any).transferred_from_professional_id ?? null)
+    : null,
+  transferReason: 'transfer_reason' in row ? ((row as any).transfer_reason ?? null) : null,
   client: row.client,
   professional: row.professional,
   service: row.service ? {

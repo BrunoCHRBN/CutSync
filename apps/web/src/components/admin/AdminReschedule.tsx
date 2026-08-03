@@ -14,13 +14,29 @@ interface AdminRescheduleProps {
   onDateChange: (value: Date) => void;
   times: string[];
   occupiedTimes: string[];
+  timesLoading?: boolean;
+  timesHint?: string | null;
   selectedTime: string | null;
   onTimeChange: (value: string) => void;
   loading: boolean;
   onSubmit: () => void;
 }
 
-export const AdminReschedule = ({ appointment, onClose, dates, selectedDate, onDateChange, times, occupiedTimes, selectedTime, onTimeChange, loading, onSubmit }: AdminRescheduleProps) => (
+export const AdminReschedule = ({
+  appointment,
+  onClose,
+  dates,
+  selectedDate,
+  onDateChange,
+  times,
+  occupiedTimes,
+  timesLoading = false,
+  timesHint = null,
+  selectedTime,
+  onTimeChange,
+  loading,
+  onSubmit,
+}: AdminRescheduleProps) => (
   <Modal visible={!!appointment} transparent animationType="fade" onRequestClose={onClose}>
     <View testID="admin-reschedule-modal" style={styles.overlay}>
       <AppCard testID="admin-reschedule-card" style={styles.card} elevated>
@@ -36,6 +52,8 @@ export const AdminReschedule = ({ appointment, onClose, dates, selectedDate, onD
             return <Pressable key={option.id} testID={`admin-reschedule-date-${option.id}`} onPress={() => onDateChange(option.date)} style={[styles.dateItem, selected && styles.selected]}><Text style={[styles.dateWeek, selected && styles.selectedText]}>{option.weekDay}</Text><Text style={[styles.dateDay, selected && styles.selectedText]}>{option.day}</Text></Pressable>;
           })}</ScrollView>
           <Text style={styles.label}>Selecione o novo horário</Text>
+          {timesHint ? <Text style={styles.timesHint}>{timesHint}</Text> : null}
+          {timesLoading ? <Text style={styles.timesHint}>Buscando horários disponíveis…</Text> : null}
           <View style={styles.timeGrid}>{times.map((slot) => {
             const occupied = occupiedTimes.includes(slot);
             const selected = selectedTime === slot;
@@ -59,6 +77,7 @@ const styles = StyleSheet.create({
   summary: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   strong: { fontFamily: typography.bodyStrong, color: colors.text },
   label: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
+  timesHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: -6 },
   dateList: { flexDirection: 'row', gap: 8, marginTop: 2 },
   dateItem: { minWidth: 54, alignItems: 'center', paddingVertical: 11, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11 },

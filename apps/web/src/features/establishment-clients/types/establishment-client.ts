@@ -62,3 +62,23 @@ export const CONFIDENCE_LABELS: Record<DuplicateConfidence, string> = {
   medium: 'Média',
   low: 'Baixa',
 };
+
+export const APPOINTMENT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Aguardando confirmação',
+  confirmed: 'Confirmado',
+  completed: 'Concluído',
+  cancelled: 'Cancelado',
+  no_show: 'Não compareceu',
+};
+
+export const LINK_MATCH_LABELS: Record<string, string> = {
+  phone: 'Telefone',
+  email: 'E-mail',
+  manual: 'Manual',
+  self_claim: 'Solicitação do cliente',
+};
+
+export const maskProfileId = (profileId: string) => {
+  if (profileId.length <= 10) return `${profileId.slice(0, 4)}…`;
+  return `${profileId.slice(0, 4)}…${profileId.slice(-4)}`;
+};

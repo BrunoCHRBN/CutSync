@@ -25,6 +25,8 @@ interface AdminQuickBookProps {
   onServiceChange: (value: string) => void;
   times: string[];
   occupiedTimes: string[];
+  timesLoading?: boolean;
+  timesHint?: string | null;
   selectedTime: string | null;
   onTimeChange: (value: string) => void;
   currency: (value: number) => string;
@@ -48,6 +50,8 @@ export const AdminQuickBook = ({
   onServiceChange,
   times,
   occupiedTimes,
+  timesLoading = false,
+  timesHint = null,
   selectedTime,
   onTimeChange,
   currency,
@@ -115,6 +119,8 @@ export const AdminQuickBook = ({
             </View>
 
             <Text style={styles.label}>Horário em {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</Text>
+            {timesHint ? <Text style={styles.timesHint}>{timesHint}</Text> : null}
+            {timesLoading ? <Text style={styles.timesHint}>Buscando horários disponíveis…</Text> : null}
             <View style={styles.timeGrid}>
               {times.map((slot) => {
                 const occupied = occupiedTimes.includes(slot);
@@ -184,6 +190,7 @@ const styles = StyleSheet.create({
   },
   quickClientText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 11 },
   label: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
+  timesHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: -6 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choiceCard: { flex: 1, minWidth: 140 },
   dateList: { flexDirection: 'row', gap: 8, marginTop: 2 },
