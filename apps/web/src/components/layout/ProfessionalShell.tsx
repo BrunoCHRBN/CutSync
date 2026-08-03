@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { CalendarDays, ShieldCheck, UserRound } from 'lucide-react-native';
+import { BarChart3, CalendarDays, ShieldCheck, UserRound } from 'lucide-react-native';
 import { OperationalShell } from './operational-shell';
 
 interface ProfessionalShellProps {
@@ -9,13 +9,14 @@ interface ProfessionalShellProps {
   onSignOut: () => void;
   testID?: string;
   isOffline?: boolean;
-  activeRoute?: 'agenda' | 'profile' | 'security';
+  activeRoute?: 'agenda' | 'performance' | 'profile' | 'security';
   contentMode?: 'standard' | 'wide' | 'fixed';
   scroll?: boolean;
 }
 
 const navItems = [
   { key: 'agenda', label: 'Agenda', path: '/(professional)', icon: CalendarDays },
+  { key: 'performance', label: 'Desempenho', path: '/(professional)/performance', icon: BarChart3 },
   { key: 'profile', label: 'Meu perfil', path: '/professional-profile', icon: UserRound },
   { key: 'security', label: 'Segurança', path: '/security', icon: ShieldCheck },
 ] as const;

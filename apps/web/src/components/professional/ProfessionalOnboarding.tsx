@@ -81,6 +81,15 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
       }
       setStep(2);
     } else if (step === 2) {
+      const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
+        setNotice({ tone: 'danger', message: 'Use horários no formato HH:MM (ex: 09:00).' });
+        return;
+      }
+      if (startTime >= endTime) {
+        setNotice({ tone: 'danger', message: 'O horário de entrada deve ser anterior ao de saída.' });
+        return;
+      }
       if (professionalPixAllowed) {
         setStep(3);
       } else {
@@ -129,7 +138,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
         .upsert(shifts, { onConflict: 'profile_id, day_of_week' });
 
       if (shiftsError) {
-        console.warn('Erro ao salvar turnos de trabalho:', shiftsError);
+        throw new Error(shiftsError.message || 'Não foi possível salvar sua jornada de trabalho. Tente novamente.');
       }
 
       onComplete();

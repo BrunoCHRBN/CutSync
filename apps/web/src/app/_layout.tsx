@@ -11,6 +11,7 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { WebAutofillStyles } from '../components/ui/web-autofill-styles';
 import { CommandPaletteProvider } from '../components/command/command-palette-provider';
+import { ToastProvider } from '../components/ui/toast-provider';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { OperationalContextProvider, useOperationalContext } from '../contexts/operational-context';
 import { BillingAccessProvider, useBillingAccess } from '../contexts/BillingAccessContext';
@@ -196,9 +197,11 @@ export default function RootLayout() {
         <AuthProvider>
           <OperationalContextProvider>
             <BillingAccessProvider>
-              <CommandPaletteProvider>
-                <RootLayoutNavigation />
-              </CommandPaletteProvider>
+              <ToastProvider>
+                <CommandPaletteProvider>
+                  <RootLayoutNavigation />
+                </CommandPaletteProvider>
+              </ToastProvider>
             </BillingAccessProvider>
           </OperationalContextProvider>
         </AuthProvider>
