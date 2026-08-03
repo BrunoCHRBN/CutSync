@@ -1,11 +1,13 @@
 # Ciclo financeiro-operacional do estabelecimento — P0
 
-Status: Etapa 0 concluída; **Etapa 1 implementada** (flag + capabilities +
-money + contexto); etapas 2+ planejadas, não implementadas
+Status: Etapa 0 concluída; Etapa 1 implementada; **Etapa 2 implementada**
+(schema `service_orders` / items / events — sem RPCs de ciclo); etapas 3+
+planejadas, não implementadas
 
 Data da verificação: 2026-08-03  
-Baseline git documental: `master` @ `e7492482300b97036ef9e46bae78b0f077d0ba7a`  
-Branch de implementação: `p0/01-operational-finance-foundation`
+Baseline git documental: `master` @ `9039766d9fbd9c0710076d0ecb0e9e9249a2ed1e`
+(merge da Etapa 1)
+Branch de implementação da Etapa 2: `p0/02-service-order-schema`
 
 Documentos irmãos:
 
@@ -59,12 +61,14 @@ comercial = `service_order`.
 
 ## 2. Estado atual comprovado
 
-Inventário lido no código/migrations em 2026-08-03. Nenhuma tabela
-`service_orders`, `order_payment_entries`, `cash_registers`, `cash_sessions`,
+Inventário inicial (Etapa 0, 2026-08-03): nenhuma tabela POS existia.
+**Atualização Etapa 2:** passam a existir `service_orders`,
+`service_order_items` e `service_order_events` (schema only). Continuam
+inexistentes: `order_payment_entries`, `cash_registers`, `cash_sessions`,
 `commission_policies`, `commission_entries`, `payment_intents`,
 `payment_refunds`, `establishment_payment_methods`,
-`appointment_policy_snapshots`, `appointment_charge_resolutions` ou
-`reconciliation_*` de POS existe hoje.
+`appointment_policy_snapshots`, `appointment_charge_resolutions` e
+`reconciliation_*` de POS.
 
 ### 2.1 `appointments` e estados
 
@@ -944,7 +948,27 @@ forem verdadeiros:
 - [x] Testes unitários TS + teste SQL transacional
 - [x] Sem tabelas de comanda/pagamento/caixa/comissão/provedor
 - [ ] Homologação da migration no ambiente remoto (pendente)
-- [ ] Etapa 2 **não** iniciada (intencional)
+- [x] Etapa 2 iniciada em branch dedicada após merge da Etapa 1
+
+### 15.3 Critério de pronto desta Etapa 2
+
+- [x] `service_orders` criado
+- [x] `service_order_items` criado
+- [x] `service_order_events` criado
+- [x] sem `payment_status`
+- [x] unique histórica por appointment
+- [x] múltiplos walk-ins permitidos (assert no teste SQL; execução pendente)
+- [x] money em cents
+- [x] totals server-side
+- [x] tenant integrity
+- [x] items congelados após finish (`awaiting_payment`+)
+- [x] eventos imutáveis
+- [x] sem escrita direta authenticated
+- [x] teste SQL transacional (artefato; **execução em Postgres pendente**)
+- [x] teste unitário estático
+- [x] Etapa 3 não iniciada
+- [ ] migration homologada (`supabase db reset` / `psql` — pendente; sem
+      PostgreSQL/Docker/`DATABASE_URL` neste ambiente)
 
 ## 16. Plano de etapas seguintes
 
@@ -973,8 +997,8 @@ execução:
 | --- | --- |
 | **0** | Inventário e decisão arquitetural (este documento) — concluída |
 | **1** | Flag `financial_ops_enabled` + capabilities granulares + contratos domain/validation — **implementada** |
-| **2** | Schema `service_orders` / items / events + `UNIQUE (appointment_id) WHERE appointment_id IS NOT NULL`; sem coluna `payment_status` |
-| **3** | RPCs de ciclo: open / start / finish / close / void (+ reopen voided quando couber) |
+| **2** | Schema `service_orders` / items / events + `UNIQUE (appointment_id) WHERE appointment_id IS NOT NULL`; sem coluna `payment_status` — **implementada** (homologação SQL pendente) |
+| **3** | RPCs de ciclo: open / start / finish / close / void (+ reopen voided quando couber) — **não iniciada** |
 | **4** | Integração appointment ↔ check-in/comanda (Business/Web, flag on) |
 | **5** | `establishment_payment_methods` |
 | **6** | `order_payment_entries` + record/void payment |
@@ -988,7 +1012,7 @@ execução:
 | **14** | Reporting bridge + UI mínima + observabilidade + contratos multi-app |
 
 Cada etapa granular = branch própria a partir de base estável; **sem commit
-direto em `master`**. Etapa 2 não deve ser iniciada nesta entrega.
+direto em `master`**.
 
 ## 16.3 Etapa 1 — registro de implementação
 
@@ -1041,14 +1065,118 @@ contexto Business; não há mudança visual no Web nesta etapa.
 
 Decisão documental preservada; tabela **não** criada na Etapa 1.
 
+## 16.4 Etapa 2 — registro de implementação
+
+### Artefatos
+
+| Artefato | Local |
+| --- | --- |
+| Migration | `supabase/migrations/20260815000000_service_orders_foundation.sql` |
+| Teste SQL | `supabase/tests/service_orders_foundation.sql` |
+| Teste unitário estático | `tests/unit/service-orders-foundation.unit.spec.ts` |
+
+### Tabelas criadas
+
+| Tabela | Papel |
+| --- | --- |
+| `public.service_orders` | Comanda comercial; só status operacional |
+| `public.service_order_items` | Itens com snapshot e money em cents |
+| `public.service_order_events` | Audit log append-only / imutável |
+
+### Colunas e tipos relevantes (`service_orders`)
+
+- `id uuid` PK; `establishment_id uuid` NOT NULL → `establishments`
+- `appointment_id text` → `appointments(id)` (tipo real do projeto)
+- `establishment_client_id uuid` → `establishment_clients` ON DELETE SET NULL
+- `professional_id uuid` → `profiles` ON DELETE RESTRICT
+- `status text` CHECK: `open | in_service | awaiting_payment | closed | voided`
+- `currency text` NOT NULL DEFAULT `'BRL'` CHECK (`currency = 'BRL'`)
+- Money: `subtotal_cents` / `discount_cents` / `total_cents` `bigint` (0…
+  9007199254740991) com invariante
+  `total_cents = subtotal_cents - discount_cents`
+- **Sem** coluna `payment_status` (nem `financial_status` / `paid_status` /
+  `settlement_status` / `balance_status`)
+- Timestamps de ciclo + actors (`created_by`/`updated_by` obrigatórios;
+  transitions opcionais ON DELETE SET NULL)
+- `version bigint` NOT NULL DEFAULT 1; `UNIQUE (id, establishment_id)`
+
+### Decisão final de totals
+
+- Itens: `subtotal_cents` e `total_cents` são
+  `GENERATED ALWAYS AS ... STORED` a partir de
+  `quantity * unit_price_cents` e desconto.
+- Comanda: totais **não** são gerados; função interna
+  `recalculate_service_order_totals(uuid)` soma os itens, protege overflow,
+  faz `FOR UPDATE` na comanda, atualiza `updated_at` e `version = version + 1`
+  **sem** alterar `updated_by`.
+- Trigger `AFTER INSERT OR UPDATE OR DELETE` em `service_order_items`.
+- Função **não** é RPC de app; `EXECUTE` revogado de `PUBLIC`/`anon`/
+  `authenticated`.
+
+### Índices
+
+- `service_orders_one_per_appointment_idx` UNIQUE `(appointment_id) WHERE appointment_id IS NOT NULL`
+- `(establishment_id, status, created_at DESC, id)`
+- `(establishment_id, professional_id, created_at DESC)`
+- `(establishment_id, establishment_client_id, created_at DESC)`
+- items: `(service_order_id, sort_order, id)`, `(establishment_id, service_id)`,
+  `(establishment_id, professional_id)`
+- events: `(service_order_id, created_at DESC, id DESC)`,
+  `(establishment_id, created_at DESC)`,
+  `(actor_id, created_at DESC) WHERE actor_id IS NOT NULL`
+
+### Invariantes de tenant
+
+Trigger `enforce_service_order_tenant_integrity` (INSERT/UPDATE das chaves):
+
+- appointment → mesmo `establishment_id` (`service_order_appointment_tenant_mismatch`)
+- establishment_client → mesmo establishment (`service_order_client_tenant_mismatch`)
+- professional → membership `active` na unidade
+  (`service_order_professional_tenant_mismatch`)
+
+Itens: FK composta `(service_order_id, establishment_id)` + trigger de
+serviço/profissional (`service_order_item_*_tenant_mismatch`).
+
+### RLS / grants
+
+- RLS habilitado nas três tabelas.
+- `REVOKE ALL` de `PUBLIC`/`anon`/`authenticated` (sem policy de escrita e sem
+  grant de leitura direta de app).
+- `service_role`: SELECT/INSERT/UPDATE em orders; SELECT/INSERT/UPDATE/DELETE em
+  items; SELECT/INSERT em events (+ sequence).
+- Leitura/mutação de produto ficam para RPCs SECURITY DEFINER da Etapa 3.
+
+### Imutabilidade e congelamento
+
+- `DELETE` físico de `service_orders` → `service_orders_is_immutable`
+  (reusa `reject_immutable_mobile_record`).
+- Events: `UPDATE`/`DELETE` → `service_order_events_is_immutable`.
+- Items mutáveis só com comanda em `open` | `in_service`; bloqueio
+  `service_order_items_frozen` em `awaiting_payment` | `closed` | `voided`.
+
+### Resultados dos testes
+
+| Suite | Resultado |
+| --- | --- |
+| `tests/unit/service-orders-foundation.unit.spec.ts` | a executar no CI local desta entrega |
+| `supabase/tests/service_orders_foundation.sql` | artefato criado; **não executado** neste ambiente (sem `psql`/`DATABASE_URL`/Docker) |
+| Homologação `supabase db reset` | **pendente** |
+
+### Status
+
+- Etapa 2 (schema foundation): **implementada no branch**
+- Homologação migration: **pendente**
+- Etapa 3 (RPCs de ciclo): **não iniciada**
+
 ## 17. Divergências código atual × arquitetura proposta
 
 Pontos em que o código de hoje **diverge** do alvo deste P0 (não são bugs desta
 etapa; são débitos explícitos a fechar nas etapas seguintes):
 
-1. **Sem domínio POS** — inexistentes `service_orders`, payment methods,
-   payments, cash registers/sessions, commission domain, provider foundation,
-   refunds, policy snapshots/resolutions e reconciliation de atendimento.
+1. **Domínio POS parcial** — Etapa 2 cria schema de `service_orders` / items /
+   events; continuam inexistentes payment methods, payments, cash
+   registers/sessions, commission domain, provider foundation, refunds, policy
+   snapshots/resolutions, reconciliation e RPCs de ciclo.
 2. **`price_charged` é `numeric(12,2)`** — domínio novo exige centavos; snapshot
    de appointment permanece decimal legado até bridge consciente.
 3. **`complete_*` ≠ `finish_service_order`** — hoje conclui appointment sem
@@ -1119,11 +1247,24 @@ etapa; são débitos explícitos a fechar nas etapas seguintes):
 
 ## 19. Fora de escopo desta etapa
 
-- Qualquer migration/RPC/UI de comanda, pagamento, caixa ou comissão.
+### Etapa 0/1 (histórico)
+
+- Qualquer RPC/UI de comanda, pagamento, caixa ou comissão.
 - Criação de `membership_capability_overrides` (só decisão de fronteira).
-- Escolha definitiva de provedor de pagamento (Stripe Connect, PSP BR, etc.) —
-  decisão de provedor fica para a etapa de `payment_intents` com critérios
-  jurídicos/comerciais.
-- Emissão fiscal de atendimento (NFC-e/SAT) — pós-P0.
+
+### Etapa 2 (atual) — fora de escopo explícito
+
+- RPCs de ciclo (`open_service_order`, `start_service_order`,
+  `finish_service_order`, `close_service_order`, `void_service_order`,
+  `reopen_voided_service_order`, upsert/remove item, get/list).
+- Métodos de pagamento, `order_payment_entries`, caixa, comissão, provedor,
+  refunds, conciliação.
+- UI / rotas / contratos TypeScript de leitura de comanda.
+- Edição de `supabase.generated.ts`.
+- Avanço para a Etapa 3.
+
+### Ainda fora do P0
+
+- Escolha definitiva de provedor de pagamento (Stripe Connect, PSP BR, etc.).
+- Emissão fiscal de atendimento (NFC-e/SAT).
 - Folha de pagamento e rateio multi-unidade avançado.
-- Avanço para a Etapa 2 nesta conversa.
