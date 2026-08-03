@@ -4,7 +4,7 @@ Status: Etapa 0–2 implementadas; **Etapa 3 implementada** (RPCs de ciclo de
 `service_orders` — stacked sobre Etapa 2); etapas 4+ planejadas, não iniciadas
 
 Data da verificação: 2026-08-03  
-Baseline Etapa 3: `p0/02-service-order-schema` @ `bf006dc49fe358e9f2216c44dc66a3fac79f699c`  
+Baseline Etapa 3: `p0/02-service-order-schema` @ `bf006dc49fe358e9f2216c44dc66a3fac79f699c`
 Branch de implementação da Etapa 3: `p0/03-service-order-lifecycle-rpcs`
 (PR base inicial = `p0/02-service-order-schema` até merge da Etapa 2)
 
@@ -1249,7 +1249,7 @@ Todas mutações: `SECURITY DEFINER` + `claim_mobile_command` /
 
 | Suite | Resultado |
 | --- | --- |
-| Unit lifecycle | a executar nesta entrega |
+| Unit lifecycle | **8 passed** |
 | SQL lifecycle + foundation | **pendente** (sem Postgres/`DATABASE_URL`) |
 | Homologação | **pendente** |
 
