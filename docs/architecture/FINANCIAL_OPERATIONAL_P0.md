@@ -1,11 +1,14 @@
 # Ciclo financeiro-operacional do estabelecimento — P0
 
-Status: Etapa 0–2 implementadas; **Etapa 3 implementada** (RPCs de ciclo de
-`service_orders` — stacked sobre Etapa 2); etapas 4+ planejadas, não iniciadas
+Status: Etapa 0–2 implementadas; **Etapa 3 implementada e endurecida** (RPCs de
+ciclo de `service_orders` — contratos SQL/TS alinhados, mappers fail-closed,
+cobertura remove/read_only/blocked; stacked sobre Etapa 2); etapas 4+
+planejadas, **não iniciadas**
 
 Data da verificação: 2026-08-03  
 Baseline Etapa 3: `p0/02-service-order-schema` @ `bf006dc49fe358e9f2216c44dc66a3fac79f699c`
 Branch de implementação da Etapa 3: `p0/03-service-order-lifecycle-rpcs`
+@ `ff1201e32fce99ec3cdb4686519ef338c5a1d772`
 (PR base inicial = `p0/02-service-order-schema` até merge da Etapa 2)
 
 Documentos irmãos:
@@ -980,6 +983,14 @@ forem verdadeiros:
 - [x] `close` só com `total_cents = 0` (`service_order_balance_unresolved`)
 - [x] Sem `payment_status`, pagamentos, caixa, comissão, UI
 - [x] Contratos TS temporários + mappers fail-closed
+- [x] `remove_service_order_item` usa argumento canônico
+      `target_service_order_item_id` (SQL alinhado ao TS; upsert mantém
+      `target_item_id`)
+- [x] Mappers rejeitam nullable inválido pós-`jsonb_strip_nulls` (ausente/`null`
+      → null tipado; valor inválido → mapper `null`)
+- [x] Suite SQL: remoção por named args + replay/authz/freeze + `read_only` /
+      `blocked` via billing real
+- [x] Unitário estático isola cada função (claim/complete/versão/parity SQL↔TS)
 - [x] Teste SQL transacional + unitário estático (artefatos)
 - [ ] Execução SQL / homologação (**pendente** sem Postgres neste ambiente)
 - [x] Etapa 4 não iniciada
@@ -1012,7 +1023,7 @@ execução:
 | **0** | Inventário e decisão arquitetural (este documento) — concluída |
 | **1** | Flag `financial_ops_enabled` + capabilities granulares + contratos domain/validation — **implementada** |
 | **2** | Schema `service_orders` / items / events + `UNIQUE (appointment_id) WHERE appointment_id IS NOT NULL`; sem coluna `payment_status` — **implementada** (homologação SQL pendente) |
-| **3** | RPCs de ciclo: open / start / finish / close / void / reopen / items / get / list — **implementada** (stacked; homologação SQL pendente) |
+| **3** | RPCs de ciclo: open / start / finish / close / void / reopen / items / get / list — **implementada + endurecida** (stacked; contratos alinhados; homologação SQL pendente) |
 | **4** | Integração appointment ↔ check-in/comanda (Business/Web, flag on) — **não iniciada** |
 | **5** | `establishment_payment_methods` |
 | **6** | `order_payment_entries` + record/void payment |
@@ -1244,47 +1255,58 @@ Todas mutações: `SECURITY DEFINER` + `claim_mobile_command` /
 - Comissão **adiada**; void/reopen na mesma comanda.
 - Receipts seguros: só `serviceOrderId` / `serviceOrderItemId` / `status` /
   `version` — sem `paymentStatus`.
+- `remove_service_order_item`: argumento canônico
+  `target_service_order_item_id` (clientes Supabase enviam por nome);
+  `upsert_service_order_item` permanece com `target_item_id`.
+- Evento `item_removed`: metadata só `itemId` + `serviceId` (sem descrição,
+  preço, desconto ou dados pessoais).
+- Mappers fail-closed para campos omitidos por `jsonb_strip_nulls`: ausente/
+  `null` → `null`; valor presente inválido rejeita o payload inteiro.
+- `access_mode=read_only`: get/list no escopo permitidos; mutações `forbidden`.
+- `access_mode=blocked`: get/list e mutações `forbidden`.
 
 ### Testes / homologação
 
 | Suite | Resultado |
 | --- | --- |
-| Unit lifecycle | **8 passed** |
+| Unit lifecycle | **11 passed** (pós-hardening `ff1201e`) |
 | SQL lifecycle + foundation | **pendente** (sem Postgres/`DATABASE_URL`) |
-| Homologação | **pendente** |
+| Homologação | **pendente** — não declarar sem execução real |
 
 ### Status
 
-- Etapa 3: **implementada no branch empilhado**
+- Etapa 3: **implementada e endurecida no branch empilhado** (`ff1201e`)
 - Etapa 4 (UI/integração appointment): **não iniciada**
-- Pagamentos / caixa / comissão / UI: **não iniciados**
+- Pagamentos / caixa / comissão / provider / refunds / UI: **não iniciados**
 
 ## 17. Divergências código atual × arquitetura proposta
 
 Pontos em que o código de hoje **diverge** do alvo deste P0 (não são bugs desta
 etapa; são débitos explícitos a fechar nas etapas seguintes):
 
-1. **Domínio POS parcial** — Etapa 2 cria schema de `service_orders` / items /
-   events; continuam inexistentes payment methods, payments, cash
+1. **Domínio POS parcial** — Etapas 2–3 entregam schema + RPCs de ciclo de
+   `service_orders`; continuam inexistentes payment methods, payments, cash
    registers/sessions, commission domain, provider foundation, refunds, policy
-   snapshots/resolutions, reconciliation e RPCs de ciclo.
+   snapshots/resolutions e reconciliation.
 2. **`price_charged` é `numeric(12,2)`** — domínio novo exige centavos; snapshot
    de appointment permanece decimal legado até bridge consciente.
-3. **`complete_*` ≠ `finish_service_order`** — hoje conclui appointment sem
-   comanda e sem janela `awaiting_payment`; não há `payment_status` calculado
-   a partir de pagamentos.
-4. **Sem separação operacional/financeiro** — comanda inexistente; quando
-   existir, o alvo é status operacional persistido + `payment_status` só
-   calculado (sem coluna).
+3. **`complete_*` ≠ `finish_service_order`** — fluxos legados ainda podem
+   concluir appointment sem comanda; Etapa 3 introduz `finish_service_order`
+   com janela `awaiting_payment`, mas UI/integração (Etapa 4) não consome isso.
+   Não há `payment_status` calculado a partir de pagamentos.
+4. **Separação operacional/financeiro incompleta** — status operacional da
+   comanda existe; `payment_status` permanece só calculado (sem coluna) e sem
+   entradas de pagamento ainda.
 5. **Comissão é só taxa + projeção** — sem policies/entries/adjustments/settlements.
-6. **Sem check-in** — alvo: `open_service_order` (`open`), não novo status de
-   appointment.
-7. **Capabilities insuficientes e não granulares** — só `view_own_commission` /
-   `view_unit_reports`.
+6. **Check-in de produto ainda não wired** — RPC `open_service_order` existe;
+   UI/agenda (Etapa 4) não iniciada.
+7. **Capabilities granulares da §6 existem na Etapa 1**; overrides por membership
+   ainda não.
 8. **Sem `membership_capability_overrides`**.
-9. **Sem feature flag por establishment** para ops financeiras.
-10. **Assimetría de idempotência** — Business mobile usa `command_receipts`; Web
-    `update_appointment_status_v2` não.
+9. **Flag `financial_ops_enabled` existe** (Etapa 1); rollout opt-in ainda
+   fechado (default `false`).
+10. **Assimetría de idempotência** — Business mobile / RPCs de comanda usam
+    `command_receipts`; Web `update_appointment_status_v2` não.
 11. **Colisão semântica `service_order`** — erros de reorder de catálogo.
 12. **Dualidade de money** — ops legado decimal vs SaaS cents vs POS cents.
 13. **Contratos de produto** ainda marcam pagamento/caixa como fora do ciclo/MVP.
@@ -1343,7 +1365,7 @@ etapa; são débitos explícitos a fechar nas etapas seguintes):
 - Qualquer RPC/UI de comanda, pagamento, caixa ou comissão.
 - Criação de `membership_capability_overrides` (só decisão de fronteira).
 
-### Etapa 2 (atual) — fora de escopo explícito
+### Etapa 2 (histórico) — fora de escopo daquela entrega
 
 - RPCs de ciclo (`open_service_order`, `start_service_order`,
   `finish_service_order`, `close_service_order`, `void_service_order`,
@@ -1352,7 +1374,15 @@ etapa; são débitos explícitos a fechar nas etapas seguintes):
   refunds, conciliação.
 - UI / rotas / contratos TypeScript de leitura de comanda.
 - Edição de `supabase.generated.ts`.
-- Avanço para a Etapa 3.
+- Avanço para a Etapa 3 (feito depois, na Etapa 3).
+
+### Etapa 3 (atual) — fora de escopo explícito
+
+- Pagamentos, caixa, comissão, provedor, refunds, conciliação.
+- UI / rotas / hooks / integração appointment de produto (Etapa 4).
+- Edição de `supabase.generated.ts` (contratos temporários em
+  `business-rpc.generated.ts`).
+- Homologação sem execução real de SQL/`db reset`.
 
 ### Ainda fora do P0
 
