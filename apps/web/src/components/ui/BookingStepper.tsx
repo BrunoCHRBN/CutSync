@@ -37,6 +37,7 @@ export const BookingStepper = ({
             />
           ) : null}
           <Pressable
+            testID={`booking-step-${item.step}`}
             accessibilityRole="tab"
             accessibilityLabel={`Passo ${item.step} de ${items.length}: ${item.label}`}
             accessibilityState={{ selected: active, disabled: !enabled }}

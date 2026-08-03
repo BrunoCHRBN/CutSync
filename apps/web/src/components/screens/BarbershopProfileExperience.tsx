@@ -337,7 +337,7 @@ export const BarbershopProfileExperience = () => {
             testID="barbershop-profile-banner"
             name={displayName}
             uri={barbershop.bannerUrl}
-            color={barbershop.primaryColor || clientTheme.greenDeep}
+            color={!barbershop.primaryColor || barbershop.primaryColor.toUpperCase() === '#F5A524' ? clientTheme.greenDeep : barbershop.primaryColor}
             category="Perfil do estabelecimento"
             style={styles.bannerImage}
           />

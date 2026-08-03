@@ -64,6 +64,12 @@ const shortAddress = (address?: string | null) => {
   return address;
 };
 
+const LEGACY_DEFAULT_COLOR = '#F5A524';
+const bannerFallbackColor = (shop: Establishment, themePrimary: string) => {
+  if (!shop.primaryColor || shop.primaryColor.toUpperCase() === LEGACY_DEFAULT_COLOR) return clientTheme.greenDeep;
+  return themePrimary;
+};
+
 const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
   shop: Establishment;
   onOpen: (id: string) => void;
@@ -86,7 +92,7 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
         style={({ pressed, hovered }) => [styles.shopCard, hovered && styles.shopCardHovered, pressed && styles.pressed]}
       >
         <View style={styles.visual}>
-          <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={theme.primary} category="Estabelecimento" style={styles.bannerVisualImage} />
+          <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={bannerFallbackColor(shop, theme.primary)} category="Estabelecimento" style={styles.bannerVisualImage} />
         </View>
       <View style={styles.shopBody}>
         <View style={styles.shopLogoCircle}>

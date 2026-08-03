@@ -103,6 +103,14 @@ const invokeRpc = (name: string, args?: Record<string, unknown>) => (
   (supabase.rpc as unknown as RpcInvoker)(name, args)
 );
 
+const isMissingRpcError = (error: unknown) => {
+  const record = asRecord(error);
+  if (!record) return false;
+  const code = asString(record.code);
+  const message = asString(record.message) || '';
+  return code === 'PGRST202' || /schema cache/i.test(message);
+};
+
 const mapTicket = (value: unknown): ClientSupportTicket | null => {
   const record = asRecord(value);
   if (!record) return null;
@@ -236,6 +244,14 @@ export const createClientSupportIdempotencyKey = () => createSupportIdempotencyK
 export const loadClientSupportCapabilities = async (): Promise<ClientSupportCapabilities> => {
   const { data, error } = await invokeRpc('get_support_capabilities');
   if (error) {
+    if (isMissingRpcError(error)) {
+      return {
+        enabled: false,
+        allowNewTickets: false,
+        syncEnabled: false,
+        maintenanceMessage: 'A Central de Suporte ainda não está disponível neste ambiente.',
+      };
+    }
     throw new Error(supportErrorMessage(
       errorText(error),
       'Não foi possível consultar a disponibilidade do suporte.',
@@ -269,6 +285,7 @@ export const loadClientSupportCapabilities = async (): Promise<ClientSupportCapa
 export const listClientSupportTickets = async (): Promise<ClientSupportTicket[]> => {
   const { data, error } = await invokeRpc('list_my_support_tickets');
   if (error) {
+    if (isMissingRpcError(error)) return [];
     throw new Error(supportErrorMessage(
       errorText(error),
       'Não foi possível carregar seus chamados.',

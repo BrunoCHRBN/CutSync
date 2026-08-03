@@ -601,6 +601,7 @@ export const EstablishmentBookingExperience = () => {
                   return (
                     <Pressable
                       key={srv.id}
+                      testID={`booking-service-${srv.id}`}
                       style={[styles.serviceCard, isSelected && selectedSurface(theme)]}
                       onPress={() => {
                         tapLight();
@@ -690,6 +691,7 @@ export const EstablishmentBookingExperience = () => {
                       return (
                         <Pressable
                           key={barber.id}
+                          testID={`booking-professional-${barber.id}`}
                           style={[styles.barberCard, isSelected && selectedSurface(theme)]}
                           onPress={() => {
                             tapLight();
@@ -758,6 +760,7 @@ export const EstablishmentBookingExperience = () => {
                       return (
                         <Pressable
                           key={option.localDate}
+                          testID={`booking-quickdate-${option.localDate}`}
                           accessibilityRole="radio"
                           accessibilityState={{ selected }}
                           accessibilityLabel={`${option.isToday ? 'Hoje, ' : ''}${option.weekdayLabel}, dia ${option.dayLabel} de ${option.monthLabel}`}
@@ -818,6 +821,7 @@ export const EstablishmentBookingExperience = () => {
                         return (
                           <Pressable
                             key={date.toISOString()}
+                            testID={`booking-date-${date.toISOString().slice(0, 10)}`}
                             disabled={!selectable}
                             style={[
                               styles.dayCell,
@@ -872,6 +876,7 @@ export const EstablishmentBookingExperience = () => {
                               return (
                                 <Pressable
                                   key={slot.startsAt}
+                                  testID={`booking-time-${slot.localTime}`}
                                   style={[styles.timeChip, isSelected && selectedChip(theme)]}
                                   onPress={() => {
                                     tapLight();
@@ -897,6 +902,7 @@ export const EstablishmentBookingExperience = () => {
                               return (
                                 <Pressable
                                   key={slot.startsAt}
+                                  testID={`booking-time-${slot.localTime}`}
                                   style={[styles.timeChip, isSelected && selectedChip(theme)]}
                                   onPress={() => {
                                     tapLight();
@@ -922,6 +928,7 @@ export const EstablishmentBookingExperience = () => {
                               return (
                                 <Pressable
                                   key={slot.startsAt}
+                                  testID={`booking-time-${slot.localTime}`}
                                   style={[styles.timeChip, isSelected && selectedChip(theme)]}
                                   onPress={() => {
                                     tapLight();
@@ -947,6 +954,7 @@ export const EstablishmentBookingExperience = () => {
 
                 <AppButton
                   label="Avançar para Revisão →"
+                  testID="booking-next"
                   disabled={!selectedDate || !selectedTime}
                   style={primaryButton(theme)}
                   foregroundColor={theme.onPrimary}
@@ -1013,6 +1021,7 @@ export const EstablishmentBookingExperience = () => {
 
                 <AppButton
                   label={bookingLoading ? 'Confirmando...' : user ? 'Confirmar Agendamento' : 'Entrar e Confirmar'}
+                  testID="booking-confirm"
                   style={[styles.confirmBtn, primaryButton(theme)]}
                   foregroundColor={theme.onPrimary}
                   disabled={bookingLoading}
