@@ -9,6 +9,7 @@ interface OperationalContextValue {
   activeEstablishmentId: string | null;
   activeContext: OperationalContext | null;
   loading: boolean;
+  initialized: boolean;
   error: string | null;
   selectionRequired: boolean;
   selectEstablishment: (establishmentId: string) => void;
@@ -45,6 +46,7 @@ export const OperationalContextProvider = ({ children }: { children: React.React
   const [contexts, setContexts] = useState<OperationalContext[]>([]);
   const [activeEstablishmentId, setActiveEstablishmentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refreshOperationalContexts = useCallback(async () => {
@@ -52,6 +54,7 @@ export const OperationalContextProvider = ({ children }: { children: React.React
       setContexts([]);
       setActiveEstablishmentId(null);
       setLoading(false);
+      setInitialized(true);
       return;
     }
     setLoading(true);
@@ -73,10 +76,12 @@ export const OperationalContextProvider = ({ children }: { children: React.React
       setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os estabelecimentos.');
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, [activeEstablishmentId, user]);
 
   useEffect(() => {
+    setInitialized(false);
     void refreshOperationalContexts();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -110,11 +115,12 @@ export const OperationalContextProvider = ({ children }: { children: React.React
     activeEstablishmentId,
     activeContext,
     loading,
+    initialized,
     error,
     selectionRequired: contexts.length > 1 && !activeContext,
     selectEstablishment,
     refreshOperationalContexts,
-  }), [activeContext, activeEstablishmentId, contexts, error, loading, refreshOperationalContexts, selectEstablishment]);
+  }), [activeContext, activeEstablishmentId, contexts, error, initialized, loading, refreshOperationalContexts, selectEstablishment]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

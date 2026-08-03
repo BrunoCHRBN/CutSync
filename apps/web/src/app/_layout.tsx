@@ -24,7 +24,7 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutNavigation() {
   const buildTarget = process.env.EXPO_PUBLIC_BUILD_TARGET;
   const { user, profile, loading, isSuperadmin, governanceRole } = useAuth();
-  const { contexts, activeContext, loading: operationalLoading } = useOperationalContext();
+  const { contexts, activeContext, initialized: operationalInitialized } = useOperationalContext();
   const segments = useSegments();
   const router = useRouter();
   const { access } = useBillingAccess();
@@ -35,9 +35,7 @@ function RootLayoutNavigation() {
   const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos' || isPublicCompliance;
   const shouldBlockForOperationalContext = Boolean(
     user &&
-    operationalLoading &&
-    contexts.length === 0 &&
-    !activeContext &&
+    !operationalInitialized &&
     !isClientEstablishmentRequest,
   );
 

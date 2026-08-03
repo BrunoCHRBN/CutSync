@@ -1,5 +1,6 @@
 import type { Database } from '@cutsync/database';
 import {
+  clientCancellationReasonCodeFromLabel,
   translateAppointmentError,
   type ClientAppointmentBlockReason,
   type ClientAppointmentStatus,
@@ -134,10 +135,10 @@ export const cancelClientAppointment = async (
   reason: ClientCancellationReason,
 ) => {
   try {
-    const { data, error } = await requireClient().rpc('update_appointment_status', {
+    const { data, error } = await requireClient().rpc('update_appointment_status_v2', {
       target_appointment_id: appointmentId,
       new_status: 'cancelled',
-      new_cancellation_reason: reason,
+      new_cancellation_reason_code: clientCancellationReasonCodeFromLabel(reason),
     });
     if (error) throw error;
     return data;

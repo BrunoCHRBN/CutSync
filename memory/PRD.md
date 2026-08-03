@@ -1120,3 +1120,11 @@ Code review das roles client, admin/dono e professional; apontar não conformida
 - M3: depreciar `update_appointment_status` v1.
 - B1: remover `LegacyRegisterScreen`.
 - B2: bloquear render do dashboard até o contexto operacional resolver.
+
+## Backlog de acesso executado (2026-06, sessão 2)
+- M3: código (web + app mobile cliente) migrado para `update_appointment_status_v2`; v1 marcada como DEPRECATED via `supabase/migrations/20260811001000_deprecate_appointment_status_v1.sql` (sem revogar EXECUTE, para não quebrar builds mobile instalados). Helper `clientCancellationReasonCodeFromLabel` em `packages/domain`.
+- B1: removido `LegacyRegisterScreen` (código morto) de `apps/web/src/app/(auth)/register.tsx`.
+- B2: adicionado flag `initialized` ao `operational-context`; `_layout` bloqueia navegação até a resolução do contexto, eliminando o flash de dashboard errado.
+
+### Ação pendente do usuário
+- Aplicar a migração `20260811001000_deprecate_appointment_status_v1.sql` no Supabase (apenas COMMENT; segura e idempotente).

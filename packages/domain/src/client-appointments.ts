@@ -43,6 +43,11 @@ const legacyCancellationReasonCodes: Record<string, CancellationReasonCode> = {
   Outro: 'client_other',
 };
 
+export const clientCancellationReasonCodeFromLabel = (
+  label: string,
+): ClientCancellationReasonCode => legacyCancellationReasonCodes[label] as ClientCancellationReasonCode
+  ?? 'client_other';
+
 export const getPublicCancellationReasonCode = (
   code?: string | null,
   legacyReason?: string | null,
