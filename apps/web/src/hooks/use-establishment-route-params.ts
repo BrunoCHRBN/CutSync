@@ -13,6 +13,7 @@ export interface EstablishmentRouteParams {
   barbershopId?: string;
   rescheduleId?: string;
   initialProfessionalId?: string;
+  initialProfessionalSlug?: string;
   initialServiceId?: string;
 }
 
@@ -26,6 +27,8 @@ export function useEstablishmentRouteParams(): EstablishmentRouteParams {
     reschedule_id?: string | string[];
     professionalId?: string | string[];
     professional_id?: string | string[];
+    professionalSlug?: string | string[];
+    professional_slug?: string | string[];
     serviceId?: string | string[];
   }>();
 
@@ -34,6 +37,7 @@ export function useEstablishmentRouteParams(): EstablishmentRouteParams {
   const barbershopId = first(params.barbershopId);
   const rescheduleId = first(params.reschedule_id);
   const initialProfessionalId = first(params.professionalId) || first(params.professional_id);
+  const initialProfessionalSlug = first(params.professionalSlug) || first(params.professional_slug);
   const initialServiceId = first(params.serviceId);
 
   if (slug) {
@@ -45,6 +49,7 @@ export function useEstablishmentRouteParams(): EstablishmentRouteParams {
       barbershopId,
       rescheduleId,
       initialProfessionalId,
+      initialProfessionalSlug,
       initialServiceId,
     };
   }
@@ -57,6 +62,7 @@ export function useEstablishmentRouteParams(): EstablishmentRouteParams {
     barbershopId,
     rescheduleId,
     initialProfessionalId,
+    initialProfessionalSlug,
     initialServiceId,
   };
 }

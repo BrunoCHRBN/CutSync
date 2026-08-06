@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { ExternalLink, ImagePlus, Save, ShieldCheck, Trash2, UserRound, Scissors, WalletCards, CheckSquare, Square, UploadCloud, Clock3 } from 'lucide-react-native';
+import { Eye, ExternalLink, ImagePlus, Save, ShieldCheck, Trash2, UserRound, Scissors, WalletCards, CheckSquare, Square, UploadCloud, Clock3 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
-import { ProfessionalGalleryItem } from '@cutsync/database';
+import { ProfessionalGalleryItem, PublicTeamMember } from '@cutsync/database';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
+import { ProfessionalProfileSheet } from '../professional/ProfessionalProfileSheet';
 import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
@@ -61,6 +62,19 @@ export const ProfessionalProfileEditorExperience = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
+
+  const previewMember = useMemo<PublicTeamMember | null>(() => {
+    if (!profile?.id) return null;
+    return {
+      id: profile.id,
+      name: profile.name || 'Profissional',
+      avatarUrl: profile.avatar_url || null,
+      profileSlug: slug || null,
+      specialties: specialties || null,
+      tituloProfissional: titulo || null,
+    };
+  }, [profile?.id, profile?.name, profile?.avatar_url, slug, specialties, titulo]);
 
   const formatCpf = (val: string) => {
     const clean = val.replace(/<[^>]*>/g, '').replace(/\D/g, '');
@@ -515,11 +529,59 @@ export const ProfessionalProfileEditorExperience = () => {
 
         <View style={styles.actions}>
           <AppButton testID="professional-profile-save-button" label="Salvar esta seção" onPress={saveCurrentSection} loading={saving} icon={<Save color={colors.ink} size={16} />} />
-          {section === 'vitrine' && isPublic && !!slug ? (
-            <AppButton testID="professional-profile-preview-button" label="Ver vitrine pública" onPress={() => router.push(`/profile/${slug}` as never)} variant="secondary" icon={<ExternalLink color={colors.text} size={16} />} />
+
+          {section === 'vitrine' ? (
+            <View style={styles.previewActionsContainer}>
+              {(!isPublic || !slug) && (
+                <InlineNotice
+                  testID="professional-profile-preview-unavailable-notice"
+                  tone="warning"
+                  message={
+                    !isPublic
+                      ? "Perfil oculto. Ative a chave 'Perfil público' acima para liberar a pré-visualização."
+                      : "Slug ausente. Defina um Endereço público (Slug) para liberar a pré-visualização."
+                  }
+                />
+              )}
+
+              <View style={styles.previewButtonsRow}>
+                <AppButton
+                  testID="professional-profile-preview-button"
+                  label="Pré-visualizar vitrine"
+                  onPress={() => setPreviewVisible(true)}
+                  disabled={!isPublic || !slug}
+                  variant="secondary"
+                  icon={<Eye color={colors.text} size={16} />}
+                />
+                <AppButton
+                  testID="professional-profile-open-public-button"
+                  label="Abrir página pública"
+                  onPress={() => router.push(`/profile/${slug}` as never)}
+                  disabled={!isPublic || !slug}
+                  variant="secondary"
+                  icon={<ExternalLink color={colors.text} size={16} />}
+                />
+              </View>
+
+              {isPublic && !!slug ? (
+                <Text style={styles.previewBadgeText} testID="professional-profile-preview-badge">
+                  👁️ Pré-visualização pública (exibe dados salvos e publicados)
+                </Text>
+              ) : null}
+            </View>
           ) : null}
         </View>
       </ScrollView>
+
+      {/* Modal de Pré-Visualização Pública no Editor */}
+      <ProfessionalProfileSheet
+        visible={previewVisible}
+        professional={previewMember}
+        establishmentId={profile?.establishment_id}
+        onClose={() => setPreviewVisible(false)}
+        onBook={() => setPreviewVisible(false)}
+        testID="professional-profile-editor-sheet"
+      />
     </ProfessionalShell>
   );
 };
@@ -561,6 +623,9 @@ const styles = StyleSheet.create({
   shiftDayLabel: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   shiftInput: { flexGrow: 1, minWidth: 90 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'flex-end' },
+  previewActionsContainer: { width: '100%', gap: 10, marginTop: 4 },
+  previewButtonsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  previewBadgeText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11.5, marginTop: 4 },
 });
 
 export default ProfessionalProfileEditorExperience;

@@ -18,6 +18,7 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 import { clientTheme } from '../../theme/client-tokens';
 import { initialsOf } from '../../theme/color';
 import { tapLight } from '../../utils/haptics';
+import { accentText, logoRing, primaryButton } from '../../theme/establishment-styles';
 import { formatEstablishmentDisplayName, getOpeningStatus } from '@cutsync/domain';
 
 const GAP = 16;
@@ -95,7 +96,7 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
           <EstablishmentMedia name={displayName} uri={shop.bannerUrl} color={bannerFallbackColor(shop, theme.primary)} category="Estabelecimento" style={styles.bannerVisualImage} />
         </View>
       <View style={styles.shopBody}>
-        <View style={styles.shopLogoCircle}>
+        <View style={[styles.shopLogoCircle, logoRing(theme)]}>
           {shop.logoUrl ? <Image source={{ uri: shop.logoUrl }} style={styles.shopLogoImage} contentFit="contain" /> : <Text style={[styles.shopLogoLetter, { color: theme.primary }]}>{initialsOf(displayName)}</Text>}
         </View>
         <Text testID={`client-shop-card-${shop.id}-name`} numberOfLines={1} style={styles.shopName}>{displayName}</Text>
@@ -108,8 +109,8 @@ const ShopCard = ({ shop, onOpen, isFavorite, onToggleFavorite }: {
         <View style={styles.shopMeta}><MapPin color={colors.textMuted} size={13} strokeWidth={1.6} /><Text numberOfLines={1} style={styles.shopMetaText}>{shortAddress(shop.address)}</Text></View>
         <View style={styles.shopMeta}><Clock3 color={colors.textMuted} size={13} strokeWidth={1.6} /><View style={[styles.openDot, !opening.isOpen && styles.closedDot]} /><Text numberOfLines={1} style={styles.shopMetaText}>{hoursLabel}</Text></View>
         <View style={styles.cardFooter}>
-          <Text testID={`client-shop-card-${shop.id}-cta`} style={styles.footerHint}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
-          <View style={styles.openButton}><ArrowUpRight color={colors.white} size={15} strokeWidth={1.9} /></View>
+          <Text testID={`client-shop-card-${shop.id}-cta`} style={[styles.footerHint, accentText(theme)]}>{shop.slug ? 'Agendar' : 'Ver perfil'}</Text>
+          <View style={[styles.openButton, primaryButton(theme)]}><ArrowUpRight color={colors.white} size={15} strokeWidth={1.9} /></View>
         </View>
       </View>
       </Pressable>

@@ -32,14 +32,16 @@ test('rotas públicas reexportam experiências unificadas', () => {
 
 test('perfil público aplica tema da marca nos pontos visuais', () => {
   const profile = readSource('apps/web/src/components/establishment/EstablishmentProfileExperience.tsx');
+  const sheet = readSource('apps/web/src/components/professional/ProfessionalProfileSheet.tsx');
+  const fullSource = profile + sheet;
 
-  expect(profile).toContain('useEstablishmentTheme');
-  expect(profile).toContain('accentBorderLeft(theme)');
-  expect(profile).toContain('barbershop-profile-slogan');
-  expect(profile).toContain('barbershop-service-');
-  expect(profile).toContain('barbershop-profile-route-button');
-  expect(profile).toContain('barbershop-professional-book-button');
-  expect(profile).toContain('primaryButton(theme)');
+  expect(fullSource).toContain('useEstablishmentTheme');
+  expect(fullSource).toContain('accentBorderLeft(theme)');
+  expect(fullSource).toContain('barbershop-profile-slogan');
+  expect(fullSource).toContain('barbershop-service-');
+  expect(fullSource).toContain('barbershop-profile-route-button');
+  expect(fullSource).toContain('barbershop-professional-book-button');
+  expect(fullSource).toContain('primaryButton(theme)');
 });
 
 test('booking aplica tema da marca nos pontos visuais', () => {

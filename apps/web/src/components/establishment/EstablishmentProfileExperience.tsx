@@ -1,14 +1,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Modal } from 'react-native';
-import { useRouter } from 'expo-router';
+import { ActivityIndicator, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Star, Store, UserRound, UsersRound, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useEstablishmentRouteParams } from '../../hooks/use-establishment-route-params';
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { useEstablishmentServicePrices } from '../../features/services/use-establishment-service-prices';
-import { ProfileRecord } from '@cutsync/database';
+import { PublicTeamMember } from '@cutsync/database';
+import { ProfessionalProfileSheet } from '../professional/ProfessionalProfileSheet';
 import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { ScreenBackground } from '../ui/ScreenBackground';
@@ -79,6 +80,8 @@ export const EstablishmentProfileExperience = () => {
   const { prices: pricedServices } = useEstablishmentServicePrices(barbershop?.id);
   const { team: barbers } = usePublicTeam(barbershop?.id);
   const [mapUrl, setMapUrl] = useState<string | null>(null);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<PublicTeamMember | null>(null);
+
   const showcaseServices = useMemo(() => {
     if (pricedServices.length) {
       return pricedServices.filter((service) => service.isActive);
@@ -177,7 +180,7 @@ export const EstablishmentProfileExperience = () => {
 
 interface EstablishmentProfileBodyProps {
   barbershop: NonNullable<ReturnType<typeof useEstablishment>['establishment']>;
-  barbers: ProfileRecord[];
+  barbers: PublicTeamMember[];
   services: ReturnType<typeof useServices>['services'];
   galleryPhotos: string[];
   mapUrl: string | null;
@@ -202,11 +205,114 @@ function EstablishmentProfileBody({
 }: EstablishmentProfileBodyProps) {
   const router = useRouter();
   const { theme } = useEstablishmentTheme();
-  const [selectedTeamMember, setSelectedTeamMember] = useState<ProfileRecord | null>(null);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<PublicTeamMember | null>(null);
   const bookingSlug = slug || barbershop.slug;
+
+  const routeParams = useLocalSearchParams<{
+    professional_slug?: string | string[];
+    professional_id?: string | string[];
+    professionalSlug?: string | string[];
+    professionalId?: string | string[];
+  }>();
+
+  const currentProfSlug = Array.isArray(routeParams.professional_slug)
+    ? routeParams.professional_slug[0]
+    : routeParams.professional_slug ||
+      (Array.isArray(routeParams.professionalSlug)
+        ? routeParams.professionalSlug[0]
+        : routeParams.professionalSlug);
+
+  const currentProfId = Array.isArray(routeParams.professional_id)
+    ? routeParams.professional_id[0]
+    : routeParams.professional_id ||
+      (Array.isArray(routeParams.professionalId)
+        ? routeParams.professionalId[0]
+        : routeParams.professionalId);
+
+  // Sincroniza parâmetro da URL com a seleção do profissional (ex: recarga, deep link ou voltar)
+  useEffect(() => {
+    if (!currentProfSlug && !currentProfId) {
+      if (selectedTeamMember !== null) {
+        setSelectedTeamMember(null);
+      }
+      return;
+    }
+
+    if (barbers.length === 0) return;
+
+    const matched = barbers.find(
+      (b) =>
+        (currentProfSlug && b.profileSlug === currentProfSlug) ||
+        (currentProfId && b.id === currentProfId)
+    );
+
+    if (matched) {
+      if (selectedTeamMember?.id !== matched.id) {
+        setSelectedTeamMember(matched);
+      }
+    } else {
+      // Slug/ID inválido na URL -> limpa os parâmetros sem quebrar a página (Requisito 5)
+      setSelectedTeamMember(null);
+      router.setParams({
+        professional_slug: undefined,
+        professional_id: undefined,
+        professionalSlug: undefined,
+        professionalId: undefined,
+      } as never);
+    }
+  }, [currentProfSlug, currentProfId, barbers]);
+
+  const handleOpenProfessional = (member: PublicTeamMember) => {
+    tapLight();
+    setSelectedTeamMember(member);
+    if (member.profileSlug) {
+      router.setParams({
+        professional_slug: member.profileSlug,
+        professional_id: undefined,
+      } as never);
+    } else {
+      router.setParams({
+        professional_id: member.id,
+        professional_slug: undefined,
+      } as never);
+    }
+  };
+
+  const handleCloseProfessional = () => {
+    setSelectedTeamMember(null);
+    router.setParams({
+      professional_slug: undefined,
+      professional_id: undefined,
+      professionalSlug: undefined,
+      professionalId: undefined,
+    } as never);
+  };
+
+  const { prices: pricedServices } = useEstablishmentServicePrices(barbershop.id);
+  const showcaseServices = useMemo(() => {
+    if (pricedServices.length) {
+      return pricedServices.filter((service) => service.isActive);
+    }
+    return services.map((service) => ({
+      serviceId: service.id,
+      kind: service.kind,
+      name: service.name,
+      listPrice: service.price,
+      effectivePrice: service.price,
+      durationMinutes: service.durationMinutes,
+      discountType: null as 'percent' | 'fixed_price' | null,
+      discountValue: null as number | null,
+      promotionId: null as string | null,
+      savings: 0,
+      membersTotal: null as number | null,
+      isActive: service.isActive,
+      sortOrder: service.sortOrder,
+    }));
+  }, [pricedServices, services]);
 
   const goBooking = (professionalId?: string) => {
     tapLight();
+    handleCloseProfessional();
     if (bookingSlug) {
       router.push({
         pathname: `/${bookingSlug}/booking`,
@@ -457,7 +563,7 @@ function EstablishmentProfileBody({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
               renderItem={({ item }) => (
-                <Pressable onPress={() => { tapLight(); setSelectedTeamMember(item); }} style={({ pressed }) => [pressed && styles.pressedScale]}>
+                <Pressable onPress={() => handleOpenProfessional(item)} style={({ pressed }) => [pressed && styles.pressedScale]}>
                   <View testID={`barbershop-professional-${item.id}`} style={[styles.professionalCard, { borderColor: theme.muted }]}>
                     <View style={[styles.avatarCircleSmall, avatarRing(theme), !item.avatarUrl && iconSoftBackground(theme)]}>
                       {item.avatarUrl ? (
@@ -469,10 +575,10 @@ function EstablishmentProfileBody({
                     <Text style={styles.professionalName}>{item.name}</Text>
                     <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
                     {!!item.specialties && <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>}
-                    {!!item.instagram && (
+                    {'instagram' in item && !!(item as any).instagram && (
                       <View style={styles.barberInstaBtn}>
                         <Camera color={colors.textMuted} size={11} strokeWidth={1.6} />
-                        <Text style={styles.barberInstaText}>@{item.instagram}</Text>
+                        <Text style={styles.barberInstaText}>@{(item as any).instagram}</Text>
                       </View>
                     )}
                   </View>
@@ -482,130 +588,17 @@ function EstablishmentProfileBody({
           )}
         </View>
 
-        {/* Modal de Detalhes do Profissional (Padrão Fresha / Booksy) */}
-        <Modal
-          animationType="slide"
-          transparent={true}
+        {/* Janela Adaptativa do Profissional (Side Panel no Desktop / Bottom Sheet no Mobile) */}
+        <ProfessionalProfileSheet
           visible={!!selectedTeamMember}
-          onRequestClose={() => setSelectedTeamMember(null)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setSelectedTeamMember(null)}>
-            <View style={styles.bottomSheetContainer} onStartShouldSetResponder={() => true}>
-              {selectedTeamMember && (
-                <View style={styles.bottomSheetContent}>
-                  <View style={styles.bottomSheetDragIndicator} />
-
-                  <View style={styles.bottomSheetHeader}>
-                    <Text style={styles.bottomSheetTitle}>Perfil Profissional</Text>
-                    <Pressable style={styles.bottomSheetCloseBtn} onPress={() => setSelectedTeamMember(null)}>
-                      <X color={colors.textSecondary} size={18} strokeWidth={1.8} />
-                    </Pressable>
-                  </View>
-
-                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
-                    {/* 📸 1. Autoridade Visual & Avatar Real */}
-                    <View style={styles.profHeroBox}>
-                      <View style={[styles.profAvatarCircle, avatarRing(theme), iconSoftBackground(theme)]}>
-                        {selectedTeamMember.avatarUrl ? (
-                          <Image source={{ uri: selectedTeamMember.avatarUrl }} style={styles.profAvatarImage} />
-                        ) : (
-                          <View style={styles.profAvatarFallback}>
-                            <UserRound size={36} color={theme.primary} />
-                          </View>
-                        )}
-                      </View>
-
-                      <Text style={styles.profName}>{selectedTeamMember.name}</Text>
-                      <Text style={styles.profRoleTitle}>
-                        {selectedTeamMember.tituloProfissional || (selectedTeamMember.role === 'admin' ? 'Proprietário & Specialist' : 'Especialista em Visagismo')}
-                      </Text>
-
-                    {/* ⭐ 2. Prova Social (Rating & Reviews) */}
-                    <View style={styles.profRatingRow}>
-                      <Star size={14} color="#F5A524" fill="#F5A524" />
-                      {selectedTeamMember.totalReviews && selectedTeamMember.totalReviews > 0 ? (
-                        <>
-                          <Text style={styles.profRatingScore}>{Number(selectedTeamMember.rating || 5).toFixed(1)}</Text>
-                          <Text style={styles.profRatingCount}>({selectedTeamMember.totalReviews} avaliações)</Text>
-                        </>
-                      ) : (
-                        <Text style={styles.profRatingScore}>Novo</Text>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* ⭐ 2. Pílulas de Especialidades (Chips - Apenas se cadastradas) */}
-                  {!!selectedTeamMember.specialties && (
-                    <View style={styles.profChipsRow}>
-                      {selectedTeamMember.specialties.split(',').map((chip, idx) => {
-                        const trimmed = chip.trim();
-                        if (!trimmed) return null;
-                        return (
-                          <View key={idx} style={[styles.profChip, iconSoftBackground(theme)]}>
-                            <Text style={[styles.profChipText, accentText(theme)]}>💈 {trimmed}</Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-
-                  {/* 📝 3. Bio Curta & Apresentação (Apenas se cadastrada) */}
-                  {!!selectedTeamMember.bio && (
-                    <View style={styles.profBioBox}>
-                      <Text style={styles.profBioText}>{selectedTeamMember.bio}</Text>
-                    </View>
-                  )}
-
-                  {/* 📸 1. Galeria de Trabalhos do Profissional (Apenas se houver fotos cadastradas) */}
-                  {Boolean(selectedTeamMember.portfolioUrls && selectedTeamMember.portfolioUrls.length > 0) && (
-                    <View style={styles.profSection}>
-                      <Text style={styles.profSectionTitle}>
-                        TRABALHOS DE {selectedTeamMember.name.split(' ')[0].toUpperCase()}
-                      </Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                        {selectedTeamMember.portfolioUrls!.map((url, idx) => (
-                          <Image key={idx} source={{ uri: url }} style={styles.portfolioImgCard} contentFit="cover" />
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-
-                    {/* 📝 3. Serviços Prestados */}
-                    <View style={styles.profSection}>
-                      <Text style={styles.profSectionTitle}>SERVIÇOS PRESTADOS</Text>
-                      <View style={styles.profServicesList}>
-                        {services.map((srv) => (
-                          <View key={srv.id} style={styles.profServiceRow}>
-                            <View style={{ flex: 1, gap: 2 }}>
-                              <Text style={styles.profServiceName}>• {srv.name}</Text>
-                              <Text style={styles.profServiceDuration}>{srv.durationMinutes} min</Text>
-                            </View>
-                            <Text style={[styles.profServicePrice, accentText(theme)]}>R$ {Number(srv.price).toFixed(2)}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-
-                    {/* 🎯 4. Conversão Direta (CTA Único de Agendamento) */}
-                    <View style={styles.modalCtaWrap}>
-                      <AppButton
-                        testID="barbershop-professional-book-button"
-                        label={`📅 Agendar com ${selectedTeamMember.name.split(' ')[0]}`}
-                        style={[styles.modalCtaBtn, primaryButton(theme)]}
-                        foregroundColor={theme.onPrimary}
-                        onPress={() => {
-                          const profId = selectedTeamMember.id;
-                          setSelectedTeamMember(null);
-                          goBooking(profId);
-                        }}
-                      />
-                    </View>
-                  </ScrollView>
-                </View>
-              )}
-            </View>
-          </Pressable>
-        </Modal>
+          professional={selectedTeamMember}
+          establishmentId={barbershop?.id}
+          establishmentName={barbershop?.name}
+          onClose={handleCloseProfessional}
+          onBook={(profId) => {
+            goBooking(profId);
+          }}
+        />
       </ScrollView>
 
       {/* Barra de ação flutuante (glassmorphism) */}
@@ -722,37 +715,4 @@ const styles = StyleSheet.create({
   floatingButton: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 18, borderRadius: radii.pill },
   floatingButtonText: { fontFamily: typography.bodyStrong, fontSize: 12 },
   pressedScale: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  // Modal de Detalhes do Profissional
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(9,9,11,0.45)', justifyContent: 'flex-end', alignItems: 'center' },
-  bottomSheetContainer: { width: '100%', maxWidth: 560, maxHeight: '88%', backgroundColor: '#FFFFFF', borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, overflow: 'hidden' },
-  bottomSheetContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24, flex: 1, gap: 14 },
-  bottomSheetDragIndicator: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E4E5DF', alignSelf: 'center', marginBottom: 6 },
-  bottomSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  bottomSheetTitle: { fontFamily: typography.display, fontSize: 16, color: '#1A1A1E' },
-  bottomSheetCloseBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', alignItems: 'center', justifyContent: 'center' },
-  modalScrollBody: { gap: 16, paddingBottom: 20 },
-  profHeroBox: { alignItems: 'center', gap: 4, paddingTop: 6 },
-  profAvatarCircle: { width: 84, height: 84, borderRadius: 42, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  profAvatarImage: { width: '100%', height: '100%' },
-  profAvatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  profName: { fontSize: 20, fontFamily: typography.display, color: '#1A1A1E', marginTop: 4 },
-  profRoleTitle: { fontSize: 12, fontFamily: typography.body, color: colors.textMuted },
-  profRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F8F9FA', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.pill, borderWidth: 1, borderColor: '#E4E5DF', marginTop: 4 },
-  profRatingScore: { fontSize: 12, fontFamily: typography.bodyStrong, color: '#1A1A1E' },
-  profRatingCount: { fontSize: 11, fontFamily: typography.body, color: colors.textMuted },
-  profChipsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
-  profChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill },
-  profChipText: { fontSize: 11, fontFamily: typography.bodyStrong },
-  profBioBox: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', borderRadius: radii.md, padding: 12 },
-  profBioText: { fontSize: 12, fontFamily: typography.body, color: colors.textSecondary, lineHeight: 18, textAlign: 'center' },
-  profSection: { gap: 8 },
-  profSectionTitle: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textMuted, letterSpacing: 1.2 },
-  portfolioImgCard: { width: 140, height: 170, borderRadius: radii.md },
-  profServicesList: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E4E5DF', borderRadius: radii.md, padding: 12, gap: 10 },
-  profServiceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E4E5DF', paddingBottom: 8 },
-  profServiceName: { fontSize: 13, fontFamily: typography.bodyStrong, color: '#1A1A1E' },
-  profServiceDuration: { fontSize: 11, fontFamily: typography.body, color: colors.textMuted },
-  profServicePrice: { fontSize: 13, fontFamily: typography.display },
-  modalCtaWrap: { marginTop: 8 },
-  modalCtaBtn: { minHeight: 48 },
 });

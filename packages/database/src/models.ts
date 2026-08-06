@@ -152,6 +152,15 @@ export interface Establishment {
   pixKey?: string | null;
 }
 
+export interface PublicTeamMember {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  tituloProfissional?: string | null;
+  specialties?: string | null;
+  profileSlug?: string | null;
+}
+
 export interface ProfileRecord {
   id: string;
   establishmentId?: string | null;
@@ -300,6 +309,15 @@ export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
   latitude: 'latitude' in row ? Number((row as any).latitude || 0) : null,
   longitude: 'longitude' in row ? Number((row as any).longitude || 0) : null,
   professionalPixAllowed: 'professional_pix_allowed' in row ? (row as any).professional_pix_allowed !== false : true,
+});
+
+export const mapPublicTeamMember = (row: PublicTeamRow): PublicTeamMember => ({
+  id: row.id,
+  name: row.name,
+  avatarUrl: row.avatar_url,
+  tituloProfissional: row.titulo_profissional,
+  specialties: row.specialties,
+  profileSlug: row.professional_profile_slug ?? null,
 });
 
 export const mapProfile = (row: ProfileRow | TeamRow | PublicTeamRow): ProfileRecord => ({
