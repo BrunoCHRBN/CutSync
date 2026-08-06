@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, Camera, MapPin, Scissors, Store, UsersRound } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -8,11 +8,13 @@ import { useEstablishmentRouteParams } from '../../hooks/use-establishment-route
 import { useServices } from '../../hooks/useServices';
 import { usePublicTeam } from '../../hooks/usePublicTeam';
 import { PublicTeamMember } from '@cutsync/database';
+import { ProfessionalProfileSheet } from '../professional/ProfessionalProfileSheet';
 import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
 import { ScreenBackground } from '../ui/ScreenBackground';
 import { SectionHeading } from '../ui/SectionHeading';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
+import { EstablishmentThemeProvider } from '../../contexts/establishment-theme-context';
 import { atmosphericShadow, colors, glassSurface, layout, radii, typography } from '../../theme/tokens';
 import { clientTheme } from '../../theme/client-tokens';
 import { initialsOf, readableForeground } from '../../theme/color';
@@ -56,6 +58,13 @@ function BarbershopProfileSkeleton() {
   );
 }
 
+/**
+ * BarbershopProfileExperience — Detalhe autenticado do estabelecimento (Client Web).
+ *
+ * Separado da rota pública EstablishmentProfileExperience (/[slug]).
+ * Recebe establishmentId via query param e exibe a experiência contextual autenticada,
+ * incluindo o painel lateral do perfil profissional (ProfessionalProfileSheet).
+ */
 export const BarbershopProfileExperience = () => {
   const { establishmentId } = useEstablishmentRouteParams();
   const { width } = useWindowDimensions();
@@ -63,8 +72,57 @@ export const BarbershopProfileExperience = () => {
   const router = useRouter();
   const { establishment: barbershop, loading } = useEstablishment(establishmentId);
   const { services } = useServices(establishmentId, true);
-  const { team: barbers } = usePublicTeam(establishmentId);
+  const { team: barbers, loading: barbersLoading } = usePublicTeam(establishmentId);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // ---- URL-synced professional selection ----
+  // Reads canonical snake_case params.
+  const routeParams = useLocalSearchParams<{
+    professional_id?: string | string[];
+    professional_slug?: string | string[];
+  }>();
+  const currentProfId = Array.isArray(routeParams.professional_id)
+    ? routeParams.professional_id[0]
+    : routeParams.professional_id;
+  const currentProfSlug = Array.isArray(routeParams.professional_slug)
+    ? routeParams.professional_slug[0]
+    : routeParams.professional_slug;
+
+  /**
+   * Derive the selected professional from URL params + loaded barbers list.
+   * We keep a `selectedTeamMember` state because the Sheet needs to hold its
+   * value while closing (visible=false briefly), but it is always reconciled
+   * from the authoritative URL params + barbers list.
+   */
+  const [selectedTeamMember, setSelectedTeamMember] = useState<PublicTeamMember | null>(null);
+
+  useEffect(() => {
+    // Do not resolve before the team has loaded to avoid mismatches.
+    if (barbersLoading) return;
+
+    const hasParam = !!(currentProfId || currentProfSlug);
+
+    if (!hasParam) {
+      if (selectedTeamMember !== null) setSelectedTeamMember(null);
+      return;
+    }
+
+    const matched = barbers.find(
+      (b) =>
+        (currentProfId && b.id === currentProfId) ||
+        (currentProfSlug && b.profileSlug === currentProfSlug),
+    );
+
+    if (matched) {
+      if (selectedTeamMember?.id !== matched.id) {
+        setSelectedTeamMember(matched);
+      }
+    } else {
+      // Param inválido: limpa sem loop. setParams não cria entrada de histórico.
+      setSelectedTeamMember(null);
+      router.setParams({ professional_id: undefined, professional_slug: undefined } as Record<string, string | undefined>);
+    }
+  }, [currentProfId, currentProfSlug, barbers, barbersLoading]);
 
   const galleryPhotos = useMemo(() => {
     if (!barbershop?.galleryUrls) return [];
@@ -121,283 +179,348 @@ export const BarbershopProfileExperience = () => {
     router.push(`/(client)/booking?${bookingParams.toString()}`);
   };
 
-  const openProfessional = (professional: PublicTeamMember) => {
+  /**
+   * Opens the contextual professional sheet.
+   *
+   * Strategy for Web browser history (expo-router v57 / React Navigation v7):
+   * `router.setParams` does NOT create a history entry on the Web.
+   * To ensure pressing Back closes the Sheet (Requisito 3 da Parte 3), we use
+   * `router.push` with a merged param set so the browser registers a new history
+   * entry. `handleCloseProfessional` then calls `router.back()` which pops that
+   * entry, returning to the clean establishment URL.
+   */
+  const handleOpenProfessional = (member: PublicTeamMember) => {
     tapLight();
-    if (professional.profileSlug) {
-      router.push(`/profile/${professional.profileSlug}`);
-      return;
+    setSelectedTeamMember(member);
+    if (Platform.OS === 'web') {
+      // Push creates a history entry so Back will close the sheet.
+      if (member.profileSlug) {
+        router.push({
+          pathname: '/(client)/establishment',
+          params: {
+            establishmentId: String(establishmentId),
+            professional_slug: member.profileSlug,
+          },
+        });
+      } else {
+        router.push({
+          pathname: '/(client)/establishment',
+          params: {
+            establishmentId: String(establishmentId),
+            professional_id: member.id,
+          },
+        });
+      }
+    } else {
+      // On native, setParams is cheaper and Back behaviour already works correctly.
+      if (member.profileSlug) {
+        router.setParams({ professional_slug: member.profileSlug, professional_id: undefined } as Record<string, string | undefined>);
+      } else {
+        router.setParams({ professional_id: member.id, professional_slug: undefined } as Record<string, string | undefined>);
+      }
     }
-    goBooking({ professionalId: professional.id });
+  };
+
+  /**
+   * Closes the sheet.
+   * On Web: router.back() pops the history entry that was pushed by handleOpenProfessional,
+   * which naturally restores the clean URL. We do NOT push another entry here.
+   * On native: use setParams to remove only the professional params.
+   */
+  const handleCloseProfessional = () => {
+    setSelectedTeamMember(null);
+    if (Platform.OS === 'web' && router.canGoBack()) {
+      router.back();
+    } else {
+      router.setParams({
+        professional_id: undefined,
+        professional_slug: undefined,
+      } as Record<string, string | undefined>);
+    }
   };
 
   return (
-    <ScreenBackground testID="barbershop-profile-screen">
-      <View style={styles.topbar}>
-        <Pressable
-          testID="barbershop-profile-back-button"
-          onPress={goBack}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressedScale]}
-        >
-          <ArrowLeft color={colors.text} size={18} strokeWidth={1.8} />
-        </Pressable>
-        <Text testID="barbershop-profile-topbar-title" numberOfLines={1} style={styles.topbarTitle}>
-          {displayName}
-        </Text>
-        {!!statusInfo.text && (
-          <View style={styles.topbarStatus}>
-            <View style={[styles.statusDot, { backgroundColor: statusInfo.isOpen ? colors.success : colors.danger }]} />
-            <Text style={[styles.topbarStatusText, { color: statusInfo.isOpen ? colors.success : colors.danger }]}>
-              {statusInfo.isOpen ? 'Aberto' : 'Fechado'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroContainer}>
-          <EstablishmentMedia
-            testID="barbershop-profile-banner"
-            name={displayName}
-            uri={barbershop.bannerUrl}
-            color={accent}
-            category="Perfil do estabelecimento"
-            style={styles.bannerImage}
-          />
-          <LinearGradient
-            colors={['rgba(245,245,242,0)', 'rgba(245,245,242,0.2)', colors.canvas]}
-            locations={[0, 0.62, 1]}
-            style={styles.bannerFade}
-            pointerEvents="none"
-          />
+    <EstablishmentThemeProvider
+      primaryColor={barbershop.primaryColor}
+      establishmentId={establishmentId}
+      establishmentName={displayName}
+    >
+      <ScreenBackground testID="barbershop-profile-screen">
+        <View style={styles.topbar}>
+          <Pressable
+            testID="barbershop-profile-back-button"
+            onPress={goBack}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressedScale]}
+          >
+            <ArrowLeft color={colors.text} size={18} strokeWidth={1.8} />
+          </Pressable>
+          <Text testID="barbershop-profile-topbar-title" numberOfLines={1} style={styles.topbarTitle}>
+            {displayName}
+          </Text>
+          {!!statusInfo.text && (
+            <View style={styles.topbarStatus}>
+              <View style={[styles.statusDot, { backgroundColor: statusInfo.isOpen ? colors.success : colors.danger }]} />
+              <Text style={[styles.topbarStatusText, { color: statusInfo.isOpen ? colors.success : colors.danger }]}>
+                {statusInfo.isOpen ? 'Aberto' : 'Fechado'}
+              </Text>
+            </View>
+          )}
         </View>
 
-        <View style={[styles.heroCopy, isWide && styles.heroCopyWide]}>
-          <View style={styles.brandContainer}>
-            <View style={styles.logoCircle}>
-              {barbershop.logoUrl ? (
-                <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} />
-              ) : (
-                <Text style={styles.logoLetter}>{initialsOf(displayName)}</Text>
-              )}
-            </View>
-            <View style={styles.titleInfo}>
-              <View style={styles.titleRow}>
-                <Text testID="barbershop-profile-name" style={styles.title}>{displayName}</Text>
-                {!!instagramHandle && (
-                  <Pressable
-                    onPress={() => Linking.openURL(`https://instagram.com/${instagramHandle}`)}
-                    style={({ pressed }) => [styles.instagramBadge, pressed && styles.pressedScale]}
-                  >
-                    <Camera color={colors.textSecondary} size={12} strokeWidth={1.8} />
-                    <Text style={styles.instagramBadgeText}>@{instagramHandle}</Text>
-                  </Pressable>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.heroContainer}>
+            <EstablishmentMedia
+              testID="barbershop-profile-banner"
+              name={displayName}
+              uri={barbershop.bannerUrl}
+              color={accent}
+              category="Perfil do estabelecimento"
+              style={styles.bannerImage}
+            />
+            <LinearGradient
+              colors={['rgba(245,245,242,0)', 'rgba(245,245,242,0.2)', colors.canvas]}
+              locations={[0, 0.62, 1]}
+              style={styles.bannerFade}
+              pointerEvents="none"
+            />
+          </View>
+
+          <View style={[styles.heroCopy, isWide && styles.heroCopyWide]}>
+            <View style={styles.brandContainer}>
+              <View style={styles.logoCircle}>
+                {barbershop.logoUrl ? (
+                  <Image testID="barbershop-profile-logo" source={{ uri: barbershop.logoUrl }} style={styles.logoImage} />
+                ) : (
+                  <Text style={styles.logoLetter}>{initialsOf(displayName)}</Text>
                 )}
               </View>
-              {!!barbershop.slogan && <Text style={styles.slogan}>“{barbershop.slogan}”</Text>}
-              <Text testID="barbershop-profile-rating" style={styles.metaLine}>
-                {[
-                  barbershop.averageRating
-                    ? `★ ${barbershop.averageRating.toFixed(1)}${barbershop.reviewCount ? ` · ${barbershop.reviewCount} avaliações` : ''}`
-                    : '★ Novo no CutSync',
-                  statusInfo.isOpen
-                    ? (statusInfo.text ? `Aberto · ${statusInfo.text}` : 'Aberto')
-                    : (statusInfo.text || null),
-                  barbershop.phone || null,
-                ].filter(Boolean).join(' · ')}
-              </Text>
-              {!!barbershop.description && (
-                <Text testID="barbershop-profile-description" style={styles.description}>
-                  {barbershop.description}
+              <View style={styles.titleInfo}>
+                <View style={styles.titleRow}>
+                  <Text testID="barbershop-profile-name" style={styles.title}>{displayName}</Text>
+                  {!!instagramHandle && (
+                    <Pressable
+                      onPress={() => Linking.openURL(`https://instagram.com/${instagramHandle}`)}
+                      style={({ pressed }) => [styles.instagramBadge, pressed && styles.pressedScale]}
+                    >
+                      <Camera color={colors.textSecondary} size={12} strokeWidth={1.8} />
+                      <Text style={styles.instagramBadgeText}>@{instagramHandle}</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {!!barbershop.slogan && <Text style={styles.slogan}>"{barbershop.slogan}"</Text>}
+                <Text testID="barbershop-profile-rating" style={styles.metaLine}>
+                  {[
+                    barbershop.averageRating
+                      ? `★ ${barbershop.averageRating.toFixed(1)}${barbershop.reviewCount ? ` · ${barbershop.reviewCount} avaliações` : ''}`
+                      : '★ Novo no CutSync',
+                    statusInfo.isOpen
+                      ? (statusInfo.text ? `Aberto · ${statusInfo.text}` : 'Aberto')
+                      : (statusInfo.text || null),
+                    barbershop.phone || null,
+                  ].filter(Boolean).join(' · ')}
                 </Text>
-              )}
+                {!!barbershop.description && (
+                  <Text testID="barbershop-profile-description" style={styles.description}>
+                    {barbershop.description}
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Serviços primeiro — jornada marketplace. */}
-        <View style={styles.section}>
-          <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços primeiro" description="" />
-          {services.length === 0 ? (
-            <EmptyState
-              testID="barbershop-services-empty"
-              title="Catálogo"
-              description="O estabelecimento ainda não publicou serviços ativos."
-              icon={<Scissors color={colors.textSecondary} size={22} strokeWidth={1.6} />}
-            />
-          ) : (
-            <View testID="barbershop-services-grid" style={styles.cardsGrid}>
-              {services.map((service) => (
-                <Pressable
-                  key={service.id}
-                  testID={`barbershop-service-${service.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Agendar ${service.name}`}
-                  onPress={() => goBooking({ serviceId: service.id })}
-                  style={({ pressed, hovered }) => [
-                    styles.serviceCard,
-                    hovered && styles.serviceCardHovered,
-                    pressed && styles.pressedScale,
-                  ]}
-                >
-                  <View style={styles.cardIcon}>
-                    <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
-                  </View>
-                  <View style={styles.serviceCopy}>
-                    <Text style={styles.serviceName}>{service.name}</Text>
-                    <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
-                  </View>
-                  <Text style={styles.servicePrice}>{currency(service.price)}</Text>
-                  <View style={styles.serviceBookPill}>
-                    <Text style={styles.serviceBookHint}>Reservar</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Equipe */}
-        <View style={styles.section}>
-          <SectionHeading testID="barbershop-team-heading" eyebrow="Profissionais" title="Nossa equipe" description="" />
-          {barbers.length === 0 ? (
-            <EmptyState
-              testID="barbershop-team-empty"
-              title="Nossa equipe"
-              description="Os profissionais aparecerão aqui em breve."
-              icon={<UsersRound color={colors.textSecondary} size={22} strokeWidth={1.6} />}
-            />
-          ) : (
-            <FlatList
-              data={barbers}
-              keyExtractor={(barber) => barber.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
-              renderItem={({ item }) => {
-                const professionalName = formatDisplayName(item.name);
-                return (
+          {/* Serviços primeiro — jornada marketplace. */}
+          <View style={styles.section}>
+            <SectionHeading testID="barbershop-services-heading" eyebrow="Catálogo" title="Serviços primeiro" description="" />
+            {services.length === 0 ? (
+              <EmptyState
+                testID="barbershop-services-empty"
+                title="Catálogo"
+                description="O estabelecimento ainda não publicou serviços ativos."
+                icon={<Scissors color={colors.textSecondary} size={22} strokeWidth={1.6} />}
+              />
+            ) : (
+              <View testID="barbershop-services-grid" style={styles.cardsGrid}>
+                {services.map((service) => (
                   <Pressable
-                    testID={`barbershop-professional-${item.id}`}
+                    key={service.id}
+                    testID={`barbershop-service-${service.id}`}
                     accessibilityRole="button"
-                    accessibilityLabel={
-                      item.profileSlug
-                        ? `Ver perfil de ${professionalName}`
-                        : `Agendar com ${professionalName}`
-                    }
-                    onPress={() => openProfessional(item)}
-                    style={({ pressed }) => [styles.professionalCard, pressed && styles.pressedScale]}
+                    accessibilityLabel={`Agendar ${service.name}`}
+                    onPress={() => goBooking({ serviceId: service.id })}
+                    style={({ pressed, hovered }) => [
+                      styles.serviceCard,
+                      hovered && styles.serviceCardHovered,
+                      pressed && styles.pressedScale,
+                    ]}
                   >
-                    <View style={styles.avatarCircleSmall}>
-                      {item.avatarUrl ? (
-                        <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                      ) : (
-                        <Text style={styles.avatarInitials}>{initialsOf(professionalName)}</Text>
-                      )}
+                    <View style={styles.cardIcon}>
+                      <Scissors color={colors.textSecondary} size={14} strokeWidth={1.6} />
                     </View>
-                    <Text style={styles.professionalName}>{professionalName}</Text>
-                    <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
-                    {!!item.specialties && (
-                      <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>
-                    )}
-                    <Text style={styles.professionalCta}>
-                      {item.profileSlug ? 'Ver perfil →' : 'Agendar →'}
-                    </Text>
+                    <View style={styles.serviceCopy}>
+                      <Text style={styles.serviceName}>{service.name}</Text>
+                      <Text style={styles.serviceDuration}>{service.durationMinutes} min</Text>
+                    </View>
+                    <Text style={styles.servicePrice}>{currency(service.price)}</Text>
+                    <View style={styles.serviceBookPill}>
+                      <Text style={styles.serviceBookHint}>Reservar</Text>
+                    </View>
                   </Pressable>
-                );
-              }}
-            />
-          )}
-        </View>
-
-        {/* Mapa */}
-        {!!barbershop.address && (
-          <View style={styles.mapCard}>
-            <View style={{ flex: 1, height: 180 }}>
-              {mapLoaded && Platform.OS === 'web' ? (
-                React.createElement('iframe', {
-                  src: `https://maps.google.com/maps?q=${encodeURIComponent(barbershop.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`,
-                  width: '100%',
-                  height: '100%',
-                  style: { border: 0 },
-                  loading: 'lazy',
-                  title: 'Mapa do Estabelecimento',
-                })
-              ) : mapLoaded ? (
-                <View style={styles.mapPlaceholder}>
-                  <MapPin color={clientTheme.accent} size={26} />
-                  <Text style={styles.mapPlaceholderTitle}>{barbershop.address}</Text>
-                </View>
-              ) : (
-                <View style={styles.mapPlaceholder}>
-                  <MapPin color={clientTheme.accent} size={26} />
-                  <Text style={styles.mapPlaceholderTitle}>Veja a localização no mapa</Text>
-                  <Text style={styles.mapPlaceholderText}>
-                    {barbershop.address}. O mapa interativo só será conectado após sua escolha.
-                  </Text>
-                  <AppButton label="Carregar mapa" onPress={() => setMapLoaded(true)} testID="barbershop-profile-load-map-button" variant="secondary" />
-                </View>
-              )}
-            </View>
-            <View style={styles.mapInfoBar}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={styles.mapInfoAddress} numberOfLines={1}>
-                  {barbershop.address}
-                </Text>
+                ))}
               </View>
-              <AppButton
-                testID="barbershop-profile-route-button"
-                label="Como chegar"
-                onPress={() => {
-                  const address = barbershop.address || '';
-                  const url = Platform.select({
-                    ios: `maps:0,0?q=${encodeURIComponent(address)}`,
-                    android: `geo:0,0?q=${encodeURIComponent(address)}`,
-                    default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
-                  });
-                  Linking.openURL(url);
+            )}
+          </View>
+
+          {/* Equipe */}
+          <View style={styles.section}>
+            <SectionHeading testID="barbershop-team-heading" eyebrow="Profissionais" title="Nossa equipe" description="" />
+            {barbers.length === 0 ? (
+              <EmptyState
+                testID="barbershop-team-empty"
+                title="Nossa equipe"
+                description="Os profissionais aparecerão aqui em breve."
+                icon={<UsersRound color={colors.textSecondary} size={22} strokeWidth={1.6} />}
+              />
+            ) : (
+              <FlatList
+                data={barbers}
+                keyExtractor={(barber) => barber.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
+                renderItem={({ item }) => {
+                  const professionalName = formatDisplayName(item.name);
+                  return (
+                    <Pressable
+                      testID={`barbershop-professional-${item.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ver perfil de ${professionalName}`}
+                      onPress={() => handleOpenProfessional(item)}
+                      style={({ pressed }) => [styles.professionalCard, pressed && styles.pressedScale]}
+                    >
+                      <View style={styles.avatarCircleSmall}>
+                        {item.avatarUrl ? (
+                          <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                        ) : (
+                          <Text style={styles.avatarInitials}>{initialsOf(professionalName)}</Text>
+                        )}
+                      </View>
+                      <Text style={styles.professionalName}>{professionalName}</Text>
+                      <Text style={styles.professionalRole}>{item.tituloProfissional || 'Especialista'}</Text>
+                      {!!item.specialties && (
+                        <Text numberOfLines={2} style={styles.professionalSpecialties}>{item.specialties}</Text>
+                      )}
+                      <Text style={styles.professionalCta}>Ver perfil →</Text>
+                    </Pressable>
+                  );
                 }}
-                variant="secondary"
-                style={styles.routeBtn}
-                icon={<MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />}
+              />
+            )}
+          </View>
+
+          {/* Mapa */}
+          {!!barbershop.address && (
+            <View style={styles.mapCard}>
+              <View style={{ flex: 1, height: 180 }}>
+                {mapLoaded && Platform.OS === 'web' ? (
+                  React.createElement('iframe', {
+                    src: `https://maps.google.com/maps?q=${encodeURIComponent(barbershop.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`,
+                    width: '100%',
+                    height: '100%',
+                    style: { border: 0 },
+                    loading: 'lazy',
+                    title: 'Mapa do Estabelecimento',
+                  })
+                ) : mapLoaded ? (
+                  <View style={styles.mapPlaceholder}>
+                    <MapPin color={clientTheme.accent} size={26} />
+                    <Text style={styles.mapPlaceholderTitle}>{barbershop.address}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.mapPlaceholder}>
+                    <MapPin color={clientTheme.accent} size={26} />
+                    <Text style={styles.mapPlaceholderTitle}>Veja a localização no mapa</Text>
+                    <Text style={styles.mapPlaceholderText}>
+                      {barbershop.address}. O mapa interativo só será conectado após sua escolha.
+                    </Text>
+                    <AppButton label="Carregar mapa" onPress={() => setMapLoaded(true)} testID="barbershop-profile-load-map-button" variant="secondary" />
+                  </View>
+                )}
+              </View>
+              <View style={styles.mapInfoBar}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={styles.mapInfoAddress} numberOfLines={1}>
+                    {barbershop.address}
+                  </Text>
+                </View>
+                <AppButton
+                  testID="barbershop-profile-route-button"
+                  label="Como chegar"
+                  onPress={() => {
+                    const address = barbershop.address || '';
+                    const url = Platform.select({
+                      ios: `maps:0,0?q=${encodeURIComponent(address)}`,
+                      android: `geo:0,0?q=${encodeURIComponent(address)}`,
+                      default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+                    });
+                    Linking.openURL(url);
+                  }}
+                  variant="secondary"
+                  style={styles.routeBtn}
+                  icon={<MapPin color={colors.textSecondary} size={13} strokeWidth={1.6} />}
+                />
+              </View>
+            </View>
+          )}
+
+          {galleryPhotos.length > 0 ? (
+            <View style={styles.section}>
+              <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
+              <FlatList
+                data={galleryPhotos}
+                keyExtractor={(url, idx) => `${url}-${idx}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12 }}
+                renderItem={({ item }) => (
+                  <Image source={{ uri: item }} style={styles.galleryImage} />
+                )}
               />
             </View>
-          </View>
-        )}
+          ) : null}
+        </ScrollView>
 
-        {galleryPhotos.length > 0 ? (
-          <View style={styles.section}>
-            <SectionHeading testID="barbershop-gallery-heading" eyebrow="Galeria" title="Inspirações & cortes" description="" />
-            <FlatList
-              data={galleryPhotos}
-              keyExtractor={(url, idx) => `${url}-${idx}`}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
-              renderItem={({ item }) => (
-                <Image source={{ uri: item }} style={styles.galleryImage} />
-              )}
-            />
+        <View style={styles.floatingWrap} pointerEvents="box-none">
+          <View testID="barbershop-booking-cta" style={styles.floatingBar}>
+            <View style={styles.floatingCopy}>
+              <Text style={styles.floatingEyebrow}>Agendar neste lugar</Text>
+              <Text numberOfLines={1} style={styles.floatingTitle}>Escolha serviço e horário</Text>
+            </View>
+            <Pressable
+              testID="barbershop-profile-book-button"
+              onPress={() => goBooking()}
+              style={({ pressed }) => [styles.floatingButton, { backgroundColor: accent }, pressed && styles.pressedScale]}
+            >
+              <Text style={[styles.floatingButtonText, { color: accentFg }]}>Agendar agora</Text>
+              <ArrowRight color={accentFg} size={15} strokeWidth={2} />
+            </Pressable>
           </View>
-        ) : null}
-      </ScrollView>
-
-      <View style={styles.floatingWrap} pointerEvents="box-none">
-        <View testID="barbershop-booking-cta" style={styles.floatingBar}>
-          <View style={styles.floatingCopy}>
-            <Text style={styles.floatingEyebrow}>Agendar neste lugar</Text>
-            <Text numberOfLines={1} style={styles.floatingTitle}>Escolha serviço e horário</Text>
-          </View>
-          <Pressable
-            testID="barbershop-profile-book-button"
-            onPress={() => goBooking()}
-            style={({ pressed }) => [styles.floatingButton, { backgroundColor: accent }, pressed && styles.pressedScale]}
-          >
-            <Text style={[styles.floatingButtonText, { color: accentFg }]}>Agendar agora</Text>
-            <ArrowRight color={accentFg} size={15} strokeWidth={2} />
-          </Pressable>
         </View>
-      </View>
-    </ScreenBackground>
+
+        {/* Painel contextual do profissional — uma única instância */}
+        <ProfessionalProfileSheet
+          testID="barbershop-professional-sheet"
+          visible={!!selectedTeamMember}
+          professional={selectedTeamMember}
+          establishmentId={establishmentId}
+          establishmentName={displayName}
+          onClose={handleCloseProfessional}
+          onBook={(profId) => {
+            handleCloseProfessional();
+            goBooking({ professionalId: profId });
+          }}
+        />
+      </ScreenBackground>
+    </EstablishmentThemeProvider>
   );
 };
 

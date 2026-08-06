@@ -46,6 +46,7 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
   visible,
   professional,
   establishmentId,
+  establishmentName,
   onClose,
   onBook,
   testID = 'professional-profile-sheet',
@@ -85,17 +86,18 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
   } = usePublicProfessionalProfile(slug);
 
   const [professionalServiceIds, setProfessionalServiceIds] = useState<string[] | null>(null);
-  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesStatus, setServicesStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   // Cancela/ignora respostas obsoletas quando o profissional muda ou a janela fecha
   useEffect(() => {
     if (!visible || !professional?.id) {
       setProfessionalServiceIds(null);
-      setServicesLoading(false);
+      setServicesStatus('idle');
       return;
     }
     let active = true;
-    setServicesLoading(true);
+    setServicesStatus('loading');
+    setProfessionalServiceIds(null);
 
     let query = supabase
       .from('professional_services')
@@ -110,11 +112,12 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
     query.then(({ data, error }) => {
       if (!active) return;
       if (error || !data) {
-        setProfessionalServiceIds(null);
+        setProfessionalServiceIds([]);
+        setServicesStatus('error');
       } else {
         setProfessionalServiceIds(data.map((row) => row.service_id));
+        setServicesStatus('success');
       }
-      setServicesLoading(false);
     });
 
     return () => {
@@ -135,16 +138,17 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
   }, [visible, onClose]);
 
   const filteredServices = useMemo<ServiceItemProp[]>(() => {
-    if (!professionalServiceIds) return showcaseServices;
+    if (servicesStatus !== 'success' || !professionalServiceIds) return [];
     if (professionalServiceIds.length === 0) return [];
     const set = new Set(professionalServiceIds);
     return showcaseServices.filter((s) => set.has(s.id));
-  }, [professionalServiceIds, showcaseServices]);
+  }, [servicesStatus, professionalServiceIds, showcaseServices]);
 
   if (!visible) return null;
 
-  const isLoading = loadingDetailedProfile || servicesLoading;
+  const isLoading = loadingDetailedProfile || servicesStatus === 'loading';
   const firstName = professional?.name ? professional.name.split(' ')[0] : 'Profissional';
+  const contextLabel = establishmentName ? `Atende em ${establishmentName}` : 'Atende neste estabelecimento';
 
   return (
     <Modal
@@ -159,9 +163,9 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
         onPress={onClose}
       >
         <Pressable
-          accessibilityRole={'dialog' as any}
           accessibilityViewIsModal
           aria-modal={true}
+          aria-label={professional ? `Perfil de ${professional.name}` : 'Perfil Profissional'}
           accessibilityLabel={professional ? `Perfil de ${professional.name}` : 'Perfil Profissional'}
           style={[
             styles.sheet,
@@ -210,9 +214,10 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
               <ProfessionalProfileContent
                 profile={detailedProfile}
                 services={filteredServices}
-                onBook={professional ? () => onBook(professional.id) : undefined}
+                onBook={undefined}
                 onOpenLink={(url) => void Linking.openURL(url)}
                 theme={theme}
+                contextLabel={contextLabel}
                 testIDPrefix="professional-sheet"
               />
             ) : professional ? (
@@ -238,7 +243,7 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
                         if (!trimmed) return null;
                         return (
                           <View key={idx} style={[styles.chip, iconSoftBackground(theme)]}>
-                            <Text style={[styles.chipText, accentText(theme)]}>💈 {trimmed}</Text>
+                            <Text style={[styles.chipText, accentText(theme)]}>{trimmed}</Text>
                           </View>
                         );
                       })}
@@ -279,7 +284,7 @@ export const ProfessionalProfileSheet: React.FC<ProfessionalProfileSheetProps> =
             <View style={styles.footer}>
               <AppButton
                 testID="barbershop-professional-book-button"
-                label={`📅 Agendar com ${firstName}`}
+                label={`Agendar com ${firstName}`}
                 style={[styles.ctaBtn, primaryButton(theme)]}
                 foregroundColor={theme.onPrimary}
                 onPress={() => onBook(professional.id)}
