@@ -6200,6 +6200,7 @@ export type Database = {
           instagram: string
           name: string
           phone: string
+          pix_key: string | null
           push_token: string
           role: string
           specialties: string

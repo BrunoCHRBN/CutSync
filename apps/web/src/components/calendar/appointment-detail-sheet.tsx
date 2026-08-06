@@ -1,6 +1,8 @@
 import React from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, Linking } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, Linking } from 'react-native';
 import { CalendarClock, Copy, Scissors, UserRound, X, MessageCircle, ArrowRightLeft } from 'lucide-react-native';
+import type { ServiceOrderDetail } from '@cutsync/database';
+import { AWAITING_PAYMENT_NOTICE, formatMoneyCents, getServiceOrderStatusLabel } from '@cutsync/domain';
 import { colors, elevations, layout, radii, spacing, typeScale } from '../../theme/tokens';
 import { CalendarAppointment } from './operational-calendar';
 import { AppButton } from '../ui/AppButton';
@@ -15,6 +17,15 @@ interface AppointmentDetailSheetProps {
   canComplete?: boolean;
   canTransfer?: boolean;
   completeLabel?: string;
+  serviceOrder?: ServiceOrderDetail | null;
+  serviceOrderLoading?: boolean;
+  serviceOrderError?: string | null;
+  onServiceOrderRetry?: () => void;
+  financialOpsEnabled?: boolean;
+  orderActionLabel?: string | null;
+  orderActionLoading?: boolean;
+  onOrderAction?: () => void;
+  appointmentLockedByOrder?: boolean;
   onClose: () => void;
   onReschedule?: (appointment: CalendarAppointment) => void;
   onCancel?: (appointment: CalendarAppointment) => void;
@@ -52,6 +63,15 @@ export const AppointmentDetailSheet = ({
   canComplete = false,
   canTransfer = false,
   completeLabel = 'Concluir',
+  serviceOrder = null,
+  serviceOrderLoading = false,
+  serviceOrderError = null,
+  onServiceOrderRetry,
+  financialOpsEnabled = false,
+  orderActionLabel = null,
+  orderActionLoading = false,
+  onOrderAction,
+  appointmentLockedByOrder = false,
   onClose,
   onReschedule,
   onCancel,
@@ -100,6 +120,11 @@ export const AppointmentDetailSheet = ({
   const originalLabel = appointment.originalDateTime
     ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(appointment.originalDateTime)
     : null;
+  const legacyCompleteHandler = canComplete ? onComplete : undefined;
+  const orderActionHandler = orderActionLabel ? onOrderAction : undefined;
+  const rescheduleHandler = canReschedule && !appointmentLockedByOrder ? onReschedule : undefined;
+  const cancelHandler = canCancel && !appointmentLockedByOrder ? onCancel : undefined;
+  const transferHandler = canTransfer && !appointmentLockedByOrder ? onTransfer : undefined;
 
   return (
     <Modal animationType={Platform.OS === 'web' ? 'fade' : 'slide'} onRequestClose={onClose} transparent visible={visible}>
@@ -160,19 +185,102 @@ export const AppointmentDetailSheet = ({
               </>
             ) : null}
           </View>
+          {financialOpsEnabled ? (
+            <View style={styles.serviceOrderSection} testID="appointment-detail-service-order">
+              <View style={styles.serviceOrderHeader}>
+                <Text style={styles.serviceOrderEyebrow}>COMANDA</Text>
+                {serviceOrder ? (
+                  <StatusBadge
+                    label={getServiceOrderStatusLabel(serviceOrder.status)}
+                    tone={serviceOrder.status === 'awaiting_payment' ? 'warning' : 'info'}
+                    testID="appointment-detail-service-order-status"
+                  />
+                ) : null}
+              </View>
+              {serviceOrderLoading ? (
+                <View style={styles.serviceOrderState}>
+                  <ActivityIndicator color={colors.brandPrimary} />
+                  <Text style={styles.serviceOrderStateText}>Carregando comanda...</Text>
+                </View>
+              ) : serviceOrderError ? (
+                <View style={styles.serviceOrderState}>
+                  <Text style={styles.serviceOrderError} testID="appointment-detail-service-order-error">{serviceOrderError}</Text>
+                  {onServiceOrderRetry ? (
+                    <AppButton
+                      label="Tentar novamente"
+                      onPress={onServiceOrderRetry}
+                      size="sm"
+                      testID="appointment-detail-service-order-retry"
+                      variant="secondary"
+                    />
+                  ) : null}
+                </View>
+              ) : !serviceOrder ? (
+                <Text style={styles.serviceOrderStateText} testID="appointment-detail-service-order-empty">
+                  Comanda ainda não aberta.
+                </Text>
+              ) : (
+                <View style={styles.serviceOrderBody}>
+                  {serviceOrder.items.length > 0 ? (
+                    serviceOrder.items.map((item) => (
+                      <View key={item.id} style={styles.serviceOrderItem} testID="appointment-detail-service-order-item">
+                        <Text style={styles.serviceOrderItemTitle}>
+                          {item.quantity}x {item.descriptionSnapshot}
+                        </Text>
+                        <Text style={styles.serviceOrderItemMeta}>
+                          {formatMoneyCents(item.unitPriceCents, serviceOrder.currency)}
+                          {item.discountCents > 0 ? ` · desc. ${formatMoneyCents(item.discountCents, serviceOrder.currency)}` : ''}
+                          {' · '}
+                          {formatMoneyCents(item.totalCents, serviceOrder.currency)}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.serviceOrderStateText} testID="appointment-detail-service-order-items-empty">
+                      Nenhum item na comanda.
+                    </Text>
+                  )}
+                  <View style={styles.serviceOrderTotals}>
+                    <Text style={styles.serviceOrderTotalLine}>
+                      Subtotal {formatMoneyCents(serviceOrder.subtotalCents, serviceOrder.currency)}
+                    </Text>
+                    <Text style={styles.serviceOrderTotalLine}>
+                      Desconto {formatMoneyCents(serviceOrder.discountCents, serviceOrder.currency)}
+                    </Text>
+                    <Text style={styles.serviceOrderTotalStrong}>
+                      Total {formatMoneyCents(serviceOrder.totalCents, serviceOrder.currency)}
+                    </Text>
+                  </View>
+                  {serviceOrder.status === 'awaiting_payment' ? (
+                    <Text style={styles.awaitingPaymentNotice} testID="appointment-detail-awaiting-payment-notice">
+                      {AWAITING_PAYMENT_NOTICE}
+                    </Text>
+                  ) : null}
+                </View>
+              )}
+            </View>
+          ) : null}
           <View style={styles.actions}>
-            {canTransfer && onTransfer ? (
+            {transferHandler ? (
               <AppButton
                 icon={<ArrowRightLeft color={colors.textPrimary} size={16} />}
                 label="Transferir profissional"
-                onPress={() => onTransfer(appointment)}
+                onPress={() => transferHandler(appointment)}
                 testID="appointment-detail-transfer"
                 variant="secondary"
               />
             ) : null}
-            {canReschedule && onReschedule ? <AppButton label="Reagendar" onPress={() => onReschedule(appointment)} testID="appointment-detail-reschedule" variant="secondary" /> : null}
-            {canComplete && onComplete ? <AppButton label={completeLabel} onPress={() => onComplete(appointment)} testID="appointment-detail-complete" /> : null}
-            {canCancel && onCancel ? <AppButton label="Cancelar atendimento" onPress={() => onCancel(appointment)} testID="appointment-detail-cancel" variant="danger" /> : null}
+            {rescheduleHandler ? <AppButton label="Reagendar" onPress={() => rescheduleHandler(appointment)} testID="appointment-detail-reschedule" variant="secondary" /> : null}
+            {legacyCompleteHandler ? <AppButton label={completeLabel} onPress={() => legacyCompleteHandler(appointment)} testID="appointment-detail-complete" /> : null}
+            {orderActionHandler ? (
+              <AppButton
+                label={orderActionLabel ?? ''}
+                loading={orderActionLoading}
+                onPress={orderActionHandler}
+                testID="appointment-detail-order-action"
+              />
+            ) : null}
+            {cancelHandler ? <AppButton label="Cancelar atendimento" onPress={() => cancelHandler(appointment)} testID="appointment-detail-cancel" variant="danger" /> : null}
           </View>
         </Pressable>
       </Pressable>
@@ -195,6 +303,20 @@ const styles = StyleSheet.create({
   detailText: { ...typeScale.body, color: colors.textSecondary, flex: 1 },
   metaText: { ...typeScale.small, color: colors.textMuted },
   cancelText: { ...typeScale.small, color: colors.danger },
+  serviceOrderSection: { borderColor: colors.borderSubtle, borderRadius: radii.lg, borderWidth: 1, gap: spacing.md, padding: spacing.md },
+  serviceOrderHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between' },
+  serviceOrderEyebrow: { ...typeScale.label, color: colors.brandPrimary, letterSpacing: 1.2 },
+  serviceOrderState: { gap: spacing.sm },
+  serviceOrderStateText: { ...typeScale.small, color: colors.textSecondary },
+  serviceOrderError: { ...typeScale.small, color: colors.danger, lineHeight: 18 },
+  serviceOrderBody: { gap: spacing.md },
+  serviceOrderItem: { borderTopColor: colors.borderSubtle, borderTopWidth: 1, gap: 3, paddingTop: spacing.sm },
+  serviceOrderItemTitle: { ...typeScale.bodyStrong, color: colors.textPrimary },
+  serviceOrderItemMeta: { ...typeScale.small, color: colors.textSecondary },
+  serviceOrderTotals: { borderTopColor: colors.borderSubtle, borderTopWidth: 1, gap: 4, paddingTop: spacing.sm },
+  serviceOrderTotalLine: { ...typeScale.small, color: colors.textSecondary },
+  serviceOrderTotalStrong: { ...typeScale.bodyStrong, color: colors.textPrimary },
+  awaitingPaymentNotice: { ...typeScale.small, backgroundColor: colors.warningSoft, borderColor: `${colors.warning}44`, borderRadius: radii.md, borderWidth: 1, color: colors.textSecondary, lineHeight: 18, padding: spacing.sm },
   actions: { gap: spacing.sm, marginTop: 'auto' },
   whatsappRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: '#E8F5E9', padding: spacing.md, borderRadius: radii.md, marginTop: spacing.sm, borderWidth: 1, borderColor: '#C8E6C9' },
   whatsappText: { ...typeScale.bodyStrong, color: '#2E7D32', flex: 1 },

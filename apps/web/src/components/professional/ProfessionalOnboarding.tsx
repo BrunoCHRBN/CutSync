@@ -98,6 +98,18 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
     }
   };
 
+  const normalizeInstagram = (val: string) => {
+    let trimmed = val.trim();
+    if (!trimmed || trimmed === '-') return null;
+    if (trimmed.startsWith('@')) trimmed = trimmed.slice(1).trim();
+    if (!trimmed) return null;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      if (trimmed.includes('instagram.com/')) return `https://${trimmed}`;
+      return `https://instagram.com/${trimmed}`;
+    }
+    return trimmed;
+  };
+
   const handleFinish = async () => {
     setNotice(null);
     if (professionalPixAllowed && !pixKey.trim()) {
@@ -113,9 +125,8 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
         .update({
           titulo_profissional: titulo.trim(),
           specialties: specialties.trim(),
-          instagram: instagram.trim() || null,
-          pix_key: professionalPixAllowed ? pixKey.trim() : null,
-          updated_at: new Date().toISOString()
+          instagram: normalizeInstagram(instagram),
+          pix_key: professionalPixAllowed ? pixKey.trim() : null
         })
         .eq('id', profile?.id);
 
@@ -141,8 +152,9 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
         throw new Error(shiftsError.message || 'Não foi possível salvar sua jornada de trabalho. Tente novamente.');
       }
 
-      onComplete();
+      await onComplete();
     } catch (err: any) {
+      console.error('Erro no onboarding do profissional:', err);
       setNotice({ tone: 'danger', message: err.message || 'Erro ao salvar configurações do profissional.' });
     } finally {
       setLoading(false);
@@ -177,9 +189,8 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
           ))}
         </View>
 
-        {!!notice && <InlineNotice tone={notice.tone} message={notice.message} />}
-
         <AppCard style={styles.card} elevated>
+          {!!notice && <InlineNotice tone={notice.tone} message={notice.message} />}
           {step === 1 && (
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Sua Vitrine Pública</Text>

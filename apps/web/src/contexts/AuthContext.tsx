@@ -15,7 +15,10 @@ interface Profile {
   commission_rate?: number | null;
   push_token?: string | null;
   work_hours?: string | null;
+  specialties?: string | null;
+  instagram?: string | null;
   titulo_profissional?: string | null;
+  pix_key?: string | null;
 }
 
 interface AuthContextData {

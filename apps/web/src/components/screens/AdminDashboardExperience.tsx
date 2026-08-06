@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOperationalContext } from '../../contexts/operational-context';
+import { useFinancialOps } from '../../contexts/financial-ops-context';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { useServices } from '../../hooks/useServices';
@@ -40,11 +41,17 @@ import { OperationalCalendar, CalendarAppointment, CalendarSlotSelection } from 
 import { AppointmentDetailSheet } from '../calendar/appointment-detail-sheet';
 import { PageHeader } from '../ui/page-header';
 import { MetricStrip } from '../ui/metric-strip';
-import { parseSchedule } from '@cutsync/domain';
+import {
+  appointmentIsLockedByServiceOrder,
+  getAppointmentOrderActionLabel,
+  parseSchedule,
+  resolveAppointmentOrderPrimaryAction,
+} from '@cutsync/domain';
 import { useScheduleBlocks } from '../../hooks/use-schedule-blocks';
 import { SlotActionSheet } from '../calendar/slot-action-sheet';
 import { ScheduleBlockDraft, ScheduleBlockModal } from '../calendar/schedule-block-modal';
 import { AppCommand, useCommandPalette, useCommandRegistration } from '../command/command-palette-provider';
+import { useAppointmentServiceOrder } from '../../features/service-orders/use-appointment-service-order';
 import {
   clockToMinutes,
   getAvailableSlots,
@@ -183,6 +190,13 @@ export const AdminDashboardExperience = () => {
   const refresh = useCallback(async () => {
     await Promise.all([refreshAgenda(), refreshNextAppointment()]);
   }, [refreshAgenda, refreshNextAppointment]);
+  const financialOps = useFinancialOps();
+  const appointmentOrder = useAppointmentServiceOrder({
+    establishmentId: activeEstablishmentId,
+    appointmentId: selectedAppointmentId,
+    enabled: Boolean(selectedAppointmentId && financialOps.financialOpsEnabled),
+    onChanged: refresh,
+  });
 
   // Estados locais para Reagendamento
   const [rescheduleItem, setRescheduleItem] = useState<RichAppointment | null>(null);
@@ -263,6 +277,22 @@ export const AdminDashboardExperience = () => {
     if (status === 'cancelled' && !reason) {
       setCancelPromptId(id);
       return;
+    }
+    if (status === 'completed') {
+      if (financialOps.state === 'unknown') {
+        setFeedback({
+          tone: 'warning',
+          message: 'Sincronizando operações financeiras. Aguarde antes de concluir este atendimento.',
+        });
+        return;
+      }
+      if (financialOps.financialOpsEnabled) {
+        setFeedback({
+          tone: 'warning',
+          message: 'Com operações financeiras ativas, finalize o atendimento pela comanda.',
+        });
+        return;
+      }
     }
     setActionLoadingId(id);
     try {
@@ -451,6 +481,48 @@ export const AdminDashboardExperience = () => {
   );
 
   const selectedCalendarAppointment = calendarAppointments.find((item) => item.id === selectedAppointmentId) || null;
+  const selectedServiceOrder = appointmentOrder.serviceOrder;
+  const financialOpsVisible = financialOps.financialOpsEnabled || financialOps.state === 'unknown';
+  const financialOpsSyncMessage = financialOps.state === 'unknown'
+    ? 'Sincronizando operações financeiras. Aguarde para concluir este atendimento com segurança.'
+    : null;
+  const canManageSelectedOrder = Boolean(
+    selectedCalendarAppointment
+    && financialOps.financialOpsEnabled
+    && financialOps.hasCapability('manage_team_orders')
+  );
+  const selectedOrderAction = resolveAppointmentOrderPrimaryAction({
+    financialOpsEnabled: financialOps.financialOpsEnabled,
+    accessMode: financialOps.accessMode ?? 'blocked',
+    canManageOrder: canManageSelectedOrder,
+    appointmentStatus: selectedCalendarAppointment?.status,
+    serviceOrderStatus: selectedServiceOrder?.status,
+  });
+  const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
+    ? null
+    : getAppointmentOrderActionLabel(selectedOrderAction);
+  const selectedAppointmentLockedByOrder = appointmentIsLockedByServiceOrder({
+    financialOpsEnabled: financialOps.financialOpsEnabled,
+    serviceOrderStatus: selectedServiceOrder?.status,
+  });
+  const selectedAppointmentActionable = Boolean(
+    selectedCalendarAppointment
+    && !actionLoadingId
+    && !appointmentOrder.mutation
+    && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status),
+  );
+  const canUseLegacyComplete = Boolean(
+    selectedCalendarAppointment
+    && selectedAppointmentActionable
+    && (
+      selectedCalendarAppointment.status === 'pending'
+      || (
+        selectedCalendarAppointment.status === 'confirmed'
+        && !financialOps.financialOpsEnabled
+        && financialOps.state === 'disabled'
+      )
+    ),
+  );
   const visibleCalendarAppointments = professionalId
     ? calendarAppointments.filter((item) => item.professionalId === professionalId)
     : calendarAppointments;
@@ -785,10 +857,12 @@ export const AdminDashboardExperience = () => {
 
       <AppointmentDetailSheet
         appointment={selectedCalendarAppointment}
-        canCancel={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status))}
-        canComplete={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status))}
-        canReschedule={Boolean(selectedCalendarAppointment && !actionLoadingId && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status))}
+        appointmentLockedByOrder={selectedAppointmentLockedByOrder}
+        canCancel={selectedAppointmentActionable}
+        canComplete={canUseLegacyComplete}
+        canReschedule={selectedAppointmentActionable}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
+        financialOpsEnabled={financialOpsVisible}
         onCancel={(appointment) => {
           setSelectedAppointmentId(null);
           void updateStatus(appointment.id, 'cancelled');
@@ -796,7 +870,23 @@ export const AdminDashboardExperience = () => {
         onClose={() => setSelectedAppointmentId(null)}
         onComplete={(appointment) => {
           setSelectedAppointmentId(null);
-          void updateStatus(appointment.id, appointment.status === 'pending' ? 'confirmed' : 'completed');
+          if (appointment.status === 'pending') {
+            void updateStatus(appointment.id, 'confirmed');
+            return;
+          }
+          if (!financialOps.financialOpsEnabled && financialOps.state === 'disabled') {
+            void updateStatus(appointment.id, 'completed');
+            return;
+          }
+          setFeedback({
+            tone: 'warning',
+            message: 'Sincronizando operações financeiras. Aguarde a confirmação antes de concluir este atendimento.',
+          });
+        }}
+        onOrderAction={() => {
+          if (selectedOrderAction === 'open_order') void appointmentOrder.open();
+          if (selectedOrderAction === 'start_order') void appointmentOrder.start();
+          if (selectedOrderAction === 'finish_order') void appointmentOrder.finish();
         }}
         onReschedule={(appointment) => {
           const item = appointments.find((candidate) => candidate.id === appointment.id);
@@ -806,7 +896,23 @@ export const AdminDashboardExperience = () => {
           setNewRescheduleDate(new Date(item.dateTime));
           setNewRescheduleTime(time(item.dateTime));
         }}
+        onServiceOrderRetry={() => {
+          if (financialOps.state === 'unknown') {
+            void financialOps.refresh();
+            return;
+          }
+          if (appointmentOrder.retryableCommand) {
+            void appointmentOrder.retry();
+            return;
+          }
+          void appointmentOrder.refresh();
+        }}
+        orderActionLabel={selectedOrderActionLabel}
+        orderActionLoading={Boolean(appointmentOrder.mutation)}
         professionalName={selectedCalendarAppointment ? barberName(selectedCalendarAppointment.professionalId) : undefined}
+        serviceOrder={selectedServiceOrder}
+        serviceOrderError={financialOpsSyncMessage ?? appointmentOrder.error}
+        serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
         visible={Boolean(selectedCalendarAppointment)}
       />
 

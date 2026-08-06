@@ -13,6 +13,7 @@ export * from './mobile-release';
 export * from './money';
 export * from './schedule';
 export * from './service-pricing';
+export * from './service-order-ui';
 export * from './support';
 export * from './totp-enrollment';
 export * from './totp-qr-code';

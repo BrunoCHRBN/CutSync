@@ -15,6 +15,7 @@ import { ToastProvider } from '../components/ui/toast-provider';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { OperationalContextProvider, useOperationalContext } from '../contexts/operational-context';
 import { BillingAccessProvider, useBillingAccess } from '../contexts/BillingAccessContext';
+import { FinancialOpsProvider } from '../contexts/financial-ops-context';
 import { isSupabaseConfigured } from '../services/supabase';
 import { colors, radii, typography } from '../theme/tokens';
 import '../i18n';
@@ -197,11 +198,13 @@ export default function RootLayout() {
         <AuthProvider>
           <OperationalContextProvider>
             <BillingAccessProvider>
-              <ToastProvider>
-                <CommandPaletteProvider>
-                  <RootLayoutNavigation />
-                </CommandPaletteProvider>
-              </ToastProvider>
+              <FinancialOpsProvider>
+                <ToastProvider>
+                  <CommandPaletteProvider>
+                    <RootLayoutNavigation />
+                  </CommandPaletteProvider>
+                </ToastProvider>
+              </FinancialOpsProvider>
             </BillingAccessProvider>
           </OperationalContextProvider>
         </AuthProvider>

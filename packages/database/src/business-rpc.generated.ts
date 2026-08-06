@@ -381,6 +381,13 @@ export interface BusinessRpcFunctions {
     Args: { target_establishment_id: string; target_service_order_id: string };
     Returns: unknown;
   };
+  get_service_order_for_appointment: {
+    Args: {
+      target_establishment_id: string;
+      target_appointment_id: string;
+    };
+    Returns: unknown;
+  };
   list_service_orders_for_day: {
     Args: {
       target_establishment_id: string;

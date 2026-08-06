@@ -750,6 +750,40 @@ export const mapServiceOrderDetail = (value: unknown): ServiceOrderDetail | null
   };
 };
 
+/** Bridge payload: appointment + optional historical service order detail. */
+export interface AppointmentServiceOrderContext {
+  appointmentId: string;
+  serviceOrder: ServiceOrderDetail | null;
+}
+
+/**
+ * Fail-closed mapper for get_service_order_for_appointment.
+ * Invalid serviceOrder objects reject the whole payload (never coerced to null).
+ */
+export const mapAppointmentServiceOrderContext = (
+  value: unknown,
+): AppointmentServiceOrderContext | null => {
+  if (!isRecord(value)) return null;
+  if ('paymentStatus' in value || 'payment_status' in value) return null;
+
+  const appointmentId = asRequiredString(value.appointmentId);
+  if (!appointmentId) return null;
+
+  if (!('serviceOrder' in value) || value.serviceOrder === null || value.serviceOrder === undefined) {
+    return { appointmentId, serviceOrder: null };
+  }
+
+  if (!isRecord(value.serviceOrder)) return null;
+  if ('paymentStatus' in value.serviceOrder || 'payment_status' in value.serviceOrder) {
+    return null;
+  }
+
+  const serviceOrder = mapServiceOrderDetail(value.serviceOrder);
+  if (!serviceOrder) return null;
+
+  return { appointmentId, serviceOrder };
+};
+
 /** Fail-closed mapper for list_service_orders_for_day item rows. */
 export const mapServiceOrderSummary = (value: unknown): ServiceOrderSummary | null => {
   if (!isRecord(value)) return null;

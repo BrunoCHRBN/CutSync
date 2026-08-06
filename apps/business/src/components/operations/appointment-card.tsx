@@ -1,5 +1,5 @@
 import type { BusinessAgendaItem } from '@cutsync/database';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   formatAgendaTime,
@@ -12,10 +12,14 @@ export function AppointmentCard({
   item,
   timeZone,
   testID,
+  onPress,
+  accessibilityLabel,
 }: {
   item: BusinessAgendaItem;
   timeZone: string;
   testID?: string;
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
   const tone = item.status === 'completed'
     ? 'success'
@@ -24,8 +28,9 @@ export function AppointmentCard({
       : item.status === 'pending'
         ? 'warning'
         : 'neutral';
-  return (
-    <BusinessCard testID={testID} style={styles.card}>
+
+  const content = (
+    <>
       <View style={styles.timeColumn}>
         <Text selectable style={styles.time}>
           {formatAgendaTime(item.startsAt, timeZone)}
@@ -40,11 +45,42 @@ export function AppointmentCard({
         <Text selectable numberOfLines={1} style={styles.professional}>{item.professionalName}</Text>
       </View>
       <BusinessPill label={getAgendaStatusLabel(item.status)} tone={tone} />
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? `Abrir atendimento de ${item.clientDisplayName}`}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.pressable,
+          pressed && styles.pressed,
+        ]}
+      >
+        <BusinessCard style={styles.card}>
+          {content}
+        </BusinessCard>
+      </Pressable>
+    );
+  }
+
+  return (
+    <BusinessCard testID={testID} style={styles.card}>
+      {content}
     </BusinessCard>
   );
 }
 
 const styles = StyleSheet.create({
+  pressable: {
+    minHeight: 44,
+  },
+  pressed: {
+    opacity: 0.88,
+  },
   card: { flexDirection: 'row', alignItems: 'center', gap: businessTheme.spacing.md },
   timeColumn: { width: 52, gap: 2 },
   time: {

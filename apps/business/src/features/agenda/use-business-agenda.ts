@@ -1,4 +1,5 @@
 import type { BusinessAgendaItem, BusinessAgendaScope } from '@cutsync/database';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useBusinessOperational } from '@/contexts/business-operational-context';
@@ -48,12 +49,12 @@ export function useBusinessAgenda() {
     }
   }, [activeContext, localDate, scope]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void refresh();
     return () => {
       requestVersion.current += 1;
     };
-  }, [refresh]);
+  }, [refresh]));
 
   const setScope = useCallback((nextScope: BusinessAgendaScope) => {
     if (nextScope === 'team' && !hasCapability('view_team_agenda')) return;

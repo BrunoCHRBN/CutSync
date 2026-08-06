@@ -3,5 +3,6 @@ export * from './supabase.generated';
 export * from './legal-identity';
 export * from './business';
 export * from './business-rpc.generated';
+export * from './service-order-api';
 export * from './mobile-operations';
 export * from './establishment-client';
