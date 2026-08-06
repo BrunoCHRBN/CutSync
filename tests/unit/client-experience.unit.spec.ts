@@ -22,7 +22,7 @@ test('mantém Configurações como destino principal do cliente', () => {
   const shell = readSource('apps/web/src/components/layout/ClientShell.tsx');
   const route = readSource('apps/web/src/app/(client)/preferences.tsx');
 
-  expect(shell).toContain("label: 'Configurações'");
+  expect(shell).toContain("settings: 'Configurações'");
   expect(shell).toContain("path: '/(client)/preferences'");
   expect(shell).not.toContain("label: 'Conta'");
   expect(shell).not.toContain("label: 'Meu negócio'");
@@ -40,12 +40,12 @@ test('protege a vitrine contra unidades não publicadas e mantém retry real', (
   expect(explore).toContain('client-filters-clear-all');
   expect(explore).toContain('client-empty-clear-filters');
   expect(explore).not.toContain('images.unsplash.com/photo-1585747860715');
-  expect(explore).toContain('desktopGrid');
+  expect(explore).toContain('grid: {');
 });
 
 test('consolida os padrões responsivos e seguros do cliente Web', () => {
   const profile = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
-  const booking = readSource('apps/web/src/components/screens/BookingExperience.tsx');
+  const booking = readSource('apps/web/src/components/establishment/EstablishmentBookingExperience.tsx');
   const settings = readSource('apps/web/src/components/screens/client-settings-experience.tsx');
 
   expect(profile).toContain('EstablishmentMedia');

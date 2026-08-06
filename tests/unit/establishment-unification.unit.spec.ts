@@ -14,7 +14,7 @@ test('useEstablishmentRouteParams resolve slug e barbershopId', () => {
   expect(source).toContain('reschedule_id');
 });
 
-test('rotas públicas reexportam experiências unificadas', () => {
+test('rotas públicas e client mantêm separação de experiências', () => {
   const slugProfile = readSource('apps/web/src/app/[slug]/index.tsx');
   const slugBooking = readSource('apps/web/src/app/[slug]/booking.tsx');
   const clientProfile = readSource('apps/web/src/components/screens/BarbershopProfileExperience.tsx');
@@ -23,7 +23,9 @@ test('rotas públicas reexportam experiências unificadas', () => {
 
   expect(slugProfile).toContain('EstablishmentProfileExperience');
   expect(slugBooking).toContain('EstablishmentBookingExperience');
-  expect(clientProfile).toContain('EstablishmentProfileExperience');
+  expect(clientProfile).toContain('export const BarbershopProfileExperience');
+  expect(clientProfile).toContain('barbershop-profile-rating');
+  expect(clientProfile).not.toContain("from '../establishment/EstablishmentProfileExperience'");
   expect(clientBooking).toContain('EstablishmentBookingExperience');
   expect(unifiedBooking).toContain("rpc('reschedule_appointment'");
   expect(unifiedBooking).toContain('useEstablishmentRouteParams');
