@@ -246,24 +246,68 @@ export const ProfessionalProfileEditorExperience = () => {
     }
   };
 
+  const normalizePublicUrl = (val: string, isInstagram = false): string => {
+    let trimmed = val.trim();
+    if (!trimmed || trimmed === '-' || trimmed === '.' || trimmed.toLowerCase() === 'n/a') return '';
+    
+    if (isInstagram) {
+      if (trimmed.startsWith('@')) {
+        trimmed = trimmed.slice(1).trim();
+      }
+      if (!trimmed) return '';
+      if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+        if (trimmed.includes('instagram.com/')) {
+          trimmed = `https://${trimmed}`;
+        } else {
+          trimmed = `https://instagram.com/${trimmed}`;
+        }
+      }
+    } else {
+      if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+        trimmed = `https://${trimmed}`;
+      }
+    }
+
+    if (trimmed.startsWith('http://')) {
+      trimmed = `https://${trimmed.slice(7)}`;
+    }
+    return trimmed;
+  };
+
   const saveVitrine = async () => {
     setSaving(true);
     setNotice(null);
     try {
+      const cleanPortfolio = normalizePublicUrl(portfolioUrl, false);
+      const cleanInstagram = normalizePublicUrl(instagramUrl, true);
+
       const { data, error: rpcError } = await supabase.rpc('upsert_my_professional_profile', {
-        requested_slug: slug,
-        requested_bio: bio,
-        requested_portfolio_url: portfolioUrl,
-        requested_instagram_url: instagramUrl,
+        requested_slug: slug.trim(),
+        requested_bio: bio.trim(),
+        requested_portfolio_url: cleanPortfolio,
+        requested_instagram_url: cleanInstagram,
         requested_gallery_urls: gallery,
         requested_is_public: isPublic,
       });
       if (rpcError) throw rpcError;
+
       setSlug(data?.[0]?.profile_slug || slug);
+      if (cleanPortfolio !== portfolioUrl) setPortfolioUrl(cleanPortfolio);
+      if (cleanInstagram !== instagramUrl) setInstagramUrl(cleanInstagram);
+
       pushToast({ tone: 'success', title: 'Vitrine atualizada' });
       setNotice({ tone: 'success', message: 'Vitrine e galeria salvas.' });
     } catch (err: any) {
-      setNotice({ tone: 'danger', message: err.message || 'Falha ao salvar vitrine.' });
+      const msg = err.message || '';
+      let userMsg = msg;
+      if (msg.includes('invalid_public_url')) {
+        userMsg = 'Link de portfólio ou Instagram inválido. Insira um link válido iniciado por https:// (ex: https://instagram.com/seu.perfil).';
+      } else if (msg.includes('invalid_slug')) {
+        userMsg = 'Endereço público (Slug) inválido. Use de 3 a 63 caracteres minúsculos, números e hífens.';
+      } else if (msg.includes('bio_too_long')) {
+        userMsg = 'A minibiografia excede o limite de 1000 caracteres.';
+      }
+      setNotice({ tone: 'danger', message: userMsg || 'Falha ao salvar vitrine.' });
     } finally {
       setSaving(false);
     }

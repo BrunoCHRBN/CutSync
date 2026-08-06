@@ -98,6 +98,18 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
     }
   };
 
+  const normalizeInstagram = (val: string) => {
+    let trimmed = val.trim();
+    if (!trimmed || trimmed === '-') return null;
+    if (trimmed.startsWith('@')) trimmed = trimmed.slice(1).trim();
+    if (!trimmed) return null;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      if (trimmed.includes('instagram.com/')) return `https://${trimmed}`;
+      return `https://instagram.com/${trimmed}`;
+    }
+    return trimmed;
+  };
+
   const handleFinish = async () => {
     setNotice(null);
     if (professionalPixAllowed && !pixKey.trim()) {
@@ -113,7 +125,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
         .update({
           titulo_profissional: titulo.trim(),
           specialties: specialties.trim(),
-          instagram: instagram.trim() || null,
+          instagram: normalizeInstagram(instagram),
           pix_key: professionalPixAllowed ? pixKey.trim() : null
         })
         .eq('id', profile?.id);
