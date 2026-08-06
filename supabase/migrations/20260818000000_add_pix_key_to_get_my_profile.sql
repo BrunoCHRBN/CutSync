@@ -1,7 +1,10 @@
 -- Migration: Add pix_key to get_my_profile RPC function return signature and grant permissions
 BEGIN;
 
--- 1. Update get_my_profile RPC function to return pix_key
+-- 1. Drop existing function first to allow changing return table signature
+DROP FUNCTION IF EXISTS public.get_my_profile();
+
+-- 2. Create updated get_my_profile RPC function returning pix_key
 CREATE OR REPLACE FUNCTION public.get_my_profile()
 RETURNS TABLE (
   id uuid, establishment_id uuid, name text, role text, email text, phone text,
@@ -28,12 +31,13 @@ AS $$
   WHERE p.id = (SELECT auth.uid());
 $$;
 
+REVOKE ALL ON FUNCTION public.get_my_profile() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_my_profile() TO authenticated, service_role;
 
--- 2. Grant permissions on work_shifts table for authenticated professionals
+-- 3. Grant permissions on work_shifts table for authenticated professionals
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.work_shifts TO authenticated, service_role;
 
--- 3. Grant updated_at UPDATE permission on profiles
+-- 4. Grant updated_at UPDATE permission on profiles
 GRANT UPDATE (updated_at) ON public.profiles TO authenticated;
 
 COMMIT;
