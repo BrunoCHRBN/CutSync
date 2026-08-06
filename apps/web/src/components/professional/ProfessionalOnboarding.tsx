@@ -141,7 +141,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
         throw new Error(shiftsError.message || 'Não foi possível salvar sua jornada de trabalho. Tente novamente.');
       }
 
-      onComplete();
+      await onComplete();
     } catch (err: any) {
       setNotice({ tone: 'danger', message: err.message || 'Erro ao salvar configurações do profissional.' });
     } finally {
