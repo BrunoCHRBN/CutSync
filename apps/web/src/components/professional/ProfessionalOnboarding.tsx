@@ -114,8 +114,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
           titulo_profissional: titulo.trim(),
           specialties: specialties.trim(),
           instagram: instagram.trim() || null,
-          pix_key: professionalPixAllowed ? pixKey.trim() : null,
-          updated_at: new Date().toISOString()
+          pix_key: professionalPixAllowed ? pixKey.trim() : null
         })
         .eq('id', profile?.id);
 
@@ -143,6 +142,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
 
       await onComplete();
     } catch (err: any) {
+      console.error('Erro no onboarding do profissional:', err);
       setNotice({ tone: 'danger', message: err.message || 'Erro ao salvar configurações do profissional.' });
     } finally {
       setLoading(false);
@@ -177,9 +177,8 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
           ))}
         </View>
 
-        {!!notice && <InlineNotice tone={notice.tone} message={notice.message} />}
-
         <AppCard style={styles.card} elevated>
+          {!!notice && <InlineNotice tone={notice.tone} message={notice.message} />}
           {step === 1 && (
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Sua Vitrine Pública</Text>
