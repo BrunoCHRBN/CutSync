@@ -908,22 +908,24 @@ export function CutoversSection({
 
   return (
     <View style={[styles.split, compact && styles.splitCompact]}>
-      <ControlCard style={styles.tablePane}>
+      <ControlCard style={styles.reconTablePane}>
         <Text style={styles.cardTitle}>Fila de conciliação</Text>
         <DataTable
           columns={[
-            { key: 'org', header: 'Organização', render: (row) => row.organizationName },
-            { key: 'units', header: 'Unidades', render: (row) => row.unitsLabel },
-            { key: 'date', header: 'Data de corte', render: (row) => row.cutoverLabel },
+            { key: 'org', header: 'Organização', flex: 2.2, render: (row) => row.organizationName },
+            { key: 'units', header: 'Unidades', flex: 1, render: (row) => row.unitsLabel },
+            { key: 'date', header: 'Data de corte', flex: 1.1, render: (row) => row.cutoverLabel },
             {
               key: 'state',
               header: 'Estado',
+              flex: 1,
               render: (row) => <StatusBadge label={row.statusLabel} tone={row.statusTone} />,
             },
-            { key: 'conflicts', header: 'Conflitos', render: (row) => row.conflictsLabel },
+            { key: 'conflicts', header: 'Conflitos', flex: 0.8, render: (row) => row.conflictsLabel },
             {
               key: 'actions',
               header: 'Ações',
+              width: 120,
               render: (row) => (
                 <ControlButton
                   label="Revisar"
@@ -939,7 +941,7 @@ export function CutoversSection({
       </ControlCard>
 
       {selected ? (
-        <ControlCard style={[styles.drawer, compact && styles.drawerFull]}>
+        <ControlCard style={[styles.reconReview, compact && styles.drawerFull]}>
           <Text style={styles.cardTitle}>Revisão de conciliação</Text>
           <View style={styles.defList}>
             <DefRow label="Organização" value={selected.organizationName} />
@@ -995,30 +997,39 @@ export function ConflictsSection({
   }
 
   return (
-    <ControlCard style={styles.panel}>
+    <ControlCard style={styles.reconTablePane}>
       <Text style={styles.cardTitle}>Conflitos</Text>
       <DataTable
         columns={[
           {
             key: 'org',
             header: 'Documento',
+            flex: 1.6,
             render: (row) => `${row.documentType ?? 'Documento'} · ${row.maskedDocument ?? 'mascarado'}`,
           },
           {
             key: 'type',
             header: 'Tipo',
+            flex: 1.4,
             render: (row) => labelForConflictReason(row.reasonCode),
           },
-          { key: 'origin', header: 'Origem', render: (row) => row.legacySource },
-          { key: 'at', header: 'Detectado em', render: (row) => formatFinanceDate(row.createdAt) },
+          { key: 'origin', header: 'Origem', flex: 1, render: (row) => row.legacySource },
+          {
+            key: 'at',
+            header: 'Detectado em',
+            flex: 1,
+            render: (row) => formatFinanceDate(row.createdAt),
+          },
           {
             key: 'state',
             header: 'Estado',
+            flex: 0.8,
             render: () => <StatusBadge label="Pendente" tone="warning" />,
           },
           {
             key: 'actions',
             header: 'Ação',
+            flex: 2.2,
             render: (row) => (
               <View style={styles.chipRow}>
                 <ControlButton
