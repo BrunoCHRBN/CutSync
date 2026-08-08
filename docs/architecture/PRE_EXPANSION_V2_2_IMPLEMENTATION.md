@@ -7,10 +7,10 @@ contrato de escopo.
 | --- | --- | --- |
 | F0 contenção | homologada | migration `20260820000000`, UI Web fail-safe e matriz real owner/professional/client na Homolog |
 | F0 migrations | reconciliada localmente e aplicada na Homolog | sete migrations aditivas `20260820000000`–`20260820006000`; produção apenas inventariada e preservada |
-| F0 baseline | verde local; CI remoto pendente | typechecks, lint, build Web, 29 testes focados e 42 arquivos SQL/RLS verdes |
+| F0 baseline | verde local e em CI | typechecks, lint, build Web, 29 testes focados, 42 arquivos SQL/RLS e workflows remotos verdes |
 | F0 ADRs | implementados | ADRs 0001–0008 |
-| F0 aprovação | **não concedida** | o plano exige CI remoto sobre commit/PR; o checkout ainda não foi commitado nem enviado |
-| F1 | não iniciado | aguarda aprovação formal do Gate F0 |
+| F0 aprovação | **APROVADO** | PR `#30`, commit `afa189e`, CI Install and Build `218` e Schema Drift `103` |
+| F1 | liberada, não iniciada | atividade interrompida após a aprovação do Gate F0 |
 | F2–F10 | não iniciados | respeitam dependências do plano |
 
 ## Flags vinculantes
@@ -72,16 +72,17 @@ verde e a suíte global não é apresentada como concluída.
 - A unidade e os usuários técnicos usaram identificadores aleatórios e foram
   removidos. A verificação posterior retornou zero fixtures residuais.
 
-Esta entrega alcançou as classes **Local confirmado** e **Homologado**. Não há
-evidência **CI reproduzido**, pois nenhuma execução remota pode testar mudanças
-que ainda estão apenas no working tree.
+Esta entrega alcançou as classes **Local confirmado**, **CI reproduzido** e
+**Homologado**. O workflow de schema drift está fixado explicitamente na Homolog,
+e os tipos versionados foram regenerados desse ambiente.
 
-## Bloqueadores restantes do Gate F0
+## Aprovação do Gate F0
 
-- criar um commit focado, sem incluir alterações preexistentes do usuário;
-- enviar branch/PR e reproduzir os workflows remotos sobre esse commit;
-- anexar o identificador da execução verde e então registrar a aprovação
-  explícita do gate.
+- Branch `codex/gate-f0-approval`, PR `#30`.
+- Commit funcional validado `afa189e`.
+- Install and Build run `218`: `success`.
+- Supabase Schema Drift run `103`: `success` contra a Homolog.
+- Gate F0: **APROVADO**.
 
-Até esses três itens ocorrerem, a Fase 1 continua bloqueada. A ausência de commit
-ou CI não é convertida artificialmente em aprovação técnica.
+A Fase 1 está liberada, mas não foi iniciada, respeitando a parada solicitada após
+a aprovação do gate.

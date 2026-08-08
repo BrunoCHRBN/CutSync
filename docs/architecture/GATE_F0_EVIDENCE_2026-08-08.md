@@ -2,7 +2,7 @@
 
 Data: 2026-08-08
 
-Decisão atual: **NÃO APROVADO — somente CI remoto pendente**
+Decisão atual: **APROVADO**
 
 ## Critérios concluídos
 
@@ -23,6 +23,8 @@ Decisão atual: **NÃO APROVADO — somente CI remoto pendente**
 | fixtures técnicas removidas | Homologado | zero resíduos |
 | produção preservada | Inventário remoto | nenhum push/repair/deploy |
 | ADRs 0001–0008 | Local confirmado | PASS |
+| CI Install and Build | CI reproduzido | run `218`: PASS |
+| CI Supabase Schema Drift | CI reproduzido | run `103`: PASS contra Homolog |
 
 ## Limitações conhecidas
 
@@ -34,21 +36,21 @@ Decisão atual: **NÃO APROVADO — somente CI remoto pendente**
   foi realizado ou depende de restore.
 - Produção está atrás da Homolog e não é alvo de promoção nesta aprovação.
 
-## Única pendência de aprovação
+## Registro da aprovação
 
-O plano estabelece que cada gate precisa de evidência de CI. A classe
-`CI reproduzido` exige pipeline remoto executado sobre commit ou PR identificado.
-As mudanças estão no working tree e as regras do repositório proíbem commit
-automático sem pedido explícito. Portanto, uma aprovação agora seria uma evidência
-falsa.
+- Branch: `codex/gate-f0-approval`.
+- PR: `#30`.
+- Commit funcional validado: `afa189e`.
+- Install and Build: run `218`, conclusão `success`.
+- Supabase Schema Drift: run `103`, conclusão `success`.
+- O workflow de drift passou a fixar explicitamente a Homolog
+  `sphbbqdgcreowxzjgibj`; produção não é alvo de geração de tipos ou comparação.
+- Os tipos versionados foram regenerados a partir da Homolog e passaram na
+  comparação remota.
 
-Para concluir:
-
-1. autorizar a criação de um commit focado da entrega F0;
-2. autorizar o push de uma branch `codex/*` e a abertura/uso de PR;
-3. aguardar os workflows remotos verdes;
-4. registrar aqui commit, branch, execução e a decisão **APROVADO**;
-5. parar e liberar o início da Fase 1.
+Todos os critérios vinculantes do Gate F0 possuem evidência local, CI ou de
+Homolog conforme aplicável. O Gate F0 está **APROVADO** e a Fase 1 está liberada,
+mas não foi iniciada nesta atividade.
 
 ## Escopo previsto da Fase 1
 

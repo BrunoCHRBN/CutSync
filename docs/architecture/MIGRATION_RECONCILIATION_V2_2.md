@@ -123,6 +123,6 @@ e a verificação final retornou zero unidades e zero usuários residuais.
 ## Estado do gate
 
 A baseline está reconciliada, reproduzível localmente e homologada para a
-contenção. Produção foi apenas inventariada e permaneceu intacta. O gate ainda não
-pode receber aprovação formal porque a evidência de CI remoto sobre commit/PR não
-existe; o checkout não foi commitado ou enviado automaticamente.
+contenção. Produção foi apenas inventariada e permaneceu intacta. O workflow
+Supabase Schema Drift run `103` passou contra a Homolog sobre o commit `afa189e`
+do PR `#30`; o Gate F0 está **APROVADO**.
