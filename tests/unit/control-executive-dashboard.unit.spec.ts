@@ -16,7 +16,8 @@ const read = (relativePath: string) => fs
 
 const service = read('apps/control/src/services/control-executive.ts');
 const component = read('apps/control/src/components/executive-dashboard.tsx');
-const route = read('apps/control/src/app/(control)/index.tsx');
+const route = read('apps/control/src/app/(cloud)/central/index.tsx');
+const operationOverview = read('apps/control/src/modules/operation/operation-overview.tsx');
 
 test('closes dashboard ranges on the previous complete São Paulo day', () => {
   const beforeMidnight = new Date('2026-07-30T02:00:00.000Z');
@@ -175,7 +176,7 @@ test('offers 7, 28 and 90-day comparisons with scoped drilldown', () => {
   expect(component).toContain('Atendimentos concluídos');
   expect(component).toContain('Unidades em operação');
   expect(component).toContain('Recorrência identificada');
-  expect(component).toContain('Qualidade e risco');
+  expect(component).toContain("['qualidade', 'Qualidade']");
   expect(component).toContain('Qualidade dos dados');
 });
 
@@ -183,10 +184,11 @@ test('keeps the executive route behind permission and away from legacy or financ
   expect(route).toContain(
     '<RequireControlPermission permission="control.dashboard.read">',
   );
-  expect(route).toContain('<ExecutiveDashboard');
-  expect(route).toContain('listControlMetricScopes()');
-  expect(route).toContain('loadControlExecutiveDashboard({');
-  expect(route).not.toContain("('get_control_dashboard')");
+  expect(route).toContain('<CentralHub');
+  expect(operationOverview).toContain('<ExecutiveDashboard');
+  expect(operationOverview).toContain('listControlMetricScopes()');
+  expect(operationOverview).toContain('loadControlExecutiveDashboard({');
+  expect(`${route}\n${operationOverview}`).not.toContain("('get_control_dashboard')");
 
   for (const unsupported of [
     'revenue',

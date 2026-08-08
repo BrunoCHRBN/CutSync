@@ -166,7 +166,12 @@ BEGIN
     (pro_a_id, unit_a_id, 'Pro A', 'asoi-pro-a@example.test', 'professional'),
     (pro_b_id, unit_a_id, 'Pro B', 'asoi-pro-b@example.test', 'professional'),
     (outsider_id, NULL, 'Outsider', 'asoi-outsider@example.test', 'client'),
-    (unit_b_only_id, unit_b_id, 'Unit B Admin', 'asoi-unit-b-only@example.test', 'admin');
+    (unit_b_only_id, unit_b_id, 'Unit B Admin', 'asoi-unit-b-only@example.test', 'admin')
+  ON CONFLICT (id) DO UPDATE SET
+    establishment_id = EXCLUDED.establishment_id,
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
 
   INSERT INTO public.organizations(id, name, status, created_by)
   VALUES (organization_id, 'ASOI Org', 'active', owner_id);
@@ -293,7 +298,7 @@ BEGIN
     (
       appt_locked_id, unit_a_id, 'Locked Client', client_a_id,
       pro_a_id, service_cut_id,
-      now() + interval '9 days', 30, now() + interval '9 days 30 minutes',
+      now() - interval '9 days', 30, now() - interval '9 days' + interval '30 minutes',
       'confirmed'
     );
 
@@ -697,7 +702,7 @@ BEGIN
   -- Wrong/stale marker must not authorize another status flip on locked appt
   PERFORM set_config(
     'app.service_order_finish_order_id',
-    order_locked_id::text,
+    order_main_id::text,
     true
   );
   PERFORM pg_temp.expect_error(
@@ -714,7 +719,6 @@ BEGIN
   PERFORM set_config('app.service_order_finish_order_id', '', true);
 
   -- 37: finish replay — same receipt, no duplicate events
-  version_v := (result->>'version')::bigint;
   replay := public.finish_service_order(
     unit_a_id, order_main_id, version_v, finish_main_req
   );
@@ -772,6 +776,7 @@ BEGIN
 
   -- 16: blocked cannot read
   PERFORM pg_temp.clear_actor();
+  PERFORM set_config('cutsync.governance_status_reason', 'sql_test', true);
   UPDATE public.establishments
   SET account_status = 'blocked'
   WHERE id = unit_a_id;

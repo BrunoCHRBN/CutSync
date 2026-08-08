@@ -110,6 +110,40 @@ type ServiceRow = Tables<'services'>;
 type TeamRow = Database['public']['Functions']['get_establishment_team']['Returns'][number];
 type PublicTeamRow = Database['public']['Functions']['get_public_team']['Returns'][number];
 
+export const PUBLIC_ESTABLISHMENT_SELECT = 'id,name,slug,logo_url,banner_url,slogan,instagram,primary_color,timezone,currency,description,address,phone,opening_hours,share_agendas,gallery_urls,account_status,discovery_status,published_at,average_rating,review_count,average_price,price_level,instant_booking_enabled,min_cancellation_hours,no_show_fee_percent,latitude,longitude,professional_pix_allowed' as const;
+
+export type PublicEstablishmentRow = Pick<EstablishmentRow,
+  | 'id'
+  | 'name'
+  | 'slug'
+  | 'logo_url'
+  | 'banner_url'
+  | 'slogan'
+  | 'instagram'
+  | 'primary_color'
+  | 'timezone'
+  | 'currency'
+  | 'description'
+  | 'address'
+  | 'phone'
+  | 'opening_hours'
+  | 'share_agendas'
+  | 'gallery_urls'
+  | 'account_status'
+  | 'discovery_status'
+  | 'published_at'
+  | 'average_rating'
+  | 'review_count'
+  | 'average_price'
+  | 'price_level'
+  | 'instant_booking_enabled'
+  | 'min_cancellation_hours'
+  | 'no_show_fee_percent'
+  | 'latitude'
+  | 'longitude'
+  | 'professional_pix_allowed'
+>;
+
 export type AppointmentQueryRow = Tables<'appointments'> & {
   establishment_client_id?: string | null;
   business_notes?: string | null;
@@ -279,7 +313,7 @@ const toAppointmentStatus = (status: string): AppointmentStatus => {
   return 'pending';
 };
 
-export const mapEstablishment = (row: EstablishmentRow): Establishment => ({
+export const mapEstablishment = (row: PublicEstablishmentRow): Establishment => ({
   id: row.id,
   name: row.name,
   slug: row.slug,

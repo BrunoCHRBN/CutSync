@@ -136,6 +136,29 @@ BEGIN
 END;
 $$;
 
+INSERT INTO auth.users (
+  id, email, raw_user_meta_data, email_confirmed_at, created_at, updated_at
+)
+VALUES (
+  '90500000-0000-0000-0000-000000000001',
+  'analytics-quality-owner@example.test',
+  '{"name":"Analytics Quality Owner"}'::jsonb,
+  now(), now(), now()
+);
+
+SELECT set_config(
+  'cutsync.governance_access_reason',
+  'analytics_quality_sql_test',
+  true
+);
+
+INSERT INTO public.governance_users (profile_id, role, granted_by)
+VALUES (
+  '90500000-0000-0000-0000-000000000001',
+  'SaaS_Owner',
+  '90500000-0000-0000-0000-000000000001'
+);
+
 SELECT set_config(
   'cutsync.test_analytics_owner',
   (

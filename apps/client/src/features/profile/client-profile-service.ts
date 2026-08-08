@@ -134,7 +134,9 @@ export const uploadClientAvatar = async (userId: string, asset: ClientAvatarAsse
 export const removeClientAvatar = async (userId: string) => {
   const client = requireClient();
   const profile = await readSingleProfile(client.rpc('update_my_client_avatar', {
-    target_avatar_url: null,
+    // The SQL RPC normalizes an empty string to NULL; generated RPC argument
+    // types do not express nullable PostgreSQL function parameters.
+    target_avatar_url: '',
   }).single());
   await client.storage.from(AVATAR_BUCKET).remove([userId + '/' + AVATAR_FILE_NAME]);
   return profile;

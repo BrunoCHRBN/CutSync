@@ -148,7 +148,12 @@ BEGIN
     (owner_id, unit_a_id, 'Owner', 'so-owner@example.test', 'admin'),
     (pro_a_id, unit_a_id, 'Pro A', 'so-pro-a@example.test', 'professional'),
     (pro_b_id, unit_b_id, 'Pro B', 'so-pro-b@example.test', 'professional'),
-    (outsider_id, NULL, 'Outsider', 'so-outsider@example.test', 'client');
+    (outsider_id, NULL, 'Outsider', 'so-outsider@example.test', 'client')
+  ON CONFLICT (id) DO UPDATE SET
+    establishment_id = EXCLUDED.establishment_id,
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
 
   INSERT INTO public.memberships(
     profile_id, establishment_id, role, status, commission_rate, created_by
@@ -1153,29 +1158,6 @@ BEGIN
   ) INTO forbidden_table_exists;
   IF forbidden_table_exists THEN
     RAISE EXCEPTION 'Etapa 2 must not create payment/cash/commission/provider tables';
-  END IF;
-
-  -- 35: no Etapa 3 lifecycle RPCs
-  SELECT EXISTS (
-    SELECT 1
-    FROM pg_proc AS proc
-    JOIN pg_namespace AS nsp ON nsp.oid = proc.pronamespace
-    WHERE nsp.nspname = 'public'
-      AND proc.proname IN (
-        'open_service_order',
-        'start_service_order',
-        'finish_service_order',
-        'close_service_order',
-        'void_service_order',
-        'reopen_voided_service_order',
-        'upsert_service_order_item',
-        'remove_service_order_item',
-        'get_service_order',
-        'list_service_orders_for_day'
-      )
-  ) INTO rpc_exists;
-  IF rpc_exists THEN
-    RAISE EXCEPTION 'Etapa 3 RPCs must not exist yet';
   END IF;
 
   RAISE NOTICE 'service_orders_foundation checks passed';

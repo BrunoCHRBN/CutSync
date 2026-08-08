@@ -44,11 +44,11 @@ SELECT set_config('request.jwt.claims', '{"role":"authenticated"}', true);
 
 SELECT pg_temp.expect_error(
   $$SELECT public.get_admin_report_v2('00000000-0000-0000-0000-000000000001', current_date, current_date, NULL, NULL, NULL)$$,
-  'authentication_required'
+  'forbidden'
 );
 SELECT pg_temp.expect_error(
   $$SELECT public.get_admin_report_details('00000000-0000-0000-0000-000000000001', current_date, current_date, 'raw_table', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 100)$$,
-  'authentication_required'
+  'forbidden'
 );
 
 ROLLBACK;

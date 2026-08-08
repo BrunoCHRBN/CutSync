@@ -41,7 +41,7 @@ export const PromptDialog = ({
         <AppCard style={styles.card} elevated>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
-          <AppInput testID={`${testID}-input`} value={value} onChangeText={setValue} placeholder={placeholder} />
+          <AppInput label={title} testID={`${testID}-input`} value={value} onChangeText={setValue} placeholder={placeholder} />
           <View style={styles.actions}>
             <AppButton label={cancelLabel} testID={`${testID}-cancel`} variant="secondary" onPress={onCancel} />
             <AppButton label={confirmLabel} testID={`${testID}-confirm`} variant="admin" onPress={() => onConfirm(value)} />

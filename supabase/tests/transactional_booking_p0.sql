@@ -26,12 +26,13 @@ VALUES
   ('71000000-0000-0000-0000-000000000001', 'booking-client@example.test', '{"name":"Cliente Booking"}'::jsonb, now(), now(), now()),
   ('71000000-0000-0000-0000-000000000002', 'booking-prof@example.test', '{"name":"Profissional Booking"}'::jsonb, now(), now(), now());
 
-INSERT INTO public.establishments (id, name, slug, opening_hours)
+INSERT INTO public.establishments (id, name, slug, opening_hours, account_status)
 VALUES (
   '72000000-0000-0000-0000-000000000001',
   'Booking Tenant',
   'booking-tenant',
-  '[{"day":0,"isOpen":true,"open":"00:00","close":"23:59"},{"day":1,"isOpen":true,"open":"00:00","close":"23:59"},{"day":2,"isOpen":true,"open":"00:00","close":"23:59"},{"day":3,"isOpen":true,"open":"00:00","close":"23:59"},{"day":4,"isOpen":true,"open":"00:00","close":"23:59"},{"day":5,"isOpen":true,"open":"00:00","close":"23:59"},{"day":6,"isOpen":true,"open":"00:00","close":"23:59"}]'
+  '[{"day":0,"isOpen":true,"open":"00:00","close":"23:59"},{"day":1,"isOpen":true,"open":"00:00","close":"23:59"},{"day":2,"isOpen":true,"open":"00:00","close":"23:59"},{"day":3,"isOpen":true,"open":"00:00","close":"23:59"},{"day":4,"isOpen":true,"open":"00:00","close":"23:59"},{"day":5,"isOpen":true,"open":"00:00","close":"23:59"},{"day":6,"isOpen":true,"open":"00:00","close":"23:59"}]',
+  'active'
 );
 
 INSERT INTO public.memberships (profile_id, establishment_id, role, created_by)
