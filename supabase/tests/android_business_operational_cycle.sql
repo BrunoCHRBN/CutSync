@@ -404,8 +404,7 @@ BEGIN
   payload := public.search_establishment_clients(establishment_id, 'Android', 50, 0);
   IF jsonb_array_length(payload) <> 1
     OR NOT (payload->0 ? 'createdAt')
-    OR NOT (payload->0 ? 'lastAppointmentAt')
-    OR (payload->0)->'lastAppointmentAt' <> 'null'::jsonb
+    OR (payload->0 ? 'lastAppointmentAt')
   THEN RAISE EXCEPTION 'CRM search contract is incomplete: %', payload; END IF;
 
   first_result := public.create_establishment_client(

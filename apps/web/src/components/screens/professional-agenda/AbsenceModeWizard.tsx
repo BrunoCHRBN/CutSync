@@ -4,24 +4,18 @@ import { colors, elevations, radii, spacing, typeScale } from '../../../theme/to
 import { AppButton } from '../../ui/AppButton';
 import { CalendarAppointment } from '../../calendar/operational-calendar';
 import { AbsenceTransferAction, AbsenceBatchReport } from '../../../features/appointments/use-appointment-actions';
-import { supabase } from '../../../services/supabase';
 
-type ItemDecision = 'transfer' | 'cancel' | 'keep';
+type ItemDecision = 'cancel' | 'keep';
 
 type WizardItem = {
   appointment: CalendarAppointment;
-  serviceId: string;
   decision: ItemDecision;
-  substituteId: string | null;
-  suggestedName: string | null;
 };
 
 interface AbsenceModeWizardProps {
   visible: boolean;
   professionalId: string;
-  establishmentId: string;
   appointments: Array<CalendarAppointment & { serviceId: string }>;
-  team: Array<{ id: string; name: string }>;
   loading?: boolean;
   onClose: () => void;
   onConfirm: (input: {
@@ -34,9 +28,7 @@ interface AbsenceModeWizardProps {
 export const AbsenceModeWizard = ({
   visible,
   professionalId,
-  establishmentId,
   appointments,
-  team,
   loading = false,
   onClose,
   onConfirm,
@@ -44,7 +36,6 @@ export const AbsenceModeWizard = ({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [items, setItems] = useState<WizardItem[]>([]);
   const [report, setReport] = useState<AbsenceBatchReport | null>(null);
-  const [preparing, setPreparing] = useState(false);
 
   const range = useMemo(() => {
     const start = new Date();
@@ -70,73 +61,19 @@ export const AbsenceModeWizard = ({
       return;
     }
 
-    let cancelled = false;
-    const prepare = async () => {
-      setPreparing(true);
-      const colleagues = team.filter((member) => member.id !== professionalId);
-      const next: WizardItem[] = [];
-      for (const appointment of affected) {
-        let substituteId: string | null = null;
-        let suggestedName: string | null = null;
-        for (const colleague of colleagues) {
-          const { data: serviceRow } = await supabase
-            .from('professional_services')
-            .select('is_active')
-            .eq('establishment_id', establishmentId)
-            .eq('professional_id', colleague.id)
-            .eq('service_id', appointment.serviceId)
-            .maybeSingle();
-          if (serviceRow && serviceRow.is_active === false) continue;
-
-          const { data: slots } = await supabase.rpc('get_available_slots', {
-            target_establishment_id: establishmentId,
-            target_professional_id: colleague.id,
-            target_service_id: appointment.serviceId,
-            target_local_date: appointment.startsAt.toISOString().slice(0, 10),
-            target_appointment_id: appointment.id,
-          });
-          const match = Array.isArray(slots)
-            ? slots.find((slot: { starts_at: string; available: boolean }) =>
-              new Date(slot.starts_at).getTime() === appointment.startsAt.getTime() && slot.available)
-            : null;
-          if (match) {
-            substituteId = colleague.id;
-            suggestedName = colleague.name;
-            break;
-          }
-        }
-        next.push({
-          appointment,
-          serviceId: appointment.serviceId,
-          decision: substituteId ? 'transfer' : 'cancel',
-          substituteId,
-          suggestedName,
-        });
-      }
-      if (!cancelled) {
-        setItems(next);
-        setPreparing(false);
-      }
-    };
-    void prepare();
-    return () => { cancelled = true; };
-  }, [affected, establishmentId, professionalId, team, visible]);
+    setItems(affected.map((appointment) => ({
+      appointment,
+      decision: 'keep',
+    })));
+  }, [affected, visible]);
 
   const submit = async () => {
     const transfers: AbsenceTransferAction[] = items.map((item) => {
       if (item.decision === 'keep') return { appointment_id: item.appointment.id, action: 'keep' };
-      if (item.decision === 'cancel' || !item.substituteId) {
-        return {
-          appointment_id: item.appointment.id,
-          action: 'cancel',
-          cancellation_note: 'Ausência do profissional',
-        };
-      }
       return {
         appointment_id: item.appointment.id,
-        action: 'transfer',
-        to_professional_id: item.substituteId,
-        transfer_reason: 'absence_mode',
+        action: 'cancel',
+        cancellation_note: 'Ausência do profissional',
       };
     });
     const result = await onConfirm({ rangeStart: range.start, rangeEnd: range.end, transfers });
@@ -155,13 +92,13 @@ export const AbsenceModeWizard = ({
         >
           <Text style={styles.eyebrow}>MODO AUSÊNCIA</Text>
           <Text style={styles.title}>
-            {step === 1 ? 'Período da ausência' : step === 2 ? 'Redistribuir atendimentos' : 'Relatório'}
+            {step === 1 ? 'Período da ausência' : step === 2 ? 'Revisar atendimentos' : 'Relatório'}
           </Text>
 
           {step === 1 ? (
             <View style={styles.block}>
               <Text style={styles.description}>
-                Padrão: a partir de agora até o fim do dia. Os atendimentos ativos no período serão listados para transferência ou cancelamento. Ao confirmar, um bloqueio de ausência será criado.
+                Padrão: a partir de agora até o fim do dia. Por segurança, atendimentos ativos podem ser mantidos ou cancelados; a troca de profissional ficará disponível na futura Central de Decisões. Ao confirmar, um bloqueio de ausência será criado.
               </Text>
               <Text style={styles.meta}>
                 {range.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -178,10 +115,7 @@ export const AbsenceModeWizard = ({
 
           {step === 2 ? (
             <View style={styles.block}>
-              {preparing ? (
-                <Text style={styles.description}>Calculando melhores substitutos...</Text>
-              ) : (
-                <ScrollView style={styles.list}>
+              <ScrollView style={styles.list}>
                   {items.length === 0 ? (
                     <Text style={styles.description}>Nenhum atendimento ativo no período. Você ainda pode bloquear a agenda.</Text>
                   ) : items.map((item) => (
@@ -193,10 +127,10 @@ export const AbsenceModeWizard = ({
                       </Text>
                       <Text style={styles.description}>
                         {item.appointment.serviceName}
-                        {item.suggestedName ? ` · sugestão: ${item.suggestedName}` : ' · sem substituto no horário'}
+                        {' · escolha segura: manter ou cancelar'}
                       </Text>
                       <View style={styles.decisionRow}>
-                        {(['transfer', 'cancel', 'keep'] as ItemDecision[]).map((decision) => (
+                        {(['keep', 'cancel'] as ItemDecision[]).map((decision) => (
                           <Pressable
                             key={decision}
                             onPress={() => setItems((current) => current.map((entry) =>
@@ -207,37 +141,19 @@ export const AbsenceModeWizard = ({
                             testID={`absence-decision-${item.appointment.id}-${decision}`}
                           >
                             <Text style={styles.chipText}>
-                              {decision === 'transfer' ? 'Transferir' : decision === 'cancel' ? 'Cancelar' : 'Manter'}
+                              {decision === 'cancel' ? 'Cancelar' : 'Manter'}
                             </Text>
                           </Pressable>
                         ))}
                       </View>
-                      {item.decision === 'transfer' ? (
-                        <View style={styles.decisionRow}>
-                          {team.filter((member) => member.id !== professionalId).map((member) => (
-                            <Pressable
-                              key={member.id}
-                              onPress={() => setItems((current) => current.map((entry) =>
-                                entry.appointment.id === item.appointment.id
-                                  ? { ...entry, substituteId: member.id, suggestedName: member.name }
-                                  : entry))}
-                              style={[styles.chip, item.substituteId === member.id && styles.chipSelected]}
-                              testID={`absence-sub-${item.appointment.id}-${member.id}`}
-                            >
-                              <Text style={styles.chipText}>{member.name}</Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      ) : null}
                     </View>
                   ))}
-                </ScrollView>
-              )}
+              </ScrollView>
               <View style={styles.actions}>
                 <AppButton label="Voltar" onPress={() => setStep(1)} testID="absence-mode-back" variant="secondary" />
                 <AppButton
                   label="Confirmar ausência"
-                  loading={loading || preparing}
+                  loading={loading}
                   onPress={() => { void submit(); }}
                   testID="absence-mode-confirm"
                 />

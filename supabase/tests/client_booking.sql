@@ -122,9 +122,8 @@ BEGIN
     RAISE EXCEPTION 'FAIL: client booking did not return its final status';
   END IF;
   IF NOT EXISTS (
-    SELECT 1 FROM public.appointments AS appointment
-    WHERE appointment.id = booking_row.appointment_id
-      AND appointment.client_id = '85000000-0000-0000-0000-000000000001'
+    SELECT 1
+    FROM public.get_client_appointment(booking_row.appointment_id)
   ) THEN
     RAISE EXCEPTION 'FAIL: appointment was not assigned to the authenticated client';
   END IF;
@@ -142,6 +141,7 @@ BEGIN
 END $$;
 
 RESET ROLE;
+SELECT set_config('cutsync.governance_status_reason', 'sql_test', true);
 UPDATE public.establishments
 SET account_status = 'blocked'
 WHERE id = '85000000-0000-0000-0000-000000000010';

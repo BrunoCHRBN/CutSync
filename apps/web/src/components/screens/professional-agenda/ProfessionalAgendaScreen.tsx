@@ -31,7 +31,6 @@ import { AppointmentDetailSheet } from '../../calendar/appointment-detail-sheet'
 import { SlotActionSheet } from '../../calendar/slot-action-sheet';
 import { ScheduleBlockDraft, ScheduleBlockModal } from '../../calendar/schedule-block-modal';
 import { CancelAppointmentModal } from '../../calendar/cancel-appointment-modal';
-import { TransferProfessionalModal } from '../../calendar/transfer-professional-modal';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/toast-provider';
 import { AppCommand, useCommandPalette, useCommandRegistration } from '../../command/command-palette-provider';
@@ -64,7 +63,6 @@ export const ProfessionalAgendaScreen = () => {
   const [blockError, setBlockError] = useState<string | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
-  const [transferOpen, setTransferOpen] = useState(false);
   const [absenceOpen, setAbsenceOpen] = useState(false);
 
   const [quickOpen, setQuickOpen] = useState(false);
@@ -546,7 +544,7 @@ export const ProfessionalAgendaScreen = () => {
         canCancel={canActOnSelected}
         canComplete={canUseLegacyComplete}
         canReschedule={canActOnSelected}
-        canTransfer={canActOnSelected && team.filter((member) => member.id !== profile?.id).length > 0}
+        canTransfer={false}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
         onOrderAction={() => {
@@ -597,45 +595,11 @@ export const ProfessionalAgendaScreen = () => {
         }}
         orderActionLabel={selectedOrderActionLabel}
         orderActionLoading={Boolean(appointmentOrder.mutation)}
-        onTransfer={() => setTransferOpen(true)}
         professionalName={appointments.find((item) => item.id === selectedCalendarAppointment?.id)?.barberName}
         serviceOrder={selectedServiceOrder}
         serviceOrderError={financialOpsSyncMessage ?? appointmentOrder.error}
         serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
-        visible={Boolean(selectedCalendarAppointment) && !transferOpen}
-      />
-
-      <TransferProfessionalModal
-        appointment={selectedCalendarAppointment}
-        candidates={team.map((member) => ({ id: member.id, name: member.name }))}
-        establishmentId={profile?.establishment_id}
-        loading={Boolean(actions.loadingId)}
-        onClose={() => setTransferOpen(false)}
-        onPickOtherSlot={(professionalId) => {
-          const item = appointments.find((candidate) => candidate.id === selectedCalendarAppointment?.id);
-          if (!item) return;
-          setTransferOpen(false);
-          setSelectedAppointmentId(null);
-          setRescheduleItem(item);
-          setRescheduleProfessionalId(professionalId);
-          setNewRescheduleDate(new Date(item.dateTime));
-          setNewRescheduleTime(null);
-        }}
-        onTransferSameSlot={async (professionalId) => {
-          if (!selectedCalendarAppointment?.serviceId) return;
-          const ok = await actions.transferProfessional({
-            appointmentId: selectedCalendarAppointment.id,
-            dateTime: selectedCalendarAppointment.startsAt,
-            toProfessionalId: professionalId,
-            serviceId: selectedCalendarAppointment.serviceId,
-          });
-          if (ok) {
-            setTransferOpen(false);
-            setSelectedAppointmentId(null);
-          }
-        }}
-        serviceId={selectedCalendarAppointment?.serviceId}
-        visible={transferOpen && Boolean(selectedCalendarAppointment)}
+        visible={Boolean(selectedCalendarAppointment)}
       />
 
       <CancelAppointmentModal
@@ -662,7 +626,6 @@ export const ProfessionalAgendaScreen = () => {
 
       <AbsenceModeWizard
         appointments={calendarAppointments.map((item) => ({ ...item, serviceId: item.serviceId || '' }))}
-        establishmentId={profile?.establishment_id || ''}
         loading={actions.batchLoading}
         onClose={() => setAbsenceOpen(false)}
         onConfirm={async (input) => {
@@ -677,7 +640,6 @@ export const ProfessionalAgendaScreen = () => {
           return report;
         }}
         professionalId={profile?.id || ''}
-        team={team.map((member) => ({ id: member.id, name: member.name }))}
         visible={absenceOpen}
       />
 

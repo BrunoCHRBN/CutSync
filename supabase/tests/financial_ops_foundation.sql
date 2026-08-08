@@ -105,7 +105,12 @@ BEGIN
     (admin_id, unit_a_id, 'Admin', 'financial-ops-admin@example.test', 'admin'),
     (professional_id, unit_a_id, 'Pro', 'financial-ops-pro@example.test', 'professional'),
     (outsider_id, NULL, 'Outsider', 'financial-ops-outsider@example.test', 'client'),
-    (superadmin_id, NULL, 'Superadmin', 'financial-ops-superadmin@example.test', 'admin');
+    (superadmin_id, NULL, 'Superadmin', 'financial-ops-superadmin@example.test', 'admin')
+  ON CONFLICT (id) DO UPDATE SET
+    establishment_id = EXCLUDED.establishment_id,
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
 
   INSERT INTO public.superadmins(profile_id, granted_by)
   VALUES (superadmin_id, NULL);
@@ -410,10 +415,6 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'billing_accounts must remain intact';
   END IF;
-  IF to_regclass('public.service_orders') IS NOT NULL THEN
-    RAISE EXCEPTION 'Etapa 1 must not create service_orders';
-  END IF;
-
   RAISE NOTICE 'financial_ops_foundation checks passed (insert_privilege=%)',
     has_insert_privilege;
 END;

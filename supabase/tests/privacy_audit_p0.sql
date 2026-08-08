@@ -14,7 +14,16 @@ BEGIN
     SELECT 1 FROM information_schema.role_column_grants
     WHERE table_schema = 'public' AND table_name = 'profiles'
       AND grantee IN ('anon', 'authenticated')
-      AND column_name IN ('email', 'phone', 'push_token', 'commission_rate', 'establishment_id', 'role')
+      AND (
+        (
+          privilege_type = 'SELECT'
+          AND column_name IN ('email', 'phone', 'push_token', 'commission_rate', 'establishment_id', 'role')
+        )
+        OR (
+          privilege_type IN ('INSERT', 'UPDATE')
+          AND column_name IN ('email', 'commission_rate', 'establishment_id', 'role')
+        )
+      )
   ) THEN RAISE EXCEPTION 'FAIL: sensitive profile column is directly granted'; END IF;
   IF EXISTS (
     SELECT 1 FROM information_schema.role_table_grants

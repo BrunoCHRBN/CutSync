@@ -57,10 +57,10 @@ export async function searchKnowledgeTopics(
   filters: KnowledgeSearchFilters,
 ): Promise<KnowledgeTopicListItem[]> {
   const { data, error } = await supabaseGovernance.rpc('search_governance_kb_topics', {
-    search_query: filters.query?.trim() || null,
-    filter_category: filters.categoryId || null,
-    filter_kind: filters.kind || null,
-    filter_status: filters.status || null,
+    search_query: filters.query?.trim() || undefined,
+    filter_category: filters.categoryId || undefined,
+    filter_kind: filters.kind || undefined,
+    filter_status: filters.status || undefined,
     page_number: filters.page ?? 1,
     page_size: filters.pageSize ?? 20,
   });
@@ -145,7 +145,7 @@ export async function updateKnowledgeReply(
 export async function acceptKnowledgeSolution(topicId: string, replyId: string | null): Promise<void> {
   const { error } = await supabaseGovernance.rpc('accept_governance_kb_solution', {
     target_topic_id: topicId,
-    target_reply_id: replyId,
+    target_reply_id: replyId ?? undefined,
   });
   if (error) throw error;
 }
@@ -224,7 +224,7 @@ export async function uploadKnowledgeImage({
       requested_width: asset.width || null,
       requested_height: asset.height || null,
       requested_alt_text: altText.trim(),
-    },
+    } as never,
   );
   if (reservationError) throw reservationError;
   const reservation = requireData(reservationData?.[0] ?? null, 'Não foi possível reservar o anexo.');

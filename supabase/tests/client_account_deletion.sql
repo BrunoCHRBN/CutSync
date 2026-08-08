@@ -42,7 +42,7 @@ WHERE id IN (
 SET LOCAL ROLE anon;
 SELECT pg_temp.expect_error(
   'SELECT public.submit_client_account_deletion_request()',
-  'authentication_required'
+  'permission denied'
 );
 RESET ROLE;
 
@@ -63,6 +63,11 @@ BEGIN
     RAISE EXCEPTION 'FAIL: repeated submission created more than one active request';
   END IF;
 END $$;
+
+SELECT id AS request_id
+FROM public.governance_privacy_requests
+WHERE target_profile_id = '89000000-0000-0000-0000-000000000001'
+\gset
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.set_actor('89000000-0000-0000-0000-000000000002');
@@ -87,7 +92,7 @@ SELECT pg_temp.set_actor('89000000-0000-0000-0000-000000000002', 'aal1');
 SELECT pg_temp.expect_error(
   format(
     'SELECT public.begin_client_account_deletion_execution(%L, %L)',
-    (SELECT id FROM public.governance_privacy_requests WHERE target_profile_id = '89000000-0000-0000-0000-000000000001'),
+    :'request_id',
     'Execução validada pela governança.'
   ),
   'governance_aal2_required'
@@ -97,23 +102,23 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.set_actor('89000000-0000-0000-0000-000000000002', 'aal2');
 SELECT public.begin_client_account_deletion_execution(
-  (SELECT id FROM public.governance_privacy_requests WHERE target_profile_id = '89000000-0000-0000-0000-000000000001'),
+  :'request_id'::uuid,
   'Execução validada pela governança.'
 );
 RESET ROLE;
 
 SET LOCAL ROLE service_role;
 SELECT public.anonymize_client_account_deletion(
-  (SELECT id FROM public.governance_privacy_requests WHERE target_profile_id = '89000000-0000-0000-0000-000000000001')
+  :'request_id'::uuid
 );
 SELECT public.anonymize_client_account_deletion(
-  (SELECT id FROM public.governance_privacy_requests WHERE target_profile_id = '89000000-0000-0000-0000-000000000001')
+  :'request_id'::uuid
 );
 SELECT public.complete_client_account_deletion(
-  (SELECT id FROM public.governance_privacy_requests WHERE target_profile_id = '89000000-0000-0000-0000-000000000001')
+  :'request_id'::uuid
 );
 SELECT public.complete_client_account_deletion(
-  (SELECT id FROM public.governance_privacy_requests WHERE target_profile_id = '89000000-0000-0000-0000-000000000001')
+  :'request_id'::uuid
 );
 RESET ROLE;
 

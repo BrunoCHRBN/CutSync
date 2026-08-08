@@ -8,6 +8,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  ViewStyle,
 } from 'react-native';
 import { CalendarClock, ChevronLeft, ChevronRight, Eye, EyeOff, LockKeyhole, Plus } from 'lucide-react-native';
 import { colors, layout, radii, spacing, typeScale } from '../../theme/tokens';
@@ -826,7 +827,7 @@ const AppointmentCard = ({
   const columnCount = Math.max(1, columnLayout?.columnCount ?? 1);
   const column = columnLayout?.column ?? 0;
   const inset = 3;
-  const leftStyle = {
+  const leftStyle: ViewStyle = {
     left: `${(column * 100) / columnCount}%`,
     right: `${((columnCount - column - 1) * 100) / columnCount}%`,
     marginLeft: column === 0 ? inset : 1,

@@ -170,9 +170,13 @@ SELECT pg_temp.expect_error(
   $$SELECT public.create_invitation('20000000-0000-0000-0000-000000000001', 'new-prof@example.test', 'professional')$$,
   'forbidden'
 );
-SELECT pg_temp.expect_error(
-  $$SELECT count(*) FROM public.get_establishment_team('20000000-0000-0000-0000-000000000001', true)$$,
-  'forbidden'
+SELECT pg_temp.assert_one(
+  $$SELECT count(*) FROM public.get_establishment_team('20000000-0000-0000-0000-000000000001', true) WHERE id = '10000000-0000-0000-0000-000000000003'$$,
+  'professional cannot see a sanitized teammate'
+);
+SELECT pg_temp.assert_zero(
+  $$SELECT count(*) FROM public.get_establishment_team('20000000-0000-0000-0000-000000000001', true) WHERE id <> auth.uid() AND (email IS NOT NULL OR phone IS NOT NULL OR commission_rate IS NOT NULL)$$,
+  'professional can see teammate sensitive fields'
 );
 
 -- Admin A: administra somente A, convida somente profissionais e nunca admins.

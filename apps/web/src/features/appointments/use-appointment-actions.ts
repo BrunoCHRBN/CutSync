@@ -5,13 +5,7 @@ import { useToast } from '../../components/ui/toast-provider';
 
 export type AbsenceTransferAction =
   | { appointment_id: string; action: 'keep' }
-  | { appointment_id: string; action: 'cancel'; cancellation_note?: string }
-  | {
-      appointment_id: string;
-      action: 'transfer';
-      to_professional_id: string;
-      transfer_reason?: string;
-    };
+  | { appointment_id: string; action: 'cancel'; cancellation_note?: string };
 
 export type AbsenceTransferResult = {
   appointment_id: string;
@@ -112,19 +106,6 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
     }
   }, [pushToast]);
 
-  const transferProfessional = useCallback(async (input: {
-    appointmentId: string;
-    dateTime: Date;
-    toProfessionalId: string;
-    serviceId: string;
-  }) => reschedule({
-    appointmentId: input.appointmentId,
-    dateTime: input.dateTime,
-    professionalId: input.toProfessionalId,
-    serviceId: input.serviceId,
-    successTitle: 'Atendimento transferido',
-  }), [reschedule]);
-
   const runAbsenceMode = useCallback(async (input: {
     professionalId: string;
     rangeStart: Date;
@@ -167,7 +148,6 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
     batchLoading,
     updateStatus,
     reschedule,
-    transferProfessional,
     runAbsenceMode,
   };
 }

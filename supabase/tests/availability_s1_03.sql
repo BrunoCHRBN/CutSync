@@ -14,13 +14,14 @@ VALUES
   ('73000000-0000-0000-0000-000000000001', 'availability-client@example.test', '{"name":"Cliente Availability"}'::jsonb, now(), now(), now()),
   ('73000000-0000-0000-0000-000000000002', 'availability-prof@example.test', '{"name":"Profissional Availability"}'::jsonb, now(), now(), now());
 
-INSERT INTO public.establishments (id, name, slug, timezone, opening_hours)
+INSERT INTO public.establishments (id, name, slug, timezone, opening_hours, account_status)
 VALUES (
   '74000000-0000-0000-0000-000000000001',
   'Availability Tenant',
   'availability-tenant',
   'America/Sao_Paulo',
-  '[{"day":0,"isOpen":false,"open":"09:00","close":"18:00"},{"day":1,"isOpen":true,"open":"09:00","close":"18:00"},{"day":2,"isOpen":true,"open":"09:00","close":"18:00"},{"day":3,"isOpen":true,"open":"09:00","close":"18:00"},{"day":4,"isOpen":true,"open":"09:00","close":"18:00"},{"day":5,"isOpen":true,"open":"09:00","close":"18:00"},{"day":6,"isOpen":true,"open":"09:00","close":"14:00"}]'
+  '[{"day":0,"isOpen":false,"open":"09:00","close":"18:00"},{"day":1,"isOpen":true,"open":"09:00","close":"18:00"},{"day":2,"isOpen":true,"open":"09:00","close":"18:00"},{"day":3,"isOpen":true,"open":"09:00","close":"18:00"},{"day":4,"isOpen":true,"open":"09:00","close":"18:00"},{"day":5,"isOpen":true,"open":"09:00","close":"18:00"},{"day":6,"isOpen":true,"open":"09:00","close":"14:00"}]',
+  'active'
 );
 
 UPDATE public.profiles SET work_hours = '[{"day":0,"isOpen":false,"open":"10:00","close":"17:00"},{"day":1,"isOpen":true,"open":"10:00","close":"17:00"},{"day":2,"isOpen":true,"open":"10:00","close":"17:00"},{"day":3,"isOpen":true,"open":"10:00","close":"17:00"},{"day":4,"isOpen":true,"open":"10:00","close":"17:00"},{"day":5,"isOpen":true,"open":"10:00","close":"17:00"},{"day":6,"isOpen":false,"open":"10:00","close":"13:00"}]'

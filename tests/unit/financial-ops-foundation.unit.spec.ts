@@ -106,7 +106,7 @@ test('teste SQL é transacional e cobre isolamento/flag/capabilities', () => {
   expect(sqlTest).toContain('same-value flag update blocked unrelated field write');
   expect(sqlTest).toContain('privileged update of financial_ops_enabled failed');
   expect(sqlTest).toContain('billing_accounts must remain intact');
-  expect(sqlTest).toContain('Etapa 1 must not create service_orders');
+  expect(sqlTest).toContain('financial_ops_foundation checks passed');
 });
 
 test('documento canônico registra decisões de payment_status e unicidade histórica', () => {

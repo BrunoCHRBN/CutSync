@@ -32,6 +32,11 @@ interface DiscoveryRequirements {
   active_service_present: boolean;
 }
 
+interface DiscoveryPublicationRow {
+  discovery_status: 'draft' | 'published';
+  requirements: DiscoveryRequirements | null;
+}
+
 interface SettingsSnapshot {
   name: string;
   slug: string;
@@ -274,7 +279,7 @@ export const SettingsExperience = () => {
       setNotice({ tone: 'danger', message: 'Não foi possível consultar a publicação da vitrine.' });
       return;
     }
-    const publication = data?.[0];
+    const publication = (data as unknown as DiscoveryPublicationRow[] | null)?.[0];
     setDiscoveryStatus(publication?.discovery_status === 'published' ? 'published' : 'draft');
     setDiscoveryRequirements((publication?.requirements ?? null) as unknown as DiscoveryRequirements | null);
   }, [activeEstablishmentId]);
@@ -298,7 +303,7 @@ export const SettingsExperience = () => {
         target_establishment_id: activeEstablishmentId,
       } as never);
       if (error) throw error;
-      const publication = data?.[0];
+      const publication = (data as unknown as DiscoveryPublicationRow[] | null)?.[0];
       setDiscoveryStatus(publication?.discovery_status === 'published' ? 'published' : 'draft');
       setDiscoveryRequirements((publication?.requirements ?? null) as unknown as DiscoveryRequirements | null);
       setNotice({

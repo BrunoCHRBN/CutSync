@@ -41,8 +41,8 @@ BEGIN
   IF position('NEW.price_charged' IN body) = 0 THEN
     RAISE EXCEPTION 'FAIL: trigger does not snapshot price_charged';
   END IF;
-  IF position('professional_service.price' IN body) = 0 THEN
-    RAISE EXCEPTION 'FAIL: trigger ignores professional price override';
+  IF position('get_effective_price' IN body) = 0 THEN
+    RAISE EXCEPTION 'FAIL: trigger bypasses the effective price resolver';
   END IF;
 END $$;
 
