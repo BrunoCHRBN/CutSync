@@ -21,11 +21,11 @@ $excludedDuplicateFiles = @(
 
 $expectedDuplicateHashes = @{
   '20260806000000_android_business_operational_cycle.sql' = '6B7AB1E37F0A69B318AFA3F17F8A0AD4C46D21D5A4DB5F515AB67EBA8A97F5DF'
-  '20260806000000_client_discovery_media_and_geo.sql' = '7D63F8EF2EA031F3DA830E40C41F67FDBE139AF33796A20FDBCDB681B7BF8CD9'
-  '20260807000000_client_favorites.sql' = 'B17242DCD162C1DAE58F6BDB98705F0EF6D4775290F3E8FA603E64BA3538DC70'
+  '20260806000000_client_discovery_media_and_geo.sql' = 'F9BF2D750BC0C794396E89AEF724533184DC64E73BA7C8EE7394AA8918A91637'
+  '20260807000000_client_favorites.sql' = '649D67FCBEF92AB9F614E48ACCEF39ADD5BC7A47E3D4171D147548F444210CEE'
   '20260807000000_establishment_client_enrichment.sql' = '5365D76E25AE4A0145276716C8B237EEBCC9850D9A30D0FBF00BAABC543754A6'
-  '20260811000000_access_control_audit_hardening.sql' = '8DB3BEB1D7CDF4CA7C7B1BF5CFF875DE0A18F44BB97D33C61B252BAE2FD5598A'
-  '20260811000000_appointment_price_charged_snapshot.sql' = '41CC7C1471C94338885954ED7310DBDCBCBF22827AB26EE0D4CEDD5AB1858631'
+  '20260811000000_access_control_audit_hardening.sql' = '9AB0460D06651FC148040FD121ABA3E95CE4071B466D8780BAD98D14A0950C3B'
+  '20260811000000_appointment_price_charged_snapshot.sql' = '8BB2843CF5D93DBB9A66707B7F9FA77EF1104486FDC05E2FA78816D2495C860A'
 }
 
 $requiredRecoveredFiles = @(
@@ -44,7 +44,20 @@ foreach ($entry in $expectedDuplicateHashes.GetEnumerator()) {
     throw "Historical migration is missing: $($entry.Key)"
   }
 
-  $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+  # Git may materialize CRLF on Windows and LF in CI. Normalize line endings
+  # before hashing so the historical-content guard is platform-independent.
+  $content = [IO.File]::ReadAllText($path)
+  $normalizedContent = $content.Replace("`r`n", "`n").Replace("`r", "`n")
+  $normalizedBytes = [Text.Encoding]::UTF8.GetBytes($normalizedContent)
+  $sha256 = [Security.Cryptography.SHA256]::Create()
+  try {
+    $actualHash = ([BitConverter]::ToString(
+      $sha256.ComputeHash($normalizedBytes)
+    )).Replace('-', '')
+  }
+  finally {
+    $sha256.Dispose()
+  }
   if ($actualHash -cne $entry.Value) {
     throw "Historical migration changed: $($entry.Key). Expected $($entry.Value), got $actualHash. Reconcile deliberately before resetting."
   }
