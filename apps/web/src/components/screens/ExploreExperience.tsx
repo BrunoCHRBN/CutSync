@@ -7,7 +7,7 @@ import { buildEstablishmentTheme } from '@cutsync/brand';
 import { useAuth } from '../../contexts/AuthContext';
 import { useClientFavorites } from '../../hooks/useClientFavorites';
 import { supabase } from '../../services/supabase';
-import { Establishment, mapEstablishment } from '@cutsync/database';
+import { Establishment, mapEstablishment, PUBLIC_ESTABLISHMENT_SELECT } from '@cutsync/database';
 import { ClientShell } from '../layout/ClientShell';
 import { AppButton } from '../ui/AppButton';
 import { EmptyState } from '../ui/EmptyState';
@@ -230,7 +230,7 @@ export const ExploreExperience = () => {
     try {
       const { data, error: queryError } = await supabase
         .from('establishments')
-        .select('*')
+        .select(PUBLIC_ESTABLISHMENT_SELECT)
         .eq('account_status', 'active')
         .order('name');
       if (queryError) throw queryError;

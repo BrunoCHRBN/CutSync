@@ -91,6 +91,11 @@ test('nega contexto com papel, acesso, membership ou identificadores inválidos'
     ...fullContextRow,
     membership_role: 'professional',
     operational_role: 'owner',
+  })?.operationalRole).toBe('owner');
+  expect(mapBusinessOperationalContext({
+    ...fullContextRow,
+    membership_role: 'professional',
+    operational_role: 'admin',
   })).toBeNull();
   expect(mapBusinessOperationalContext({
     ...fullContextRow,
@@ -99,22 +104,27 @@ test('nega contexto com papel, acesso, membership ou identificadores inválidos'
   })).toBeNull();
 });
 
-test('aplica limite de papel e remove mutações em read_only ou blocked', () => {
+test('mapeia templates operacionais expandidos mantendo a projeção legada', () => {
+  for (const operationalRole of ['professional', 'reception', 'cashier', 'finance', 'manager'] as const) {
+    expect(mapBusinessOperationalContext({
+      ...fullContextRow,
+      membership_role: 'professional',
+      operational_role: operationalRole,
+    })?.operationalRole).toBe(operationalRole);
+  }
+  expect(mapBusinessOperationalContext({
+    ...fullContextRow,
+    membership_role: 'admin',
+    operational_role: 'admin',
+  })?.operationalRole).toBe('admin');
+});
+
+test('confia nas capabilities do backend e remove mutações em read_only ou blocked', () => {
   expect(filterBusinessCapabilities(
     BUSINESS_CAPABILITIES,
     'professional',
     'full',
-  )).toEqual([
-    'view_own_agenda',
-    'view_team_agenda',
-    'create_self_walk_in',
-    'manage_own_blocks',
-    'view_services',
-    'view_own_commission',
-    'view_orders',
-    'manage_own_orders',
-    'view_payments',
-  ]);
+  )).toEqual(BUSINESS_CAPABILITIES);
 
   expect(filterBusinessCapabilities(
     BUSINESS_CAPABILITIES,
@@ -131,14 +141,17 @@ test('aplica limite de papel e remove mutações em read_only ou blocked', () =>
     'view_cash',
     'view_team_commission',
     'view_reconciliation',
+    'view_financial_reports',
+    'view_fiscal',
+    'view_payment_provider',
   ]);
-  expect(filterBusinessCapabilities(BUSINESS_CAPABILITIES, 'admin', 'full')).not.toContain(
+  expect(filterBusinessCapabilities(BUSINESS_CAPABILITIES, 'admin', 'full')).toContain(
     'reopen_cash',
   );
   expect(filterBusinessCapabilities(BUSINESS_CAPABILITIES, 'owner', 'full')).toContain(
     'reopen_cash',
   );
-  expect(filterBusinessCapabilities(BUSINESS_CAPABILITIES, 'professional', 'full')).not.toContain(
+  expect(filterBusinessCapabilities(['view_own_agenda'], 'professional', 'full')).not.toContain(
     'take_payments',
   );
   expect(filterBusinessCapabilities(BUSINESS_CAPABILITIES, 'owner', 'blocked')).toEqual([]);

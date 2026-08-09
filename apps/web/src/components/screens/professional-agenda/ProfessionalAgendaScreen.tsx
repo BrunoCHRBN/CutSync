@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import {
   appointmentFeedbackMessages,
@@ -9,7 +9,9 @@ import {
   resolveAppointmentOrderPrimaryAction,
   translateAppointmentError,
 } from '@cutsync/domain';
+import type { OnboardingProgress } from '@cutsync/database';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useOperationalContext } from '../../../contexts/operational-context';
 import { useFinancialOps } from '../../../contexts/financial-ops-context';
 import { useAppointments } from '../../../hooks/useAppointments';
 import { useEstablishment } from '../../../hooks/useEstablishment';
@@ -19,6 +21,10 @@ import { useNextAppointment } from '../../../hooks/useNextAppointment';
 import { useTeam } from '../../../hooks/useTeam';
 import { useScheduleBlocks } from '../../../hooks/use-schedule-blocks';
 import { supabase } from '../../../services/supabase';
+import {
+  listWebOnboardingProgress,
+  setWebOnboardingProgress,
+} from '../../../services/onboarding-progress';
 import { readableForeground } from '../../../theme/color';
 import { colors, layout } from '../../../theme/tokens';
 import { DashboardAppointment } from '../../../types/dashboard';
@@ -31,7 +37,6 @@ import { AppointmentDetailSheet } from '../../calendar/appointment-detail-sheet'
 import { SlotActionSheet } from '../../calendar/slot-action-sheet';
 import { ScheduleBlockDraft, ScheduleBlockModal } from '../../calendar/schedule-block-modal';
 import { CancelAppointmentModal } from '../../calendar/cancel-appointment-modal';
-import { TransferProfessionalModal } from '../../calendar/transfer-professional-modal';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/toast-provider';
 import { AppCommand, useCommandPalette, useCommandRegistration } from '../../command/command-palette-provider';
@@ -50,9 +55,10 @@ export const ProfessionalAgendaScreen = () => {
   const { open: openCommandPalette } = useCommandPalette();
   const { pushToast } = useToast();
   const { profile, refreshProfile, signOut } = useAuth();
-  const { establishment: barbershop } = useEstablishment(profile?.establishment_id);
-  const { services } = useServices(profile?.establishment_id, true);
-  const { team } = useTeam(profile?.establishment_id, Boolean(profile?.establishment_id));
+  const { activeContext, activeEstablishmentId } = useOperationalContext();
+  const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
+  const { services } = useServices(activeEstablishmentId, true);
+  const { team } = useTeam(activeEstablishmentId, Boolean(activeEstablishmentId));
 
   const [tab, setTab] = useState<Tab>('mine');
   const [layoutView, setLayoutView] = useState<AgendaLayoutView>('day');
@@ -64,8 +70,8 @@ export const ProfessionalAgendaScreen = () => {
   const [blockError, setBlockError] = useState<string | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
-  const [transferOpen, setTransferOpen] = useState(false);
   const [absenceOpen, setAbsenceOpen] = useState(false);
+  const [professionalOnboardingProgress, setProfessionalOnboardingProgress] = useState<OnboardingProgress | null>(null);
 
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickBookSource, setQuickBookSource] = useState<QuickBookSource>('header');
@@ -96,10 +102,10 @@ export const ProfessionalAgendaScreen = () => {
     error: appointmentError,
     refresh: refreshAppointments,
   } = useAppointments({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     dateFrom: queryRange.start.toISOString(),
     dateTo: queryRange.end.toISOString(),
-    enabled: Boolean(profile?.establishment_id),
+    enabled: Boolean(activeEstablishmentId),
   });
 
   const {
@@ -108,9 +114,9 @@ export const ProfessionalAgendaScreen = () => {
     error: nextAppointmentError,
     refresh: refreshNextAppointment,
   } = useNextAppointment({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     professionalId: profile?.id,
-    enabled: Boolean(profile?.establishment_id && profile?.id),
+    enabled: Boolean(activeEstablishmentId && profile?.id),
   });
 
   const refresh = useCallback(async () => {
@@ -120,7 +126,7 @@ export const ProfessionalAgendaScreen = () => {
   const actions = useAppointmentActions({ onChanged: refresh });
   const financialOps = useFinancialOps();
   const appointmentOrder = useAppointmentServiceOrder({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     appointmentId: selectedAppointmentId,
     enabled: Boolean(selectedAppointmentId && financialOps.financialOpsEnabled),
     onChanged: refresh,
@@ -133,7 +139,7 @@ export const ProfessionalAgendaScreen = () => {
     emptyMessage: quickAvailabilityEmptyMessage,
     refresh: refreshQuickAvailability,
   } = useAvailableSlots({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     professionalId: profile?.id,
     serviceId: quickService,
     date: quickOpen ? quickDate : null,
@@ -146,11 +152,11 @@ export const ProfessionalAgendaScreen = () => {
     supported: scheduleBlocksSupported,
     refresh: refreshScheduleBlocks,
   } = useScheduleBlocks({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     professionalId: tab === 'team' && barbershop?.shareAgendas ? null : profile?.id,
     rangeStart: queryRange.start,
     rangeEnd: queryRange.end,
-    enabled: Boolean(profile?.establishment_id && profile?.id),
+    enabled: Boolean(activeEstablishmentId && profile?.id),
   });
 
   const rescheduleRecord = appointmentRecords.find((appointment) => appointment.id === rescheduleItem?.id);
@@ -160,7 +166,7 @@ export const ProfessionalAgendaScreen = () => {
     error: rescheduleAvailabilityError,
     emptyMessage: rescheduleAvailabilityEmptyMessage,
   } = useAvailableSlots({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     professionalId: rescheduleProfessionalId || rescheduleItem?.professionalId,
     serviceId: rescheduleRecord?.serviceId,
     date: rescheduleItem ? newRescheduleDate : null,
@@ -249,7 +255,7 @@ export const ProfessionalAgendaScreen = () => {
 
   const createQuickBooking = async () => {
     if (quickSubmissionLocked.current || quickLoading) return;
-    if (!quickName.trim() || !quickService || !quickTime || !profile?.establishment_id || !profile?.id) {
+    if (!quickName.trim() || !quickService || !quickTime || !activeEstablishmentId || !profile?.id) {
       pushToast({ tone: 'danger', title: 'Informe cliente, serviço e horário' });
       return;
     }
@@ -266,7 +272,7 @@ export const ProfessionalAgendaScreen = () => {
       const confirmedSlot = latestSlots.find((slot) => slot.available && slot.localTime === quickTime);
       if (!confirmedSlot) throw new Error('appointment_conflict');
       const { error } = await supabase.rpc('create_appointment', {
-        target_establishment_id: profile.establishment_id,
+        target_establishment_id: activeEstablishmentId,
         target_professional_id: profile.id,
         target_service_id: quickService,
         target_date_time: confirmedSlot.startsAt,
@@ -289,11 +295,11 @@ export const ProfessionalAgendaScreen = () => {
   };
 
   const createBlock = async (draft: ScheduleBlockDraft) => {
-    if (!profile?.establishment_id || !profile.id) return;
+    if (!activeEstablishmentId || !profile?.id) return;
     setBlockLoading(true);
     setBlockError(null);
     const { error } = await supabase.rpc('create_schedule_block', {
-      target_establishment_id: profile.establishment_id,
+      target_establishment_id: activeEstablishmentId,
       target_professional_id: profile.id,
       requested_start: draft.startsAt.toISOString(),
       requested_end: draft.endsAt.toISOString(),
@@ -383,18 +389,93 @@ export const ProfessionalAgendaScreen = () => {
     specialties?: string | null;
     pix_key?: string | null;
   };
-  const needsOnboarding = profile?.role === 'professional' && (
+  const needsOnboarding = activeContext?.roleTemplate === 'professional' && (
     !profileExtras?.specialties
     || !profile?.titulo_profissional
     || (professionalPixAllowed && !profileExtras?.pix_key)
   );
+
+  useEffect(() => {
+    if (!needsOnboarding || !activeContext?.establishmentId) {
+      setProfessionalOnboardingProgress(null);
+      return;
+    }
+    let cancelled = false;
+    const loadProgress = async () => {
+      try {
+        const existing = (await listWebOnboardingProgress('professional_profile'))
+          .find((item) => item.contextKind === 'establishment'
+            && item.establishmentId === activeContext.establishmentId);
+        const next = existing ?? await setWebOnboardingProgress({
+          intent: 'professional_profile',
+          contextKind: 'establishment',
+          establishmentId: activeContext.establishmentId,
+          organizationId: null,
+          currentStep: 'professional_details',
+          status: 'in_progress',
+          expectedVersion: 0,
+        });
+        if (!cancelled) setProfessionalOnboardingProgress(next);
+      } catch {
+        if (!cancelled) setProfessionalOnboardingProgress(null);
+      }
+    };
+    void loadProgress();
+    return () => { cancelled = true; };
+  }, [activeContext?.establishmentId, needsOnboarding]);
+
+  const persistProfessionalOnboardingStep = useCallback(async (step: 1 | 2 | 3) => {
+    if (!activeContext?.establishmentId || !professionalOnboardingProgress) {
+      throw new Error('onboarding_progress_unavailable');
+    }
+    const currentStep = step === 1
+      ? 'professional_details'
+      : step === 2
+        ? 'work_schedule'
+        : 'payout_details';
+    const next = await setWebOnboardingProgress({
+      intent: 'professional_profile',
+      contextKind: 'establishment',
+      establishmentId: activeContext.establishmentId,
+      organizationId: null,
+      currentStep,
+      status: 'in_progress',
+      expectedVersion: professionalOnboardingProgress.version,
+    });
+    setProfessionalOnboardingProgress(next);
+  }, [activeContext?.establishmentId, professionalOnboardingProgress]);
+
+  const completeProfessionalOnboarding = useCallback(async () => {
+    if (!activeContext?.establishmentId || !professionalOnboardingProgress) {
+      throw new Error('onboarding_progress_unavailable');
+    }
+    const next = await setWebOnboardingProgress({
+      intent: 'professional_profile',
+      contextKind: 'establishment',
+      establishmentId: activeContext.establishmentId,
+      organizationId: null,
+      currentStep: 'completed',
+      status: 'completed',
+      expectedVersion: professionalOnboardingProgress.version,
+    });
+    setProfessionalOnboardingProgress(next);
+    await refreshProfile();
+  }, [activeContext?.establishmentId, professionalOnboardingProgress, refreshProfile]);
+
+  const initialProfessionalOnboardingStep = professionalOnboardingProgress?.currentStep === 'payout_details'
+    ? 3
+    : professionalOnboardingProgress?.currentStep === 'work_schedule'
+      ? 2
+      : 1;
 
   if (needsOnboarding) {
     return (
       <ProfessionalOnboarding
         profile={profile}
         professionalPixAllowed={professionalPixAllowed}
-        onComplete={async () => { await refreshProfile(); }}
+        initialStep={initialProfessionalOnboardingStep}
+        onStepChange={persistProfessionalOnboardingStep}
+        onComplete={completeProfessionalOnboarding}
       />
     );
   }
@@ -546,7 +627,7 @@ export const ProfessionalAgendaScreen = () => {
         canCancel={canActOnSelected}
         canComplete={canUseLegacyComplete}
         canReschedule={canActOnSelected}
-        canTransfer={canActOnSelected && team.filter((member) => member.id !== profile?.id).length > 0}
+        canTransfer={false}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
         onOrderAction={() => {
@@ -597,45 +678,11 @@ export const ProfessionalAgendaScreen = () => {
         }}
         orderActionLabel={selectedOrderActionLabel}
         orderActionLoading={Boolean(appointmentOrder.mutation)}
-        onTransfer={() => setTransferOpen(true)}
         professionalName={appointments.find((item) => item.id === selectedCalendarAppointment?.id)?.barberName}
         serviceOrder={selectedServiceOrder}
         serviceOrderError={financialOpsSyncMessage ?? appointmentOrder.error}
         serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
-        visible={Boolean(selectedCalendarAppointment) && !transferOpen}
-      />
-
-      <TransferProfessionalModal
-        appointment={selectedCalendarAppointment}
-        candidates={team.map((member) => ({ id: member.id, name: member.name }))}
-        establishmentId={profile?.establishment_id}
-        loading={Boolean(actions.loadingId)}
-        onClose={() => setTransferOpen(false)}
-        onPickOtherSlot={(professionalId) => {
-          const item = appointments.find((candidate) => candidate.id === selectedCalendarAppointment?.id);
-          if (!item) return;
-          setTransferOpen(false);
-          setSelectedAppointmentId(null);
-          setRescheduleItem(item);
-          setRescheduleProfessionalId(professionalId);
-          setNewRescheduleDate(new Date(item.dateTime));
-          setNewRescheduleTime(null);
-        }}
-        onTransferSameSlot={async (professionalId) => {
-          if (!selectedCalendarAppointment?.serviceId) return;
-          const ok = await actions.transferProfessional({
-            appointmentId: selectedCalendarAppointment.id,
-            dateTime: selectedCalendarAppointment.startsAt,
-            toProfessionalId: professionalId,
-            serviceId: selectedCalendarAppointment.serviceId,
-          });
-          if (ok) {
-            setTransferOpen(false);
-            setSelectedAppointmentId(null);
-          }
-        }}
-        serviceId={selectedCalendarAppointment?.serviceId}
-        visible={transferOpen && Boolean(selectedCalendarAppointment)}
+        visible={Boolean(selectedCalendarAppointment)}
       />
 
       <CancelAppointmentModal
@@ -662,7 +709,6 @@ export const ProfessionalAgendaScreen = () => {
 
       <AbsenceModeWizard
         appointments={calendarAppointments.map((item) => ({ ...item, serviceId: item.serviceId || '' }))}
-        establishmentId={profile?.establishment_id || ''}
         loading={actions.batchLoading}
         onClose={() => setAbsenceOpen(false)}
         onConfirm={async (input) => {
@@ -677,7 +723,6 @@ export const ProfessionalAgendaScreen = () => {
           return report;
         }}
         professionalId={profile?.id || ''}
-        team={team.map((member) => ({ id: member.id, name: member.name }))}
         visible={absenceOpen}
       />
 

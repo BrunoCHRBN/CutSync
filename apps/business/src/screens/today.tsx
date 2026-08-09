@@ -23,6 +23,10 @@ const roleLabel = {
   owner: 'Proprietário',
   admin: 'Administrador',
   professional: 'Profissional',
+  reception: 'Recepção',
+  cashier: 'Caixa',
+  finance: 'Financeiro',
+  manager: 'Gestor',
 } as const;
 
 export function BusinessTodayScreen() {

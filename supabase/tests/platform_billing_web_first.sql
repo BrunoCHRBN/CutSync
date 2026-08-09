@@ -15,7 +15,11 @@ BEGIN
   INSERT INTO public.profiles(id, name, email, role)
   VALUES
     (owner_id, 'Billing Owner', 'billing-owner@example.test', 'admin'),
-    (professional_id, 'Billing Professional', 'billing-professional@example.test', 'professional');
+    (professional_id, 'Billing Professional', 'billing-professional@example.test', 'professional')
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
   INSERT INTO public.establishments(id, name, slug, account_status)
   VALUES (fixture_establishment_id, 'Billing Fixture', 'billing-fixture', 'active');
   INSERT INTO public.memberships(profile_id, establishment_id, role, created_by)
@@ -35,7 +39,9 @@ BEGIN
   END IF;
 
   UPDATE public.billing_accounts
-  SET trial_ends_at = now() - interval '1 second', transition_ends_at = NULL
+  SET trial_started_at = now() - interval '1 day',
+      trial_ends_at = now() - interval '1 second',
+      transition_ends_at = NULL
   WHERE id = account_id;
   IF public.billing_access_mode(fixture_establishment_id) <> 'read_only' THEN
     RAISE EXCEPTION 'expired trial must be read only';
@@ -67,6 +73,7 @@ BEGIN
     RAISE EXCEPTION 'expired grace must be read only';
   END IF;
 
+  PERFORM set_config('cutsync.governance_status_reason', 'sql_test', true);
   UPDATE public.establishments SET account_status = 'blocked' WHERE id = fixture_establishment_id;
   IF public.billing_access_mode(fixture_establishment_id) <> 'blocked' THEN
     RAISE EXCEPTION 'administrative block must override payment';

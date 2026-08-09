@@ -27,6 +27,10 @@ import {
   BriefcaseBusiness,
 } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  resolveWebOperationalSurface,
+  useOperationalContext,
+} from '../../contexts/operational-context';
 import { supabase } from '../../services/supabase';
 import { landingColors, landingLayout, landingRadii, landingTypography } from '../../theme/landing-tokens';
 import { Establishment } from '@cutsync/database';
@@ -96,7 +100,8 @@ const SectionHeading = ({ eyebrow, title, description }: { eyebrow: string; titl
 const ClientLandingContent = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ audience?: string }>();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { activeContext } = useOperationalContext();
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const { quality } = useLandingMotion();
@@ -252,7 +257,8 @@ const ClientLandingContent = () => {
       setAccessModalVisible(true);
       return;
     }
-    router.push((profile?.role === 'admin' ? '/admin' : profile?.role === 'professional' ? '/professional' : '/explore') as never);
+    const surface = resolveWebOperationalSurface(activeContext);
+    router.push((surface === 'admin' ? '/admin' : surface === 'professional' ? '/professional' : '/explore') as never);
   };
 
   const selectAccessPath = (path: AccessPath) => {

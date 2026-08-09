@@ -42,7 +42,7 @@ BEGIN
 
   SELECT * INTO own_profile
   FROM public.update_my_client_profile('Cliente Seguro', '(11) 99999-9999');
-  IF own_profile.name <> 'Cliente Seguro' OR own_profile.phone <> '11999999999' THEN
+  IF own_profile.name <> 'Cliente Seguro' OR own_profile.phone <> '+5511999999999' THEN
     RAISE EXCEPTION 'FAIL: profile fields were not normalized';
   END IF;
 
@@ -104,6 +104,8 @@ BEGIN
   END IF;
 END $$;
 
+RESET ROLE;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -117,5 +119,4 @@ BEGIN
   END IF;
 END $$;
 
-RESET ROLE;
 ROLLBACK;

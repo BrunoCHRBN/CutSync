@@ -1,0 +1,56 @@
+name: Phase 1 Gate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/phase1-gate.yml'
+      - 'apps/business/**'
+      - 'apps/web/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'packages/database/**'
+      - 'scripts/reset-supabase-reconciled.ps1'
+      - 'scripts/validate-phase1-real-jwt.mjs'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/phase1_*.sql'
+      - 'tests/unit/business-*.spec.ts'
+      - 'tests/unit/identity-context.unit.spec.ts'
+      - 'tests/unit/web-authorized-routing.unit.spec.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-jwt-authorization:
+    name: JWT real, AAL2 e isolamento
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Reconstruir banco descartável reconciliado
+        shell: pwsh
+        run: ./scripts/reset-supabase-reconciled.ps1
+
+      - name: Homologar papéis, revogação e AAL2 com JWTs reais
+        run: npm run test:phase1:real-jwt
+
+      - name: Encerrar Supabase local
+        if: always()
+        run: supabase stop --no-backup

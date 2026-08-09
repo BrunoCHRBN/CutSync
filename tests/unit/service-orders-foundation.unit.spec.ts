@@ -199,7 +199,7 @@ test('teste SQL é transacional e cobre invariantes críticos', () => {
   expect(sqlTest).toContain('service_order_item_professional_tenant_mismatch');
   expect(sqlTest).toContain('service_orders_transition_actor_chk');
   expect(sqlTest).toContain('service_orders_transition_chronology_chk');
-  expect(sqlTest).toContain('Etapa 3 RPCs must not exist yet');
+  expect(sqlTest).toContain('service_orders_foundation checks passed');
 });
 
 test('migration não cria RPCs de lifecycle nem tabelas financeiras POS', () => {
@@ -218,5 +218,5 @@ test('migration não cria RPCs de lifecycle nem tabelas financeiras POS', () => 
 test('documento canônico registra Etapa 2 e critério de pronto', () => {
   expect(canonicalDoc).toContain('20260815000000_service_orders_foundation.sql');
   expect(canonicalDoc).toContain('15.3 Critério de pronto desta Etapa 2');
-  expect(canonicalDoc).toContain('Etapa 3 não iniciada');
+  expect(canonicalDoc).toContain('Etapa 3: ver §16.5');
 });

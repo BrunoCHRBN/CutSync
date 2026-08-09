@@ -200,7 +200,7 @@ export const ClientSettingsExperience = () => {
     setUploadingAvatar(true);
     setNotice(null);
     try {
-      const { error } = await supabase.rpc('update_my_client_avatar', { target_avatar_url: null });
+      const { error } = await supabase.rpc('update_my_client_avatar', { target_avatar_url: '' });
       if (error) throw error;
       await refreshProfile();
       setNotice({ tone: 'success', message: 'Foto do perfil removida.' });

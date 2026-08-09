@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import { Establishment, mapEstablishment } from '@cutsync/database';
+import { Establishment, mapEstablishment, PUBLIC_ESTABLISHMENT_SELECT } from '@cutsync/database';
 
 /**
  * Hook para buscar e observar um estabelecimento em tempo real via Supabase.
@@ -18,7 +18,7 @@ export function useEstablishment(identifier: string | null | undefined, by: 'id'
     try {
       const { data, error: err } = await supabase
         .from('establishments')
-        .select('*')
+        .select(PUBLIC_ESTABLISHMENT_SELECT)
         .eq(by, identifier)
         .single();
       if (err) throw err;

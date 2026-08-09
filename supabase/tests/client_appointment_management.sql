@@ -160,6 +160,11 @@ BEGIN
     'agenda-client-service'
   );
 
+END $$;
+
+RESET ROLE;
+DO $$
+BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.appointments
     WHERE id = '86000000-0000-0000-0000-000000000106'
@@ -168,7 +173,6 @@ BEGIN
   ) THEN RAISE EXCEPTION 'FAIL: instant reschedule was not confirmed'; END IF;
 END $$;
 
-RESET ROLE;
 UPDATE public.establishments
 SET instant_booking_enabled = false
 WHERE id = '86000000-0000-0000-0000-000000000010';
@@ -199,6 +203,11 @@ BEGIN
     'agenda-client-service'
   );
 
+END $$;
+
+RESET ROLE;
+DO $$
+BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.appointments
     WHERE id = '86000000-0000-0000-0000-000000000107'
@@ -207,7 +216,6 @@ BEGIN
   ) THEN RAISE EXCEPTION 'FAIL: non-instant reschedule was not left pending'; END IF;
 END $$;
 
-RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.set_actor('86000000-0000-0000-0000-000000000002');
 

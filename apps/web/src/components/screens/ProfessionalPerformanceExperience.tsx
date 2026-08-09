@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { Check, Percent, WalletCards, XCircle } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEstablishment } from '../../hooks/useEstablishment';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
@@ -42,16 +43,17 @@ const rangeFor = (key: RangeKey) => {
 
 export const ProfessionalPerformanceExperience = () => {
   const { profile, signOut } = useAuth();
-  const { establishment } = useEstablishment(profile?.establishment_id);
+  const { activeEstablishmentId } = useOperationalContext();
+  const { establishment } = useEstablishment(activeEstablishmentId);
   const [rangeKey, setRangeKey] = useState<RangeKey>('day');
   const range = useMemo(() => rangeFor(rangeKey), [rangeKey]);
 
   const { appointments, loading } = useAppointments({
-    establishmentId: profile?.establishment_id,
+    establishmentId: activeEstablishmentId,
     professionalId: profile?.id,
     dateFrom: range.start.toISOString(),
     dateTo: range.end.toISOString(),
-    enabled: Boolean(profile?.establishment_id && profile?.id),
+    enabled: Boolean(activeEstablishmentId && profile?.id),
   });
 
   const currency = (value: number) =>

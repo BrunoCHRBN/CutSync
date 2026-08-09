@@ -391,7 +391,7 @@ export const AdminDashboardExperience = () => {
         target_service_id: quickService,
         target_date_time: dateTime.toISOString(),
         target_client_name: quickName.trim(),
-        target_client_id: null,
+        target_client_id: undefined,
       });
       if (error) throw error;
       setQuickOpen(false);
@@ -616,7 +616,7 @@ export const AdminDashboardExperience = () => {
         requested_start: draft.startsAt.toISOString(),
         requested_end: draft.endsAt.toISOString(),
         requested_kind: draft.kind,
-        requested_reason: draft.reason,
+        requested_reason: draft.reason ?? undefined,
       });
       if (error) throw error;
     }));

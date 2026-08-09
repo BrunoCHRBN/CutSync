@@ -41,8 +41,9 @@ export const AdminShell = ({ children, activeRoute, shopName, userName, onSignOu
       Alert.alert('Acesso removido', 'Este estabelecimento não está mais disponível para sua conta.');
       return;
     }
-    selectEstablishment(targetShopId);
-    router.replace('/(admin)');
+    if (await selectEstablishment(targetShopId)) {
+      router.replace('/(admin)');
+    }
   };
 
   const shopControl = contexts.length > 1 ? (

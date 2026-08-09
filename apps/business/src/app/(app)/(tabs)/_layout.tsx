@@ -6,11 +6,11 @@ import { businessTheme } from '@/theme/business-theme';
 
 export default function BusinessTabsLayout() {
   const { activeContext } = useBusinessOperational();
-  const canManage = hasBusinessManagementNavigation(activeContext?.operationalRole);
+  const canManage = hasBusinessManagementNavigation(activeContext?.capabilities);
 
   return (
     <NativeTabs
-      key={`${activeContext?.establishmentId}:${activeContext?.operationalRole}`}
+      key={`${activeContext?.establishmentId}:${activeContext?.capabilities.join(',')}`}
       backgroundColor={businessTheme.colors.canvasRaised}
       badgeBackgroundColor={businessTheme.colors.danger}
       iconColor={{

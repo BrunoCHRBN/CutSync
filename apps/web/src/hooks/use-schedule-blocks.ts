@@ -56,7 +56,7 @@ export function useScheduleBlocks({
     setLoading(true);
     const { data, error: queryError } = await supabase.rpc('get_schedule_blocks', {
       target_establishment_id: establishmentId,
-      target_professional_id: professionalId || null,
+      target_professional_id: professionalId || undefined,
       range_start: rangeStartIso,
       range_end: rangeEndIso,
     });

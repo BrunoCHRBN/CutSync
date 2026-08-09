@@ -1,6 +1,6 @@
 import type {
+  BusinessCapability,
   BusinessOperationalContext,
-  BusinessOperationalRole,
 } from '@cutsync/database';
 
 export type BusinessEntryState =
@@ -46,8 +46,13 @@ export const resolveBusinessEntryState = ({
 };
 
 export const hasBusinessManagementNavigation = (
-  role: BusinessOperationalRole | null | undefined,
-) => role === 'owner' || role === 'admin';
+  capabilities: readonly BusinessCapability[] | null | undefined,
+) => Boolean(capabilities?.some((capability) => (
+  capability === 'view_unit_reports'
+  || capability === 'manage_services'
+  || capability === 'manage_team'
+  || capability === 'manage_operational_settings'
+)));
 
 export const getActiveEstablishmentStorageKey = (
   userId: string,

@@ -24,7 +24,7 @@ export function RestrictedBusinessExperience() {
           : 'O responsável financeiro do estabelecimento precisa regularizar a conta.'}</Text>
         {connectionError ? <Text style={styles.error}>Sem conexão para confirmar a situação agora.</Text> : null}
         <View style={styles.actions}>
-          {(access?.billing_owner || ['owner', 'finance'].includes(access?.payer_role ?? ''))
+          {access && (access.billing_owner || ['owner', 'finance'].includes(access.payer_role ?? ''))
             && access.membership_role === 'admin'
             ? <AppButton label="Ver cobrança" onPress={() => router.push('/(admin)/billing')} />
             : null}

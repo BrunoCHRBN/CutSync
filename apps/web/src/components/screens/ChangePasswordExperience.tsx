@@ -3,6 +3,10 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { ArrowLeft, KeyRound, ShieldCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  resolveWebOperationalSurface,
+  useOperationalContext,
+} from '../../contexts/operational-context';
 import { supabase } from '../../services/supabase';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
 import { AppButton } from '../ui/AppButton';
@@ -16,7 +20,8 @@ import { colors, layout, radii, typography } from '../../theme/tokens';
 
 export const ChangePasswordExperience = () => {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { activeContext } = useOperationalContext();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -28,8 +33,9 @@ export const ChangePasswordExperience = () => {
       router.back();
       return;
     }
-    if (profile?.role === 'admin') router.replace('/(admin)' as never);
-    else if (profile?.role === 'professional') router.replace('/(professional)' as never);
+    const surface = resolveWebOperationalSurface(activeContext);
+    if (surface === 'admin') router.replace('/(admin)' as never);
+    else if (surface === 'professional') router.replace('/(professional)' as never);
     else router.replace('/(client)/preferences' as never);
   };
 

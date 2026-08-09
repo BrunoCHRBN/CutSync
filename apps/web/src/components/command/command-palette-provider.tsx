@@ -3,6 +3,10 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, us
 import { ArrowRight, Command, Search, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  resolveWebOperationalSurface,
+  useOperationalContext,
+} from '../../contexts/operational-context';
 import { colors, elevations, layout, radii, spacing, typeScale } from '../../theme/tokens';
 import { isEditableCommandTarget } from './command-utils';
 
@@ -28,7 +32,8 @@ const CommandPaletteContext = createContext<CommandPaletteContextValue | null>(n
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export const CommandPaletteProvider = ({ children }: { children: ReactNode }) => {
-  const { profile } = useAuth();
+  const { user } = useAuth();
+  const { activeContext } = useOperationalContext();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const desktop = width >= layout.desktopBreakpoint;
@@ -69,13 +74,13 @@ export const CommandPaletteProvider = ({ children }: { children: ReactNode }) =>
 
   const allCommands = useMemo(() => {
     void registryVersion;
-    const role = profile?.role;
-    if (!role) return [];
+    if (!user) return [];
+    const role = resolveWebOperationalSurface(activeContext);
     const merged = new Map<string, AppCommand>();
     baseCommands.forEach((command) => merged.set(command.id, command));
     registry.current.forEach((commands) => commands.forEach((command) => merged.set(command.id, command)));
     return [...merged.values()].filter((command) => command.roles.includes(role));
-  }, [baseCommands, profile?.role, registryVersion]);
+  }, [activeContext, baseCommands, registryVersion, user]);
 
   const filteredCommands = useMemo(() => {
     const term = normalize(query.trim());
@@ -90,7 +95,7 @@ export const CommandPaletteProvider = ({ children }: { children: ReactNode }) =>
   }, [close]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || !profile) return;
+    if (Platform.OS !== 'web' || !user) return;
     const handler = (event: KeyboardEvent) => {
       const commandKey = event.metaKey || event.ctrlKey;
       if (commandKey && event.key.toLowerCase() === 'k') {
@@ -129,7 +134,7 @@ export const CommandPaletteProvider = ({ children }: { children: ReactNode }) =>
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [allCommands, close, filteredCommands, profile, runCommand, selectedIndex, visible]);
+  }, [allCommands, close, filteredCommands, runCommand, selectedIndex, user, visible]);
 
   useEffect(() => setSelectedIndex(0), [query]);
 
@@ -138,7 +143,7 @@ export const CommandPaletteProvider = ({ children }: { children: ReactNode }) =>
   return (
     <CommandPaletteContext.Provider value={contextValue}>
       {children}
-      <Modal animationType="fade" onRequestClose={close} transparent visible={Boolean(profile && visible)}>
+      <Modal animationType="fade" onRequestClose={close} transparent visible={Boolean(user && visible)}>
         <Pressable accessibilityLabel="Fechar central de comandos" onPress={close} style={[styles.backdrop, !desktop && styles.backdropMobile]}>
           <Pressable
             accessibilityViewIsModal

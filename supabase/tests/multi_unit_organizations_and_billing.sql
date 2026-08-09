@@ -6,7 +6,7 @@ DECLARE
   outsider_id uuid := gen_random_uuid();
   establishment_one uuid := gen_random_uuid();
   establishment_two uuid := gen_random_uuid();
-  organization_id uuid;
+  target_organization_id uuid;
 BEGIN
   INSERT INTO auth.users(id, email, email_confirmed_at)
   VALUES
@@ -15,7 +15,11 @@ BEGIN
   INSERT INTO public.profiles(id, name, email, role)
   VALUES
     (owner_id, 'Owner Fixture', 'multi-owner@example.test', 'admin'),
-    (outsider_id, 'Outsider Fixture', 'multi-outsider@example.test', 'admin');
+    (outsider_id, 'Outsider Fixture', 'multi-outsider@example.test', 'admin')
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
   INSERT INTO public.establishments(id, name, slug, account_status)
   VALUES
     (establishment_one, 'Fixture One', 'fixture-multi-one', 'active'),
@@ -28,39 +32,54 @@ BEGIN
 
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    json_build_object('sub', owner_id, 'role', 'authenticated', 'aal', 'aal2')::text,
+    true
+  );
 
-  organization_id := public.create_organization(establishment_one, 'Fixture Group');
-  PERFORM public.add_organization_establishment(organization_id, establishment_two);
+  target_organization_id := public.create_organization(establishment_one, 'Fixture Group');
+  PERFORM public.add_organization_establishment(target_organization_id, establishment_two);
 
-  IF (SELECT count(*) FROM public.organization_establishments
-      WHERE organization_id = multi_unit_organizations_and_billing.organization_id
-        AND status = 'active') <> 2 THEN
+  IF (SELECT count(*) FROM public.organization_establishments AS link
+      WHERE link.organization_id = target_organization_id
+        AND link.status = 'active') <> 2 THEN
     RAISE EXCEPTION 'expected two active organization establishments';
   END IF;
 
   PERFORM set_config('request.jwt.claim.sub', outsider_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    json_build_object('sub', outsider_id, 'role', 'authenticated', 'aal', 'aal2')::text,
+    true
+  );
   BEGIN
-    PERFORM public.get_organization_context(organization_id);
+    PERFORM public.get_organization_context(target_organization_id);
     RAISE EXCEPTION 'outsider unexpectedly read organization context';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'forbidden' THEN RAISE; END IF;
   END;
 
   BEGIN
-    PERFORM public.add_organization_establishment(organization_id, establishment_two);
+    PERFORM public.add_organization_establishment(target_organization_id, establishment_two);
     RAISE EXCEPTION 'outsider unexpectedly changed organization';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'organization_owner_required' THEN RAISE; END IF;
   END;
 
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
-  PERFORM public.remove_organization_establishment(organization_id, establishment_two);
+  PERFORM set_config(
+    'request.jwt.claims',
+    json_build_object('sub', owner_id, 'role', 'authenticated', 'aal', 'aal2')::text,
+    true
+  );
+  PERFORM public.remove_organization_establishment(target_organization_id, establishment_two);
 
   IF EXISTS (
-    SELECT 1 FROM public.organization_establishments
-    WHERE organization_id = multi_unit_organizations_and_billing.organization_id
-      AND establishment_id = establishment_two
-      AND status = 'active'
+    SELECT 1 FROM public.organization_establishments AS link
+    WHERE link.organization_id = target_organization_id
+      AND link.establishment_id = establishment_two
+      AND link.status = 'active'
   ) THEN RAISE EXCEPTION 'removed establishment remained active'; END IF;
 END;
 $test$;

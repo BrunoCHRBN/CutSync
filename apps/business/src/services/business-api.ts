@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createServiceOrderApi,
+  mapActiveContextReceipt,
+  mapAuthorizedContext,
   mapBusinessAgendaItem,
   mapBusinessAppointmentDetail,
   mapBusinessInvitationAcceptance,
@@ -8,6 +10,8 @@ import {
   mapBusinessOperationalContext,
   ServiceOrderApiError,
   type AppointmentServiceOrderContext,
+  type ActiveContextReceipt,
+  type AuthorizedContext,
   type BusinessAgendaItem,
   type BusinessAgendaScope,
   type BusinessAppointmentDetail,
@@ -89,6 +93,11 @@ export class BusinessApiError extends Error {
 }
 
 export interface BusinessApi {
+  getAuthorizedContexts: () => Promise<AuthorizedContext[]>;
+  setActiveEstablishmentContext: (input: {
+    establishmentId: string;
+    requestId: string;
+  }) => Promise<ActiveContextReceipt>;
   getOperationalContexts: () => Promise<BusinessOperationalContext[]>;
   getAgendaDay: (
     establishmentId: string,
@@ -278,6 +287,52 @@ const requireToken = (token: string): string => {
 export const createBusinessApi = (
   nullableClient: SupabaseClient<Database> | null,
 ): BusinessApi => ({
+  async getAuthorizedContexts() {
+    const client = requireClient(nullableClient);
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'get_my_authorized_contexts', {
+        target_app_id: 'business',
+      });
+    } catch (error) {
+      throw translateRpcError('contexts', error);
+    }
+    if (result.error) throw translateRpcError('contexts', result.error);
+
+    const rows = asRows(result.data);
+    if (!rows) throw new BusinessApiError('invalid_response');
+    const contexts = rows.flatMap((row) => {
+      const context = mapAuthorizedContext(row);
+      return context ? [context] : [];
+    });
+    if (contexts.length !== rows.length) throw new BusinessApiError('invalid_response');
+    return contexts;
+  },
+
+  async setActiveEstablishmentContext({ establishmentId, requestId }) {
+    if (!UUID_PATTERN.test(establishmentId) || !UUID_PATTERN.test(requestId)) {
+      throw new BusinessApiError('invalid_request');
+    }
+    const client = requireClient(nullableClient);
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'set_my_active_context', {
+        target_app_id: 'business',
+        target_context_kind: 'establishment',
+        target_establishment_id: establishmentId,
+        target_organization_id: null,
+        target_request_id: requestId,
+      });
+    } catch (error) {
+      throw translateRpcError('contexts', error);
+    }
+    if (result.error) throw translateRpcError('contexts', result.error);
+
+    const receipt = mapActiveContextReceipt(result.data);
+    if (!receipt) throw new BusinessApiError('invalid_response');
+    return receipt;
+  },
+
   async getOperationalContexts() {
     const client = requireClient(nullableClient);
     let result: RpcResult;

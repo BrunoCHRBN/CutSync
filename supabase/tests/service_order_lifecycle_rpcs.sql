@@ -180,7 +180,12 @@ BEGIN
     (admin_id, unit_a_id, 'Admin', 'solc-admin@example.test', 'admin'),
     (pro_a_id, unit_a_id, 'Pro A', 'solc-pro-a@example.test', 'professional'),
     (pro_b_id, unit_a_id, 'Pro B', 'solc-pro-b@example.test', 'professional'),
-    (outsider_id, NULL, 'Outsider', 'solc-outsider@example.test', 'client');
+    (outsider_id, NULL, 'Outsider', 'solc-outsider@example.test', 'client')
+  ON CONFLICT (id) DO UPDATE SET
+    establishment_id = EXCLUDED.establishment_id,
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
 
   INSERT INTO public.organizations(id, name, status, created_by)
   VALUES (organization_id, 'SOLC Org', 'active', owner_id);
@@ -959,7 +964,7 @@ BEGIN
       'SELECT public.open_service_order(%L::uuid, %L::uuid, %L, NULL, NULL, NULL)',
       unit_a_id, gen_random_uuid(), appt_main_id
     ),
-    'service_order_already_exists'
+    'service_order_invalid_appointment_status'
   );
 
   -- reopen restores same id
@@ -1185,6 +1190,7 @@ BEGIN
 
   -- blocked: establishment account_status
   PERFORM pg_temp.clear_actor();
+  PERFORM set_config('cutsync.governance_status_reason', 'sql_test', true);
   UPDATE public.establishments
   SET account_status = 'blocked'
   WHERE id = unit_a_id;

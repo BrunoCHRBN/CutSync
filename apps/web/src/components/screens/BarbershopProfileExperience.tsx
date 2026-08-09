@@ -307,7 +307,7 @@ export const BarbershopProfileExperience = () => {
                     </Pressable>
                   )}
                 </View>
-                {!!barbershop.slogan && <Text style={styles.slogan}>"{barbershop.slogan}"</Text>}
+                {!!barbershop.slogan && <Text style={styles.slogan}>“{barbershop.slogan}”</Text>}
                 <Text testID="barbershop-profile-rating" style={styles.metaLine}>
                   {[
                     barbershop.averageRating

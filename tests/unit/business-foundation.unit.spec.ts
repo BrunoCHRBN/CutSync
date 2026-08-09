@@ -59,15 +59,16 @@ test('resolve todos os estados de entrada sem promover acesso em falha de contex
   expect(resolveBusinessEntryState({ ...base, activeAccessMode: 'blocked' })).toBe('blocked');
 });
 
-test('Gestão só existe na navegação inicial de owner e admin', () => {
-  expect(hasBusinessManagementNavigation('owner')).toBe(true);
-  expect(hasBusinessManagementNavigation('admin')).toBe(true);
-  expect(hasBusinessManagementNavigation('professional')).toBe(false);
+test('Gestão segue capabilities confirmadas pelo backend', () => {
+  expect(hasBusinessManagementNavigation(['view_unit_reports'])).toBe(true);
+  expect(hasBusinessManagementNavigation(['manage_team'])).toBe(true);
+  expect(hasBusinessManagementNavigation(['view_own_agenda'])).toBe(false);
+  expect(hasBusinessManagementNavigation([])).toBe(false);
 
   const tabs = read('apps/business/src/app/(app)/(tabs)/_layout.tsx');
   const management = read('apps/business/src/screens/management.tsx');
   expect(tabs).toContain('hidden={!canManage}');
-  expect(management).toContain("operationalRole === 'professional'");
+  expect(management).toContain('hasBusinessManagementNavigation(activeContext?.capabilities)');
   expect(management).toContain('<Redirect href="/today" />');
 });
 
