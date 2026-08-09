@@ -13,7 +13,11 @@ import { WebAutofillStyles } from '../components/ui/web-autofill-styles';
 import { CommandPaletteProvider } from '../components/command/command-palette-provider';
 import { ToastProvider } from '../components/ui/toast-provider';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { OperationalContextProvider, useOperationalContext } from '../contexts/operational-context';
+import {
+  OperationalContextProvider,
+  resolveWebOperationalSurface,
+  useOperationalContext,
+} from '../contexts/operational-context';
 import { BillingAccessProvider, useBillingAccess } from '../contexts/BillingAccessContext';
 import { FinancialOpsProvider } from '../contexts/financial-ops-context';
 import { isSupabaseConfigured } from '../services/supabase';
@@ -26,7 +30,7 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutNavigation() {
   const buildTarget = process.env.EXPO_PUBLIC_BUILD_TARGET;
   const { user, profile, loading, isSuperadmin, governanceRole } = useAuth();
-  const { contexts, activeContext, initialized: operationalInitialized } = useOperationalContext();
+  const { activeContext, initialized: operationalInitialized } = useOperationalContext();
   const segments = useSegments();
   const router = useRouter();
   const { access } = useBillingAccess();
@@ -118,17 +122,12 @@ function RootLayoutNavigation() {
       }
       if (isClientEstablishmentRequest) return;
 
-      const effectiveRole = activeContext?.membershipRole
-        ?? (contexts.some((context) => context.membershipRole === 'admin')
-          ? 'admin'
-          : contexts.some((context) => context.membershipRole === 'professional')
-            ? 'professional'
-            : profile.role);
-      if (effectiveRole === 'admin') {
+      const operationalSurface = resolveWebOperationalSurface(activeContext);
+      if (operationalSurface === 'admin') {
         if (!inAdminGroup && !isDynamicSlug && !isPublicSalon && !isPublicProfessionalProfile && !isProfessionalProfileEditor) {
           router.replace('/(admin)');
         }
-      } else if (effectiveRole === 'professional') {
+      } else if (operationalSurface === 'professional') {
         if (!inProfessionalGroup && !isPublicProfessionalProfile && !isProfessionalProfileEditor && !isDynamicSlug && !isPublicSalon) {
           router.replace('/(professional)');
         }
@@ -138,7 +137,7 @@ function RootLayoutNavigation() {
         }
       }
     }
-  }, [activeContext, buildTarget, contexts, user, profile, loading, shouldBlockForOperationalContext, isSuperadmin, governanceRole, segments, router, firstSegment, secondSegment, access, isPublicCompliance, isClientEstablishmentRequest]);
+  }, [activeContext, buildTarget, user, profile, loading, shouldBlockForOperationalContext, isSuperadmin, governanceRole, segments, router, firstSegment, secondSegment, access, isPublicCompliance, isClientEstablishmentRequest]);
 
   if ((loading || shouldBlockForOperationalContext) && !isPublicMarketing) {
     return (

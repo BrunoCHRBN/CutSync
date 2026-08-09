@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Scissors, Clock3, WalletCards, Globe, UserRound, ArrowRight } from 'lucide-react-native';
 import { supabase } from '../../services/supabase';
@@ -11,18 +11,26 @@ import { colors, radii, typography } from '../../theme/tokens';
 interface ProfessionalOnboardingProps {
   profile: any;
   professionalPixAllowed?: boolean;
-  onComplete: () => void;
+  initialStep?: 1 | 2 | 3;
+  onStepChange?: (step: 1 | 2 | 3) => Promise<void>;
+  onComplete: () => Promise<void> | void;
 }
 
-export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true, onComplete }: ProfessionalOnboardingProps) => {
-  const [step, setStep] = useState(1);
+export const ProfessionalOnboarding = ({
+  profile,
+  professionalPixAllowed = true,
+  initialStep = 1,
+  onStepChange,
+  onComplete,
+}: ProfessionalOnboardingProps) => {
+  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Step 1: Vitrine
-  const [titulo, setTitulo] = useState('');
-  const [specialties, setSpecialties] = useState('');
-  const [instagram, setInstagram] = useState('');
+  const [titulo, setTitulo] = useState(profile?.titulo_profissional ?? '');
+  const [specialties, setSpecialties] = useState(profile?.specialties ?? '');
+  const [instagram, setInstagram] = useState(profile?.instagram ?? '');
 
   // Step 2: Escala
   const [startTime, setStartTime] = useState('09:00');
@@ -31,7 +39,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
 
   // Step 3: Financeiro
   const [pixType, setPixType] = useState<'CPF' | 'Celular' | 'E-mail' | 'Chave Aleatória'>('CPF');
-  const [pixKey, setPixKey] = useState('');
+  const [pixKey, setPixKey] = useState(profile?.pix_key ?? '');
 
   // Restrict and formats
   const formatCpf = (val: string) => {
@@ -72,30 +80,13 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
     return val;
   };
 
-  const handleNextStep = () => {
-    setNotice(null);
-    if (step === 1) {
-      if (!titulo.trim() || !specialties.trim()) {
-        setNotice({ tone: 'danger', message: 'Preencha seu título profissional e especialidades para continuar.' });
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-      if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
-        setNotice({ tone: 'danger', message: 'Use horários no formato HH:MM (ex: 09:00).' });
-        return;
-      }
-      if (startTime >= endTime) {
-        setNotice({ tone: 'danger', message: 'O horário de entrada deve ser anterior ao de saída.' });
-        return;
-      }
-      if (professionalPixAllowed) {
-        setStep(3);
-      } else {
-        void handleFinish();
-      }
-    }
+  useEffect(() => {
+    setStep(initialStep);
+  }, [initialStep]);
+
+  const moveToStep = async (nextStep: 1 | 2 | 3) => {
+    await onStepChange?.(nextStep);
+    setStep(nextStep);
   };
 
   const normalizeInstagram = (val: string) => {
@@ -110,6 +101,78 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
     return trimmed;
   };
 
+  const persistProfessionalDetails = async () => {
+    const { error } = await supabase.from('profiles')
+      .update({
+        titulo_profissional: titulo.trim(),
+        specialties: specialties.trim(),
+        instagram: normalizeInstagram(instagram),
+      })
+      .eq('id', profile?.id);
+    if (error) throw error;
+  };
+
+  const persistWorkShifts = async () => {
+    const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const shifts = dayNames.map((_, index) => {
+      const isOpen = index === 0 ? openDays[6] : openDays[index - 1];
+      return {
+        profile_id: profile?.id,
+        day_of_week: index,
+        start_time: `${startTime}:00`,
+        end_time: `${endTime}:00`,
+        is_active: isOpen,
+      };
+    });
+    const { error } = await supabase.from('work_shifts')
+      .upsert(shifts, { onConflict: 'profile_id, day_of_week' });
+    if (error) throw new Error(error.message || 'Não foi possível salvar sua jornada de trabalho.');
+  };
+
+  const handleNextStep = async () => {
+    setNotice(null);
+    if (step === 1) {
+      if (!titulo.trim() || !specialties.trim()) {
+        setNotice({ tone: 'danger', message: 'Preencha seu título profissional e especialidades para continuar.' });
+        return;
+      }
+      setLoading(true);
+      try {
+        await persistProfessionalDetails();
+        await moveToStep(2);
+      } catch {
+        setNotice({ tone: 'danger', message: 'Não foi possível salvar os dados e o progresso para retomada.' });
+      } finally {
+        setLoading(false);
+      }
+    } else if (step === 2) {
+      const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
+        setNotice({ tone: 'danger', message: 'Use horários no formato HH:MM (ex: 09:00).' });
+        return;
+      }
+      if (startTime >= endTime) {
+        setNotice({ tone: 'danger', message: 'O horário de entrada deve ser anterior ao de saída.' });
+        return;
+      }
+      setLoading(true);
+      try {
+        await persistWorkShifts();
+        if (professionalPixAllowed) {
+          await moveToStep(3);
+        } else {
+          setLoading(false);
+          await handleFinish();
+          return;
+        }
+      } catch {
+        setNotice({ tone: 'danger', message: 'Não foi possível salvar sua jornada e o progresso para retomada.' });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleFinish = async () => {
     setNotice(null);
     if (professionalPixAllowed && !pixKey.trim()) {
@@ -120,37 +183,15 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
     setLoading(true);
 
     try {
-      // 1. Update Profile info
+      // Professional details and shifts were persisted at their step boundary.
+      // The final step writes only the payout preference it owns.
       const { error: profileError } = await supabase.from('profiles')
         .update({
-          titulo_profissional: titulo.trim(),
-          specialties: specialties.trim(),
-          instagram: normalizeInstagram(instagram),
           pix_key: professionalPixAllowed ? pixKey.trim() : null
         })
         .eq('id', profile?.id);
 
       if (profileError) throw profileError;
-
-      // 2. Insert work shifts
-      const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-      const shifts = dayNames.map((_, index) => {
-        const isOpen = index === 0 ? openDays[6] : openDays[index - 1];
-        return {
-          profile_id: profile?.id,
-          day_of_week: index,
-          start_time: `${startTime}:00`,
-          end_time: `${endTime}:00`,
-          is_active: isOpen
-        };
-      });
-
-      const { error: shiftsError } = await supabase.from('work_shifts')
-        .upsert(shifts, { onConflict: 'profile_id, day_of_week' });
-
-      if (shiftsError) {
-        throw new Error(shiftsError.message || 'Não foi possível salvar sua jornada de trabalho. Tente novamente.');
-      }
 
       await onComplete();
     } catch (err: any) {
@@ -224,6 +265,7 @@ export const ProfessionalOnboarding = ({ profile, professionalPixAllowed = true,
               <AppButton 
                 label="Continuar" 
                 onPress={handleNextStep} 
+                loading={loading}
                 icon={<ArrowRight color={colors.surface} size={17} />}
                 iconPosition="right"
                 fullWidth 

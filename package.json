@@ -27,6 +27,7 @@
     "eas:business:builds": "npm --workspace @cutsync/business run eas:builds",
     "validate:mobile:environments": "npm --workspace @cutsync/client run env:validate:development && npm --workspace @cutsync/client run env:validate:preview && npm --workspace @cutsync/client run env:validate:production && npm --workspace @cutsync/business run env:validate:development && npm --workspace @cutsync/business run env:validate:preview && npm --workspace @cutsync/business run env:validate:production",
     "test:mobile:environment": "playwright test --project=unit tests/unit/mobile-environment-contract.unit.spec.ts",
+    "test:phase1:real-jwt": "node scripts/validate-phase1-real-jwt.mjs",
     "build:web": "npm --workspace @cutsync/web run build:web",
     "build:control": "npm --workspace @cutsync/control run build:web",
     "serve:test": "npm run build:web && npm --workspace @cutsync/web run serve:test",

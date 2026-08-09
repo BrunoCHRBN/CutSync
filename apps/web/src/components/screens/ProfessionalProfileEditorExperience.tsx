@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Eye, ExternalLink, ImagePlus, Save, ShieldCheck, Trash2, UserRound, Scissors, WalletCards, CheckSquare, Square, UploadCloud, Clock3 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOperationalContext } from '../../contexts/operational-context';
 import { supabase } from '../../services/supabase';
 import { ProfessionalGalleryItem, PublicTeamMember } from '@cutsync/database';
 import { ProfessionalShell } from '../layout/ProfessionalShell';
@@ -38,6 +39,7 @@ const defaultShifts = (): WorkShiftDraft[] =>
 
 export const ProfessionalProfileEditorExperience = () => {
   const { profile, refreshProfile, signOut } = useAuth();
+  const { activeEstablishmentId } = useOperationalContext();
   const router = useRouter();
   const { pushToast } = useToast();
   const [section, setSection] = useState<ProfileSection>('dados');
@@ -105,65 +107,82 @@ export const ProfessionalProfileEditorExperience = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
-      const { data } = await supabase.rpc('get_my_professional_profile').maybeSingle();
-      if (data) {
-        const row = data as any;
-        setSlug(row.slug || '');
-        setBio(row.bio || '');
-        setPortfolioUrl(row.portfolio_url || '');
-        setInstagramUrl(row.instagram_url || '');
-        setGallery(Array.isArray(row.gallery_urls) ? row.gallery_urls : []);
-        setIsPublic(Boolean(row.is_public));
+      if (!profile?.id || !activeEstablishmentId) {
+        setLoading(false);
+        return;
       }
-
-      if (profile?.id) {
-        const { data: profData } = await supabase.from('profiles')
-          .select('titulo_profissional, specialties, pix_key, notification_channels')
-          .eq('id', profile.id)
-          .single();
-        if (profData) {
-          setTitulo(profData.titulo_profissional || '');
-          setSpecialties(profData.specialties || '');
-          setPixKey(profData.pix_key || '');
-          if (profData.notification_channels) setNotificationChannels(profData.notification_channels);
-          const cleanVal = profData.pix_key || '';
-          if (cleanVal.includes('@')) setPixType('E-mail');
-          else if (cleanVal.startsWith('+55') || cleanVal.startsWith('55')) setPixType('Celular');
-          else if (cleanVal.replace(/\D/g, '').length === 11) setPixType('CPF');
-          else setPixType('Chave Aleatória');
+      setLoading(true);
+      setNotice(null);
+      try {
+        const [publicProfileResult, profileResult, shiftsResult, establishmentResult] = await Promise.all([
+          supabase.rpc('get_my_professional_profile').maybeSingle(),
+          supabase.from('profiles')
+            .select('titulo_profissional, specialties, pix_key, notification_channels')
+            .eq('id', profile.id)
+            .single(),
+          supabase.from('work_shifts')
+            .select('day_of_week, start_time, end_time, is_active')
+            .eq('profile_id', profile.id),
+          supabase.from('establishments')
+            .select('professional_pix_allowed')
+            .eq('id', activeEstablishmentId)
+            .single(),
+        ]);
+        const firstError = publicProfileResult.error
+          ?? profileResult.error
+          ?? shiftsResult.error
+          ?? establishmentResult.error;
+        if (firstError) throw firstError;
+        if (!profileResult.data || !establishmentResult.data) {
+          throw new Error('invalid_professional_profile_response');
         }
+        if (cancelled) return;
 
-        const { data: shiftRows } = await supabase
-          .from('work_shifts')
-          .select('day_of_week, start_time, end_time, is_active')
-          .eq('profile_id', profile.id);
-        if (shiftRows?.length) {
-          const mapped = defaultShifts().map((fallback) => {
-            const row = shiftRows.find((item) => item.day_of_week === fallback.day_of_week);
-            if (!row) return fallback;
-            return {
+        if (publicProfileResult.data) {
+          const row = publicProfileResult.data as any;
+          setSlug(row.slug || '');
+          setBio(row.bio || '');
+          setPortfolioUrl(row.portfolio_url || '');
+          setInstagramUrl(row.instagram_url || '');
+          setGallery(Array.isArray(row.gallery_urls) ? row.gallery_urls : []);
+          setIsPublic(Boolean(row.is_public));
+        }
+        const profData = profileResult.data;
+        setTitulo(profData.titulo_profissional || '');
+        setSpecialties(profData.specialties || '');
+        setPixKey(profData.pix_key || '');
+        if (profData.notification_channels) setNotificationChannels(profData.notification_channels);
+        const cleanVal = profData.pix_key || '';
+        if (cleanVal.includes('@')) setPixType('E-mail');
+        else if (cleanVal.startsWith('+55') || cleanVal.startsWith('55')) setPixType('Celular');
+        else if (cleanVal.replace(/\D/g, '').length === 11) setPixType('CPF');
+        else setPixType('Chave Aleatória');
+
+        if (shiftsResult.data?.length) {
+          setShifts(defaultShifts().map((fallback) => {
+            const row = shiftsResult.data.find((item) => item.day_of_week === fallback.day_of_week);
+            return row ? {
               day_of_week: row.day_of_week,
               start_time: String(row.start_time).slice(0, 5),
               end_time: String(row.end_time).slice(0, 5),
               is_active: Boolean(row.is_active),
-            };
-          });
-          setShifts(mapped);
+            } : fallback;
+          }));
         }
+        setProfessionalPixAllowed(establishmentResult.data.professional_pix_allowed !== false);
+      } catch {
+        if (!cancelled) {
+          setNotice({ tone: 'danger', message: 'Não foi possível carregar o perfil no contexto selecionado.' });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      if (profile?.establishment_id) {
-        const { data: estData } = await supabase.from('establishments')
-          .select('professional_pix_allowed')
-          .eq('id', profile.establishment_id)
-          .single();
-        if (estData) setProfessionalPixAllowed(estData.professional_pix_allowed !== false);
-      }
-      setLoading(false);
     };
     void load();
-  }, [profile?.id, profile?.establishment_id]);
+    return () => { cancelled = true; };
+  }, [activeEstablishmentId, profile?.id]);
 
   const handlePickDeviceImage = () => {
     if (typeof window === 'undefined' || Platform.OS !== 'web') return;
@@ -577,7 +596,7 @@ export const ProfessionalProfileEditorExperience = () => {
       <ProfessionalProfileSheet
         visible={previewVisible}
         professional={previewMember}
-        establishmentId={profile?.establishment_id}
+        establishmentId={activeEstablishmentId}
         onClose={() => setPreviewVisible(false)}
         onBook={() => setPreviewVisible(false)}
         testID="professional-profile-editor-sheet"

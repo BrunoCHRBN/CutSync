@@ -16,6 +16,9 @@ export const BUSINESS_CAPABILITIES = [
   'manage_clients',
   'export_clients',
   'manage_data_imports',
+  'request_appointment_reassignment',
+  'apply_appointment_reassignment',
+  'correct_appointment_assignment',
   'view_orders',
   'manage_own_orders',
   'manage_team_orders',
@@ -35,6 +38,12 @@ export const BUSINESS_CAPABILITIES = [
   'record_commission_payout',
   'view_reconciliation',
   'manage_reconciliation',
+  'view_financial_reports',
+  'view_fiscal',
+  'manage_fiscal',
+  'view_payment_provider',
+  'manage_payment_provider',
+  'approve_sensitive_actions',
 ] as const;
 
 /** Financial-ops capability subset introduced in P0 Etapa 1. */
@@ -58,9 +67,22 @@ export const FINANCIAL_OPS_CAPABILITIES = [
   'record_commission_payout',
   'view_reconciliation',
   'manage_reconciliation',
+  'view_financial_reports',
+  'view_fiscal',
+  'manage_fiscal',
+  'view_payment_provider',
+  'manage_payment_provider',
+  'approve_sensitive_actions',
 ] as const;
 
-export type BusinessOperationalRole = 'owner' | 'admin' | 'professional';
+export type BusinessOperationalRole =
+  | 'owner'
+  | 'admin'
+  | 'professional'
+  | 'reception'
+  | 'cashier'
+  | 'finance'
+  | 'manager';
 export type BusinessAccessMode = 'full' | 'read_only' | 'blocked';
 export type BusinessCapability = (typeof BUSINESS_CAPABILITIES)[number];
 export type BusinessMembershipRole = 'admin' | 'professional';
@@ -208,35 +230,20 @@ type UnknownRecord = Record<string, unknown>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const ROLE_CAPABILITIES: Record<BusinessOperationalRole, ReadonlySet<BusinessCapability>> = {
-  owner: new Set(BUSINESS_CAPABILITIES),
-  admin: new Set(BUSINESS_CAPABILITIES.filter((capability) => (
-    capability !== 'manage_admins' && capability !== 'reopen_cash'
-  ))),
-  professional: new Set([
-    'view_own_agenda',
-    'view_team_agenda',
-    'create_self_walk_in',
-    'manage_own_blocks',
-    'view_services',
-    'view_own_commission',
-    'view_orders',
-    'manage_own_orders',
-    'view_payments',
-  ]),
-};
-
 const READ_ONLY_CAPABILITIES = new Set<BusinessCapability>([
   'view_own_agenda',
   'view_team_agenda',
   'view_services',
   'view_own_commission',
   'view_unit_reports',
+  'view_financial_reports',
   'view_orders',
   'view_payments',
   'view_cash',
   'view_team_commission',
   'view_reconciliation',
+  'view_fiscal',
+  'view_payment_provider',
 ]);
 
 const isRecord = (value: unknown): value is UnknownRecord => (
@@ -271,7 +278,15 @@ const asTimestamp = (value: unknown): string | null => {
 };
 
 const asOperationalRole = (value: unknown): BusinessOperationalRole | null => (
-  value === 'owner' || value === 'admin' || value === 'professional' ? value : null
+  value === 'owner'
+  || value === 'admin'
+  || value === 'professional'
+  || value === 'reception'
+  || value === 'cashier'
+  || value === 'finance'
+  || value === 'manager'
+    ? value
+    : null
 );
 
 const asMembershipRole = (value: unknown): BusinessMembershipRole | null => (
@@ -323,7 +338,7 @@ const asIdentifierArray = (value: unknown): string[] | null => {
 
 export const filterBusinessCapabilities = (
   value: unknown,
-  role: BusinessOperationalRole,
+  _role: BusinessOperationalRole,
   accessMode: BusinessAccessMode,
 ): BusinessCapability[] => {
   if (!Array.isArray(value) || accessMode === 'blocked') return [];
@@ -331,11 +346,8 @@ export const filterBusinessCapabilities = (
   const requested = new Set(
     value.filter((capability): capability is string => typeof capability === 'string'),
   );
-  const roleCapabilities = ROLE_CAPABILITIES[role];
-
   return BUSINESS_CAPABILITIES.filter((capability) => (
     requested.has(capability)
-    && roleCapabilities.has(capability)
     && (accessMode === 'full' || READ_ONLY_CAPABILITIES.has(capability))
   ));
 };
@@ -399,9 +411,9 @@ export const mapBusinessOperationalContext = (
     return null;
   }
 
-  const roleMatchesMembership = membershipRole === 'professional'
-    ? operationalRole === 'professional'
-    : operationalRole === 'owner' || operationalRole === 'admin';
+  const roleMatchesMembership = operationalRole === 'owner'
+    || (operationalRole === 'admin' && membershipRole === 'admin')
+    || (operationalRole !== 'admin' && membershipRole === 'professional');
   const billingIsResolvedForAccess = accessMode === 'blocked'
     || (billingScope !== null && billingAccountId !== null);
   if (!roleMatchesMembership || !billingIsResolvedForAccess) return null;

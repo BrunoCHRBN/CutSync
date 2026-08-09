@@ -77,6 +77,13 @@ try {
 
   Copy-Item -LiteralPath (Join-Path $supabaseRoot 'config.toml') -Destination $tempSupabase
 
+  # config.toml references local Edge Function configuration. Keep the
+  # disposable project self-contained without changing the historical files.
+  $functionsRoot = Join-Path $supabaseRoot 'functions'
+  if (Test-Path -LiteralPath $functionsRoot -PathType Container) {
+    Copy-Item -LiteralPath $functionsRoot -Destination $tempSupabase -Recurse
+  }
+
   Get-ChildItem -LiteralPath $migrationRoot -Filter '*.sql' -File |
     Where-Object { $excludedDuplicateFiles -notcontains $_.Name } |
     Copy-Item -Destination $tempMigrations
@@ -92,6 +99,20 @@ try {
 
   Write-Host "Resetting the local disposable database with the reconciled migration sequence."
   Write-Host "Historical files remain unchanged in: $migrationRoot"
+
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  & npx supabase status --workdir $workspacePath 1>$null 2>$null
+  $statusExitCode = $LASTEXITCODE
+  $ErrorActionPreference = $previousErrorActionPreference
+  if ($statusExitCode -ne 0) {
+    Write-Host 'Starting the reconciled local Supabase stack.'
+    & npx supabase start --workdir $workspacePath 1>$null
+    if ($LASTEXITCODE -ne 0) {
+      throw "Supabase reconciled start failed with exit code $LASTEXITCODE."
+    }
+  }
+
   & npx supabase db reset --local --no-seed --workdir $workspacePath --yes
   if ($LASTEXITCODE -ne 0) {
     throw "Supabase reconciled reset failed with exit code $LASTEXITCODE."

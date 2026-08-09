@@ -9,12 +9,13 @@ import {
   BusinessPage,
 } from '@/components/ui/business-ui';
 import { useBusinessOperational } from '@/contexts/business-operational-context';
+import { hasBusinessManagementNavigation } from '@/features/access/business-access';
 import { businessTheme } from '@/theme/business-theme';
 
 export function BusinessManagementScreen() {
   const router = useRouter();
   const { activeContext, hasCapability } = useBusinessOperational();
-  if (activeContext?.operationalRole === 'professional') {
+  if (!hasBusinessManagementNavigation(activeContext?.capabilities)) {
     return <Redirect href="/today" />;
   }
 

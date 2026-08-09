@@ -11,6 +11,101 @@
  * CutSync Business.
  */
 export interface BusinessRpcFunctions {
+  get_my_authorized_contexts: {
+    Args: { target_app_id: string };
+    Returns: unknown[];
+  };
+  set_my_active_context: {
+    Args: {
+      target_app_id: string;
+      target_context_kind: string;
+      target_establishment_id: string | null;
+      target_organization_id: string | null;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  get_my_onboarding_progress: {
+    Args: {
+      target_app_id: string;
+      target_intent?: string | null;
+    };
+    Returns: unknown[];
+  };
+  set_my_onboarding_progress: {
+    Args: {
+      target_app_id: string;
+      target_intent: string;
+      target_context_kind: string;
+      target_establishment_id: string | null;
+      target_organization_id: string | null;
+      target_current_step: string;
+      target_status: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  request_capability_override_approval: {
+    Args: {
+      target_establishment_id: string;
+      target_membership_id: string;
+      target_capability: string;
+      target_effect: string;
+      target_justification: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  decide_capability_override_approval: {
+    Args: {
+      target_approval_request_id: string;
+      target_expected_version: number;
+      target_decision: string;
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  apply_membership_capability_override: {
+    Args: {
+      target_approval_request_id: string;
+      target_expected_approval_version: number;
+      target_valid_until?: string | null;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  request_capability_override_revocation: {
+    Args: {
+      target_override_id: string;
+      target_justification: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  revoke_membership_capability_override: {
+    Args: {
+      target_approval_request_id: string;
+      target_expected_approval_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  get_establishment_readiness: {
+    Args: { target_establishment_id: string };
+    Returns: unknown;
+  };
+  set_establishment_lifecycle_status: {
+    Args: {
+      target_establishment_id: string;
+      target_lifecycle_status: string;
+      target_expected_version: number;
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
   accept_invitation: {
     Args: { invitation_token: string };
     Returns: {

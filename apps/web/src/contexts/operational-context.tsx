@@ -1,18 +1,38 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  mapActiveContextReceipt,
+  mapAuthorizedContext,
+  type AuthorizedContext,
+} from '@cutsync/database';
+import { createMobileRequestId } from '@cutsync/domain';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import { OperationalContext } from '@cutsync/database';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase';
+export {
+  resolveWebOperationalSurface,
+  type WebOperationalSurface,
+} from '../features/access/web-operational-surface';
+
+export type WebEstablishmentContext = AuthorizedContext & {
+  contextKind: 'establishment';
+  establishmentId: string;
+  establishmentName: string;
+  membershipId: string;
+  membershipRole: 'admin' | 'professional';
+  membershipStatus: 'active';
+};
 
 interface OperationalContextValue {
-  contexts: OperationalContext[];
+  contexts: WebEstablishmentContext[];
+  authorizedContexts: AuthorizedContext[];
   activeEstablishmentId: string | null;
-  activeContext: OperationalContext | null;
+  activeContext: WebEstablishmentContext | null;
+  activeAuthorizedContext: AuthorizedContext | null;
   loading: boolean;
   initialized: boolean;
   error: string | null;
   selectionRequired: boolean;
-  selectEstablishment: (establishmentId: string) => void;
+  selectEstablishment: (establishmentId: string) => Promise<boolean>;
   refreshOperationalContexts: () => Promise<void>;
 }
 
@@ -30,55 +50,90 @@ const storeContext = (userId: string, establishmentId: string) => {
   window.localStorage.setItem(storageKey(userId), establishmentId);
 };
 
-const mapContext = (row: Record<string, unknown>): OperationalContext => ({
-  membershipId: String(row.membership_id),
-  establishmentId: String(row.establishment_id),
-  establishmentName: String(row.establishment_name),
-  establishmentSlug: String(row.establishment_slug),
-  membershipRole: row.membership_role === 'admin' ? 'admin' : 'professional',
-  membershipStatus: row.membership_status === 'revoked' ? 'revoked' : 'active',
-  commissionRate: Number(row.commission_rate ?? 0),
-  establishmentStatus: String(row.establishment_status ?? 'pending_verification'),
-});
+const isEstablishmentContext = (
+  context: AuthorizedContext,
+): context is WebEstablishmentContext => (
+  context.contextKind === 'establishment'
+  && context.establishmentId !== null
+  && context.establishmentName !== null
+  && context.membershipId !== null
+  && context.membershipRole !== null
+  && context.membershipStatus === 'active'
+);
 
 export const OperationalContextProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
-  const [contexts, setContexts] = useState<OperationalContext[]>([]);
+  const [authorizedContexts, setAuthorizedContexts] = useState<AuthorizedContext[]>([]);
   const [activeEstablishmentId, setActiveEstablishmentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshVersion = useRef(0);
 
   const refreshOperationalContexts = useCallback(async () => {
     if (!user) {
-      setContexts([]);
+      setAuthorizedContexts([]);
       setActiveEstablishmentId(null);
       setLoading(false);
       setInitialized(true);
+      setError(null);
       return;
     }
+    const version = ++refreshVersion.current;
     setLoading(true);
     try {
-      const { data, error: rpcError } = await supabase.rpc('get_my_operational_contexts');
-      if (rpcError) throw rpcError;
-      const next = ((data ?? []) as Record<string, unknown>[]).map(mapContext);
-      const stored = readStoredContext(user.id);
-      const currentIsValid = activeEstablishmentId
-        ? next.some((item) => item.establishmentId === activeEstablishmentId)
-        : false;
-      const storedIsValid = stored ? next.some((item) => item.establishmentId === stored) : false;
-      setContexts(next);
-      setActiveEstablishmentId(
-        currentIsValid ? activeEstablishmentId : storedIsValid ? stored : next.length === 1 ? next[0].establishmentId : null,
+      const { data, error: rpcError } = await (supabase.rpc as any)(
+        'get_my_authorized_contexts',
+        { target_app_id: 'web' },
       );
+      if (rpcError) throw rpcError;
+      const rows = Array.isArray(data) ? data : [];
+      const nextAuthorized = rows.map(mapAuthorizedContext);
+      if (nextAuthorized.some((context) => context === null)) {
+        throw new Error('invalid_authorized_context_response');
+      }
+      const confirmed = nextAuthorized as AuthorizedContext[];
+      const establishments = confirmed.filter(isEstablishmentContext);
+      const serverActive = confirmed.find((context) => context.active) ?? null;
+      const stored = readStoredContext(user.id);
+      const suggested = serverActive
+        ? serverActive.contextKind === 'establishment' ? serverActive.establishmentId : null
+        : establishments.find((context) => context.establishmentId === stored)?.establishmentId
+          ?? establishments[0]?.establishmentId
+          ?? null;
+
+      if (!serverActive && suggested) {
+        const { data: receiptData, error: selectionError } = await (supabase.rpc as any)(
+          'set_my_active_context',
+          {
+            target_app_id: 'web',
+            target_context_kind: 'establishment',
+            target_establishment_id: suggested,
+            target_organization_id: null,
+            target_request_id: createMobileRequestId(),
+          },
+        );
+        if (selectionError || !mapActiveContextReceipt(receiptData)) {
+          throw selectionError ?? new Error('invalid_active_context_receipt');
+        }
+      }
+      if (version !== refreshVersion.current) return;
+      setAuthorizedContexts(confirmed);
+      setActiveEstablishmentId(suggested);
+      if (suggested) storeContext(user.id, suggested);
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os estabelecimentos.');
+      if (version !== refreshVersion.current) return;
+      setError(cause instanceof Error ? cause.message : 'Não foi possível confirmar os contextos autorizados.');
+      setAuthorizedContexts([]);
+      setActiveEstablishmentId(null);
     } finally {
-      setLoading(false);
-      setInitialized(true);
+      if (version === refreshVersion.current) {
+        setLoading(false);
+        setInitialized(true);
+      }
     }
-  }, [activeEstablishmentId, user]);
+  }, [user]);
 
   useEffect(() => {
     setInitialized(false);
@@ -97,30 +152,80 @@ export const OperationalContextProvider = ({ children }: { children: React.React
       }, () => { void refreshOperationalContexts(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshOperationalContexts, user]);
 
-  const selectEstablishment = useCallback((establishmentId: string) => {
-    if (!user || !contexts.some((item) => item.establishmentId === establishmentId)) return;
-    setActiveEstablishmentId(establishmentId);
-    storeContext(user.id, establishmentId);
-  }, [contexts, user]);
+  const contexts = useMemo(
+    () => authorizedContexts.filter(isEstablishmentContext),
+    [authorizedContexts],
+  );
+
+  const selectEstablishment = useCallback(async (establishmentId: string) => {
+    if (!user || !contexts.some((item) => item.establishmentId === establishmentId)) return false;
+    setLoading(true);
+    try {
+      const { data, error: rpcError } = await (supabase.rpc as any)(
+        'set_my_active_context',
+        {
+          target_app_id: 'web',
+          target_context_kind: 'establishment',
+          target_establishment_id: establishmentId,
+          target_organization_id: null,
+          target_request_id: createMobileRequestId(),
+        },
+      );
+      if (rpcError || !mapActiveContextReceipt(data)) throw rpcError ?? new Error('invalid_active_context_receipt');
+      setActiveEstablishmentId(establishmentId);
+      setAuthorizedContexts((current) => current.map((context) => ({
+        ...context,
+        active: context.contextKind === 'establishment'
+          && context.establishmentId === establishmentId,
+      })));
+      storeContext(user.id, establishmentId);
+      setError(null);
+      return true;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível alterar o contexto ativo.');
+      await refreshOperationalContexts();
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [contexts, refreshOperationalContexts, user]);
 
   const activeContext = useMemo(
     () => contexts.find((item) => item.establishmentId === activeEstablishmentId) ?? null,
     [activeEstablishmentId, contexts],
   );
+  const activeAuthorizedContext = useMemo(
+    () => authorizedContexts.find((context) => context.active)
+      ?? activeContext,
+    [activeContext, authorizedContexts],
+  );
 
   const value = useMemo<OperationalContextValue>(() => ({
     contexts,
+    authorizedContexts,
     activeEstablishmentId,
     activeContext,
+    activeAuthorizedContext,
     loading,
     initialized,
     error,
-    selectionRequired: contexts.length > 1 && !activeContext,
+    selectionRequired: contexts.length > 1 && !activeAuthorizedContext,
     selectEstablishment,
     refreshOperationalContexts,
-  }), [activeContext, activeEstablishmentId, contexts, error, initialized, loading, refreshOperationalContexts, selectEstablishment]);
+  }), [
+    activeAuthorizedContext,
+    activeContext,
+    activeEstablishmentId,
+    authorizedContexts,
+    contexts,
+    error,
+    initialized,
+    loading,
+    refreshOperationalContexts,
+    selectEstablishment,
+  ]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

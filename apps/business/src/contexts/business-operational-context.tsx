@@ -2,6 +2,7 @@ import type {
   BusinessCapability,
   BusinessOperationalContext,
 } from '@cutsync/database';
+import { createMobileRequestId } from '@cutsync/domain';
 import {
   AppState,
 } from 'react-native';
@@ -143,8 +144,25 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
 
     try {
       let next: BusinessOperationalContext[];
+      let serverActiveEstablishmentId: string | null;
       try {
-        next = await businessApi.getOperationalContexts();
+        const [authorizedContexts, operationalContexts] = await Promise.all([
+          businessApi.getAuthorizedContexts(),
+          businessApi.getOperationalContexts(),
+        ]);
+        const authorizedEstablishmentIds = new Set(
+          authorizedContexts.flatMap((context) => (
+            context.contextKind === 'establishment' && context.establishmentId
+              ? [context.establishmentId]
+              : []
+          )),
+        );
+        next = operationalContexts.filter((context) => (
+          authorizedEstablishmentIds.has(context.establishmentId)
+        ));
+        serverActiveEstablishmentId = authorizedContexts.find((context) => (
+          context.contextKind === 'establishment' && context.active
+        ))?.establishmentId ?? null;
       } catch (error) {
         throw new BusinessContextRefreshError('rpc', error);
       }
@@ -157,10 +175,22 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
         stored = null;
       }
       const nextActiveId = resolveActiveEstablishmentId(next, [
+        serverActiveEstablishmentId,
         preferredEstablishmentId,
         activeEstablishmentId,
         stored,
       ]);
+
+      if (nextActiveId && nextActiveId !== serverActiveEstablishmentId) {
+        try {
+          await businessApi.setActiveEstablishmentContext({
+            establishmentId: nextActiveId,
+            requestId: createMobileRequestId(),
+          });
+        } catch (error) {
+          throw new BusinessContextRefreshError('rpc', error);
+        }
+      }
 
       setContexts(next);
       setActiveEstablishmentId(nextActiveId);
@@ -221,10 +251,22 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
     if (!user || !contexts.some((context) => context.establishmentId === establishmentId)) {
       return false;
     }
-    setActiveEstablishmentId(establishmentId);
-    setError(null);
-    await persistActiveEstablishmentId(user.id, establishmentId, false);
-    return true;
+    try {
+      await businessApi.setActiveEstablishmentContext({
+        establishmentId,
+        requestId: createMobileRequestId(),
+      });
+      setActiveEstablishmentId(establishmentId);
+      setError(null);
+      await persistActiveEstablishmentId(user.id, establishmentId, false);
+      return true;
+    } catch (selectionError) {
+      setConnectionError(true);
+      setError(getOperationalContextErrorMessage(
+        new BusinessContextRefreshError('rpc', selectionError),
+      ));
+      return false;
+    }
   }, [contexts, user]);
 
   const activeContext = useMemo(

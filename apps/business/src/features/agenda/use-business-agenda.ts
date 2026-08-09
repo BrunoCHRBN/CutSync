@@ -9,7 +9,7 @@ import { businessApi } from '@/services/business-api';
 export function useBusinessAgenda() {
   const { activeContext, hasCapability } = useBusinessOperational();
   const preferredScope: BusinessAgendaScope =
-    activeContext?.operationalRole === 'professional' ? 'own' : 'team';
+    hasCapability('view_team_agenda') ? 'team' : 'own';
   const [scope, setScopeState] = useState<BusinessAgendaScope>(preferredScope);
   const [localDate, setLocalDate] = useState(() =>
     getLocalDateInTimeZone(activeContext?.timezone ?? 'America/Sao_Paulo'));
@@ -20,11 +20,11 @@ export function useBusinessAgenda() {
 
   useEffect(() => {
     const nextScope: BusinessAgendaScope =
-      activeContext?.operationalRole === 'professional' ? 'own' : 'team';
+      hasCapability('view_team_agenda') ? 'team' : 'own';
     setScopeState(nextScope);
     setLocalDate(getLocalDateInTimeZone(activeContext?.timezone ?? 'America/Sao_Paulo'));
     setItems([]);
-  }, [activeContext?.establishmentId, activeContext?.operationalRole, activeContext?.timezone]);
+  }, [activeContext?.establishmentId, activeContext?.timezone, hasCapability]);
 
   const refresh = useCallback(async () => {
     if (!activeContext) {
