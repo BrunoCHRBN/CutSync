@@ -6,7 +6,7 @@ import {
 } from '@cutsync/domain';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import {
@@ -15,8 +15,10 @@ import {
   AppointmentStatusBadge,
   appointmentColors,
 } from '@/components/appointments/client-appointment-ui';
+import { ClientReassignmentPanel } from '@/components/appointments/client-reassignment-ui';
 import { useSession } from '@/contexts/session-context';
 import { useClientAppointment } from '@/features/appointments/use-client-appointments';
+import { useClientReassignmentDetail } from '@/features/appointments/use-client-reassignment';
 import { performClientHaptic } from '@/features/experience/client-haptics';
 import { clientTheme } from '@/theme/client-theme';
 
@@ -26,6 +28,10 @@ export function ClientAppointmentDetailScreen() {
   const router = useRouter();
   const { user } = useSession();
   const query = useClientAppointment(appointmentId ?? null, user?.id ?? null);
+  const reassignmentQuery = useClientReassignmentDetail(
+    appointmentId ?? null,
+    user?.id ?? null,
+  );
 
   if (query.isLoading && !query.appointment) {
     return (
@@ -78,6 +84,63 @@ export function ClientAppointmentDetailScreen() {
       : `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Olá! Preciso de ajuda com o atendimento ${appointment.id}.`)}`;
     void Linking.openURL(target);
   };
+  const acceptReplacement = () => {
+    Alert.alert(
+      'Aceitar substituto?',
+      'Seu aceite será registrado. O estabelecimento ainda precisará aplicar a alteração.',
+      [
+        { text: 'Voltar', style: 'cancel' },
+        {
+          text: 'Aceitar',
+          onPress: () => {
+            void performClientHaptic('success');
+            void reassignmentQuery.submitDecision('accept_replacement');
+          },
+        },
+      ],
+    );
+  };
+  const rescheduleWithOriginal = () => {
+    Alert.alert(
+      'Reagendar com o profissional original?',
+      'O estabelecimento será avisado e você poderá escolher um novo horário com o profissional original.',
+      [
+        { text: 'Voltar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          onPress: () => {
+            void (async () => {
+              const receipt = await reassignmentQuery.submitDecision('reschedule_original');
+              if (!receipt) return;
+              router.push({
+                pathname: '/booking/[slug]',
+                params: { slug: appointment.establishment.slug, appointmentId: appointment.id },
+              });
+            })();
+          },
+        },
+      ],
+    );
+  };
+  const cancelDueToChange = () => {
+    Alert.alert(
+      'Cancelar sem penalidade?',
+      'O atendimento será cancelado por causa da alteração iniciada pelo estabelecimento.',
+      [
+        { text: 'Voltar', style: 'cancel' },
+        {
+          text: 'Cancelar atendimento',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const receipt = await reassignmentQuery.submitDecision('cancel_due_to_change');
+              if (receipt) await query.refresh();
+            })();
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <ScrollView
@@ -97,6 +160,34 @@ export function ClientAppointmentDetailScreen() {
         <Text testID="client-appointment-detail-establishment" style={styles.title}>{formatDisplayName(appointment.establishment.name)}</Text>
         <Text style={styles.description}>{appointment.service.name} com {formatDisplayName(appointment.professional.name)}</Text>
       </Animated.View>
+
+      {reassignmentQuery.detail && (
+        <ClientReassignmentPanel
+          detail={reassignmentQuery.detail}
+          candidates={reassignmentQuery.candidates}
+          isLoadingCandidates={reassignmentQuery.isLoadingCandidates}
+          syncStatus={reassignmentQuery.syncStatus}
+          commandError={reassignmentQuery.commandError}
+          onLoadCandidates={() => { void reassignmentQuery.loadCandidates(); }}
+          onRetryPending={() => { void reassignmentQuery.replayPending(); }}
+          onAccept={acceptReplacement}
+          onChooseProfessional={(professionalId) => {
+            void reassignmentQuery.submitDecision('choose_professional', professionalId);
+          }}
+          onRescheduleOriginal={rescheduleWithOriginal}
+          onCancelDueToChange={cancelDueToChange}
+        />
+      )}
+
+      {!!reassignmentQuery.error && (
+        <View testID="client-reassignment-error" style={styles.policyCard}>
+          <Text style={styles.policyTitle}>Alteração indisponível</Text>
+          <Text style={styles.policyText}>{reassignmentQuery.error}</Text>
+          <Pressable accessibilityRole="button" onPress={() => { void reassignmentQuery.refresh(); }}>
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      )}
 
       <Animated.View
         entering={FadeIn
@@ -257,5 +348,6 @@ const styles = StyleSheet.create({
   contactActions: { flexDirection: 'row', gap: 9, paddingTop: 4 },
   contactButton: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D6C89F', borderRadius: 999, backgroundColor: '#FFFFFF', paddingHorizontal: 12 },
   contactButtonText: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '800' },
+  retryText: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: clientTheme.opacity.pressed },
 });

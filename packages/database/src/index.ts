@@ -8,3 +8,5 @@ export * from './mobile-operations';
 export * from './establishment-client';
 export * from './identity-context';
 export * from './appointment-reassignment';
+export * from './client-reassignment-outbox';
+export * from './business-decision-outbox';

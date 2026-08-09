@@ -65,6 +65,7 @@ export interface CalendarAppointment {
   clientName: string;
   serviceName: string;
   startsAt: Date;
+  updatedAt?: string;
   endsAt: Date;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   price?: number;

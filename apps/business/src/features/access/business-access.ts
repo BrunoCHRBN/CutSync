@@ -54,6 +54,13 @@ export const hasBusinessManagementNavigation = (
   || capability === 'manage_operational_settings'
 )));
 
+export const hasBusinessDecisionsNavigation = (
+  capabilities: readonly BusinessCapability[] | null | undefined,
+) => Boolean(capabilities?.some((capability) => (
+  capability === 'request_appointment_reassignment'
+  || capability === 'apply_appointment_reassignment'
+)));
+
 export const getActiveEstablishmentStorageKey = (
   userId: string,
 ) => `cutsync:business:active-establishment:${userId}`;

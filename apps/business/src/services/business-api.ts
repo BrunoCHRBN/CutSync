@@ -5,9 +5,13 @@ import {
   mapAuthorizedContext,
   mapBusinessAgendaItem,
   mapBusinessAppointmentDetail,
+  mapBusinessReassignmentDetail,
+  mapBusinessReassignmentCandidate,
   mapBusinessInvitationAcceptance,
   mapBusinessInvitationDetails,
   mapBusinessOperationalContext,
+  mapDecisionQueueItem,
+  mapAppointmentReassignmentMutationReceipt,
   ServiceOrderApiError,
   type AppointmentServiceOrderContext,
   type ActiveContextReceipt,
@@ -15,9 +19,13 @@ import {
   type BusinessAgendaItem,
   type BusinessAgendaScope,
   type BusinessAppointmentDetail,
+  type BusinessReassignmentDetail,
+  type BusinessReassignmentCandidate,
   type BusinessInvitationAcceptance,
   type BusinessInvitationDetails,
   type BusinessOperationalContext,
+  type DecisionQueueItem,
+  type AppointmentReassignmentMutationReceipt,
   type BusinessRpcArgs,
   type BusinessRpcName,
   type Database,
@@ -37,6 +45,11 @@ export type BusinessApiErrorCode =
   | 'contexts_unavailable'
   | 'agenda_unavailable'
   | 'appointment_unavailable'
+  | 'decisions_unavailable'
+  | 'decision_conflict'
+  | 'decision_invalid_transition'
+  | 'decision_candidate_unavailable'
+  | 'decision_idempotency_conflict'
   | 'service_order_unavailable'
   | 'invitation_unavailable'
   | 'invitation_invalid'
@@ -63,6 +76,11 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   contexts_unavailable: 'Não foi possível carregar seus estabelecimentos.',
   agenda_unavailable: 'Não foi possível carregar a agenda.',
   appointment_unavailable: 'Não foi possível carregar o atendimento.',
+  decisions_unavailable: 'Não foi possível carregar as decisões desta unidade.',
+  decision_conflict: 'Esta decisão mudou em outro dispositivo. Os dados serão atualizados.',
+  decision_invalid_transition: 'Esta ação não está mais disponível no estado atual.',
+  decision_candidate_unavailable: 'Este profissional não está mais elegível ou disponível.',
+  decision_idempotency_conflict: 'A tentativa não corresponde ao comando original.',
   service_order_unavailable: 'Não foi possível carregar a comanda.',
   invitation_unavailable: 'Não foi possível consultar este convite.',
   invitation_invalid: 'Este convite é inválido.',
@@ -108,6 +126,23 @@ export interface BusinessApi {
     establishmentId: string,
     appointmentId: string,
   ) => Promise<BusinessAppointmentDetail>;
+  listDecisionQueue: (establishmentId: string) => Promise<DecisionQueueItem[]>;
+  getReassignmentDetail: (
+    establishmentId: string,
+    reassignmentRequestId: string,
+  ) => Promise<BusinessReassignmentDetail>;
+  listReassignmentCandidates: (
+    establishmentId: string,
+    reassignmentRequestId: string,
+  ) => Promise<BusinessReassignmentCandidate[]>;
+  validateReassignment: (input: DecisionCommandInput) => Promise<AppointmentReassignmentMutationReceipt>;
+  proposeReassignment: (
+    input: DecisionCommandInput & { professionalId: string },
+  ) => Promise<AppointmentReassignmentMutationReceipt>;
+  applyReassignment: (input: DecisionCommandInput) => Promise<AppointmentReassignmentMutationReceipt>;
+  withdrawReassignment: (
+    input: DecisionCommandInput & { reason: string },
+  ) => Promise<AppointmentReassignmentMutationReceipt>;
   getServiceOrderForAppointment: (
     establishmentId: string,
     appointmentId: string,
@@ -133,6 +168,12 @@ export interface BusinessApi {
   acceptInvitation: (token: string) => Promise<BusinessInvitationAcceptance>;
 }
 
+interface DecisionCommandInput {
+  reassignmentRequestId: string;
+  expectedVersion: number;
+  requestId: string;
+}
+
 type RpcResult = {
   data: unknown;
   error: unknown;
@@ -143,10 +184,22 @@ type RpcCaller = <Name extends BusinessRpcName>(
   args?: BusinessRpcArgs<Name>,
 ) => PromiseLike<RpcResult>;
 
+type DecisionRpcName =
+  | 'validate_appointment_reassignment'
+  | 'propose_appointment_reassignment'
+  | 'apply_appointment_reassignment'
+  | 'withdraw_appointment_reassignment';
+
+type DecisionRpcCaller = (
+  name: DecisionRpcName,
+  args: Record<string, unknown>,
+) => PromiseLike<RpcResult>;
+
 type Operation =
   | 'contexts'
   | 'agenda'
   | 'appointment'
+  | 'decisions'
   | 'service_order'
   | 'inspect_invitation'
   | 'accept_invitation';
@@ -178,6 +231,7 @@ const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'contexts') return 'contexts_unavailable';
   if (operation === 'agenda') return 'agenda_unavailable';
   if (operation === 'appointment') return 'appointment_unavailable';
+  if (operation === 'decisions') return 'decisions_unavailable';
   if (operation === 'service_order') return 'service_order_unavailable';
   if (operation === 'inspect_invitation') return 'invitation_unavailable';
   return 'invitation_accept_failed';
@@ -212,6 +266,29 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
   }
 
   const text = remoteErrorText(error);
+
+  if (text.includes('idempotency_key_reused')) {
+    return new BusinessApiError('decision_idempotency_conflict');
+  }
+  if (
+    text.includes('reassignment_version_conflict')
+    || text.includes('appointment_version_conflict')
+    || text.includes('appointment_assignment_projection_mismatch')
+    || text.includes('reassignment_proposal_changed')
+  ) return new BusinessApiError('decision_conflict');
+  if (
+    text.includes('reassignment_not_validatable')
+    || text.includes('reassignment_not_proposable')
+    || text.includes('reassignment_not_ready_to_apply')
+    || text.includes('reassignment_not_withdrawable')
+    || text.includes('appointment_reassignment_expired')
+  ) return new BusinessApiError('decision_invalid_transition');
+  if (
+    text.includes('replacement_professional_not_linked')
+    || text.includes('replacement_professional_not_qualified')
+    || text.includes('replacement_professional_unavailable')
+    || text.includes('replacement_must_change_professional')
+  ) return new BusinessApiError('decision_candidate_unavailable');
 
   if (text.includes('financial_ops_disabled')) {
     return new BusinessApiError('financial_ops_disabled');
@@ -282,6 +359,32 @@ const requireClient = (
 const requireToken = (token: string): string => {
   if (!INVITATION_TOKEN_PATTERN.test(token)) throw new BusinessApiError('invitation_invalid');
   return token;
+};
+
+const isValidDecisionCommand = (input: DecisionCommandInput) => (
+  UUID_PATTERN.test(input.reassignmentRequestId)
+  && UUID_PATTERN.test(input.requestId)
+  && Number.isInteger(input.expectedVersion)
+  && input.expectedVersion > 0
+);
+
+const invokeDecisionCommand = async (
+  nullableClient: SupabaseClient<Database> | null,
+  name: DecisionRpcName,
+  args: Record<string, unknown>,
+): Promise<AppointmentReassignmentMutationReceipt> => {
+  const client = requireClient(nullableClient);
+  const caller = client.rpc.bind(client) as unknown as DecisionRpcCaller;
+  let result: RpcResult;
+  try {
+    result = await caller(name, args);
+  } catch (error) {
+    throw translateRpcError('decisions', error);
+  }
+  if (result.error) throw translateRpcError('decisions', result.error);
+  const receipt = mapAppointmentReassignmentMutationReceipt(result.data);
+  if (!receipt) throw new BusinessApiError('invalid_response');
+  return receipt;
 };
 
 export const createBusinessApi = (
@@ -403,6 +506,115 @@ export const createBusinessApi = (
     const detail = mapBusinessAppointmentDetail(result.data);
     if (!detail) throw new BusinessApiError('invalid_response');
     return detail;
+  },
+
+  async listDecisionQueue(establishmentId) {
+    if (!UUID_PATTERN.test(establishmentId)) throw new BusinessApiError('invalid_request');
+    const client = requireClient(nullableClient);
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'list_business_decision_queue', {
+        target_establishment_id: establishmentId,
+      });
+    } catch (error) {
+      throw translateRpcError('decisions', error);
+    }
+    if (result.error) throw translateRpcError('decisions', result.error);
+    const rows = asRows(result.data);
+    if (!rows) throw new BusinessApiError('invalid_response');
+    const decisions = rows.map(mapDecisionQueueItem);
+    if (decisions.some((item) => item === null)) {
+      throw new BusinessApiError('invalid_response');
+    }
+    return decisions as DecisionQueueItem[];
+  },
+
+  async getReassignmentDetail(establishmentId, reassignmentRequestId) {
+    if (!UUID_PATTERN.test(establishmentId) || !UUID_PATTERN.test(reassignmentRequestId)) {
+      throw new BusinessApiError('invalid_request');
+    }
+    const client = requireClient(nullableClient);
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'get_business_reassignment_detail', {
+        target_establishment_id: establishmentId,
+        target_reassignment_request_id: reassignmentRequestId,
+      });
+    } catch (error) {
+      throw translateRpcError('decisions', error);
+    }
+    if (result.error) throw translateRpcError('decisions', result.error);
+    const detail = mapBusinessReassignmentDetail(result.data);
+    if (!detail) throw new BusinessApiError('invalid_response');
+    return detail;
+  },
+
+  async listReassignmentCandidates(establishmentId, reassignmentRequestId) {
+    if (!UUID_PATTERN.test(establishmentId) || !UUID_PATTERN.test(reassignmentRequestId)) {
+      throw new BusinessApiError('invalid_request');
+    }
+    const client = requireClient(nullableClient);
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'list_business_reassignment_candidates', {
+        target_establishment_id: establishmentId,
+        target_reassignment_request_id: reassignmentRequestId,
+      });
+    } catch (error) {
+      throw translateRpcError('decisions', error);
+    }
+    if (result.error) throw translateRpcError('decisions', result.error);
+    const rows = asRows(result.data);
+    if (!rows) throw new BusinessApiError('invalid_response');
+    const candidates = rows.map(mapBusinessReassignmentCandidate);
+    if (candidates.some((candidate) => candidate === null)) {
+      throw new BusinessApiError('invalid_response');
+    }
+    return candidates as BusinessReassignmentCandidate[];
+  },
+
+  async validateReassignment(input) {
+    if (!isValidDecisionCommand(input)) throw new BusinessApiError('invalid_request');
+    return invokeDecisionCommand(nullableClient, 'validate_appointment_reassignment', {
+      target_reassignment_request_id: input.reassignmentRequestId,
+      target_expected_version: input.expectedVersion,
+      target_request_id: input.requestId,
+    });
+  },
+
+  async proposeReassignment(input) {
+    if (!isValidDecisionCommand(input) || !UUID_PATTERN.test(input.professionalId)) {
+      throw new BusinessApiError('invalid_request');
+    }
+    return invokeDecisionCommand(nullableClient, 'propose_appointment_reassignment', {
+      target_reassignment_request_id: input.reassignmentRequestId,
+      target_proposed_professional_id: input.professionalId,
+      target_expected_version: input.expectedVersion,
+      target_request_id: input.requestId,
+    });
+  },
+
+  async applyReassignment(input) {
+    if (!isValidDecisionCommand(input)) throw new BusinessApiError('invalid_request');
+    return invokeDecisionCommand(nullableClient, 'apply_appointment_reassignment', {
+      target_reassignment_request_id: input.reassignmentRequestId,
+      target_expected_version: input.expectedVersion,
+      target_request_id: input.requestId,
+    });
+  },
+
+  async withdrawReassignment(input) {
+    if (
+      !isValidDecisionCommand(input)
+      || input.reason.trim().length < 3
+      || input.reason.trim().length > 500
+    ) throw new BusinessApiError('invalid_request');
+    return invokeDecisionCommand(nullableClient, 'withdraw_appointment_reassignment', {
+      target_reassignment_request_id: input.reassignmentRequestId,
+      target_expected_version: input.expectedVersion,
+      target_reason: input.reason.trim(),
+      target_request_id: input.requestId,
+    });
   },
 
   async getServiceOrderForAppointment(establishmentId, appointmentId) {

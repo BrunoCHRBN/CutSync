@@ -280,6 +280,8 @@ export interface AppointmentRecord {
   professionalId: string;
   serviceId: string;
   dateTime: Date;
+  /** Backend concurrency token used by versioned appointment workflows. */
+  updatedAt: string;
   /** Duration snapshot frozen at booking/reschedule. */
   durationMinutes: number;
   /** Monetary snapshot frozen at booking/reschedule. */
@@ -433,6 +435,7 @@ export const mapAppointment = (row: AppointmentQueryRow): AppointmentRecord => (
   professionalId: row.professional_id,
   serviceId: row.service_id,
   dateTime: new Date(row.date_time),
+  updatedAt: row.updated_at,
   durationMinutes: Number(row.duration_minutes || row.service?.duration_minutes || 30),
   priceCharged: Number(
     'price_charged' in row && row.price_charged != null

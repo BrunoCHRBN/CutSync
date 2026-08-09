@@ -264,7 +264,7 @@ export const AppointmentDetailSheet = ({
             {transferHandler ? (
               <AppButton
                 icon={<ArrowRightLeft color={colors.textPrimary} size={16} />}
-                label="Transferir profissional"
+                label="Propor reatribuição"
                 onPress={() => transferHandler(appointment)}
                 testID="appointment-detail-transfer"
                 variant="secondary"

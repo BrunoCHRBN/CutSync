@@ -11,6 +11,24 @@
  * CutSync Business.
  */
 export interface BusinessRpcFunctions {
+  list_business_decision_queue: {
+    Args: { target_establishment_id: string };
+    Returns: unknown;
+  };
+  get_business_reassignment_detail: {
+    Args: {
+      target_establishment_id: string;
+      target_reassignment_request_id: string;
+    };
+    Returns: unknown;
+  };
+  list_business_reassignment_candidates: {
+    Args: {
+      target_establishment_id: string;
+      target_reassignment_request_id: string;
+    };
+    Returns: unknown;
+  };
   request_appointment_reassignment: {
     Args: {
       target_appointment_id: string;

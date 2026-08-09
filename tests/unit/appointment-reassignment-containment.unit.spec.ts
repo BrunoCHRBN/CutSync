@@ -54,15 +54,17 @@ test('walk-in sem cliente usa correção estreita, idempotente e auditada', () =
   expect(migration).not.toContain("'client_name'");
 });
 
-test('modo ausência devolve erro por item e UI não promete transferência', () => {
+test('modo ausência mantém contenção e cria solicitações sem prometer transferência', () => {
   expect(migration).toContain("ELSIF action_name = 'transfer' THEN");
   expect(migration).toContain("'ok', false");
   expect(appointmentActions).not.toContain("action: 'transfer'");
   expect(appointmentActions).not.toContain('Atendimento transferido');
-  expect(absenceWizard).toContain("type ItemDecision = 'cancel' | 'keep'");
+  expect(absenceWizard).toContain("type ItemDecision = 'request_reassignment' | 'cancel' | 'keep'");
+  expect(absenceWizard).toContain("decision === 'request_reassignment'");
   expect(absenceWizard).not.toContain("'Transferir'");
-  expect(agendaScreen).toContain('canTransfer={false}');
-  expect(agendaScreen).not.toContain('<TransferProfessionalModal');
+  expect(agendaScreen).toContain('canTransfer={canRequestSelectedReassignment}');
+  expect(agendaScreen).toContain('<TransferProfessionalModal');
+  expect(agendaScreen).toContain("responsibility: 'professional'");
 });
 
 test('teste SQL é transacional e cobre bloqueios com JWT autenticado', () => {

@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import type { BusinessOperationalContext } from '../../packages/database/src/business';
 import {
+  hasBusinessDecisionsNavigation,
   hasBusinessManagementNavigation,
   getActiveEstablishmentStorageKey,
   resolveActiveEstablishmentId,
@@ -70,6 +71,19 @@ test('Gestão segue capabilities confirmadas pelo backend', () => {
   expect(tabs).toContain('hidden={!canManage}');
   expect(management).toContain('hasBusinessManagementNavigation(activeContext?.capabilities)');
   expect(management).toContain('<Redirect href="/today" />');
+});
+
+test('Decisões aparece por capability operacional e mantém proteção na tela', () => {
+  expect(hasBusinessDecisionsNavigation(['request_appointment_reassignment'])).toBe(true);
+  expect(hasBusinessDecisionsNavigation(['apply_appointment_reassignment'])).toBe(true);
+  expect(hasBusinessDecisionsNavigation(['view_team_agenda'])).toBe(false);
+  expect(hasBusinessDecisionsNavigation(undefined)).toBe(false);
+
+  const tabs = read('apps/business/src/app/(app)/(tabs)/_layout.tsx');
+  const decisions = read('apps/business/src/screens/decisions.tsx');
+  expect(tabs).toContain('hidden={!canViewDecisions}');
+  expect(decisions).toContain('hasBusinessDecisionsNavigation(activeContext?.capabilities)');
+  expect(decisions).toContain('<Redirect href="/today" />');
 });
 
 test('Router protege contexto e operação sem tratar proteção client-side como autorização final', () => {
