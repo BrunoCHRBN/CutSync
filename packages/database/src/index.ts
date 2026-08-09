@@ -7,3 +7,4 @@ export * from './service-order-api';
 export * from './mobile-operations';
 export * from './establishment-client';
 export * from './identity-context';
+export * from './appointment-reassignment';
