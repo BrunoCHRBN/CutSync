@@ -20,7 +20,11 @@ import {
 import { useBusinessSession } from '@/contexts/business-session';
 import { resolveActiveEstablishmentId } from '@/features/access/business-access';
 import { activeEstablishmentStorage } from '@/lib/active-establishment-storage';
-import { businessApi, BusinessApiError } from '@/services/business-api';
+import {
+  businessApi,
+  BusinessApiError,
+  normalizeBusinessDiagnosticCode,
+} from '@/services/business-api';
 
 interface BusinessOperationalValue {
   contexts: BusinessOperationalContext[];
@@ -68,7 +72,8 @@ const getOperationalContextErrorMessage = (error: unknown): string => {
   const step = error instanceof BusinessContextRefreshError ? error.step : 'unknown';
 
   if (targetError instanceof BusinessApiError) {
-    return diagnosticMessage(targetError.message, `BUS_CTX_${targetError.code.toUpperCase()}`);
+    const diagnosticCode = targetError.diagnosticCode ?? targetError.code.toUpperCase();
+    return diagnosticMessage(targetError.message, `BUS_CTX_${diagnosticCode}`);
   }
   if (
     targetError
@@ -77,9 +82,12 @@ const getOperationalContextErrorMessage = (error: unknown): string => {
     && typeof (targetError as { message?: unknown }).message === 'string'
   ) {
     const code = typeof (targetError as { code?: unknown }).code === 'string'
-      ? (targetError as { code: string }).code.toUpperCase()
-      : step.toUpperCase();
-    return diagnosticMessage((targetError as { message: string }).message, `BUS_CTX_${code}`);
+      ? normalizeBusinessDiagnosticCode((targetError as { code: string }).code)
+      : null;
+    return diagnosticMessage(
+      (targetError as { message: string }).message,
+      `BUS_CTX_${code ?? step.toUpperCase()}`,
+    );
   }
   if (error instanceof BusinessContextRefreshError) {
     return diagnosticMessage(

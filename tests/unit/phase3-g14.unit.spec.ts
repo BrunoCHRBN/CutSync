@@ -171,3 +171,19 @@ test('workflow prepara evidência CI sem declarar aprovação ou homologação d
   expect(evidence).toContain('em preparação; não aprovado');
   expect(evidence).toContain('cold start, background e foreground');
 });
+
+test('Business expõe diagnóstico de contexto somente com códigos sanitizados', () => {
+  const api = fs.readFileSync(path.join(
+    process.cwd(), 'apps/business/src/services/business-api.ts',
+  ), 'utf8');
+  const provider = fs.readFileSync(path.join(
+    process.cwd(), 'apps/business/src/contexts/business-operational-context.tsx',
+  ), 'utf8');
+  expect(api).toContain('/^[A-Z0-9_]{2,64}$/');
+  expect(api).toContain('normalizeBusinessDiagnosticCode(diagnosticCode)');
+  expect(api).toContain("diagnosticCode ? `REMOTE_${diagnosticCode}` : null");
+  expect(api).toContain("'AUTHORIZED_CONTEXTS_SHAPE'");
+  expect(api).toContain("'OPERATIONAL_CONTEXTS_ROW'");
+  expect(provider).toContain('normalizeBusinessDiagnosticCode');
+  expect(provider).toContain('targetError.diagnosticCode ?? targetError.code.toUpperCase()');
+});

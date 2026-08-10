@@ -102,13 +102,21 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
 
 export class BusinessApiError extends Error {
   readonly code: BusinessApiErrorCode;
+  readonly diagnosticCode: string | null;
 
-  constructor(code: BusinessApiErrorCode) {
+  constructor(code: BusinessApiErrorCode, diagnosticCode: string | null = null) {
     super(ERROR_MESSAGES[code]);
     this.name = 'BusinessApiError';
     this.code = code;
+    this.diagnosticCode = normalizeBusinessDiagnosticCode(diagnosticCode);
   }
 }
+
+export const normalizeBusinessDiagnosticCode = (value: string | null): string | null => {
+  if (!value) return null;
+  const normalized = value.trim().toUpperCase();
+  return /^[A-Z0-9_]{2,64}$/.test(normalized) ? normalized : null;
+};
 
 export interface BusinessApi {
   getAuthorizedContexts: () => Promise<AuthorizedContext[]>;
@@ -227,6 +235,14 @@ const remoteErrorText = (error: unknown): string => {
     .toLowerCase();
 };
 
+const remoteErrorCode = (error: unknown): string | null => {
+  if (!error || typeof error !== 'object') return null;
+  const code = (error as Record<string, unknown>).code;
+  if (typeof code !== 'string') return null;
+  const normalized = normalizeBusinessDiagnosticCode(code);
+  return normalized && normalized.length <= 24 ? normalized : null;
+};
+
 const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'contexts') return 'contexts_unavailable';
   if (operation === 'agenda') return 'agenda_unavailable';
@@ -329,7 +345,11 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
   if (text.includes('pgrst202') || text.includes('could not find the function')) {
     return new BusinessApiError('backend_unavailable');
   }
-  return new BusinessApiError(genericCodeFor(operation));
+  const diagnosticCode = remoteErrorCode(error);
+  return new BusinessApiError(
+    genericCodeFor(operation),
+    diagnosticCode ? `REMOTE_${diagnosticCode}` : null,
+  );
 };
 
 const isLocalDate = (value: string): boolean => {
@@ -403,12 +423,14 @@ export const createBusinessApi = (
     if (result.error) throw translateRpcError('contexts', result.error);
 
     const rows = asRows(result.data);
-    if (!rows) throw new BusinessApiError('invalid_response');
+    if (!rows) throw new BusinessApiError('invalid_response', 'AUTHORIZED_CONTEXTS_SHAPE');
     const contexts = rows.flatMap((row) => {
       const context = mapAuthorizedContext(row);
       return context ? [context] : [];
     });
-    if (contexts.length !== rows.length) throw new BusinessApiError('invalid_response');
+    if (contexts.length !== rows.length) {
+      throw new BusinessApiError('invalid_response', 'AUTHORIZED_CONTEXTS_ROW');
+    }
     return contexts;
   },
 
@@ -447,12 +469,14 @@ export const createBusinessApi = (
     if (result.error) throw translateRpcError('contexts', result.error);
 
     const rows = asRows(result.data);
-    if (!rows) throw new BusinessApiError('invalid_response');
+    if (!rows) throw new BusinessApiError('invalid_response', 'OPERATIONAL_CONTEXTS_SHAPE');
     const contexts = rows.flatMap((row) => {
       const context = mapBusinessOperationalContext(row);
       return context ? [context] : [];
     });
-    if (contexts.length !== rows.length) throw new BusinessApiError('invalid_response');
+    if (contexts.length !== rows.length) {
+      throw new BusinessApiError('invalid_response', 'OPERATIONAL_CONTEXTS_ROW');
+    }
     return contexts;
   },
 
