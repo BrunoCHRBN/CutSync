@@ -24,10 +24,14 @@ export default function BusinessRootLayout() {
 }
 
 function BusinessRootNavigator() {
-  const { session } = useBusinessSession();
-  const { activeContext } = useBusinessOperational();
+  const { session, isLoading: isSessionLoading } = useBusinessSession();
+  const { activeContext, isLoading: isContextLoading } = useBusinessOperational();
+  const hasSessionOrIsRestoring = Boolean(session) || isSessionLoading;
   const hasOperationalAccess = Boolean(
     session && activeContext && activeContext.accessMode !== 'blocked',
+  );
+  const canResolveOperationalRoute = hasSessionOrIsRestoring && (
+    isSessionLoading || isContextLoading || hasOperationalAccess
   );
 
   return (
@@ -42,11 +46,11 @@ function BusinessRootNavigator() {
       <Stack.Screen name="(callback)" />
       <Stack.Screen name="invite/[token]" />
 
-      <Stack.Protected guard={Boolean(session)}>
+      <Stack.Protected guard={hasSessionOrIsRestoring}>
         <Stack.Screen name="(access)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={hasOperationalAccess}>
+      <Stack.Protected guard={canResolveOperationalRoute}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
     </Stack>

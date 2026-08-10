@@ -41,6 +41,16 @@ DECLARE
   forbidden boolean := false;
 BEGIN
   starts_at := (local_date::timestamp + time '12:00') AT TIME ZONE 'America/Sao_Paulo';
+  IF has_function_privilege(
+    'anon', 'public.get_business_appointment_detail(uuid,text)', 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'anonymous role can execute the Business appointment detail read model';
+  END IF;
+  IF NOT has_function_privilege(
+    'authenticated', 'public.get_business_appointment_detail(uuid,text)', 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'authenticated role cannot execute the Business appointment detail read model';
+  END IF;
   schedule_json := jsonb_build_array(jsonb_build_object(
     'day', local_day, 'isOpen', true, 'open', '09:00', 'close', '18:00'
   ))::text;
@@ -102,6 +112,12 @@ BEGIN
   ) RETURNING updated_at INTO appointment_updated_at;
 
   PERFORM pg_temp.set_phase3_actor(professional_id);
+  detail := public.get_business_appointment_detail(unit_id, appointment_id);
+  IF detail->>'updatedAt' IS NULL
+    OR (detail->>'updatedAt')::timestamptz <> appointment_updated_at
+  THEN
+    RAISE EXCEPTION 'Business appointment detail omitted the optimistic version: %', detail;
+  END IF;
   response := public.request_appointment_reassignment(
     appointment_id, 'professional_absence', 'professional',
     starts_at - interval '1 hour', appointment_updated_at,

@@ -9,11 +9,11 @@ CI, homologação com papéis reais e homologação em dispositivo.
 
 | Critério G14 | Evidência automatizada preparada | Evidência ainda obrigatória |
 |---|---|---|
-| Matriz role × capability × contexto | RPCs fail-closed, testes SQL e baseline JWT real | Fluxo manual com cada papel e contexto autorizado |
+| Matriz role × capability × contexto | RPCs fail-closed, testes SQL e harness Homolog com 11 atores Auth reais | Comparação visual manual dos papéis nas superfícies aplicáveis |
 | Timeline, responsabilidade e `correlationId` iguais | Read models Web/Business/Client e teste SQL compartilhado | Comparação visual das três superfícies na mesma solicitação |
-| Deep links | Parser fail-closed e bundle das rotas dinâmicas | Android real em cold start, background e foreground |
-| Offline e replay | Outboxes Client e Business persistentes, mesmo `requestId`, isolamento por usuário/unidade e conflito com releitura | Queda de rede e reinício do processo em Android real |
-| UI manipulada negada no backend | RPCs revalidam identidade, capability, unidade e versão | Execução E2E com tentativa adulterada contra homologação |
+| Deep links | Parser fail-closed, bundle das rotas dinâmicas e Business/Client homologados em emulador Android nos estados cold start, background e foreground | Concluir a evidência em aparelho Android físico |
+| Offline e replay | Outboxes Client e Business persistentes, mesmo `requestId`, isolamento por usuário/unidade e conflito com releitura; solicitação Business retomada após queda de rede e reinício no emulador | Repetição do cenário em aparelho Android físico |
+| UI manipulada negada no backend | RPCs revalidam identidade, capability, unidade e versão; tentativa adulterada foi negada em Homolog | Repetição pelo cliente instrumentado durante o E2E visual |
 | Push | Evento imutável → fila idempotente → dispatcher existente | Ticket e receipt reais em dispositivo de homologação |
 
 ## Workflow preparado
@@ -61,14 +61,21 @@ O workflow `.github/workflows/phase3-gate.yml` executa:
   roles `168A95A9C745AF5ED4679751F90419AC9DC434240A213B03E32A06D5664C2308`
   e schema
   `C39CE84538E7E42C6AC298F2A4E9A23CBAFDEC1D4C94831F50DEDD0BA54A93B1`.
-- Onze migrations aditivas das Fases 1–3 foram aplicadas; o histórico remoto
-  passou a incluir versões até `20260823000000`.
+- Doze migrations aditivas das Fases 1–3 foram aplicadas; o histórico remoto
+  passou a incluir versões até `20260823001000`.
 - `supabase db lint` remoto terminou sem erros. Permanecem três avisos de
   variáveis SQL não utilizadas, sem alteração de autorização ou resultado.
 - Harness técnico PostgREST com usuário temporário, sessão autenticada e limpeza
   posterior validou `get_my_authorized_contexts`,
   `get_my_business_operational_contexts` e `set_my_active_context`, todos com
   HTTP 200 e read models aceitos.
+- O harness reproduzível `npm run test:g14:homolog -- sphbbqdgcreowxzjgibj`
+  criou 11 atores Auth efêmeros e duas unidades isoladas, sem imprimir
+  credenciais. A execução `17c36919`, correlação
+  `2c49cec1-915d-4176-a5ca-975835d942d7`, aprovou matriz de papéis e
+  capabilities, paridade de contextos, isolamento cross-unit, negação de
+  comandos adulterados, idempotência, timeline Business/Client, proteção das
+  tabelas e fila push idempotente. A limpeza das fixtures foi aprovada.
 
 ## Evidência Android
 
@@ -76,16 +83,95 @@ O workflow `.github/workflows/phase3-gate.yml` executa:
   e React Native `0.86.2` no monorepo; `npm ls` confirmou uma única versão.
 - O Business foi recompilado e instalado com sucesso em emulador Android 16.
 - A tela de login renderizou sem erro nativo após reiniciar o Metro.
-- A captura com conta real ainda apresentou `BUS_CTX_CONTEXTS_UNAVAILABLE` antes
-  desta instrumentação detalhada. É necessário autenticar novamente com o novo
-  bundle e registrar o novo código caso o erro persista.
+- A falha de contexto foi reproduzida e corrigida em duas causas locais: a RPC
+  era invocada sem preservar o binding do cliente Supabase e o Hermes não
+  oferecia `crypto.getRandomValues` ao gerador compartilhado de `requestId`.
+- Business e Client agora usam `expo-crypto` `~57.0.1` para UUID v4 nativo. O
+  APK Business foi recompilado, reinstalado sem limpar seus dados e confirmou
+  `expo-crypto (57.0.1)` no build.
+- A conta real já existente no emulador Android passou da tela de contexto e
+  chegou a `Hoje na operação`. A execução integrada `17c36919` registrou
+  `androidAuthentication=current-session-passed` e preservou a sessão.
+- O validador diferencia autenticação Android de deep links: no modo de sessão
+  atual ele registra `androidDeepLinks=not-executed-current-session`, sem
+  promover evidência não executada.
+- O carregamento das rotas protegidas agora aguarda tanto a restauração da
+  sessão quanto a resolução do contexto operacional. Isso eliminou o redirecionamento
+  prematuro para a seleção de estabelecimento durante cold start.
+- O APK técnico release `com.cutsync.business.g14`, limitado a `x86_64` para o
+  emulador, executou o cenário autorizado na Homolog. A execução `2ea1eef7`,
+  correlação `0471938d-bdc5-491d-bb1c-5275edc21373`, aprovou autenticação da
+  sessão owner, contexto de gestão, deep link dinâmico da decisão em cold start,
+  background e foreground, e paridade do `correlationId` na timeline.
+- A abertura estática de `cutsync-business:///clients` em cold start também
+  chegou diretamente ao CRM, sem cair em `Hoje` ou na seleção de unidade.
+- A fixture técnica ficou restrita ao estabelecimento autorizado selecionado;
+  `ANDROID_AUTHORIZED_FIXTURE_CLEANUP=PASS` confirmou a limpeza e a restauração
+  das flags após o ensaio. Capturas foram mantidas fora do repositório em
+  `%LOCALAPPDATA%\CutSync\g14`.
+- O APK Client anteriormente instalado apontava para outro projeto Supabase e,
+  portanto, não podia autenticar contas da Homolog. O bundle foi diagnosticado
+  sem expor chaves, reconstruído com o ambiente Development validado e reinstalado
+  como versão `0.2.0`, `x86_64`, contendo o project ref da Homolog.
+- A execução Client `43e0d0a5`, correlação
+  `a90ba1fb-6339-48cf-b0bf-58566b426e6c`, aprovou sessão JWT real do cliente
+  técnico, deep link `cutsync:///appointments/{appointmentId}` em cold start,
+  background e foreground, paridade da timeline/correlação e limpeza integral
+  das fixtures (`FIXTURE_CLEANUP=PASS`). O harness também limpa a sessão local
+  efêmera após remover o usuário remoto, evitando deixar uma conta técnica
+  inválida aberta no emulador.
 - `expo-doctor` aprovou 19 de 20 verificações; o único aviso corresponde ao
   diretório Android gerado localmente e não versionado.
 
-As evidências local, CI e do contrato técnico remoto estão confirmadas. Os
-fluxos completos com todos os papéis reais, push/deep link e retomada offline em
-Android continuam pendentes de homologação; portanto o gate permanece não
-aprovado.
+### Solicitação de reatribuição pelo Business — 2026-08-10
+
+- O detalhe autorizado do agendamento passou a expor `updatedAt`, usado como
+  versão otimista por `request_appointment_reassignment`; o aplicativo não lê
+  `appointments` diretamente.
+- O botão `Solicitar reatribuição` só é apresentado com contexto `full`,
+  capability confirmada pelo backend, responsabilidade elegível, atendimento
+  futuro e status `pending` ou `confirmed`.
+- O alerta de confirmação registra explicitamente que a troca não é aplicada
+  naquele momento. A ação cria a solicitação server-side com `requestId`,
+  `correlationId`, prazo e versão esperada, e navega para o detalhe confirmado.
+- Typecheck compartilhado e Business, além do lint Business, passaram. Os testes
+  focados desta fatia passaram com `24/24` cenários.
+- O reset reconciliado completo aplicou a cadeia até `20260823001000`. O teste
+  SQL transacional confirmou o mesmo `updatedAt`, execução negada a `anon`,
+  execução concedida a `authenticated` e o fluxo de decisão existente.
+- A migration `20260823001000_phase3_business_reassignment_request_ui.sql` foi
+  aplicada na Homolog. A versão cronológica criada automaticamente pela API foi
+  removida do histórico e `20260823001000` foi marcada como aplicada, com a
+  função já validada e sem reexecutar DDL.
+- No emulador Android, uma sessão owner existente abriu por deep link um
+  atendimento técnico futuro, exibiu o botão, criou a solicitação por
+  `operational_change` e navegou para `business-decision-detail-screen` em
+  `requested`, versão 1. A correlação exibida na timeline coincidiu com a linha
+  e o evento persistidos no backend.
+- A fixture foi removida integralmente e
+  `appointment_reassignment_enabled=false` foi restaurada. Capturas ficaram
+  fora do repositório em `%LOCALAPPDATA%\CutSync\g14-runtime`; hashes SHA-256:
+  `2C11C744AED77EBFD726D80585D9AF1AA48004CBB26BE2C86A4948AEEBA70273`
+  e `272E102343E4A2C6E5DCD0108BF7ADF56EA64563204421DE11E9E9981A2C2DD3`.
+- A solicitação agora é persistida no SecureStore antes da RPC. O outbox é
+  isolado por usuário e unidade, aceita somente payloads conhecidos, preserva
+  `requestId`/`correlationId`, serializa replay e classifica rede, conflito e
+  revisão manual. A RPC possui timeout de 12 segundos; resposta tardia e replay
+  continuam seguros pela idempotência server-side.
+- No ensaio offline, a rede do emulador foi removida após o detalhe estar
+  carregado, a solicitação foi iniciada e o processo foi encerrado durante a
+  chamada. Com a rede restaurada, a reabertura do mesmo deep link recuperou o
+  outbox e navegou para a decisão confirmada. O backend registrou exatamente uma
+  solicitação `requested/v1` e um evento. A fixture foi removida, a flag voltou
+  a `false` e a conectividade do emulador foi restaurada. Captura SHA-256:
+  `BB02989F56EB4BA13794DB545C730DE6A55524F1A0A57814A3FA230083C39997`.
+
+As evidências local, CI, matriz remota com papéis reais e autenticação/contexto
+no emulador Android estão confirmadas. Os deep links de Business e Client nos
+três estados e a retomada offline da solicitação Business após reinício também
+estão homologados no emulador. Push com receipt real, repetição do replay em
+aparelho físico e a comparação visual Web/Business/Client da mesma solicitação
+continuam pendentes; portanto o gate permanece não aprovado.
 
 ## Condições para aprovação
 
@@ -93,7 +179,7 @@ G14 só pode ser aprovado após:
 
 - workflow verde em PR identificado;
 - homologação com cliente, profissional, manager/admin e usuário sem vínculo;
-- Android real validando push e deep links nos três estados do aplicativo;
+- aparelho Android físico validando push e os deep links aplicáveis;
 - replay após perda de rede e reinício sem duplicar a decisão;
 - comparação da mesma `correlationId` em Web, Business e Client;
 - aprovação explícita registrada com limitações e evidências.

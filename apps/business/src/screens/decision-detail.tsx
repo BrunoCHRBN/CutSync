@@ -1,7 +1,8 @@
-import { createMobileRequestId } from '@cutsync/domain';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { createMobileRequestId } from '@/lib/mobile-request-id';
 
 import {
   BusinessButton,
@@ -51,7 +52,7 @@ export function BusinessDecisionDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ requestId?: string | string[] }>();
   const requestId = Array.isArray(params.requestId) ? params.requestId[0] ?? '' : params.requestId ?? '';
-  const { activeContext } = useBusinessOperational();
+  const { activeContext, isLoading: isContextLoading } = useBusinessOperational();
   const detail = useBusinessReassignmentDetail(requestId);
   const command = useBusinessDecisionCommand(requestId);
   const [withdrawReason, setWithdrawReason] = useState('');
@@ -66,16 +67,16 @@ export function BusinessDecisionDetailScreen() {
     || command.syncStatus === 'offline_pending'
     || command.syncStatus === 'manual_review';
 
-  if (!hasBusinessDecisionsNavigation(activeContext?.capabilities)) {
-    return <Redirect href="/today" />;
-  }
-
-  if (detail.isLoading) {
+  if (isContextLoading || detail.isLoading) {
     return (
       <BusinessPage testID="business-decision-detail-loading">
         <ActivityIndicator color={businessTheme.colors.accent} />
       </BusinessPage>
     );
+  }
+
+  if (!hasBusinessDecisionsNavigation(activeContext?.capabilities)) {
+    return <Redirect href="/today" />;
   }
 
   if (detail.isError || !detail.data) {

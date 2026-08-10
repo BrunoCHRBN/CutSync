@@ -2,7 +2,6 @@ import type {
   BusinessCapability,
   BusinessOperationalContext,
 } from '@cutsync/database';
-import { createMobileRequestId } from '@cutsync/domain';
 import {
   AppState,
 } from 'react-native';
@@ -20,6 +19,7 @@ import {
 import { useBusinessSession } from '@/contexts/business-session';
 import { resolveActiveEstablishmentId } from '@/features/access/business-access';
 import { activeEstablishmentStorage } from '@/lib/active-establishment-storage';
+import { createMobileRequestId } from '@/lib/mobile-request-id';
 import {
   businessApi,
   BusinessApiError,
@@ -43,7 +43,9 @@ interface BusinessOperationalValue {
 const BusinessOperationalContextValue = createContext<BusinessOperationalValue | null>(null);
 
 type BusinessContextFailureStep =
-  | 'rpc'
+  | 'authorized_rpc'
+  | 'operational_rpc'
+  | 'activate_rpc'
   | 'storage_read'
   | 'storage_write'
   | 'unknown';
@@ -73,7 +75,10 @@ const getOperationalContextErrorMessage = (error: unknown): string => {
 
   if (targetError instanceof BusinessApiError) {
     const diagnosticCode = targetError.diagnosticCode ?? targetError.code.toUpperCase();
-    return diagnosticMessage(targetError.message, `BUS_CTX_${diagnosticCode}`);
+    const stepPrefix = targetError.code === 'contexts_unavailable'
+      ? `${step.toUpperCase()}_`
+      : '';
+    return diagnosticMessage(targetError.message, `BUS_CTX_${stepPrefix}${diagnosticCode}`);
   }
   if (
     targetError
@@ -154,10 +159,18 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
       let next: BusinessOperationalContext[];
       let serverActiveEstablishmentId: string | null;
       try {
-        const [authorizedContexts, operationalContexts] = await Promise.all([
-          businessApi.getAuthorizedContexts(),
-          businessApi.getOperationalContexts(),
-        ]);
+        let authorizedContexts;
+        try {
+          authorizedContexts = await businessApi.getAuthorizedContexts();
+        } catch (error) {
+          throw new BusinessContextRefreshError('authorized_rpc', error);
+        }
+        let operationalContexts;
+        try {
+          operationalContexts = await businessApi.getOperationalContexts();
+        } catch (error) {
+          throw new BusinessContextRefreshError('operational_rpc', error);
+        }
         const authorizedEstablishmentIds = new Set(
           authorizedContexts.flatMap((context) => (
             context.contextKind === 'establishment' && context.establishmentId
@@ -172,7 +185,8 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
           context.contextKind === 'establishment' && context.active
         ))?.establishmentId ?? null;
       } catch (error) {
-        throw new BusinessContextRefreshError('rpc', error);
+        if (error instanceof BusinessContextRefreshError) throw error;
+        throw new BusinessContextRefreshError('operational_rpc', error);
       }
       if (version !== requestVersion.current) return next;
 
@@ -196,7 +210,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
             requestId: createMobileRequestId(),
           });
         } catch (error) {
-          throw new BusinessContextRefreshError('rpc', error);
+          throw new BusinessContextRefreshError('activate_rpc', error);
         }
       }
 
@@ -271,7 +285,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
     } catch (selectionError) {
       setConnectionError(true);
       setError(getOperationalContextErrorMessage(
-        new BusinessContextRefreshError('rpc', selectionError),
+        new BusinessContextRefreshError('activate_rpc', selectionError),
       ));
       return false;
     }

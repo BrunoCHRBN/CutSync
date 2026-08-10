@@ -32,6 +32,7 @@ export interface BusinessAppointmentDetail {
   serviceListPrice: number;
   startsAt: string;
   endsAt: string;
+  updatedAt: string;
   status: BusinessAgendaStatus;
   notes: string | null;
   allowedActions: BusinessAppointmentAction[];
@@ -220,6 +221,7 @@ export const mapBusinessAppointmentDetail = (value: unknown): BusinessAppointmen
   );
   const startsAt = timestampValue(property(value, 'starts_at', 'startsAt'));
   const endsAt = timestampValue(property(value, 'ends_at', 'endsAt'));
+  const updatedAt = timestampValue(property(value, 'updated_at', 'updatedAt'));
   const status = appointmentStatus(value.status ?? property(value, 'appointment_status', 'appointmentStatus'));
   const rawActions = property(value, 'allowed_actions', 'allowedActions');
   const actions = Array.isArray(rawActions)
@@ -230,7 +232,7 @@ export const mapBusinessAppointmentDetail = (value: unknown): BusinessAppointmen
     : null;
   if (
     !id || !establishmentId || !clientDisplayName || !professionalId || !professionalName
-    || !serviceId || !serviceName || serviceListPrice === null || !startsAt || !endsAt
+    || !serviceId || !serviceName || serviceListPrice === null || !startsAt || !endsAt || !updatedAt
     || !status || !actions || !history || Date.parse(endsAt) <= Date.parse(startsAt)
   ) return null;
 
@@ -261,6 +263,7 @@ export const mapBusinessAppointmentDetail = (value: unknown): BusinessAppointmen
     serviceListPrice,
     startsAt,
     endsAt,
+    updatedAt,
     status,
     notes: nullableString(value.notes ?? client.notes ?? null),
     allowedActions: actions,

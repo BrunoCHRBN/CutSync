@@ -1,4 +1,3 @@
-import { createMobileRequestId } from '@cutsync/domain';
 import type {
   BusinessReassignmentCandidate,
   ClientReassignmentDecision,
@@ -8,6 +7,8 @@ import type {
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+
+import { createMobileRequestId } from '@/lib/mobile-request-id';
 
 import {
   ClientReassignmentApiError,

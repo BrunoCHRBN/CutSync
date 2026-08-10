@@ -143,6 +143,7 @@ export interface BusinessApi {
     establishmentId: string,
     reassignmentRequestId: string,
   ) => Promise<BusinessReassignmentCandidate[]>;
+  requestReassignment: (input: ReassignmentRequestInput) => Promise<AppointmentReassignmentMutationReceipt>;
   validateReassignment: (input: DecisionCommandInput) => Promise<AppointmentReassignmentMutationReceipt>;
   proposeReassignment: (
     input: DecisionCommandInput & { professionalId: string },
@@ -182,6 +183,16 @@ interface DecisionCommandInput {
   requestId: string;
 }
 
+interface ReassignmentRequestInput {
+  appointmentId: string;
+  reasonCode: string;
+  responsibility: 'professional' | 'reception' | 'manager' | 'admin' | 'owner';
+  dueAt: string;
+  expectedAppointmentUpdatedAt: string;
+  requestId: string;
+  correlationId: string;
+}
+
 type RpcResult = {
   data: unknown;
   error: unknown;
@@ -193,6 +204,7 @@ type RpcCaller = <Name extends BusinessRpcName>(
 ) => PromiseLike<RpcResult>;
 
 type DecisionRpcName =
+  | 'request_appointment_reassignment'
   | 'validate_appointment_reassignment'
   | 'propose_appointment_reassignment'
   | 'apply_appointment_reassignment'
@@ -215,13 +227,14 @@ type Operation =
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INVITATION_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DECISION_RPC_TIMEOUT_MS = 12_000;
 
 const invokeRpc = async <Name extends BusinessRpcName>(
   client: SupabaseClient<Database>,
   name: Name,
   args?: BusinessRpcArgs<Name>,
 ): Promise<RpcResult> => {
-  const caller = client.rpc as unknown as RpcCaller;
+  const caller = client.rpc.bind(client) as unknown as RpcCaller;
   return caller(name, args);
 };
 
@@ -241,6 +254,25 @@ const remoteErrorCode = (error: unknown): string | null => {
   if (typeof code !== 'string') return null;
   const normalized = normalizeBusinessDiagnosticCode(code);
   return normalized && normalized.length <= 24 ? normalized : null;
+};
+
+const logSanitizedRpcError = (operation: Operation, error: unknown) => {
+  if (!__DEV__) return;
+  const record = error && typeof error === 'object'
+    ? error as Record<string, unknown>
+    : null;
+  const name = typeof record?.name === 'string'
+    ? normalizeBusinessDiagnosticCode(record.name)
+    : null;
+  const status = typeof record?.status === 'number' && Number.isInteger(record.status)
+    ? record.status
+    : null;
+  console.warn('BUSINESS_RPC_FAILURE', {
+    operation,
+    code: remoteErrorCode(error),
+    name,
+    status,
+  });
 };
 
 const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
@@ -275,6 +307,7 @@ const translateServiceOrderCode = (code: string): BusinessApiErrorCode | null =>
 };
 
 const translateRpcError = (operation: Operation, error: unknown): BusinessApiError => {
+  logSanitizedRpcError(operation, error);
   if (error instanceof ServiceOrderApiError) {
     const mapped = translateServiceOrderCode(error.code);
     if (mapped) return new BusinessApiError(mapped);
@@ -298,6 +331,9 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
     || text.includes('reassignment_not_ready_to_apply')
     || text.includes('reassignment_not_withdrawable')
     || text.includes('appointment_reassignment_expired')
+    || text.includes('appointment_not_reassignable')
+    || text.includes('appointment_reassignment_already_active')
+    || text.includes('appointment_reassignment_after_order_open')
   ) return new BusinessApiError('decision_invalid_transition');
   if (
     text.includes('replacement_professional_not_linked')
@@ -388,6 +424,16 @@ const isValidDecisionCommand = (input: DecisionCommandInput) => (
   && input.expectedVersion > 0
 );
 
+const isValidReassignmentRequest = (input: ReassignmentRequestInput) => (
+  input.appointmentId.trim().length > 0
+  && /^[a-z][a-z0-9_]{2,79}$/u.test(input.reasonCode)
+  && ['professional', 'reception', 'manager', 'admin', 'owner'].includes(input.responsibility)
+  && Number.isFinite(Date.parse(input.dueAt))
+  && Number.isFinite(Date.parse(input.expectedAppointmentUpdatedAt))
+  && UUID_PATTERN.test(input.requestId)
+  && UUID_PATTERN.test(input.correlationId)
+);
+
 const invokeDecisionCommand = async (
   nullableClient: SupabaseClient<Database> | null,
   name: DecisionRpcName,
@@ -396,10 +442,16 @@ const invokeDecisionCommand = async (
   const client = requireClient(nullableClient);
   const caller = client.rpc.bind(client) as unknown as DecisionRpcCaller;
   let result: RpcResult;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   try {
-    result = await caller(name, args);
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('network_timeout')), DECISION_RPC_TIMEOUT_MS);
+    });
+    result = await Promise.race([Promise.resolve(caller(name, args)), timeout]);
   } catch (error) {
     throw translateRpcError('decisions', error);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
   if (result.error) throw translateRpcError('decisions', result.error);
   const receipt = mapAppointmentReassignmentMutationReceipt(result.data);
@@ -595,6 +647,19 @@ export const createBusinessApi = (
       throw new BusinessApiError('invalid_response');
     }
     return candidates as BusinessReassignmentCandidate[];
+  },
+
+  async requestReassignment(input) {
+    if (!isValidReassignmentRequest(input)) throw new BusinessApiError('invalid_request');
+    return invokeDecisionCommand(nullableClient, 'request_appointment_reassignment', {
+      target_appointment_id: input.appointmentId.trim(),
+      target_reason_code: input.reasonCode,
+      target_responsibility: input.responsibility,
+      target_due_at: input.dueAt,
+      target_expected_appointment_updated_at: input.expectedAppointmentUpdatedAt,
+      target_request_id: input.requestId,
+      target_correlation_id: input.correlationId,
+    });
   },
 
   async validateReassignment(input) {

@@ -5,13 +5,14 @@ import type {
 } from '@cutsync/database';
 import {
   AWAITING_PAYMENT_NOTICE,
-  createMobileRequestId,
   formatMoneyCents,
   getServiceOrderStatusLabel,
 } from '@cutsync/domain';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, AppState, StyleSheet, Text, View } from 'react-native';
+
+import { createMobileRequestId } from '@/lib/mobile-request-id';
 
 import {
   BusinessButton,
@@ -31,6 +32,18 @@ import {
   formatAgendaTime,
   getAgendaStatusLabel,
 } from '@/features/agenda/business-agenda';
+import {
+  canRequestAppointmentReassignment,
+  getReassignmentDeadline,
+  resolveReassignmentResponsibility,
+} from '@/features/decisions/appointment-reassignment-request';
+import {
+  enqueueBusinessReassignmentRequest,
+  executeBusinessReassignmentRequest,
+  markBusinessReassignmentRequest,
+  removeBusinessReassignmentRequest,
+  replayBusinessReassignmentRequest,
+} from '@/features/decisions/business-reassignment-request-outbox';
 import { BusinessApiError, businessApi } from '@/services/business-api';
 import { businessTheme } from '@/theme/business-theme';
 
@@ -42,7 +55,7 @@ export function AppointmentOperationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ appointmentId?: string }>();
   const appointmentId = typeof params.appointmentId === 'string' ? params.appointmentId : '';
-  const { activeContext } = useBusinessOperational();
+  const { activeContext, hasCapability } = useBusinessOperational();
   const { user } = useBusinessSession();
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
 
@@ -50,6 +63,7 @@ export function AppointmentOperationScreen() {
   const [orderContext, setOrderContext] = useState<AppointmentServiceOrderContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [mutating, setMutating] = useState(false);
+  const [reassignmentMutating, setReassignmentMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -102,6 +116,18 @@ export function AppointmentOperationScreen() {
     actorUserId: user?.id,
   });
   const actionLabel = getBusinessOrderActionLabel(primaryAction);
+  const reassignmentResponsibility = activeContext
+    ? resolveReassignmentResponsibility(activeContext.operationalRole)
+    : null;
+  const canRequestReassignment = activeContext && appointment
+    ? canRequestAppointmentReassignment({
+      status: appointment.status,
+      startsAt: appointment.startsAt,
+      accessMode: activeContext.accessMode,
+      hasCapability: hasCapability('request_appointment_reassignment'),
+      responsibility: reassignmentResponsibility,
+    })
+    : false;
 
   const runMutation = async () => {
     if (!activeContext || !appointment || !actionLabel || inFlightRef.current) return;
@@ -173,6 +199,116 @@ export function AppointmentOperationScreen() {
       inFlightRef.current = false;
       setMutating(false);
     }
+  };
+
+  const runReassignmentRequest = async (
+    reasonCode: 'professional_absence' | 'operational_change',
+  ) => {
+    if (
+      !activeContext
+      || !appointment
+      || !reassignmentResponsibility
+      || !user
+      || reassignmentMutating
+    ) return;
+
+    const dueAt = getReassignmentDeadline(appointment.startsAt);
+    if (!dueAt) {
+      setError('Este atendimento está próximo demais para iniciar uma reatribuição pelo aplicativo.');
+      return;
+    }
+
+    const entry = await enqueueBusinessReassignmentRequest({
+      userId: user.id,
+      establishmentId: activeContext.establishmentId,
+      appointmentId: appointment.id,
+      reasonCode,
+      responsibility: reassignmentResponsibility,
+      dueAt,
+      expectedAppointmentUpdatedAt: appointment.updatedAt,
+      requestId: createMobileRequestId(),
+      correlationId: createMobileRequestId(),
+    });
+
+    setReassignmentMutating(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const receipt = await executeBusinessReassignmentRequest(entry);
+      await removeBusinessReassignmentRequest(user.id, entry.requestId);
+      router.push(`/(app)/decisions/${receipt.reassignmentRequestId}` as never);
+    } catch (requestError) {
+      const message = requestError instanceof Error
+        ? requestError.message
+        : 'Não foi possível criar a solicitação de reatribuição.';
+      if (requestError instanceof BusinessApiError && requestError.code === 'network_error') {
+        await markBusinessReassignmentRequest(
+          user.id, entry.requestId, 'offline_pending', entry.attempts + 1, message,
+        );
+        setNotice('Solicitação salva neste aparelho. O mesmo protocolo será reenviado quando a conexão voltar.');
+      } else if (requestError instanceof BusinessApiError && [
+        'decision_conflict', 'decision_invalid_transition', 'decision_idempotency_conflict',
+      ].includes(requestError.code)) {
+        await removeBusinessReassignmentRequest(user.id, entry.requestId);
+        await load();
+        setError(requestError.message);
+      } else {
+        await markBusinessReassignmentRequest(
+          user.id, entry.requestId, 'manual_review', entry.attempts + 1, message,
+        );
+        setError(message);
+      }
+    } finally {
+      setReassignmentMutating(false);
+    }
+  };
+
+  const replayPendingReassignmentRequest = useCallback(async () => {
+    if (!user || !activeContext || !appointmentId) return;
+    const result = await replayBusinessReassignmentRequest(
+      user.id,
+      activeContext.establishmentId,
+      appointmentId,
+    );
+    if (result.confirmedReceipt) {
+      router.push(`/(app)/decisions/${result.confirmedReceipt.reassignmentRequestId}` as never);
+    } else if (result.status === 'offline_pending') {
+      setNotice('Solicitação ainda pendente de conexão; o protocolo foi preservado.');
+    } else if (result.status === 'conflict') {
+      setError('O atendimento mudou no servidor. Recarregue os dados antes de solicitar novamente.');
+      await load();
+    } else if (result.status === 'manual_review') {
+      setError('A solicitação pendente precisa de revisão manual.');
+    }
+  }, [activeContext, appointmentId, load, router, user]);
+
+  useFocusEffect(useCallback(() => {
+    void replayPendingReassignmentRequest();
+  }, [replayPendingReassignmentRequest]));
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void replayPendingReassignmentRequest();
+    });
+    return () => subscription.remove();
+  }, [replayPendingReassignmentRequest]);
+
+  const confirmReassignmentRequest = () => {
+    Alert.alert(
+      'Solicitar reatribuição',
+      'A troca não será aplicada agora. A solicitação seguirá para validação e, quando necessário, decisão do cliente.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Ausência do profissional',
+          onPress: () => void runReassignmentRequest('professional_absence'),
+        },
+        {
+          text: 'Imprevisto operacional',
+          onPress: () => void runReassignmentRequest('operational_change'),
+        },
+      ],
+    );
   };
 
   return (
@@ -297,6 +433,16 @@ export function AppointmentOperationScreen() {
 
           {notice ? <BusinessNotice tone="warning" message={notice} /> : null}
           {error ? <BusinessNotice tone="danger" message={error} /> : null}
+
+          {canRequestReassignment ? (
+            <BusinessButton
+              testID="business-request-reassignment"
+              label="Solicitar reatribuição"
+              variant="secondary"
+              loading={reassignmentMutating}
+              onPress={confirmReassignmentRequest}
+            />
+          ) : null}
 
           {actionLabel ? (
             <BusinessButton
