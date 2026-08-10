@@ -15,6 +15,243 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_assignment_events: {
+        Row: {
+          actor_id: string | null
+          actor_kind: string
+          appointment_id: string
+          assignment_id: string | null
+          correlation_id: string
+          establishment_id: string
+          event_type: string
+          id: string
+          occurred_at: string
+          payload: Json
+          previous_version: number | null
+          reassignment_request_id: string | null
+          request_id: string
+          resulting_version: number
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_kind: string
+          appointment_id: string
+          assignment_id?: string | null
+          correlation_id: string
+          establishment_id: string
+          event_type: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          previous_version?: number | null
+          reassignment_request_id?: string | null
+          request_id: string
+          resulting_version: number
+        }
+        Update: {
+          actor_id?: string | null
+          actor_kind?: string
+          appointment_id?: string
+          assignment_id?: string | null
+          correlation_id?: string
+          establishment_id?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          previous_version?: number | null
+          reassignment_request_id?: string | null
+          request_id?: string
+          resulting_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_assignment_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_events_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_events_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_events_reassignment_request_id_fkey"
+            columns: ["reassignment_request_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_reassignment_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_assignment_shadow_issues: {
+        Row: {
+          active_assignment_count: number
+          appointment_id: string
+          assigned_professional_id: string | null
+          created_at: string
+          id: string
+          issue_code: string
+          projected_professional_id: string | null
+          run_id: string
+        }
+        Insert: {
+          active_assignment_count: number
+          appointment_id: string
+          assigned_professional_id?: string | null
+          created_at?: string
+          id?: string
+          issue_code: string
+          projected_professional_id?: string | null
+          run_id: string
+        }
+        Update: {
+          active_assignment_count?: number
+          appointment_id?: string
+          assigned_professional_id?: string | null
+          created_at?: string
+          id?: string
+          issue_code?: string
+          projected_professional_id?: string | null
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_assignment_shadow_is_projected_professional_id_fkey"
+            columns: ["projected_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_shadow_iss_assigned_professional_id_fkey"
+            columns: ["assigned_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_shadow_issues_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_shadow_issues_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_shadow_issues_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_shadow_issues_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_assignment_shadow_runs: {
+        Row: {
+          created_at: string
+          cutover_eligible: boolean
+          data_cutoff_at: string
+          establishment_id: string
+          id: string
+          matching_appointments: number
+          mismatched_appointments: number
+          missing_assignments: number
+          multiple_active_assignments: number
+          request_id: string
+          requested_by: string
+          total_appointments: number
+        }
+        Insert: {
+          created_at?: string
+          cutover_eligible?: boolean
+          data_cutoff_at: string
+          establishment_id: string
+          id?: string
+          matching_appointments: number
+          mismatched_appointments: number
+          missing_assignments: number
+          multiple_active_assignments: number
+          request_id: string
+          requested_by: string
+          total_appointments: number
+        }
+        Update: {
+          created_at?: string
+          cutover_eligible?: boolean
+          data_cutoff_at?: string
+          establishment_id?: string
+          id?: string
+          matching_appointments?: number
+          mismatched_appointments?: number
+          missing_assignments?: number
+          multiple_active_assignments?: number
+          request_id?: string
+          requested_by?: string
+          total_appointments?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_assignment_shadow_runs_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_assignment_shadow_runs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_events: {
         Row: {
           actor_id: string | null
@@ -61,6 +298,20 @@ export type Database = {
             foreignKeyName: "appointment_events_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -69,6 +320,333 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_professional_assignments: {
+        Row: {
+          appointment_id: string
+          correlation_id: string
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_until: string | null
+          establishment_id: string
+          id: string
+          professional_id: string
+          reassignment_request_id: string | null
+          request_id: string | null
+          source: string
+          status: string
+          supersedes_assignment_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          appointment_id: string
+          correlation_id: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_until?: string | null
+          establishment_id: string
+          id?: string
+          professional_id: string
+          reassignment_request_id?: string | null
+          request_id?: string | null
+          source: string
+          status: string
+          supersedes_assignment_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          appointment_id?: string
+          correlation_id?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_until?: string | null
+          establishment_id?: string
+          id?: string
+          professional_id?: string
+          reassignment_request_id?: string | null
+          request_id?: string | null
+          source?: string
+          status?: string
+          supersedes_assignment_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_professional_assignme_supersedes_assignment_id_fkey"
+            columns: ["supersedes_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignmen_reassignment_request_id_fkey"
+            columns: ["reassignment_request_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_reassignment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_assignments_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_professional_preference_snapshots: {
+        Row: {
+          acceptance_channel: string | null
+          accepted_at: string | null
+          appointment_id: string
+          captured_by: string | null
+          created_at: string
+          establishment_id: string
+          id: string
+          policy_accepted: boolean
+          policy_version: number
+          preference: string
+          request_id: string
+          selected_professional_id: string | null
+          version: number
+        }
+        Insert: {
+          acceptance_channel?: string | null
+          accepted_at?: string | null
+          appointment_id: string
+          captured_by?: string | null
+          created_at?: string
+          establishment_id: string
+          id?: string
+          policy_accepted?: boolean
+          policy_version: number
+          preference: string
+          request_id: string
+          selected_professional_id?: string | null
+          version?: number
+        }
+        Update: {
+          acceptance_channel?: string | null
+          accepted_at?: string | null
+          appointment_id?: string
+          captured_by?: string | null
+          created_at?: string
+          establishment_id?: string
+          id?: string
+          policy_accepted?: boolean
+          policy_version?: number
+          preference?: string
+          request_id?: string
+          selected_professional_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_professional_preferen_selected_professional_id_fkey"
+            columns: ["selected_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_preference_snaps_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_preference_snapsho_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_preference_snapsho_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_preference_snapsho_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_professional_preference_snapshots_captured_by_fkey"
+            columns: ["captured_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_reassignment_requests: {
+        Row: {
+          applied_at: string | null
+          appointment_id: string
+          completed_at: string | null
+          correlation_id: string
+          created_at: string
+          customer_decision_required: boolean
+          due_at: string
+          establishment_id: string
+          expected_appointment_updated_at: string
+          id: string
+          initiated_by: string
+          previous_assignment_id: string | null
+          previous_condition: Json
+          proposed_condition: Json
+          proposed_professional_id: string | null
+          reason_code: string
+          request_id: string
+          responsibility: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          applied_at?: string | null
+          appointment_id: string
+          completed_at?: string | null
+          correlation_id: string
+          created_at?: string
+          customer_decision_required?: boolean
+          due_at: string
+          establishment_id: string
+          expected_appointment_updated_at: string
+          id?: string
+          initiated_by: string
+          previous_assignment_id?: string | null
+          previous_condition: Json
+          proposed_condition: Json
+          proposed_professional_id?: string | null
+          reason_code: string
+          request_id: string
+          responsibility: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          applied_at?: string | null
+          appointment_id?: string
+          completed_at?: string | null
+          correlation_id?: string
+          created_at?: string
+          customer_decision_required?: boolean
+          due_at?: string
+          establishment_id?: string
+          expected_appointment_updated_at?: string
+          id?: string
+          initiated_by?: string
+          previous_assignment_id?: string | null
+          previous_condition?: Json
+          proposed_condition?: Json
+          proposed_professional_id?: string | null
+          reason_code?: string
+          request_id?: string
+          responsibility?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_reassignment_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_reassignment_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "appointment_reassignment_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_reassignment_requests_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_reassignment_requests_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_reassignment_requests_previous_assignment_id_fkey"
+            columns: ["previous_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_reassignment_requests_proposed_professional_id_fkey"
+            columns: ["proposed_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -193,6 +771,178 @@ export type Database = {
             columns: ["transferred_from_professional_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_requests: {
+        Row: {
+          approval_action: string
+          capability: string | null
+          consumed_at: string | null
+          consumed_by: string | null
+          correction_payload: Json | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          decision_request_id: string | null
+          establishment_id: string | null
+          expires_at: string
+          id: string
+          justification: string
+          organization_id: string | null
+          proposed_professional_id: string | null
+          request_id: string
+          request_type: string
+          requested_by: string
+          requested_effect: string | null
+          status: string
+          subject_appointment_id: string | null
+          subject_membership_id: string | null
+          target_override_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approval_action?: string
+          capability?: string | null
+          consumed_at?: string | null
+          consumed_by?: string | null
+          correction_payload?: Json | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          decision_request_id?: string | null
+          establishment_id?: string | null
+          expires_at?: string
+          id?: string
+          justification: string
+          organization_id?: string | null
+          proposed_professional_id?: string | null
+          request_id: string
+          request_type: string
+          requested_by: string
+          requested_effect?: string | null
+          status?: string
+          subject_appointment_id?: string | null
+          subject_membership_id?: string | null
+          target_override_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approval_action?: string
+          capability?: string | null
+          consumed_at?: string | null
+          consumed_by?: string | null
+          correction_payload?: Json | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          decision_request_id?: string | null
+          establishment_id?: string | null
+          expires_at?: string
+          id?: string
+          justification?: string
+          organization_id?: string | null
+          proposed_professional_id?: string | null
+          request_id?: string
+          request_type?: string
+          requested_by?: string
+          requested_effect?: string | null
+          status?: string
+          subject_appointment_id?: string | null
+          subject_membership_id?: string | null
+          target_override_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "business_capability_catalog"
+            referencedColumns: ["capability"]
+          },
+          {
+            foreignKeyName: "approval_requests_consumed_by_fkey"
+            columns: ["consumed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_proposed_professional_id_fkey"
+            columns: ["proposed_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_subject_appointment_id_fkey"
+            columns: ["subject_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "approval_requests_subject_appointment_id_fkey"
+            columns: ["subject_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "approval_requests_subject_appointment_id_fkey"
+            columns: ["subject_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_subject_membership_id_fkey"
+            columns: ["subject_membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_target_override_id_fkey"
+            columns: ["target_override_id"]
+            isOneToOne: false
+            referencedRelation: "membership_capability_overrides"
             referencedColumns: ["id"]
           },
         ]
@@ -755,6 +1505,30 @@ export type Database = {
           },
         ]
       }
+      business_capability_catalog: {
+        Row: {
+          active: boolean
+          capability: string
+          created_at: string
+          read_only_allowed: boolean
+          sensitive_override: boolean
+        }
+        Insert: {
+          active?: boolean
+          capability: string
+          created_at?: string
+          read_only_allowed?: boolean
+          sensitive_override?: boolean
+        }
+        Update: {
+          active?: boolean
+          capability?: string
+          created_at?: string
+          read_only_allowed?: boolean
+          sensitive_override?: boolean
+        }
+        Relationships: []
+      }
       business_push_deliveries: {
         Row: {
           appointment_id: string | null
@@ -833,6 +1607,20 @@ export type Database = {
             foreignKeyName: "business_push_deliveries_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "business_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -870,6 +1658,29 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "push_devices"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_role_template_capabilities: {
+        Row: {
+          capability: string
+          role_template: string
+        }
+        Insert: {
+          capability: string
+          role_template: string
+        }
+        Update: {
+          capability?: string
+          role_template?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_role_template_capabilities_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "business_capability_catalog"
+            referencedColumns: ["capability"]
           },
         ]
       }
@@ -981,6 +1792,20 @@ export type Database = {
             foreignKeyName: "client_push_deliveries_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "client_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "client_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -1051,6 +1876,200 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_change_decisions: {
+        Row: {
+          accepted_assignment_id: string | null
+          actor_kind: string | null
+          appointment_id: string
+          channel: string | null
+          chosen_professional_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: string
+          decision_reason: string | null
+          id: string
+          reassignment_request_id: string
+          request_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          accepted_assignment_id?: string | null
+          actor_kind?: string | null
+          appointment_id: string
+          channel?: string | null
+          chosen_professional_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string
+          decision_reason?: string | null
+          id?: string
+          reassignment_request_id: string
+          request_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          accepted_assignment_id?: string | null
+          actor_kind?: string | null
+          appointment_id?: string
+          channel?: string | null
+          chosen_professional_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string
+          decision_reason?: string | null
+          id?: string
+          reassignment_request_id?: string
+          request_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_change_decisions_accepted_assignment_id_fkey"
+            columns: ["accepted_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_change_decisions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "customer_change_decisions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "customer_change_decisions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_change_decisions_chosen_professional_id_fkey"
+            columns: ["chosen_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_change_decisions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_change_decisions_reassignment_request_id_fkey"
+            columns: ["reassignment_request_id"]
+            isOneToOne: true
+            referencedRelation: "appointment_reassignment_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_queue_items: {
+        Row: {
+          allowed_actions: string[]
+          appointment_id: string
+          correlation_id: string
+          customer_decision_required: boolean
+          data_cutoff_at: string
+          due_at: string
+          establishment_id: string
+          monetary_impact: boolean
+          next_actor_kind: string
+          reassignment_request_id: string
+          responsibility: string
+          status: string
+          updated_at: string
+          urgency: string
+          version: number
+        }
+        Insert: {
+          allowed_actions?: string[]
+          appointment_id: string
+          correlation_id: string
+          customer_decision_required: boolean
+          data_cutoff_at?: string
+          due_at: string
+          establishment_id: string
+          monetary_impact?: boolean
+          next_actor_kind: string
+          reassignment_request_id: string
+          responsibility: string
+          status: string
+          updated_at?: string
+          urgency: string
+          version: number
+        }
+        Update: {
+          allowed_actions?: string[]
+          appointment_id?: string
+          correlation_id?: string
+          customer_decision_required?: boolean
+          data_cutoff_at?: string
+          due_at?: string
+          establishment_id?: string
+          monetary_impact?: boolean
+          next_actor_kind?: string
+          reassignment_request_id?: string
+          responsibility?: string
+          status?: string
+          updated_at?: string
+          urgency?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_queue_items_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "decision_queue_items_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "decision_queue_items_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_queue_items_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_queue_items_reassignment_request_id_fkey"
+            columns: ["reassignment_request_id"]
+            isOneToOne: true
+            referencedRelation: "appointment_reassignment_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -1362,6 +2381,60 @@ export type Database = {
           },
         ]
       }
+      establishment_lifecycle_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          establishment_id: string
+          id: number
+          previous_status: string
+          previous_version: number
+          reason: string
+          request_id: string
+          resulting_status: string
+          resulting_version: number
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          establishment_id: string
+          id?: never
+          previous_status: string
+          previous_version: number
+          reason: string
+          request_id: string
+          resulting_status: string
+          resulting_version: number
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          establishment_id?: string
+          id?: never
+          previous_status?: string
+          previous_version?: number
+          reason?: string
+          request_id?: string
+          resulting_status?: string
+          resulting_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_lifecycle_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_lifecycle_events_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishment_requests: {
         Row: {
           address: string | null
@@ -1483,6 +2556,20 @@ export type Database = {
             foreignKeyName: "establishment_reviews_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: true
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "establishment_reviews_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "establishment_reviews_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -1526,6 +2613,9 @@ export type Database = {
           kyc_document_url: string | null
           kyc_status: string | null
           latitude: number | null
+          lifecycle_status: string
+          lifecycle_updated_at: string
+          lifecycle_version: number
           logo_url: string | null
           longitude: number | null
           min_cancellation_hours: number | null
@@ -1569,6 +2659,9 @@ export type Database = {
           kyc_document_url?: string | null
           kyc_status?: string | null
           latitude?: number | null
+          lifecycle_status?: string
+          lifecycle_updated_at?: string
+          lifecycle_version?: number
           logo_url?: string | null
           longitude?: number | null
           min_cancellation_hours?: number | null
@@ -1612,6 +2705,9 @@ export type Database = {
           kyc_document_url?: string | null
           kyc_status?: string | null
           latitude?: number | null
+          lifecycle_status?: string
+          lifecycle_updated_at?: string
+          lifecycle_version?: number
           logo_url?: string | null
           longitude?: number | null
           min_cancellation_hours?: number | null
@@ -2500,6 +3596,116 @@ export type Database = {
         }
         Relationships: []
       }
+      membership_capability_overrides: {
+        Row: {
+          approval_request_id: string
+          capability: string
+          created_at: string
+          effect: string
+          establishment_id: string
+          granted_by: string
+          id: string
+          justification: string
+          membership_id: string
+          request_id: string
+          revocation_approval_request_id: string | null
+          revocation_reason: string | null
+          revocation_request_id: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          approval_request_id: string
+          capability: string
+          created_at?: string
+          effect: string
+          establishment_id: string
+          granted_by: string
+          id?: string
+          justification: string
+          membership_id: string
+          request_id: string
+          revocation_approval_request_id?: string | null
+          revocation_reason?: string | null
+          revocation_request_id?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          approval_request_id?: string
+          capability?: string
+          created_at?: string
+          effect?: string
+          establishment_id?: string
+          granted_by?: string
+          id?: string
+          justification?: string
+          membership_id?: string
+          request_id?: string
+          revocation_approval_request_id?: string | null
+          revocation_reason?: string | null
+          revocation_request_id?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_capability_overrid_revocation_approval_request__fkey"
+            columns: ["revocation_approval_request_id"]
+            isOneToOne: true
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_capability_overrides_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: true
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_capability_overrides_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "business_capability_catalog"
+            referencedColumns: ["capability"]
+          },
+          {
+            foreignKeyName: "membership_capability_overrides_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_capability_overrides_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_capability_overrides_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_capability_overrides_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           commission_rate: number
@@ -2512,6 +3718,7 @@ export type Database = {
           revocation_reason: string | null
           revoked_at: string | null
           role: string
+          role_template: string
           status: string
           updated_at: string
         }
@@ -2526,6 +3733,7 @@ export type Database = {
           revocation_reason?: string | null
           revoked_at?: string | null
           role: string
+          role_template: string
           status?: string
           updated_at?: string
         }
@@ -2540,6 +3748,7 @@ export type Database = {
           revocation_reason?: string | null
           revoked_at?: string | null
           role?: string
+          role_template?: string
           status?: string
           updated_at?: string
         }
@@ -4102,6 +5311,20 @@ export type Database = {
             foreignKeyName: "service_orders_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "service_orders_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "service_orders_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -5015,6 +6238,20 @@ export type Database = {
             foreignKeyName: "support_tickets_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
+            referencedRelation: "appointment_assignment_shadow_comparison"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_professional_preference_projection"
+            referencedColumns: ["appointment_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
@@ -5051,6 +6288,255 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "support_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_app_active_contexts: {
+        Row: {
+          app_id: string
+          context_kind: string
+          establishment_id: string | null
+          organization_id: string | null
+          profile_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          app_id: string
+          context_kind: string
+          establishment_id?: string | null
+          organization_id?: string | null
+          profile_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          app_id?: string
+          context_kind?: string
+          establishment_id?: string | null
+          organization_id?: string | null
+          profile_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_app_active_contexts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_app_active_contexts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_app_active_contexts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_app_context_events: {
+        Row: {
+          app_id: string
+          context_kind: string
+          created_at: string
+          establishment_id: string | null
+          id: number
+          organization_id: string | null
+          profile_id: string
+          request_id: string
+          resulting_version: number
+        }
+        Insert: {
+          app_id: string
+          context_kind: string
+          created_at?: string
+          establishment_id?: string | null
+          id?: never
+          organization_id?: string | null
+          profile_id: string
+          request_id: string
+          resulting_version: number
+        }
+        Update: {
+          app_id?: string
+          context_kind?: string
+          created_at?: string
+          establishment_id?: string | null
+          id?: never
+          organization_id?: string | null
+          profile_id?: string
+          request_id?: string
+          resulting_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_app_context_events_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_app_context_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_app_context_events_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_onboarding_events: {
+        Row: {
+          app_id: string
+          correlation_id: string
+          created_at: string
+          id: number
+          previous_status: string | null
+          previous_step: string | null
+          previous_version: number
+          profile_id: string
+          progress_id: string
+          request_id: string
+          resulting_status: string
+          resulting_step: string
+          resulting_version: number
+        }
+        Insert: {
+          app_id: string
+          correlation_id: string
+          created_at?: string
+          id?: never
+          previous_status?: string | null
+          previous_step?: string | null
+          previous_version: number
+          profile_id: string
+          progress_id: string
+          request_id: string
+          resulting_status: string
+          resulting_step: string
+          resulting_version: number
+        }
+        Update: {
+          app_id?: string
+          correlation_id?: string
+          created_at?: string
+          id?: never
+          previous_status?: string | null
+          previous_step?: string | null
+          previous_version?: number
+          profile_id?: string
+          progress_id?: string
+          request_id?: string
+          resulting_status?: string
+          resulting_step?: string
+          resulting_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_onboarding_events_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_onboarding_events_progress_id_fkey"
+            columns: ["progress_id"]
+            isOneToOne: false
+            referencedRelation: "user_onboarding_progress"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_onboarding_progress: {
+        Row: {
+          app_id: string
+          completed_at: string | null
+          context_kind: string
+          created_at: string
+          current_step: string
+          establishment_id: string | null
+          id: string
+          intent: string
+          last_request_id: string
+          last_resumed_at: string
+          organization_id: string | null
+          profile_id: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          app_id: string
+          completed_at?: string | null
+          context_kind: string
+          created_at?: string
+          current_step: string
+          establishment_id?: string | null
+          id?: string
+          intent: string
+          last_request_id: string
+          last_resumed_at?: string
+          organization_id?: string | null
+          profile_id: string
+          status: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          app_id?: string
+          completed_at?: string | null
+          context_kind?: string
+          created_at?: string
+          current_step?: string
+          establishment_id?: string | null
+          id?: string
+          intent?: string
+          last_request_id?: string
+          last_resumed_at?: string
+          organization_id?: string | null
+          profile_id?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_onboarding_progress_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_onboarding_progress_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_onboarding_progress_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -5168,6 +6654,54 @@ export type Database = {
           },
         ]
       }
+      appointment_assignment_shadow_comparison: {
+        Row: {
+          active_assignment_count: number | null
+          active_assignment_id: string | null
+          appointment_id: string | null
+          assigned_professional_id: string | null
+          establishment_id: string | null
+          projected_professional_id: string | null
+          projection_matches: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_barber_id_fkey"
+            columns: ["projected_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_barbershop_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_professional_preference_projection: {
+        Row: {
+          appointment_id: string | null
+          establishment_id: string | null
+          policy_version: number | null
+          preference: string | null
+          preference_snapshot_id: string | null
+          preference_source: string | null
+          selected_professional_id: string | null
+          version: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_barbershop_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_business_invitation_token: {
@@ -5256,6 +6790,14 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      apply_appointment_reassignment: {
+        Args: {
+          target_expected_version: number
+          target_reassignment_request_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
       apply_business_appointment_status: {
         Args: {
           target_appointment_id: string
@@ -5263,6 +6805,15 @@ export type Database = {
           target_reason?: string
           target_request_id: string
           target_status: string
+        }
+        Returns: Json
+      }
+      apply_membership_capability_override: {
+        Args: {
+          target_approval_request_id: string
+          target_expected_approval_version: number
+          target_request_id: string
+          target_valid_until: string
         }
         Returns: Json
       }
@@ -5327,6 +6878,7 @@ export type Database = {
           revocation_reason: string | null
           revoked_at: string | null
           role: string
+          role_template: string
           status: string
           updated_at: string
         }
@@ -5415,6 +6967,10 @@ export type Database = {
           target_establishment_id: string
           target_professional_id: string
         }
+        Returns: boolean
+      }
+      can_view_establishment_readiness: {
+        Args: { target_establishment_id: string; target_profile_id: string }
         Returns: boolean
       }
       can_view_private_profile: {
@@ -5701,6 +7257,18 @@ export type Database = {
         Args: { target_link_id: string; target_request_id: string }
         Returns: Json
       }
+      correct_appointment_assignment: {
+        Args: {
+          target_appointment_id: string
+          target_approval_request_id: string
+          target_correlation_id: string
+          target_expected_appointment_updated_at: string
+          target_proposed_professional_id: string
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
       create_appointment: {
         Args: {
           target_client_id?: string
@@ -5885,6 +7453,38 @@ export type Database = {
         Returns: Json
       }
       current_session_is_aal2: { Args: never; Returns: boolean }
+      decide_appointment_assignment_correction_approval: {
+        Args: {
+          target_approval_request_id: string
+          target_decision: string
+          target_expected_version: number
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      decide_appointment_reassignment: {
+        Args: {
+          target_channel: string
+          target_chosen_professional_id: string
+          target_decision: string
+          target_expected_version: number
+          target_reason: string
+          target_reassignment_request_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      decide_capability_override_approval: {
+        Args: {
+          target_approval_request_id: string
+          target_decision: string
+          target_expected_version: number
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
       delete_business_schedule_block: {
         Args: {
           target_establishment_id: string
@@ -5934,12 +7534,24 @@ export type Database = {
         Args: { reason: string; target_level: number; target_ticket_id: string }
         Returns: Json
       }
+      establishment_configuration_is_ready: {
+        Args: { target_establishment_id: string }
+        Returns: boolean
+      }
       establishment_discovery_requirements: {
         Args: { target_establishment_id: string }
         Returns: Json
       }
       execute_governance_privacy_request: {
         Args: { reason: string; request_id: string }
+        Returns: Json
+      }
+      expire_appointment_reassignment: {
+        Args: {
+          target_expected_version: number
+          target_reassignment_request_id: string
+          target_request_id: string
+        }
         Returns: Json
       }
       export_establishment_clients: {
@@ -6129,6 +7741,13 @@ export type Database = {
       }
       get_business_appointment_detail: {
         Args: { target_appointment_id: string; target_establishment_id: string }
+        Returns: Json
+      }
+      get_business_reassignment_detail: {
+        Args: {
+          target_establishment_id: string
+          target_reassignment_request_id: string
+        }
         Returns: Json
       }
       get_business_schedule_blocks: {
@@ -6332,6 +7951,10 @@ export type Database = {
           timezone: string
         }[]
       }
+      get_client_reassignment_detail: {
+        Args: { target_appointment_id: string }
+        Returns: Json
+      }
       get_control_analytics_health: { Args: never; Returns: Json }
       get_control_context: { Args: never; Returns: Json }
       get_control_dashboard: { Args: never; Returns: Json }
@@ -6411,6 +8034,10 @@ export type Database = {
           requirements: Json
         }[]
       }
+      get_establishment_readiness: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
       get_establishment_team: {
         Args: {
           include_administrators?: boolean
@@ -6455,6 +8082,10 @@ export type Database = {
           store_url: string
           update_required: boolean
         }[]
+      }
+      get_my_authorized_contexts: {
+        Args: { target_app_id: string }
+        Returns: Json[]
       }
       get_my_billing_overview: {
         Args: { target_establishment_id: string }
@@ -6538,6 +8169,10 @@ export type Database = {
           organization_id: string
           verification_status: string
         }[]
+      }
+      get_my_onboarding_progress: {
+        Args: { target_app_id: string; target_intent?: string }
+        Returns: Json[]
       }
       get_my_operational_contexts: {
         Args: never
@@ -6653,6 +8288,10 @@ export type Database = {
           titulo_profissional: string
         }[]
       }
+      get_reassignment_operational_condition: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
       get_schedule_blocks: {
         Args: {
           range_end: string
@@ -6717,10 +8356,20 @@ export type Database = {
         Args: { allowed_roles?: string[]; target_establishment_id: string }
         Returns: boolean
       }
-      has_business_capability: {
-        Args: { target_capability: string; target_establishment_id: string }
-        Returns: boolean
-      }
+      has_business_capability:
+        | {
+            Args: { target_capability: string; target_establishment_id: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              target_access_mode?: string
+              target_capability: string
+              target_establishment_id: string
+              target_profile_id: string
+            }
+            Returns: boolean
+          }
       has_organization_role: {
         Args: { allowed_roles?: string[]; target_organization_id: string }
         Returns: boolean
@@ -6814,6 +8463,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_context_target_authorized: {
+        Args: {
+          target_app_id: string
+          target_context_kind: string
+          target_establishment_id: string
+          target_organization_id: string
+          target_profile_id: string
+        }
+        Returns: boolean
+      }
       is_establishment_active: {
         Args: { target_establishment_id: string }
         Returns: boolean
@@ -6839,6 +8498,17 @@ export type Database = {
       issue_manual_billing_invoice: {
         Args: { target_due_date: string; target_subscription_id: string }
         Returns: string
+      }
+      list_business_decision_queue: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      list_business_reassignment_candidates: {
+        Args: {
+          target_establishment_id: string
+          target_reassignment_request_id: string
+        }
+        Returns: Json
       }
       list_client_discovery_establishments: {
         Args: {
@@ -6882,6 +8552,11 @@ export type Database = {
           establishment_id: string
         }[]
       }
+      list_client_reassignment_candidates: {
+        Args: { target_reassignment_request_id: string }
+        Returns: Json
+      }
+      list_client_reassignment_decisions: { Args: never; Returns: Json }
       list_control_billing_accounts: {
         Args: never
         Returns: {
@@ -7246,6 +8921,10 @@ export type Database = {
         Args: { target_amount: number }
         Returns: number
       }
+      onboarding_allowed_actions: {
+        Args: { target_status: string }
+        Returns: string[]
+      }
       open_service_order: {
         Args: {
           target_appointment_id?: string
@@ -7253,6 +8932,15 @@ export type Database = {
           target_establishment_id: string
           target_internal_notes?: string
           target_professional_id?: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      propose_appointment_reassignment: {
+        Args: {
+          target_expected_version: number
+          target_proposed_professional_id: string
+          target_reassignment_request_id: string
           target_request_id: string
         }
         Returns: Json
@@ -7300,6 +8988,14 @@ export type Database = {
       }
       recalculate_service_order_totals: {
         Args: { target_service_order_id: string }
+        Returns: undefined
+      }
+      reconcile_appointment_assignment_shadow: {
+        Args: { target_establishment_id: string; target_request_id: string }
+        Returns: Json
+      }
+      refresh_appointment_decision_queue_item: {
+        Args: { target_reassignment_request_id: string }
         Returns: undefined
       }
       register_business_identity_atomic: {
@@ -7412,6 +9108,46 @@ export type Database = {
       }
       reprocess_support_sync: {
         Args: { reason: string; target_ticket_id: string }
+        Returns: Json
+      }
+      request_appointment_assignment_correction_approval: {
+        Args: {
+          target_appointment_id: string
+          target_proposed_professional_id: string
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      request_appointment_reassignment: {
+        Args: {
+          target_appointment_id: string
+          target_correlation_id: string
+          target_due_at: string
+          target_expected_appointment_updated_at: string
+          target_reason_code: string
+          target_request_id: string
+          target_responsibility: string
+        }
+        Returns: Json
+      }
+      request_capability_override_approval: {
+        Args: {
+          target_capability: string
+          target_effect: string
+          target_establishment_id: string
+          target_justification: string
+          target_membership_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      request_capability_override_revocation: {
+        Args: {
+          target_justification: string
+          target_override_id: string
+          target_request_id: string
+        }
         Returns: Json
       }
       request_control_analytics_reprocess: {
@@ -7594,6 +9330,14 @@ export type Database = {
         Args: { reason: string; target_invitation_id: string }
         Returns: undefined
       }
+      revoke_membership_capability_override: {
+        Args: {
+          target_approval_request_id: string
+          target_expected_approval_version: number
+          target_request_id: string
+        }
+        Returns: Json
+      }
       revoke_organization_member: {
         Args: { target_organization_id: string; target_profile_id: string }
         Returns: undefined
@@ -7695,6 +9439,40 @@ export type Database = {
         }
         Returns: Json
       }
+      set_establishment_lifecycle_status: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_lifecycle_status: string
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      set_my_active_context: {
+        Args: {
+          target_app_id: string
+          target_context_kind: string
+          target_establishment_id: string
+          target_organization_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      set_my_onboarding_progress: {
+        Args: {
+          target_app_id: string
+          target_context_kind: string
+          target_current_step: string
+          target_establishment_id: string
+          target_expected_version: number
+          target_intent: string
+          target_organization_id: string
+          target_request_id: string
+          target_status: string
+        }
+        Returns: Json
+      }
       start_service_order: {
         Args: {
           target_establishment_id: string
@@ -7759,6 +9537,10 @@ export type Database = {
           request_origin: string
         }
         Returns: Json
+      }
+      supersede_reassignment_proposals: {
+        Args: { target_reassignment_request_id: string }
+        Returns: undefined
       }
       support_add_business_minutes: {
         Args: { target_at: string; target_minutes: number }
@@ -8005,6 +9787,14 @@ export type Database = {
         }
         Returns: Json
       }
+      validate_appointment_reassignment: {
+        Args: {
+          target_expected_version: number
+          target_reassignment_request_id: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
       void_service_order: {
         Args: {
           target_establishment_id: string
@@ -8012,6 +9802,15 @@ export type Database = {
           target_reason: string
           target_request_id: string
           target_service_order_id: string
+        }
+        Returns: Json
+      }
+      withdraw_appointment_reassignment: {
+        Args: {
+          target_expected_version: number
+          target_reason: string
+          target_reassignment_request_id: string
+          target_request_id: string
         }
         Returns: Json
       }
