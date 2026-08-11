@@ -42,6 +42,36 @@ DECLARE
 BEGIN
   starts_at := (local_date::timestamp + time '12:00') AT TIME ZONE 'America/Sao_Paulo';
   IF has_function_privilege(
+    'anon', 'public.queue_due_client_appointment_reminders(timestamptz)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'authenticated', 'public.queue_due_client_appointment_reminders(timestamptz)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'anon', 'public.claim_client_push_deliveries(integer)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'authenticated', 'public.claim_client_push_deliveries(integer)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'anon', 'public.complete_client_push_delivery(uuid,boolean,text,text,boolean)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'authenticated', 'public.complete_client_push_delivery(uuid,boolean,text,text,boolean)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'anon', 'public.claim_client_push_receipts(integer)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'authenticated', 'public.claim_client_push_receipts(integer)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'anon', 'public.complete_client_push_receipt(uuid,boolean,text)', 'EXECUTE'
+  ) OR has_function_privilege(
+    'authenticated', 'public.complete_client_push_receipt(uuid,boolean,text)', 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'Client push worker RPCs are exposed outside service_role';
+  END IF;
+  IF NOT has_function_privilege(
+    'service_role', 'public.claim_client_push_deliveries(integer)', 'EXECUTE'
+  ) OR NOT has_function_privilege(
+    'service_role', 'public.complete_client_push_delivery(uuid,boolean,text,text,boolean)', 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'service_role cannot execute Client push worker RPCs';
+  END IF;
+  IF has_function_privilege(
     'anon', 'public.get_business_appointment_detail(uuid,text)', 'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'anonymous role can execute the Business appointment detail read model';
