@@ -311,9 +311,10 @@ test('workflow separa evidência CI da homologação física assistida', () => {
   expect(workflow).toContain('npm run test:phase2:real-jwt');
   expect(workflow).toContain('Classificação: CI reproduzido');
   expect(workflow).toContain('Não comprova: push em dispositivo real');
-  expect(evidence).toContain('pronto para aprovação final; aguarda CI do hardening de grants');
+  expect(evidence).toContain('Status atual: **aprovado em 2026-08-11**');
   expect(evidence).toMatch(/validação física\s+assistida/);
   expect(evidence).toContain('aprovação física das alterações móveis');
+  expect(evidence).toContain('**Decisão:** Gate G14 aprovado');
   expect(evidence).toContain('cold start, background e foreground');
 });
 

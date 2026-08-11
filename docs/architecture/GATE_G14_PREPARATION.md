@@ -1,6 +1,6 @@
 # Gate G14 — preparação de evidências
 
-Status atual: **pronto para aprovação final; aguarda CI do hardening de grants**.
+Status atual: **aprovado em 2026-08-11**.
 
 A decisão final combina CI reproduzido, Homolog com identidades reais, evidência
 Android automatizada/em emulador e validação assistida em aparelhos físicos.
@@ -51,11 +51,12 @@ O workflow `.github/workflows/phase3-gate.yml` executa:
 ## Evidência CI reproduzida
 
 - PR: `#33`, branch `codex/phase3-decision-center`.
-- Commit consolidado do fechamento: `f8146b08c537fac7055a6a4e4011b938e20417cb`.
-- Workflow Phase 3 Gate: execução `31458264275`, concluída com sucesso.
-- Workflows Phase 1 Gate (`31458264263`), Install and Build
-  (`31458264268`) e Schema Drift (`31458264269`) concluídos com sucesso no
-  mesmo commit.
+- Commit consolidado e reproduzido: `1a8f0fb6ecb2796f86637943731ef375605fec38`.
+- Workflow Phase 3 Gate: execução `31461300976`, concluída com sucesso em
+  6m53s, incluindo o teste de grants do dispatcher Client.
+- Workflows Phase 1 Gate (`31461301008`), Phase 2 Gate (`31461301120`),
+  Install and Build (`31461300982`) e Schema Drift (`31461302290`) concluídos
+  com sucesso no mesmo commit.
 - A primeira tentativa do Phase 2 Gate (`31458264276`) falhou durante o startup
   do ambiente descartável porque o container `supabase_edge_runtime` encerrou
   com `Bus error`/HTTP 503, antes de executar os testes. A tentativa 2 do mesmo
@@ -123,7 +124,7 @@ O workflow `.github/workflows/phase3-gate.yml` executa:
   emulador, SQL, unitários e harness Homolog;
 - aprovação explícita do responsável pelo produto registrada em 2026-08-11;
 - hardening dos RPCs internos Client aplicado e validado localmente e em
-  Homolog; falta apenas reproduzi-lo no CI da PR.
+  Homolog, e reproduzido no CI da PR.
 
 ## Evidência em Homolog
 
@@ -247,11 +248,11 @@ homologados. A validação assistida em aparelhos físicos aprovou as alteraçõ
 móveis, o fluxo de decisão, as notificações internas e o push. Com a repetição
 verde do Phase 2 Gate registrada, não há pendência bloqueadora para G14.
 
-## Critérios de aprovação
+## Aprovação
 
-A aprovação final do G14 reúne as seguintes evidências:
+G14 foi aprovado em 2026-08-11 com as seguintes evidências:
 
-- workflow G14 verde na PR `#33`, commit `f8146b0`;
+- workflow G14 verde na PR `#33`, commit `1a8f0fb`;
 - homologação com cliente, profissional, manager/admin e usuário sem vínculo;
 - aparelhos Android físicos aprovados para o fluxo móvel e notificações;
 - replay/idempotência comprovados por ensaio Android e testes server-side;
@@ -262,7 +263,6 @@ A aprovação final do G14 reúne as seguintes evidências:
 - aprovação explícita registrada, mantendo a limitação de proveniência EAS
   descrita neste documento.
 
-**Decisão preparada:** as evidências funcionais e a homologação móvel estão
-aprovadas. O Gate G14 será formalmente aprovado quando a migration de hardening
-e seu teste forem enviados à PR `#33` e todos os checks obrigatórios voltarem a
-ficar verdes. Não realizar o merge antes dessa confirmação.
+**Decisão:** Gate G14 aprovado. A Fase 3 está concluída e a PR `#33` pode seguir
+para merge, desde que os checks obrigatórios deste commit documental também
+permaneçam verdes.
