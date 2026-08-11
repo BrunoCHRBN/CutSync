@@ -61,6 +61,9 @@ export function ClientAppointmentDetailScreen() {
   }
 
   const appointment = query.appointment;
+  const acceptedReplacement = reassignmentQuery.detail?.status === 'ready_to_apply'
+    ? reassignmentQuery.detail.proposedProfessional
+    : null;
   const formatted = formatClientAppointmentDateTime(appointment.startsAt, appointment.establishment.timezone);
   const original = appointment.originalStartsAt
     ? formatClientAppointmentDateTime(appointment.originalStartsAt, appointment.establishment.timezone)
@@ -158,7 +161,12 @@ export function ClientAppointmentDetailScreen() {
         <AppointmentStatusBadge appointment={appointment} />
         <Text style={styles.eyebrow}>DETALHES DO ATENDIMENTO</Text>
         <Text testID="client-appointment-detail-establishment" style={styles.title}>{formatDisplayName(appointment.establishment.name)}</Text>
-        <Text style={styles.description}>{appointment.service.name} com {formatDisplayName(appointment.professional.name)}</Text>
+        <Text style={styles.description}>
+          {appointment.service.name} com {formatDisplayName(appointment.professional.name)}
+          {acceptedReplacement
+            ? ` · troca para ${formatDisplayName(acceptedReplacement.name)} aguardando aplicação`
+            : ''}
+        </Text>
       </Animated.View>
 
       {reassignmentQuery.detail && (
@@ -207,7 +215,16 @@ export function ClientAppointmentDetailScreen() {
         style={styles.detailCard}
       >
         <AppointmentDetailRow label="Serviço" value={appointment.service.name} />
-        <AppointmentDetailRow label="Profissional" value={formatDisplayName(appointment.professional.name)} />
+        <AppointmentDetailRow
+          label={acceptedReplacement ? 'Profissional atual' : 'Profissional'}
+          value={formatDisplayName(appointment.professional.name)}
+        />
+        {acceptedReplacement && (
+          <AppointmentDetailRow
+            label="Substituto aceito (aguardando aplicação)"
+            value={formatDisplayName(acceptedReplacement.name)}
+          />
+        )}
         <AppointmentDetailRow label="Endereço" value={appointment.establishment.address || 'Endereço não informado'} />
         <AppointmentDetailRow label="Fuso do local" value={appointment.establishment.timezone} />
         <AppointmentDetailRow label="Protocolo" value={appointment.id} last />

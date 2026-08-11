@@ -243,7 +243,19 @@ export function BusinessDecisionDetailScreen() {
                 <BusinessNotice tone="danger" message="Não foi possível confirmar profissionais disponíveis." />
               ) : null}
               {candidates.data?.length === 0 ? (
-                <Text style={styles.body}>Nenhum profissional qualificado está livre neste horário.</Text>
+                <View style={styles.actionGroup} testID="business-reassignment-candidates-empty">
+                  <Text style={styles.body}>
+                    Nenhum profissional com serviço ativo e horário de trabalho compatível está
+                    livre neste horário.
+                  </Text>
+                  <BusinessButton
+                    testID="business-refresh-reassignment-candidates"
+                    label="Atualizar candidatos"
+                    variant="secondary"
+                    loading={candidates.isFetching}
+                    onPress={() => void candidates.refetch()}
+                  />
+                </View>
               ) : null}
               {candidates.data?.map((candidate) => (
                 <BusinessCard key={candidate.profileId}>

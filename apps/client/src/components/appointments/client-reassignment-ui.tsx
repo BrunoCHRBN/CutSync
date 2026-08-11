@@ -36,7 +36,7 @@ const actorLabels: Record<string, string> = {
 const statusMessages: Record<string, string> = {
   awaiting_customer: 'Sua decisão é necessária',
   ready_to_apply: 'Aceite registrado; aguardando aplicação pelo estabelecimento',
-  awaiting_manager: 'Sua preferência foi enviada ao estabelecimento',
+  awaiting_manager: 'O estabelecimento está definindo um substituto',
   manual_review: 'O estabelecimento está revisando sua solicitação',
   applied: 'Alteração concluída',
   declined: 'Atendimento cancelado por mudança do estabelecimento',
@@ -124,6 +124,7 @@ export function ClientReassignmentPanel({
   const offlinePending = syncStatus === 'offline_pending';
   const blocked = busy || offlinePending || syncStatus === 'manual_review';
   const hasActions = detail.allowedActions.length > 0;
+  const waitingForProposal = detail.status === 'awaiting_manager' && !hasActions;
   const initiatedBy = actorLabels[detail.initiatedByKind] ?? 'Estabelecimento';
 
   const openCandidates = () => {
@@ -159,6 +160,27 @@ export function ClientReassignmentPanel({
           Não há dados financeiros de sinal disponíveis nesta etapa. Nenhuma cobrança é alterada por esta tela.
         </Text>
       </View>
+
+      {detail.status === 'ready_to_apply' && detail.proposedProfessional && (
+        <View testID="client-reassignment-awaiting-application" style={styles.waitingNotice}>
+          <Text style={styles.waitingTitle}>Substituto aceito: {detail.proposedProfessional.name}</Text>
+          <Text style={styles.waitingText}>
+            Até o estabelecimento aplicar a mudança, o agendamento continuará exibindo
+            {` ${detail.currentProfessional.name}`} como profissional atual. Você receberá uma atualização quando a troca for concluída.
+          </Text>
+        </View>
+      )}
+
+      {waitingForProposal && (
+        <View testID="client-reassignment-awaiting-proposal" style={styles.waitingNotice}>
+          <Text style={styles.waitingTitle}>Você ainda não precisa decidir</Text>
+          <Text style={styles.waitingText}>
+            Quando um substituto elegível for proposto, você poderá aceitar, escolher outro
+            profissional, reagendar com o original ou cancelar sem penalidade. Uma nova
+            notificação será enviada nesse momento.
+          </Text>
+        </View>
+      )}
 
       {hasActions && (
         <View style={styles.actionList}>
@@ -306,6 +328,9 @@ const styles = StyleSheet.create({
   financialNotice: { gap: 5, borderRadius: 16, backgroundColor: '#EEF5F0', padding: 14 },
   financialTitle: { color: sharedBrand.colors.forest, fontSize: 11, fontWeight: '900' },
   financialText: { color: appointmentColors.secondary, fontSize: 11, lineHeight: 17 },
+  waitingNotice: { gap: 6, borderWidth: 1, borderColor: '#C8D8CD', borderRadius: 16, backgroundColor: '#F4F8F5', padding: 14 },
+  waitingTitle: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '900' },
+  waitingText: { color: appointmentColors.secondary, fontSize: 11, lineHeight: 17 },
   actionList: { gap: 10 },
   primaryAction: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: sharedBrand.colors.forest, paddingHorizontal: 16 },
   primaryActionText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },

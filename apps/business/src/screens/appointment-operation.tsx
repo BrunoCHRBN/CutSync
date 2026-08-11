@@ -1,6 +1,7 @@
 import type {
   AppointmentServiceOrderContext,
   BusinessAppointmentDetail,
+  DecisionQueueItem,
   ServiceOrderDetail,
 } from '@cutsync/database';
 import {
@@ -36,6 +37,7 @@ import {
   getAppointmentReassignmentAvailability,
   resolveReassignmentResponsibility,
 } from '@/features/decisions/appointment-reassignment-request';
+import { hasBusinessDecisionsNavigation } from '@/features/access/business-access';
 import {
   enqueueBusinessReassignmentRequest,
   executeBusinessReassignmentRequest,
@@ -59,6 +61,7 @@ export function AppointmentOperationScreen() {
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
 
   const [appointment, setAppointment] = useState<BusinessAppointmentDetail | null>(null);
+  const [activeReassignment, setActiveReassignment] = useState<DecisionQueueItem | null>(null);
   const [orderContext, setOrderContext] = useState<AppointmentServiceOrderContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [mutating, setMutating] = useState(false);
@@ -70,6 +73,7 @@ export function AppointmentOperationScreen() {
   const inFlightRef = useRef(false);
 
   const financialOpsEnabled = Boolean(activeContext?.financialOpsEnabled);
+  const canViewDecisions = hasBusinessDecisionsNavigation(activeContext?.capabilities);
   const serviceOrder: ServiceOrderDetail | null = orderContext?.serviceOrder ?? null;
 
   const load = useCallback(async () => {
@@ -90,9 +94,19 @@ export function AppointmentOperationScreen() {
           appointmentId,
         )
         : Promise.resolve(null);
-      const [detail, order] = await Promise.all([detailPromise, orderPromise]);
+      const decisionsPromise = canViewDecisions
+        ? businessApi.listDecisionQueue(activeContext.establishmentId).catch(() => [])
+        : Promise.resolve([]);
+      const [detail, order, decisions] = await Promise.all([
+        detailPromise,
+        orderPromise,
+        decisionsPromise,
+      ]);
       setAppointment(detail);
       setOrderContext(order);
+      setActiveReassignment(
+        decisions.find((decision) => decision.appointmentId === appointmentId) ?? null,
+      );
     } catch (loadError) {
       const message = loadError instanceof BusinessApiError
         ? loadError.message
@@ -101,7 +115,7 @@ export function AppointmentOperationScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeContext, appointmentId, financialOpsEnabled]);
+  }, [activeContext, appointmentId, canViewDecisions, financialOpsEnabled]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -246,7 +260,8 @@ export function AppointmentOperationScreen() {
         );
         setNotice('Solicitação salva neste aparelho. O mesmo protocolo será reenviado quando a conexão voltar.');
       } else if (requestError instanceof BusinessApiError && [
-        'decision_conflict', 'decision_invalid_transition', 'decision_idempotency_conflict',
+        'decision_conflict', 'decision_disabled', 'decision_invalid_transition',
+        'decision_idempotency_conflict',
       ].includes(requestError.code)) {
         await removeBusinessReassignmentRequest(user.id, entry.requestId);
         await load();
@@ -433,7 +448,36 @@ export function AppointmentOperationScreen() {
           {notice ? <BusinessNotice tone="warning" message={notice} /> : null}
           {error ? <BusinessNotice tone="danger" message={error} /> : null}
 
-          {reassignmentResponsibility && reassignmentAvailability ? (
+          {activeReassignment ? (
+            <View style={styles.section} testID="business-active-reassignment-section">
+              <BusinessSectionTitle>Reatribuição em andamento</BusinessSectionTitle>
+              <View style={styles.detailBlock}>
+                <BusinessPill
+                  label={activeReassignment.status.replaceAll('_', ' ')}
+                  tone={activeReassignment.status === 'ready_to_apply' ? 'warning' : 'neutral'}
+                />
+                <Text selectable style={styles.value}>
+                  {activeReassignment.currentProfessionalName}
+                  {' → '}
+                  {activeReassignment.proposedProfessionalName ?? 'substituto em definição'}
+                </Text>
+                <Text selectable style={styles.meta}>
+                  {activeReassignment.status === 'ready_to_apply'
+                    ? 'O cliente aceitou a proposta. O profissional atual permanece na agenda até a aplicação server-side.'
+                    : 'A agenda continua exibindo o profissional atual enquanto a solicitação estiver em andamento.'}
+                </Text>
+              </View>
+              <BusinessButton
+                testID="business-open-active-reassignment"
+                label={activeReassignment.allowedActions.includes('apply')
+                  ? 'Revisar e aplicar troca aceita'
+                  : 'Acompanhar solicitação'}
+                onPress={() => router.push(
+                  `/(app)/decisions/${activeReassignment.reassignmentRequestId}` as never,
+                )}
+              />
+            </View>
+          ) : reassignmentResponsibility && reassignmentAvailability ? (
             <View style={styles.section} testID="business-reassignment-section">
               <BusinessSectionTitle>Reatribuição profissional</BusinessSectionTitle>
               <Text selectable style={styles.meta}>

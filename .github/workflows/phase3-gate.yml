@@ -15,8 +15,11 @@ on:
       - "scripts/reset-supabase-reconciled.ps1"
       - "scripts/validate-phase2-real-jwt.mjs"
       - "supabase/migrations/**"
+      - "supabase/functions/_shared/expo-push.ts"
+      - "supabase/functions/dispatch-business-notifications/**"
       - "supabase/tests/phase3_*.sql"
       - "tests/unit/appointment-reassignment-contracts.unit.spec.ts"
+      - "tests/unit/business-notifications.unit.spec.ts"
       - "tests/unit/client-notifications.unit.spec.ts"
       - "tests/unit/phase3-g14.unit.spec.ts"
   workflow_dispatch:
@@ -75,6 +78,7 @@ jobs:
         run: >-
           npx playwright test --project=unit
           tests/unit/appointment-reassignment-contracts.unit.spec.ts
+          tests/unit/business-notifications.unit.spec.ts
           tests/unit/client-notifications.unit.spec.ts
           tests/unit/phase3-g14.unit.spec.ts
 

@@ -158,6 +158,9 @@ test('Business persiste antes da RPC e serializa replay por usuário e unidade',
   expect(outbox).toContain('entry.establishmentId !== establishmentId');
   expect(screen).toContain('business-decision-offline-pending');
   expect(screen).toContain('mesmo requestId no replay');
+  expect(screen).toContain('testID="business-refresh-reassignment-candidates"');
+  expect(screen).toContain('onPress={() => void candidates.refetch()}');
+  expect(screen).toContain('serviço ativo e horário de trabalho compatível');
   expect(screen).not.toContain('Alteração concluída com sucesso');
 });
 
@@ -186,7 +189,10 @@ test('Business cria solicitação server-side sem afirmar troca aplicada', () =>
   );
   expect(screen).toContain('replayBusinessReassignmentRequest(');
   expect(screen).toContain('O mesmo protocolo será reenviado');
+  expect(screen).toContain("'decision_conflict', 'decision_disabled', 'decision_invalid_transition'");
   expect(api).toContain("'request_appointment_reassignment'");
+  expect(api).toContain("text.includes('appointment_reassignment_disabled')");
+  expect(api).toContain("new BusinessApiError('decision_disabled')");
   expect(api).toContain('target_expected_appointment_updated_at');
   expect(api).toContain('const DECISION_RPC_TIMEOUT_MS = 12_000');
   expect(api).toContain('Promise.race([Promise.resolve(caller(name, args)), timeout])');
@@ -194,6 +200,34 @@ test('Business cria solicitação server-side sem afirmar troca aplicada', () =>
   expect(migration).toContain('REVOKE ALL ON FUNCTION public.get_business_appointment_detail(uuid, text)');
   expect(migration).toContain('TO authenticated, service_role');
   expect(screen).not.toContain(".from('appointments')");
+});
+
+test('Business destaca aceite pendente de aplicação no atendimento', () => {
+  const screen = fs.readFileSync(path.join(
+    process.cwd(), 'apps/business/src/screens/appointment-operation.tsx',
+  ), 'utf8');
+
+  expect(screen).toContain('business-active-reassignment-section');
+  expect(screen).toContain('business-open-active-reassignment');
+  expect(screen).toContain('Revisar e aplicar troca aceita');
+  expect(screen).toContain('O cliente aceitou a proposta.');
+  expect(screen).toContain('listDecisionQueue(activeContext.establishmentId)');
+  expect(screen).toContain('decision.appointmentId === appointmentId');
+});
+
+test('Client distingue profissional atual de substituto aceito antes da aplicação', () => {
+  const panel = fs.readFileSync(path.join(
+    process.cwd(), 'apps/client/src/components/appointments/client-reassignment-ui.tsx',
+  ), 'utf8');
+  const detail = fs.readFileSync(path.join(
+    process.cwd(), 'apps/client/src/screens/client-appointment-detail.tsx',
+  ), 'utf8');
+
+  expect(panel).toContain('client-reassignment-awaiting-application');
+  expect(panel).toContain('Até o estabelecimento aplicar a mudança');
+  expect(detail).toContain("reassignmentQuery.detail?.status === 'ready_to_apply'");
+  expect(detail).toContain("label={acceptedReplacement ? 'Profissional atual' : 'Profissional'}");
+  expect(detail).toContain('Substituto aceito (aguardando aplicação)');
 });
 
 test('outbox da solicitação preserva requestId no reinício e falha fechada', () => {
@@ -242,6 +276,27 @@ test('push de reatribuição nasce do evento imutável e mantém deep link valid
   expect(notificationContract).toContain("pathname: '/appointments/[id]'");
 });
 
+test('cliente distingue análise do estabelecimento de uma decisão já liberada', () => {
+  const panel = fs.readFileSync(path.join(
+    process.cwd(),
+    'apps/client/src/components/appointments/client-reassignment-ui.tsx',
+  ), 'utf8');
+  const noticeMigration = fs.readFileSync(path.join(
+    process.cwd(),
+    'supabase/migrations/20260823002000_phase3_reassignment_client_notice.sql',
+  ), 'utf8');
+
+  expect(panel).toContain('O estabelecimento está definindo um substituto');
+  expect(panel).toContain('client-reassignment-awaiting-proposal');
+  expect(panel).toContain('Você ainda não precisa decidir');
+  expect(noticeMigration).toContain("NEW.event_type = 'reassignment.validated'");
+  expect(noticeMigration).toContain("workflow.status = 'awaiting_manager'");
+  expect(noticeMigration).toContain("target_event_type := 'appointment_reassignment_updated'");
+  expect(noticeMigration).toContain("NEW.event_type = 'reassignment.proposed'");
+  expect(noticeMigration).toContain("target_event_type := 'appointment_reassignment_decision_required'");
+  expect(noticeMigration).toContain('ON CONFLICT (event_key, push_device_id) DO NOTHING');
+});
+
 test('workflow prepara evidência CI sem declarar aprovação ou homologação de dispositivo', () => {
   const workflow = fs.readFileSync(path.join(
     process.cwd(), '.github/workflows/phase3-gate.yml',
@@ -250,6 +305,8 @@ test('workflow prepara evidência CI sem declarar aprovação ou homologação d
     process.cwd(), 'docs/architecture/GATE_G14_PREPARATION.md',
   ), 'utf8');
   expect(workflow).toContain('supabase/tests/phase3_*.sql');
+  expect(workflow).toContain('tests/unit/business-notifications.unit.spec.ts');
+  expect(workflow).toContain('supabase/functions/dispatch-business-notifications/**');
   expect(workflow).toContain('npm run typecheck:new-apps');
   expect(workflow).toContain('npm run test:phase2:real-jwt');
   expect(workflow).toContain('Classificação: CI reproduzido');

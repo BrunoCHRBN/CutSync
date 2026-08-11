@@ -2,6 +2,7 @@ export * from './appointment-errors';
 export * from './appointment-id';
 export * from './booking-dates';
 export * from './booking-offer';
+export * from './business-notifications';
 export * from './client-appointments';
 export * from './client-notifications';
 export * from './date-time';

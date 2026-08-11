@@ -47,6 +47,7 @@ export type BusinessApiErrorCode =
   | 'appointment_unavailable'
   | 'decisions_unavailable'
   | 'decision_conflict'
+  | 'decision_disabled'
   | 'decision_invalid_transition'
   | 'decision_candidate_unavailable'
   | 'decision_idempotency_conflict'
@@ -78,6 +79,7 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   appointment_unavailable: 'Não foi possível carregar o atendimento.',
   decisions_unavailable: 'Não foi possível carregar as decisões desta unidade.',
   decision_conflict: 'Esta decisão mudou em outro dispositivo. Os dados serão atualizados.',
+  decision_disabled: 'A reatribuição ainda não está habilitada nesta unidade.',
   decision_invalid_transition: 'Esta ação não está mais disponível no estado atual.',
   decision_candidate_unavailable: 'Este profissional não está mais elegível ou disponível.',
   decision_idempotency_conflict: 'A tentativa não corresponde ao comando original.',
@@ -325,6 +327,9 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
     || text.includes('appointment_assignment_projection_mismatch')
     || text.includes('reassignment_proposal_changed')
   ) return new BusinessApiError('decision_conflict');
+  if (
+    text.includes('appointment_reassignment_disabled')
+  ) return new BusinessApiError('decision_disabled');
   if (
     text.includes('reassignment_not_validatable')
     || text.includes('reassignment_not_proposable')

@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { BusinessOperationalProvider, useBusinessOperational } from '@/contexts/business-operational-context';
+import { BusinessNotificationsProvider } from '@/contexts/business-notifications-context';
 import { BusinessSessionProvider, useBusinessSession } from '@/contexts/business-session';
 import {
   BusinessQueryProvider,
@@ -14,9 +15,11 @@ export default function BusinessRootLayout() {
     <BusinessQueryProvider>
       <BusinessSessionProvider>
         <BusinessOperationalProvider>
-          <BusinessQueryScopeReset />
-          <StatusBar style="light" />
-          <BusinessRootNavigator />
+          <BusinessNotificationsProvider>
+            <BusinessQueryScopeReset />
+            <StatusBar style="light" />
+            <BusinessRootNavigator />
+          </BusinessNotificationsProvider>
         </BusinessOperationalProvider>
       </BusinessSessionProvider>
     </BusinessQueryProvider>

@@ -80,10 +80,11 @@ BEGIN
   WHERE id = customer_id;
   INSERT INTO public.push_devices(
     profile_id, app_kind, platform, expo_push_token, enabled
-  ) VALUES (
-    customer_id, 'client', 'android',
-    'ExponentPushToken[phase3-g14-customer-device]', true
-  );
+  ) VALUES
+    (customer_id, 'client', 'android',
+      'ExponentPushToken[phase3-g14-customer-device]', true),
+    (manager_id, 'business', 'android',
+      'ExponentPushToken[phase3-g14-manager-device]', true);
 
   INSERT INTO public.memberships(
     profile_id, establishment_id, role, role_template, status, created_by
@@ -145,6 +146,23 @@ BEGIN
   IF response->>'status' <> 'awaiting_manager' THEN
     RAISE EXCEPTION 'Business validation command failed: %', response;
   END IF;
+  SELECT jsonb_agg(jsonb_build_object(
+    'eventType', delivery.event_type,
+    'appointmentId', delivery.payload->>'appointmentId',
+    'reassignmentRequestId', delivery.payload->>'reassignmentRequestId',
+    'correlationId', delivery.payload->>'correlationId'
+  )) INTO queue
+  FROM public.client_push_deliveries AS delivery
+  WHERE delivery.event_type = 'appointment_reassignment_updated'
+    AND delivery.title = 'Alteração de profissional em análise'
+    AND delivery.payload->>'reassignmentRequestId' = workflow_id::text;
+  IF jsonb_array_length(COALESCE(queue, '[]'::jsonb)) <> 1
+    OR queue->0->>'appointmentId' <> appointment_id
+    OR queue->0->>'reassignmentRequestId' <> workflow_id::text
+    OR queue->0->>'correlationId' <> response->>'correlationId'
+  THEN
+    RAISE EXCEPTION 'Client reassignment analysis push invalid: %', queue;
+  END IF;
   queue := public.list_business_reassignment_candidates(unit_id, workflow_id);
   IF jsonb_array_length(queue) <> 2
     OR NOT EXISTS (
@@ -171,7 +189,8 @@ BEGIN
     'correlationId', delivery.payload->>'correlationId'
   )) INTO queue
   FROM public.client_push_deliveries AS delivery
-  WHERE delivery.event_type = 'appointment_reassignment_decision_required';
+  WHERE delivery.event_type = 'appointment_reassignment_decision_required'
+    AND delivery.payload->>'reassignmentRequestId' = workflow_id::text;
   IF jsonb_array_length(COALESCE(queue, '[]'::jsonb)) <> 1
     OR queue->0->>'appointmentId' <> appointment_id
     OR queue->0->>'reassignmentRequestId' <> workflow_id::text
@@ -222,6 +241,23 @@ BEGIN
     RAISE EXCEPTION 'Client acceptance receipt invalid: %', response;
   END IF;
 
+  SELECT jsonb_agg(jsonb_build_object(
+    'eventType', delivery.event_type,
+    'appointmentId', delivery.payload->>'appointmentId',
+    'reassignmentRequestId', delivery.payload->>'reassignmentRequestId',
+    'correlationId', delivery.payload->>'correlationId'
+  )) INTO queue
+  FROM public.business_push_deliveries AS delivery
+  WHERE delivery.event_type = 'appointment_reassignment_action_required'
+    AND delivery.payload->>'reassignmentRequestId' = workflow_id::text;
+  IF jsonb_array_length(COALESCE(queue, '[]'::jsonb)) <> 1
+    OR queue->0->>'appointmentId' <> appointment_id
+    OR queue->0->>'reassignmentRequestId' <> workflow_id::text
+    OR queue->0->>'correlationId' <> response->>'correlationId'
+  THEN
+    RAISE EXCEPTION 'Business reassignment action push invalid: %', queue;
+  END IF;
+
   queue := public.list_client_reassignment_decisions();
   IF jsonb_array_length(queue) <> 0 THEN
     RAISE EXCEPTION 'accepted Client decision remained pending: %', queue;
@@ -241,7 +277,9 @@ BEGIN
     'correlationId', delivery.payload->>'correlationId'
   )) INTO queue
   FROM public.client_push_deliveries AS delivery
-  WHERE delivery.event_type = 'appointment_reassignment_updated';
+  WHERE delivery.event_type = 'appointment_reassignment_updated'
+    AND delivery.title = 'Alteração do atendimento atualizada'
+    AND delivery.payload->>'reassignmentRequestId' = workflow_id::text;
   IF jsonb_array_length(COALESCE(queue, '[]'::jsonb)) <> 1
     OR queue->0->>'appointmentId' <> appointment_id
     OR queue->0->>'reassignmentRequestId' <> workflow_id::text

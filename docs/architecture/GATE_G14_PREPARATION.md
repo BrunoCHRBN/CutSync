@@ -14,7 +14,7 @@ CI, homologação com papéis reais e homologação em dispositivo.
 | Deep links | Parser fail-closed, bundle das rotas dinâmicas e Business/Client homologados em emulador Android nos estados cold start, background e foreground | Concluir a evidência em aparelho Android físico |
 | Offline e replay | Outboxes Client e Business persistentes, mesmo `requestId`, isolamento por usuário/unidade e conflito com releitura; solicitação Business retomada após queda de rede e reinício no emulador | Repetição do cenário em aparelho Android físico |
 | UI manipulada negada no backend | RPCs revalidam identidade, capability, unidade e versão; tentativa adulterada foi negada em Homolog | Repetição pelo cliente instrumentado durante o E2E visual |
-| Push | Evento imutável → fila idempotente → dispatcher existente | Ticket e receipt reais em dispositivo de homologação |
+| Push | Evento imutável → filas Client/Business idempotentes → disparo imediato via `pg_net`, cron de contingência e dispatchers separados | Repetir entrega e abertura por deep link usando os artefatos finais |
 
 ## Workflow preparado
 
@@ -50,6 +50,59 @@ O workflow `.github/workflows/phase3-gate.yml` executa:
 - Workflow Phase 3 Gate: execução `31298583757`, concluída com sucesso.
 - Workflows Phase 1 Gate, Phase 2 Gate, Install and Build e Schema Drift também
   concluídos com sucesso no mesmo commit.
+
+## Fechamento em curso — 2026-08-11
+
+- A Homolog contém migrations aditivas até
+  `20260823004000_phase3_immediate_notification_dispatch.sql` para avisos de
+  reatribuição Client e Business, com envio imediato por `pg_net` e cron como
+  contingência.
+- O dispatcher `dispatch-business-notifications` foi publicado separado do
+  dispatcher Client. As entregas observadas no fluxo real foram processadas
+  uma única vez, sem erro registrado.
+- A homologação manual em aparelhos Android físicos foi reportada pelo usuário
+  como aprovada para notificações no aplicativo e push do fluxo de
+  reatribuição. Essa evidência é classificada como validação física assistida;
+  ainda será repetida nos artefatos finais da PR.
+- A consulta remota dos casos mais recentes confirmou dois fluxos em
+  `ready_to_apply`, com `accept_replacement`, proposta preservada, profissional
+  anterior ainda vigente e nenhum evento `reassignment.applied`. Esse é o
+  contrato esperado: o aceite do cliente não substitui a aplicação autorizada
+  pelo estabelecimento.
+- O Business agora destaca a reatribuição ativa no próprio atendimento e leva
+  o operador para `Revisar e aplicar troca aceita`. O Client diferencia
+  `Profissional atual` de `Substituto aceito (aguardando aplicação)`.
+- A reconstrução descartável aplicou a cadeia completa até `20260823004000`;
+  o teste SQL da Fase 3, DB lint e advisors locais passaram sem erros.
+- Typechecks compartilhado, Client, Business e Control, lints, bundles Web e
+  45 testes focados passaram localmente. O baseline com JWT real e TOTP também
+  aprovou isolamento, revogação, decisão do cliente, aplicação e acesso direto
+  negado às tabelas.
+- Os advisors remotos de segurança e desempenho passaram no nível `error`. A
+  consulta de observabilidade confirmou dois crons ativos, a função de disparo
+  imediato, triggers Client/Business ativos e o enqueue de reatribuição
+  Business presente.
+- O workflow da Fase 3 foi ampliado para incluir o contrato de notificações
+  Business e para disparar quando o dispatcher for alterado.
+- A build Preview Business
+  `e2d4bc5e-b4b4-4d8e-a1a5-d252ec374423` terminou com sucesso e comprovou a
+  configuração nativa de notificações. Como foi empacotada antes do último
+  ajuste visual de aplicação pendente, não é o artefato final do gate.
+
+### Pendências finais
+
+- executar o workflow da PR no commit consolidado desta fatia;
+- gerar/atualizar os artefatos finais Business e Client;
+- em Android físico, executar na mesma solicitação:
+  `solicitar → propor → aceitar → aplicar`;
+- confirmar o novo profissional em Web, Business, Client e no acesso do
+  profissional substituto, com o mesmo `correlationId` e evento
+  `reassignment.applied`;
+- repetir deep links em cold start, background e foreground nos artefatos
+  finais;
+- repetir perda de rede, reinício e replay em aparelho físico, comprovando uma
+  única mutação;
+- registrar a aprovação explícita do gate depois dessas evidências.
 
 ## Evidência em Homolog
 
