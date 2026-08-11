@@ -174,6 +174,10 @@ test('Business cria solicitação server-side sem afirmar troca aplicada', () =>
   ), 'utf8');
 
   expect(screen).toContain('testID="business-request-reassignment"');
+  expect(screen).toContain('testID="business-reassignment-section"');
+  expect(screen).toContain('testID="business-reassignment-unavailable"');
+  expect(screen).toContain('Solicitar troca de profissional');
+  expect(screen).toContain('disabled={!reassignmentAvailability.available}');
   expect(screen).toContain("hasCapability('request_appointment_reassignment')");
   expect(screen).toContain('expectedAppointmentUpdatedAt: appointment.updatedAt');
   expect(screen).toContain('A troca não será aplicada agora.');

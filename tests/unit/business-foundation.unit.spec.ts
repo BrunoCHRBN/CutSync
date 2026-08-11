@@ -17,6 +17,7 @@ import {
 } from '../../apps/business/src/features/agenda/business-agenda';
 import {
   canRequestAppointmentReassignment,
+  getAppointmentReassignmentAvailability,
   getReassignmentDeadline,
   resolveReassignmentResponsibility,
 } from '../../apps/business/src/features/decisions/appointment-reassignment-request';
@@ -90,6 +91,37 @@ test('Decisões aparece por capability operacional e mantém proteção na tela'
   expect(tabs).toContain('hidden={!canViewDecisions}');
   expect(decisions).toContain('hasBusinessDecisionsNavigation(activeContext?.capabilities)');
   expect(decisions).toContain('<Redirect href="/today" />');
+});
+
+test('reatribuição informa por que a ação não está disponível em vez de desaparecer', () => {
+  const base = {
+    status: 'confirmed' as const,
+    startsAt: '2026-08-10T15:00:00.000Z',
+    accessMode: 'full' as const,
+    hasCapability: true,
+    responsibility: 'admin' as const,
+    nowMs: Date.parse('2026-08-10T12:00:00.000Z'),
+  };
+
+  expect(getAppointmentReassignmentAvailability(base)).toEqual({
+    available: true,
+    dueAt: '2026-08-10T14:00:00.000Z',
+    message: null,
+  });
+  expect(getAppointmentReassignmentAvailability({
+    ...base,
+    hasCapability: false,
+  })).toMatchObject({
+    available: false,
+    message: 'Seu acesso atual não inclui solicitar reatribuição.',
+  });
+  expect(getAppointmentReassignmentAvailability({
+    ...base,
+    startsAt: '2026-08-10T12:01:00.000Z',
+  })).toMatchObject({
+    available: false,
+    message: expect.stringContaining('próximo demais'),
+  });
 });
 
 test('Router protege contexto e operação sem tratar proteção client-side como autorização final', () => {

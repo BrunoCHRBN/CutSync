@@ -33,8 +33,7 @@ import {
   getAgendaStatusLabel,
 } from '@/features/agenda/business-agenda';
 import {
-  canRequestAppointmentReassignment,
-  getReassignmentDeadline,
+  getAppointmentReassignmentAvailability,
   resolveReassignmentResponsibility,
 } from '@/features/decisions/appointment-reassignment-request';
 import {
@@ -119,15 +118,15 @@ export function AppointmentOperationScreen() {
   const reassignmentResponsibility = activeContext
     ? resolveReassignmentResponsibility(activeContext.operationalRole)
     : null;
-  const canRequestReassignment = activeContext && appointment
-    ? canRequestAppointmentReassignment({
+  const reassignmentAvailability = activeContext && appointment
+    ? getAppointmentReassignmentAvailability({
       status: appointment.status,
       startsAt: appointment.startsAt,
       accessMode: activeContext.accessMode,
       hasCapability: hasCapability('request_appointment_reassignment'),
       responsibility: reassignmentResponsibility,
     })
-    : false;
+    : null;
 
   const runMutation = async () => {
     if (!activeContext || !appointment || !actionLabel || inFlightRef.current) return;
@@ -212,7 +211,7 @@ export function AppointmentOperationScreen() {
       || reassignmentMutating
     ) return;
 
-    const dueAt = getReassignmentDeadline(appointment.startsAt);
+    const dueAt = reassignmentAvailability?.dueAt ?? null;
     if (!dueAt) {
       setError('Este atendimento está próximo demais para iniciar uma reatribuição pelo aplicativo.');
       return;
@@ -434,14 +433,29 @@ export function AppointmentOperationScreen() {
           {notice ? <BusinessNotice tone="warning" message={notice} /> : null}
           {error ? <BusinessNotice tone="danger" message={error} /> : null}
 
-          {canRequestReassignment ? (
-            <BusinessButton
-              testID="business-request-reassignment"
-              label="Solicitar reatribuição"
-              variant="secondary"
-              loading={reassignmentMutating}
-              onPress={confirmReassignmentRequest}
-            />
+          {reassignmentResponsibility && reassignmentAvailability ? (
+            <View style={styles.section} testID="business-reassignment-section">
+              <BusinessSectionTitle>Reatribuição profissional</BusinessSectionTitle>
+              <Text selectable style={styles.meta}>
+                Solicite a substituição deste atendimento. A troca só será aplicada pelo fluxo
+                server-side e, quando necessário, após a decisão do cliente.
+              </Text>
+              {!reassignmentAvailability.available ? (
+                <BusinessNotice
+                  testID="business-reassignment-unavailable"
+                  tone="warning"
+                  message={reassignmentAvailability.message}
+                />
+              ) : null}
+              <BusinessButton
+                testID="business-request-reassignment"
+                label="Solicitar troca de profissional"
+                variant="secondary"
+                loading={reassignmentMutating}
+                disabled={!reassignmentAvailability.available}
+                onPress={confirmReassignmentRequest}
+              />
+            </View>
           ) : null}
 
           {actionLabel ? (
