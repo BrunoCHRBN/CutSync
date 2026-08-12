@@ -5,6 +5,7 @@ import {
   appointmentFeedbackMessages,
   appointmentIsLockedByServiceOrder,
   getAppointmentOrderActionLabel,
+  getAppointmentOrderUnavailableMessage,
   getTodayInTimeZone,
   resolveAppointmentOrderPrimaryAction,
   translateAppointmentError,
@@ -516,6 +517,17 @@ export const ProfessionalAgendaScreen = () => {
   const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
     ? null
     : getAppointmentOrderActionLabel(selectedOrderAction);
+  const selectedOrderUnavailableMessage = appointmentOrder.loading || appointmentOrder.error
+    ? null
+    : getAppointmentOrderUnavailableMessage({
+      financialOpsEnabled: financialOps.financialOpsEnabled,
+      accessMode: financialOps.accessMode ?? 'blocked',
+      canManageOrder: canManageSelectedOrder,
+      appointmentStatus: selectedCalendarAppointment?.status,
+      serviceOrderStatus: selectedServiceOrder?.status,
+      appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+      timeZone: barbershop?.timezone,
+    });
   const selectedAppointmentLockedByOrder = appointmentIsLockedByServiceOrder({
     financialOpsEnabled: financialOps.financialOpsEnabled,
     serviceOrderStatus: selectedServiceOrder?.status,
@@ -702,6 +714,7 @@ export const ProfessionalAgendaScreen = () => {
           void appointmentOrder.refresh();
         }}
         orderActionLabel={selectedOrderActionLabel}
+        orderActionUnavailableMessage={selectedOrderUnavailableMessage}
         orderActionLoading={Boolean(appointmentOrder.mutation)}
         professionalName={appointments.find((item) => item.id === selectedCalendarAppointment?.id)?.barberName}
         serviceOrder={selectedServiceOrder}

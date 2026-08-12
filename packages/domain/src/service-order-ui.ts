@@ -75,6 +75,39 @@ export const resolveAppointmentOrderPrimaryAction = (input: {
   return 'none';
 };
 
+export const getAppointmentOrderUnavailableMessage = (input: {
+  financialOpsEnabled: boolean;
+  accessMode: 'full' | 'read_only' | 'blocked' | string;
+  canManageOrder: boolean;
+  appointmentStatus: AppointmentUiStatus | string | null | undefined;
+  serviceOrderStatus: ServiceOrderUiStatus | string | null | undefined;
+  appointmentStartsAt?: Date | string | null;
+  timeZone?: string | null;
+  now?: Date;
+}): string | null => {
+  if (!input.financialOpsEnabled) return null;
+  if (input.accessMode !== 'full') {
+    return 'A comanda está disponível apenas em um contexto operacional com escrita liberada.';
+  }
+  if (!input.canManageOrder) {
+    return 'Seu acesso permite consultar este atendimento, mas não operar a comanda.';
+  }
+  if (input.appointmentStartsAt && !input.timeZone) {
+    return 'Aguarde a sincronização do fuso horário da unidade para operar a comanda.';
+  }
+  if (input.appointmentStartsAt && !appointmentIsOperationalToday({
+    appointmentStartsAt: input.appointmentStartsAt,
+    timeZone: input.timeZone,
+    now: input.now,
+  })) {
+    return 'O check-in será liberado no dia do atendimento, conforme o fuso horário da unidade.';
+  }
+  if (!input.serviceOrderStatus && input.appointmentStatus !== 'confirmed') {
+    return 'Confirme o agendamento antes de fazer o check-in.';
+  }
+  return null;
+};
+
 export const appointmentIsLockedByServiceOrder = (input: {
   financialOpsEnabled: boolean;
   serviceOrderStatus: ServiceOrderUiStatus | string | null | undefined;

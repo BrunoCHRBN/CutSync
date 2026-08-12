@@ -30,6 +30,7 @@ import { useBusinessOperational } from '@/contexts/business-operational-context'
 import { useBusinessSession } from '@/contexts/business-session';
 import {
   getBusinessOrderActionLabel,
+  getBusinessOrderUnavailableMessage,
   canManageAppointmentOrder,
   resolveBusinessAppointmentOrderAction,
 } from '@/features/service-orders/appointment-order-actions';
@@ -217,6 +218,14 @@ export function AppointmentOperationScreen() {
     appointmentStartsAt: appointment?.startsAt,
   });
   const actionLabel = getBusinessOrderActionLabel(primaryAction);
+  const orderUnavailableMessage = getBusinessOrderUnavailableMessage({
+    context: activeContext,
+    appointmentStatus: appointment?.status,
+    serviceOrderStatus: serviceOrder?.status,
+    appointmentProfessionalId: appointment?.professionalId,
+    actorUserId: user?.id,
+    appointmentStartsAt: appointment?.startsAt,
+  });
   const canManageOrder = canManageAppointmentOrder({
     context: activeContext,
     appointmentProfessionalId: appointment?.professionalId,
@@ -1080,6 +1089,12 @@ export function AppointmentOperationScreen() {
               label={actionLabel}
               loading={mutating}
               onPress={() => void runMutation()}
+            />
+          ) : orderUnavailableMessage ? (
+            <BusinessNotice
+              testID="business-order-unavailable-reason"
+              tone="warning"
+              message={orderUnavailableMessage}
             />
           ) : null}
         </>

@@ -1,5 +1,5 @@
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createMobileRequestId } from '@/lib/mobile-request-id';
@@ -62,6 +62,9 @@ export function BusinessDecisionDetailScreen() {
   } | null>(null);
   const canPropose = detail.data?.allowedActions.includes('propose') ?? false;
   const candidates = useBusinessReassignmentCandidates(requestId, canPropose);
+  useFocusEffect(useCallback(() => {
+    if (canPropose) void candidates.refetch();
+  }, [canPropose, candidates.refetch]));
   const commandBlocked = command.isPending
     || command.syncStatus === 'syncing'
     || command.syncStatus === 'offline_pending'

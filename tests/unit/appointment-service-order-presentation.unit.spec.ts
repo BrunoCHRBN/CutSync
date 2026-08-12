@@ -10,6 +10,7 @@ import {
 } from '../../apps/business/src/features/service-orders/appointment-order-actions';
 import {
   AWAITING_PAYMENT_NOTICE,
+  getAppointmentOrderUnavailableMessage,
   resolveAppointmentOrderPrimaryAction,
 } from '../../packages/domain/src';
 import type { BusinessOperationalContext } from '../../packages/database/src/business';
@@ -34,6 +35,10 @@ const detailSheet = read('apps/web/src/components/calendar/appointment-detail-sh
 const financialOpsContext = read('apps/web/src/contexts/financial-ops-context.tsx');
 const webHook = read('apps/web/src/features/service-orders/use-appointment-service-order.ts');
 const webLayout = read('apps/web/src/app/_layout.tsx');
+const servicePricesHook = read(
+  'apps/web/src/features/services/use-establishment-service-prices.ts',
+);
+const publicTeamHook = read('apps/web/src/hooks/usePublicTeam.ts');
 
 const baseContext = {
   membershipId: '11111111-1111-1111-1111-111111111111',
@@ -214,4 +219,50 @@ test('shared action matrix covers closed/voided and awaiting_payment', () => {
   })).toBe('none');
   expect(AWAITING_PAYMENT_NOTICE).toContain('saldo zero');
   expect(AWAITING_PAYMENT_NOTICE).not.toContain('próxima etapa');
+});
+
+test('check-in is available on the appointment local day and explains future blocking', () => {
+  const now = new Date('2026-08-12T15:00:00.000Z');
+  const futureStartsAt = '2026-08-13T14:00:00.000Z';
+  const todayStartsAt = '2026-08-12T17:30:00.000Z';
+
+  expect(resolveAppointmentOrderPrimaryAction({
+    financialOpsEnabled: true,
+    accessMode: 'full',
+    canManageOrder: true,
+    appointmentStatus: 'confirmed',
+    serviceOrderStatus: null,
+    appointmentStartsAt: todayStartsAt,
+    timeZone: 'America/Sao_Paulo',
+    now,
+  })).toBe('open_order');
+
+  expect(resolveAppointmentOrderPrimaryAction({
+    financialOpsEnabled: true,
+    accessMode: 'full',
+    canManageOrder: true,
+    appointmentStatus: 'confirmed',
+    serviceOrderStatus: null,
+    appointmentStartsAt: futureStartsAt,
+    timeZone: 'America/Sao_Paulo',
+    now,
+  })).toBe('none');
+  expect(getAppointmentOrderUnavailableMessage({
+    financialOpsEnabled: true,
+    accessMode: 'full',
+    canManageOrder: true,
+    appointmentStatus: 'confirmed',
+    serviceOrderStatus: null,
+    appointmentStartsAt: futureStartsAt,
+    timeZone: 'America/Sao_Paulo',
+    now,
+  })).toContain('dia do atendimento');
+});
+
+test('Web booking avoids transient empty team and unstable price refetch loops', () => {
+  expect(publicTeamHook).toContain('loadedEstablishmentId !== establishmentId');
+  expect(publicTeamHook).toContain('team: changingEstablishment ? [] : team');
+  expect(servicePricesHook).toContain('const localDate = formatCalendarDate(date)');
+  expect(servicePricesHook).toContain('}, [establishmentId, localDate]');
+  expect(servicePricesHook).not.toContain('}, [date, establishmentId]');
 });

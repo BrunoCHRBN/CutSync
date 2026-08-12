@@ -24,6 +24,7 @@ export function useEstablishmentServicePrices(
 ) {
   const [prices, setPrices] = useState<EstablishmentServicePrice[]>([]);
   const [loading, setLoading] = useState(false);
+  const localDate = formatCalendarDate(date);
 
   const refresh = useCallback(async () => {
     if (!establishmentId) {
@@ -34,7 +35,7 @@ export function useEstablishmentServicePrices(
     try {
       const { data, error } = await supabase.rpc('list_establishment_service_prices', {
         target_establishment_id: establishmentId,
-        target_local_date: formatCalendarDate(date),
+        target_local_date: localDate,
       });
       if (error) throw error;
       setPrices((data || []).map((row) => ({
@@ -60,7 +61,7 @@ export function useEstablishmentServicePrices(
     } finally {
       setLoading(false);
     }
-  }, [date, establishmentId]);
+  }, [establishmentId, localDate]);
 
   useEffect(() => {
     void refresh();

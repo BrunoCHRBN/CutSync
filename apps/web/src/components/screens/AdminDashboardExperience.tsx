@@ -45,6 +45,7 @@ import { MetricStrip } from '../ui/metric-strip';
 import {
   appointmentIsLockedByServiceOrder,
   getAppointmentOrderActionLabel,
+  getAppointmentOrderUnavailableMessage,
   parseSchedule,
   resolveAppointmentOrderPrimaryAction,
 } from '@cutsync/domain';
@@ -513,6 +514,17 @@ export const AdminDashboardExperience = () => {
   const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
     ? null
     : getAppointmentOrderActionLabel(selectedOrderAction);
+  const selectedOrderUnavailableMessage = appointmentOrder.loading || appointmentOrder.error
+    ? null
+    : getAppointmentOrderUnavailableMessage({
+      financialOpsEnabled: financialOps.financialOpsEnabled,
+      accessMode: financialOps.accessMode ?? 'blocked',
+      canManageOrder: canManageSelectedOrder,
+      appointmentStatus: selectedCalendarAppointment?.status,
+      serviceOrderStatus: selectedServiceOrder?.status,
+      appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+      timeZone: barbershop?.timezone,
+    });
   const selectedAppointmentLockedByOrder = appointmentIsLockedByServiceOrder({
     financialOpsEnabled: financialOps.financialOpsEnabled,
     serviceOrderStatus: selectedServiceOrder?.status,
@@ -936,6 +948,7 @@ export const AdminDashboardExperience = () => {
           void appointmentOrder.refresh();
         }}
         orderActionLabel={selectedOrderActionLabel}
+        orderActionUnavailableMessage={selectedOrderUnavailableMessage}
         orderActionLoading={Boolean(appointmentOrder.mutation)}
         professionalName={selectedCalendarAppointment ? barberName(selectedCalendarAppointment.professionalId) : undefined}
         serviceOrder={selectedServiceOrder}

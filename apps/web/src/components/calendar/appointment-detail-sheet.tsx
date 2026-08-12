@@ -24,6 +24,7 @@ interface AppointmentDetailSheetProps {
   onServiceOrderRetry?: () => void;
   financialOpsEnabled?: boolean;
   orderActionLabel?: string | null;
+  orderActionUnavailableMessage?: string | null;
   orderActionLoading?: boolean;
   onOrderAction?: () => void;
   appointmentLockedByOrder?: boolean;
@@ -76,6 +77,7 @@ export const AppointmentDetailSheet = ({
   onServiceOrderRetry,
   financialOpsEnabled = false,
   orderActionLabel = null,
+  orderActionUnavailableMessage = null,
   orderActionLoading = false,
   onOrderAction,
   appointmentLockedByOrder = false,
@@ -305,6 +307,14 @@ export const AppointmentDetailSheet = ({
                 testID="appointment-detail-order-action"
               />
             ) : null}
+            {!orderActionHandler && orderActionUnavailableMessage ? (
+              <Text
+                style={styles.orderActionUnavailable}
+                testID="appointment-detail-order-unavailable-reason"
+              >
+                {orderActionUnavailableMessage}
+              </Text>
+            ) : null}
             {cancelHandler ? <AppButton label="Cancelar atendimento" onPress={() => cancelHandler(appointment)} testID="appointment-detail-cancel" variant="danger" /> : null}
           </View>
         </Pressable>
@@ -318,6 +328,10 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.surface, gap: spacing.xl, padding: spacing.xl, ...elevations.overlay },
   desktopSheet: { alignSelf: 'flex-end', borderBottomLeftRadius: radii.lg, borderTopLeftRadius: radii.lg, height: '100%', maxWidth: 440, width: '100%' },
   mobileSheet: { borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, maxHeight: '86%', paddingBottom: spacing.huge },
+  orderActionUnavailable: {
+    ...typeScale.smallStrong,
+    color: colors.warning,
+  },
   header: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   headerCopy: { flex: 1, gap: spacing.xs },
   eyebrow: { ...typeScale.label, color: colors.brandPrimary, letterSpacing: 1.2 },
