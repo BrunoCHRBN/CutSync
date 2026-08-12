@@ -8,7 +8,7 @@ import {
 import { createMobileRequestId } from '@cutsync/domain';
 import { supabase } from '../../services/supabase';
 
-type ServiceOrderCommand = 'open' | 'start' | 'finish';
+type ServiceOrderCommand = 'open' | 'start' | 'finish' | 'close';
 
 interface UseAppointmentServiceOrderOptions {
   establishmentId?: string | null;
@@ -107,7 +107,7 @@ export function useAppointmentServiceOrder({
 
   const runCommand = useCallback(async (command: ServiceOrderCommand) => {
     if (!enabled || !establishmentId || !appointmentId || inFlightRef.current) return false;
-    if ((command === 'start' || command === 'finish') && !serviceOrder) return false;
+    if ((command === 'start' || command === 'finish' || command === 'close') && !serviceOrder) return false;
 
     inFlightRef.current = true;
     setMutation(command);
@@ -140,6 +140,13 @@ export function useAppointmentServiceOrder({
         });
       } else if (command === 'finish' && serviceOrder) {
         await api.finishServiceOrder({
+          establishmentId,
+          serviceOrderId: serviceOrder.id,
+          expectedVersion: serviceOrder.version,
+          requestId,
+        });
+      } else if (command === 'close' && serviceOrder) {
+        await api.closeServiceOrder({
           establishmentId,
           serviceOrderId: serviceOrder.id,
           expectedVersion: serviceOrder.version,
@@ -206,6 +213,7 @@ export function useAppointmentServiceOrder({
     open: () => runCommand('open'),
     start: () => runCommand('start'),
     finish: () => runCommand('finish'),
+    close: () => runCommand('close'),
     retry,
     clearError,
   };

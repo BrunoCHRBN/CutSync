@@ -878,6 +878,12 @@ export const AdminDashboardExperience = () => {
         canTransfer={canRequestSelectedReassignment}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
+        establishmentId={activeEstablishmentId}
+        canViewPayments={financialOps.hasCapability('view_payments')}
+        canTakePayments={financialOps.hasCapability('take_payments') && financialOps.accessMode === 'full'}
+        canVoidPayments={financialOps.hasCapability('void_payments') && financialOps.accessMode === 'full'}
+        onPaymentChanged={async () => { await appointmentOrder.refresh(); await refresh(); }}
+        onClosePaidOrder={canManageSelectedOrder ? async () => appointmentOrder.close() : undefined}
         onCancel={(appointment) => {
           setSelectedAppointmentId(null);
           void updateStatus(appointment.id, 'cancelled');

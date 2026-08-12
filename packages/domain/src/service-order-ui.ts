@@ -87,4 +87,4 @@ export const getAppointmentOrderActionLabel = (
 
 /** Copy for awaiting_payment — never imply payment settled. */
 export const AWAITING_PAYMENT_NOTICE =
-  'Atendimento finalizado. A resolução do pagamento será habilitada em uma próxima etapa.';
+  'Atendimento finalizado. Registre os recebimentos separadamente e feche a comanda somente após saldo zero.';

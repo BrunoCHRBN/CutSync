@@ -54,6 +54,11 @@ verificado por todos os RPCs públicos da fatia.
 
 Business:
 
+- a Gestão permite configurar dinheiro, PIX externo e maquininha por
+  `manage_operational_settings`, com versão, idempotência e confirmação do
+  servidor;
+- quando a comanda não encontra meios ativos, oferece acesso direto a essa
+  configuração no próprio Business;
 - a comanda em `awaiting_payment` apresenta total produzido, valor recebido e
   saldo como dimensões distintas;
 - pagamentos parciais e mistos são registrados como entries independentes;
@@ -69,6 +74,11 @@ Web:
 
 - a seção de meios de pagamento permite configurar dinheiro, PIX externo e
   cartão externo por capability;
+- o detalhe do atendimento permite registrar pagamentos parciais e mistos,
+  consultar a timeline de lançamentos e fechar a comanda somente após saldo
+  zero confirmado pelo backend;
+- estorno manual cria compensação, exige `void_payments` na apresentação e
+  continua protegido por AAL2 no RPC;
 - a interface falha fechada quando `financial_ops_enabled` está desligado;
 - conflitos de versão recarregam o read model antes de apresentar o resultado;
 - a cópia e os contratos mantêm POS manual separado de `billing_*` e Stripe.
@@ -97,7 +107,8 @@ Executado em banco descartável criado por
 `scripts/reset-supabase-reconciled.ps1`, preservando migrations históricas
 duplicadas:
 
-- reset completo até `20260824000000_phase4_manual_pos_foundation.sql`;
+- reset reconciliado completo, incluindo as migrations aditivas de acesso ao
+  resumo financeiro;
 - `supabase/tests/phase4_manual_pos.sql` verde;
 - lint do schema público sem erros;
 - advisors de segurança e performance sem erros;
@@ -105,8 +116,20 @@ duplicadas:
 - lint de Business e Web sem erros (avisos preexistentes do Web preservados);
 - teste concorrente confirmado com `1` entry, `6000` centavos e um único avanço
   de versão;
-- 15 testes unitários de contratos, mappers, API, outbox e superfícies
+- 26 testes unitários focados de contratos, mappers, API, outbox e superfícies
   verdes.
+
+Em 12/08/2026, a reprodução local foi renovada após a inclusão da operação Web:
+
+- registro de recebimento parcial ou misto usa os métodos ativos retornados
+  pelo backend e envia `requestId` e `expectedVersion`;
+- timeline financeira apresenta os lançamentos confirmados sem consultar nem
+  editar tabelas diretamente;
+- estorno exige motivo e permanece sujeito a AAL2/capability no RPC;
+- fechamento só é oferecido com saldo calculado igual a zero e continua sendo
+  revalidado pelo backend;
+- SQL/RLS, concorrência física (`1|6000|4`), lint do schema, advisors de
+  segurança/performance e bundle Web passaram no banco descartável.
 
 ## Evidência Android local da Fatia 6
 
@@ -137,6 +160,25 @@ Artefato local de evidência, restrito ao emulador `x86_64`:
 A compilação multi-ABI local encontrou o limite de caminho do CMake no
 Windows/OneDrive em `armeabi-v7a`. A build EAS Preview continua obrigatória
 para a homologação em Android físico ARM.
+
+## Evidência Android Preview da configuração operacional
+
+Em 12/08/2026, a Preview APK Business build 3 foi gerada pelo EAS para CutSync
+Homolog e inspecionada antes da instalação:
+
+- build EAS `1ac26a0e-8628-4b99-abc3-391e5d634497`;
+- pacote `com.cutsync.business`, `versionCode=3`;
+- SHA-256
+  `679B98407EDFDE8234C6B217E5D64FC362984C31E1F7E249280E7DD098186AC8`;
+- bundle confirmado com a rota de meios de pagamento, acesso direto pela
+  comanda e RPC `configure_establishment_payment_method`;
+- validação informada pelo operador em dispositivo: configuração de meios de
+  pagamento pelo Business executada com sucesso e fluxo disponibilizado na
+  comanda.
+
+Essa evidência comprova a superfície owner/admin validada pelo operador. Não
+substitui a matriz física restante de cashier, finance, professional, usuário
+sem vínculo e replay após reinício sem rede.
 
 ## Evidência remota da Fatia 4
 
@@ -234,9 +276,11 @@ Não executado ou ainda não aprovado nesta fatia:
 
 ## Próxima fatia
 
-1. executar o workflow da Fase 4 em PR e registrar a evidência de CI;
-2. disparar manualmente a EAS Preview da branch aprovada;
-3. homologar owner, cashier, finance, professional e usuário sem vínculo no
+1. consolidar as mudanças locais em commit focado e executar o workflow da
+   Fase 4 em PR;
+2. homologar cashier, finance, professional e usuário sem vínculo no
    Android/Web — backend com JWT real concluído; superfícies físicas pendentes;
+3. homologar pagamento parcial, misto, estorno AAL2 e fechamento concorrente
+   pela nova superfície Web;
 4. validar desligamento de rede, encerramento do app e replay no Android;
 5. reunir as evidências e decidir explicitamente o Gate G7.

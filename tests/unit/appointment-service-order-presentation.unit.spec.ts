@@ -83,7 +83,6 @@ test('Business operation screen gates bridge and mutations by flag/capabilities'
   expect(operationScreen).toContain('AWAITING_PAYMENT_NOTICE');
   expect(operationScreen).toContain('inFlightRef');
   expect(operationScreen).toContain('createMobileRequestId');
-  expect(operationScreen).not.toContain('Pago');
   expect(operationScreen).not.toContain('Pagamento concluído');
   expect(businessApi).toContain('service_order_already_exists');
   expect(businessApi).toContain('service_order_version_conflict');
@@ -213,5 +212,6 @@ test('shared action matrix covers closed/voided and awaiting_payment', () => {
     appointmentStatus: 'confirmed',
     serviceOrderStatus: 'voided',
   })).toBe('none');
-  expect(AWAITING_PAYMENT_NOTICE).toContain('próxima etapa');
+  expect(AWAITING_PAYMENT_NOTICE).toContain('saldo zero');
+  expect(AWAITING_PAYMENT_NOTICE).not.toContain('próxima etapa');
 });

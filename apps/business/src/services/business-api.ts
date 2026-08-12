@@ -33,6 +33,8 @@ import {
   type Database,
   type ServiceOrderCommandReceipt,
   type EstablishmentPaymentMethodsReadModel,
+  type EstablishmentPaymentMethodType,
+  type PaymentMethodCommandReceipt,
   type ServiceOrderPaymentSummary,
   type OrderPaymentCommandReceipt,
 } from '@cutsync/database';
@@ -203,6 +205,15 @@ export interface BusinessApi {
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
   listPaymentMethods: (establishmentId: string) => Promise<EstablishmentPaymentMethodsReadModel>;
+  configurePaymentMethod: (input: {
+    establishmentId: string;
+    methodType: EstablishmentPaymentMethodType;
+    displayName: string;
+    active: boolean;
+    requiresReference: boolean;
+    expectedVersion: number | null;
+    requestId: string;
+  }) => Promise<PaymentMethodCommandReceipt>;
   getPaymentSummary: (
     establishmentId: string,
     serviceOrderId: string,
@@ -830,6 +841,15 @@ export const createBusinessApi = (
     const client = requireClient(nullableClient);
     try {
       return await createManualPosApi(client).listPaymentMethods(establishmentId);
+    } catch (error) {
+      throw translateRpcError('manual_pos', error);
+    }
+  },
+
+  async configurePaymentMethod(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createManualPosApi(client).configurePaymentMethod(input);
     } catch (error) {
       throw translateRpcError('manual_pos', error);
     }

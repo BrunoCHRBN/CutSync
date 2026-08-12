@@ -245,9 +245,16 @@ export function BusinessDecisionDetailScreen() {
               {candidates.data?.length === 0 ? (
                 <View style={styles.actionGroup} testID="business-reassignment-candidates-empty">
                   <Text style={styles.body}>
-                    Nenhum profissional com serviço ativo e horário de trabalho compatível está
-                    livre neste horário.
+                    Nenhum substituto elegível foi encontrado. Para aparecer aqui, o perfil precisa
+                    ter vínculo ativo nesta unidade, oferecer este mesmo serviço, possuir agenda de
+                    trabalho compatível, estar livre exatamente no horário e ser diferente do
+                    profissional atual.
                   </Text>
+                  <BusinessNotice
+                    testID="business-reassignment-candidates-guidance"
+                    tone="warning"
+                    message="Confirme o serviço ativo e a agenda de cada profissional nas configurações da unidade. Depois, atualize os candidatos."
+                  />
                   <BusinessButton
                     testID="business-refresh-reassignment-candidates"
                     label="Atualizar candidatos"

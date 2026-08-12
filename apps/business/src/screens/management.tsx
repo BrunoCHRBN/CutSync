@@ -46,10 +46,10 @@ export function BusinessManagementScreen() {
       enabled: false,
     },
     {
-      name: 'Configurações',
-      description: 'Preferências essenciais da unidade ativa.',
-      route: null,
-      enabled: false,
+      name: 'Meios de pagamento',
+      description: 'Dinheiro, PIX externo e maquininha usados na comanda.',
+      route: '/(app)/payment-methods' as const,
+      enabled: hasCapability('view_payments'),
     },
   ] as const;
 

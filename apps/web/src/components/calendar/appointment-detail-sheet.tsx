@@ -7,6 +7,7 @@ import { colors, elevations, layout, radii, spacing, typeScale } from '../../the
 import { CalendarAppointment } from './operational-calendar';
 import { AppButton } from '../ui/AppButton';
 import { StatusBadge } from '../ui/StatusBadge';
+import { ServiceOrderPaymentPanel } from '../payments/ServiceOrderPaymentPanel';
 
 interface AppointmentDetailSheetProps {
   appointment: CalendarAppointment | null;
@@ -26,6 +27,12 @@ interface AppointmentDetailSheetProps {
   orderActionLoading?: boolean;
   onOrderAction?: () => void;
   appointmentLockedByOrder?: boolean;
+  establishmentId?: string | null;
+  canViewPayments?: boolean;
+  canTakePayments?: boolean;
+  canVoidPayments?: boolean;
+  onPaymentChanged?: () => Promise<void> | void;
+  onClosePaidOrder?: () => Promise<boolean> | boolean | void;
   onClose: () => void;
   onReschedule?: (appointment: CalendarAppointment) => void;
   onCancel?: (appointment: CalendarAppointment) => void;
@@ -72,6 +79,12 @@ export const AppointmentDetailSheet = ({
   orderActionLoading = false,
   onOrderAction,
   appointmentLockedByOrder = false,
+  establishmentId,
+  canViewPayments = false,
+  canTakePayments = false,
+  canVoidPayments = false,
+  onPaymentChanged,
+  onClosePaidOrder,
   onClose,
   onReschedule,
   onCancel,
@@ -252,9 +265,21 @@ export const AppointmentDetailSheet = ({
                     </Text>
                   </View>
                   {serviceOrder.status === 'awaiting_payment' ? (
-                    <Text style={styles.awaitingPaymentNotice} testID="appointment-detail-awaiting-payment-notice">
-                      {AWAITING_PAYMENT_NOTICE}
-                    </Text>
+                    <>
+                      <Text style={styles.awaitingPaymentNotice} testID="appointment-detail-awaiting-payment-notice">
+                        {AWAITING_PAYMENT_NOTICE}
+                      </Text>
+                      <ServiceOrderPaymentPanel
+                        establishmentId={establishmentId}
+                        serviceOrder={serviceOrder}
+                        canView={canViewPayments}
+                        canTake={canTakePayments}
+                        canVoid={canVoidPayments}
+                        onChanged={onPaymentChanged}
+                        onCloseOrder={onClosePaidOrder}
+                        closing={orderActionLoading}
+                      />
+                    </>
                   ) : null}
                 </View>
               )}

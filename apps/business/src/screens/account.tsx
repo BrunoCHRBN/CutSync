@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -30,6 +31,9 @@ const roleLabel = {
   finance: 'Financeiro',
   manager: 'Gestor',
 } as const;
+
+const appVersion = Constants.expoConfig?.version ?? 'desconhecida';
+const nativeBuildVersion = Constants.nativeBuildVersion ?? 'desenvolvimento';
 
 export function BusinessAccountScreen() {
   const router = useRouter();
@@ -179,6 +183,18 @@ export function BusinessAccountScreen() {
             loading={pushBusy}
             onPress={() => void (pushStatus === 'enabled' ? disablePush() : enablePush())}
           />
+        </BusinessCard>
+      </View>
+
+      <View style={styles.section}>
+        <BusinessSectionTitle>Versão instalada</BusinessSectionTitle>
+        <BusinessCard testID="business-installed-version">
+          <Text selectable style={styles.cardTitle}>
+            CutSync Business {appVersion} · build {nativeBuildVersion}
+          </Text>
+          <Text selectable style={styles.cardMeta}>
+            Para validar a Fase 4 no Android, confirme que esta tela exibe build 2 ou superior.
+          </Text>
         </BusinessCard>
       </View>
 

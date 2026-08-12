@@ -757,9 +757,16 @@ export function AppointmentOperationScreen() {
             </View>
           </View>
 
-          {financialOpsEnabled ? (
-            <View style={styles.section} testID="business-service-order-section">
-              <BusinessSectionTitle>Comanda</BusinessSectionTitle>
+          <View style={styles.section} testID="business-service-order-section">
+            <BusinessSectionTitle>Comanda</BusinessSectionTitle>
+            {!financialOpsEnabled ? (
+              <BusinessNotice
+                testID="business-financial-ops-disabled"
+                tone="warning"
+                message="O POS manual está presente nesta build, mas ainda não foi habilitado para este estabelecimento. Nenhum pagamento pode ser lançado até a ativação governada da unidade."
+              />
+            ) : (
+              <>
               {!serviceOrder ? (
                 <BusinessNotice
                   testID="business-service-order-empty"
@@ -920,10 +927,20 @@ export function AppointmentOperationScreen() {
                           <View style={styles.paymentForm} testID="business-record-payment-form">
                             <Text selectable style={styles.label}>Meio de pagamento</Text>
                             {paymentMethods.length === 0 ? (
-                              <BusinessNotice
-                                tone="warning"
-                                message="Nenhum meio de pagamento ativo. Configure os meios no Web."
-                              />
+                              <View style={styles.paymentMethods}>
+                                <BusinessNotice
+                                  tone="warning"
+                                  message="Nenhum meio de pagamento ativo. Configure dinheiro, PIX ou maquininha no Business."
+                                />
+                                {hasCapability('manage_operational_settings') ? (
+                                  <BusinessButton
+                                    testID="business-open-payment-method-settings"
+                                    label="Configurar meios de pagamento"
+                                    variant="secondary"
+                                    onPress={() => router.push('/(app)/payment-methods' as never)}
+                                  />
+                                ) : null}
+                              </View>
                             ) : (
                               <View style={styles.paymentMethods}>
                                 {paymentMethods.map((method) => (
@@ -995,8 +1012,9 @@ export function AppointmentOperationScreen() {
                   ) : null}
                 </View>
               )}
-            </View>
-          ) : null}
+              </>
+            )}
+          </View>
 
           {notice ? <BusinessNotice tone="warning" message={notice} /> : null}
           {error ? <BusinessNotice tone="danger" message={error} /> : null}
