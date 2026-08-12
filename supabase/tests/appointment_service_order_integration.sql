@@ -286,7 +286,7 @@ BEGIN
     (
       appt_main_id, unit_a_id, 'Main Client', client_a_id,
       pro_a_id, service_cut_id,
-      now() + interval '7 days', 30, now() + interval '7 days 30 minutes',
+      now() - interval '5 minutes', 30, now() + interval '25 minutes',
       'confirmed'
     ),
     (
@@ -507,6 +507,13 @@ BEGIN
   ------------------------------------------------------------------
 
   PERFORM pg_temp.set_actor(pro_a_id);
+  PERFORM pg_temp.expect_error(
+    format(
+      'SELECT public.open_service_order(%L::uuid, %L::uuid, %L, NULL, NULL, NULL)',
+      unit_a_id, gen_random_uuid(), appt_reschedule_id
+    ),
+    'service_order_appointment_not_operational_today'
+  );
   result := public.open_service_order(
     unit_a_id, open_main_req, appt_main_id, NULL, NULL, NULL
   );

@@ -23,16 +23,47 @@ export type AppointmentUiStatus =
   | 'completed'
   | 'no_show';
 
+const localDateKey = (value: Date, timeZone: string): string => new Intl.DateTimeFormat(
+  'en-CA',
+  { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' },
+).format(value);
+
+export const appointmentIsOperationalToday = (input: {
+  appointmentStartsAt: Date | string | null | undefined;
+  timeZone: string | null | undefined;
+  now?: Date;
+}): boolean => {
+  if (!input.appointmentStartsAt || !input.timeZone) return false;
+  const startsAt = input.appointmentStartsAt instanceof Date
+    ? input.appointmentStartsAt
+    : new Date(input.appointmentStartsAt);
+  if (!Number.isFinite(startsAt.getTime())) return false;
+  try {
+    return localDateKey(startsAt, input.timeZone)
+      <= localDateKey(input.now ?? new Date(), input.timeZone);
+  } catch {
+    return false;
+  }
+};
+
 export const resolveAppointmentOrderPrimaryAction = (input: {
   financialOpsEnabled: boolean;
   accessMode: 'full' | 'read_only' | 'blocked' | string;
   canManageOrder: boolean;
   appointmentStatus: AppointmentUiStatus | string | null | undefined;
   serviceOrderStatus: ServiceOrderUiStatus | string | null | undefined;
+  appointmentStartsAt?: Date | string | null;
+  timeZone?: string | null;
+  now?: Date;
 }): AppointmentOrderPrimaryAction => {
   if (!input.financialOpsEnabled) return 'none';
   if (input.accessMode !== 'full') return 'none';
   if (!input.canManageOrder) return 'none';
+  if (input.appointmentStartsAt && !appointmentIsOperationalToday({
+    appointmentStartsAt: input.appointmentStartsAt,
+    timeZone: input.timeZone,
+    now: input.now,
+  })) return 'none';
 
   if (!input.serviceOrderStatus) {
     if (input.appointmentStatus === 'confirmed') return 'open_order';

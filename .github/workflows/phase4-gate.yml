@@ -8,9 +8,11 @@ on:
       - 'packages/database/src/business-rpc.generated.ts'
       - 'packages/database/src/manual-pos.ts'
       - 'packages/database/src/service-order-api.ts'
+      - 'packages/domain/src/service-order-ui.ts'
       - 'packages/database/src/index.ts'
       - 'apps/business/src/services/business-api.ts'
       - 'apps/business/src/screens/appointment-operation.tsx'
+      - 'apps/business/src/features/service-orders/appointment-order-actions.ts'
       - 'apps/business/src/screens/payment-methods.tsx'
       - 'apps/business/src/app/(app)/payment-methods.tsx'
       - 'apps/business/src/features/payments/business-pos-outbox.ts'
@@ -18,13 +20,21 @@ on:
       - 'apps/web/src/components/settings/PaymentMethodsSettings.tsx'
       - 'apps/web/src/components/payments/ServiceOrderPaymentPanel.tsx'
       - 'apps/web/src/features/payments/use-service-order-payments.ts'
+      - 'apps/web/src/features/service-orders/use-appointment-service-order.ts'
+      - 'apps/web/src/components/screens/AdminDashboardExperience.tsx'
+      - 'apps/web/src/components/screens/professional-agenda/ProfessionalAgendaScreen.tsx'
       - 'apps/web/src/components/screens/SettingsExperience.tsx'
       - 'supabase/migrations/20260824000000_phase4_manual_pos_foundation.sql'
       - 'supabase/migrations/20260824001000_phase4_payment_summary_finance_access.sql'
       - 'supabase/migrations/20260824002000_phase4_payment_summary_capability_scope.sql'
+      - 'supabase/migrations/20260824003000_guard_service_order_date_and_reassignment_candidates.sql'
       - 'supabase/tests/phase4_manual_pos.sql'
+      - 'supabase/tests/service_order_operational_date.sql'
+      - 'supabase/tests/phase3_business_decision_read_models.sql'
       - 'tests/unit/phase4-manual-pos.unit.spec.ts'
       - 'tests/unit/phase4-pos-ui.unit.spec.ts'
+      - 'tests/unit/appointment-service-order-integration.unit.spec.ts'
+      - 'tests/unit/appointment-reassignment-contracts.unit.spec.ts'
       - 'scripts/validate-phase4-concurrency.mjs'
       - 'scripts/validate-phase4-homolog-jwt.mjs'
       - 'scripts/prepare-phase4-mobile-fixture.mjs'
@@ -74,6 +84,12 @@ jobs:
           docker exec -i supabase_db_CutSync \
             psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
             < supabase/tests/phase4_manual_pos.sql
+          docker exec -i supabase_db_CutSync \
+            psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < supabase/tests/service_order_operational_date.sql
+          docker exec -i supabase_db_CutSync \
+            psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < supabase/tests/phase3_business_decision_read_models.sql
 
       - name: Validate concurrent payment serialization
         run: node scripts/validate-phase4-concurrency.mjs
@@ -90,7 +106,7 @@ jobs:
           npm run typecheck:business
 
       - name: Run Phase 4 unit tests
-        run: npx playwright test --project=unit tests/unit/phase4-manual-pos.unit.spec.ts tests/unit/phase4-pos-ui.unit.spec.ts
+        run: npx playwright test --project=unit tests/unit/phase4-manual-pos.unit.spec.ts tests/unit/phase4-pos-ui.unit.spec.ts tests/unit/appointment-service-order-integration.unit.spec.ts tests/unit/appointment-reassignment-contracts.unit.spec.ts
 
       - name: Validate mobile fixture harness
         run: node --check scripts/prepare-phase4-mobile-fixture.mjs

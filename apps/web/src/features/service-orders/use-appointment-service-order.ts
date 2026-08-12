@@ -22,6 +22,8 @@ const COMMAND_ERROR_MESSAGES: Record<string, string> = {
   service_order_already_exists: 'A comanda já foi aberta. Atualizando o atendimento.',
   service_order_version_conflict: 'A comanda foi atualizada em outro dispositivo. Revise e tente novamente.',
   service_order_invalid_transition: 'O estado desta comanda mudou. Atualizando os dados.',
+  service_order_appointment_not_operational_today:
+    'Check-in, início e finalização ficam disponíveis somente no dia do atendimento.',
   service_order_items_required: 'Adicione ao menos um item antes de finalizar.',
   network_error: 'Não foi possível conectar. Verifique sua internet e tente novamente.',
   unauthorized: 'Sua sessão expirou. Entre novamente para continuar.',

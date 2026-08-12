@@ -507,6 +507,8 @@ export const AdminDashboardExperience = () => {
     canManageOrder: canManageSelectedOrder,
     appointmentStatus: selectedCalendarAppointment?.status,
     serviceOrderStatus: selectedServiceOrder?.status,
+    appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+    timeZone: barbershop?.timezone,
   });
   const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
     ? null

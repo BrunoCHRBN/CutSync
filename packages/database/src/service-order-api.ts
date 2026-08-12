@@ -20,6 +20,7 @@ export type ServiceOrderApiErrorCode =
   | 'service_order_already_exists'
   | 'service_order_version_conflict'
   | 'service_order_invalid_transition'
+  | 'service_order_appointment_not_operational_today'
   | 'service_order_items_required'
   | 'service_order_balance_unresolved'
   | 'appointment_completion_requires_service_order'
@@ -73,6 +74,9 @@ export const translateServiceOrderRpcError = (error: unknown): ServiceOrderApiEr
   }
   if (text.includes('service_order_version_conflict')) {
     return new ServiceOrderApiError('service_order_version_conflict');
+  }
+  if (text.includes('service_order_appointment_not_operational_today')) {
+    return new ServiceOrderApiError('service_order_appointment_not_operational_today');
   }
   if (text.includes('service_order_invalid_transition')) {
     return new ServiceOrderApiError('service_order_invalid_transition');

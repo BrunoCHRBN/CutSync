@@ -35,6 +35,10 @@ const g13Migration = fs.readFileSync(path.join(
 const phase2Workflow = fs.readFileSync(path.join(
   process.cwd(), '.github/workflows/phase2-gate.yml',
 ), 'utf8');
+const operationalGuardMigration = fs.readFileSync(path.join(
+  process.cwd(),
+  'supabase/migrations/20260824003000_guard_service_order_date_and_reassignment_candidates.sql',
+), 'utf8');
 const realJwtValidator = fs.readFileSync(path.join(
   process.cwd(), 'scripts/validate-phase2-real-jwt.mjs',
 ), 'utf8');
@@ -282,6 +286,15 @@ test('RPCs da Fase 3 mantêm tabelas privadas e filtram ações por capability',
   expect(phase3ReadModels).toContain("WHERE action = ANY(ARRAY['validate', 'propose', 'apply', 'review', 'withdraw'])");
   expect(phase3ReadModels).not.toContain('GRANT SELECT ON public.decision_queue_items');
   expect(phase3ReadModels).not.toContain('GRANT SELECT ON public.appointment_assignment_events');
+});
+
+test('correção aditiva inclui admins elegíveis sem ignorar qualification e disponibilidade', () => {
+  expect(operationalGuardMigration).toContain('public.resolve_reassignment_candidate_price(');
+  expect(operationalGuardMigration).toContain("membership.role_template IN ('admin', 'professional')");
+  expect(operationalGuardMigration).toContain('LEFT JOIN public.professional_services');
+  expect(operationalGuardMigration).toContain('qualification.price IS NOT NULL');
+  expect(operationalGuardMigration).toContain('public.compute_available_slots(');
+  expect(operationalGuardMigration).not.toContain('JOIN public.professional_services AS professional_service\n      ON');
 });
 
 test('candidatos e recibos de comando falham fechado', () => {

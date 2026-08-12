@@ -69,6 +69,7 @@ export type BusinessApiErrorCode =
   | 'service_order_already_exists'
   | 'service_order_version_conflict'
   | 'service_order_invalid_transition'
+  | 'service_order_appointment_not_operational_today'
   | 'service_order_items_required'
   | 'appointment_completion_requires_service_order'
   | 'appointment_has_service_order'
@@ -110,6 +111,8 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   service_order_version_conflict:
     'A comanda foi atualizada em outro dispositivo. Recarregue e tente novamente.',
   service_order_invalid_transition: 'O estado deste atendimento mudou. Atualize os dados.',
+  service_order_appointment_not_operational_today:
+    'Check-in, início e finalização ficam disponíveis somente no dia do atendimento.',
   service_order_items_required: 'Adicione ao menos um item antes de finalizar.',
   appointment_completion_requires_service_order:
     'Para concluir este atendimento, abra e finalize a comanda.',
@@ -433,6 +436,9 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
   }
   if (text.includes('service_order_version_conflict')) {
     return new BusinessApiError('service_order_version_conflict');
+  }
+  if (text.includes('service_order_appointment_not_operational_today')) {
+    return new BusinessApiError('service_order_appointment_not_operational_today');
   }
   if (text.includes('service_order_invalid_transition')) {
     return new BusinessApiError('service_order_invalid_transition');

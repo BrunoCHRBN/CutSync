@@ -214,6 +214,7 @@ export function AppointmentOperationScreen() {
     serviceOrderStatus: serviceOrder?.status,
     appointmentProfessionalId: appointment?.professionalId,
     actorUserId: user?.id,
+    appointmentStartsAt: appointment?.startsAt,
   });
   const actionLabel = getBusinessOrderActionLabel(primaryAction);
   const canManageOrder = canManageAppointmentOrder({
