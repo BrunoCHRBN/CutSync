@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Check, Clock3, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, MapPin, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
+import { Check, Clock3, CreditCard, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, MapPin, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,8 +21,9 @@ import { getErrorMessage } from '../../utils/errors';
 import { isValidClockTime, maskTimeInput } from '../../utils/time-input-mask';
 import { StickyActionBar } from '../ui/sticky-action-bar';
 import { normalizeInstagramHandle } from '@cutsync/domain';
+import { PaymentMethodsSettings } from '../settings/PaymentMethodsSettings';
 
-type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'security';
+type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'payments' | 'security';
 
 interface DiscoveryRequirements {
   account_active: boolean;
@@ -81,6 +82,7 @@ const settingsSections: { key: SettingsSection; label: string; Icon: typeof Stor
   { key: 'schedule', label: 'Funcionamento', Icon: Clock3 },
   { key: 'publication', label: 'Publicação', Icon: Eye },
   { key: 'policies', label: 'Políticas & Geodecisões', Icon: ShieldCheck },
+  { key: 'payments', label: 'Pagamentos', Icon: CreditCard },
   { key: 'security', label: 'Segurança', Icon: KeyRound },
 ];
 
@@ -623,6 +625,8 @@ export const SettingsExperience = () => {
               </View>
             </FormSection> : null}
 
+            {activeSection === 'payments' ? <PaymentMethodsSettings /> : null}
+
             {activeSection === 'policies' ? <FormSection testID="settings-policies-section" title="Políticas de Agendamento & Geodecisões" description="Ajuste os prazos mínimos para cancelamento, taxas por falta de cliente, e coordenadas de latitude e longitude no mapa.">
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Cancelamento prévio mínimo (horas)" value={minCancellationHours} onChangeText={setMinCancellationHours} keyboardType="numeric" placeholder="24" hint="Prazos antes do agendamento." />
@@ -796,7 +800,7 @@ export const SettingsExperience = () => {
             </FormSection> : null}
           </View>
 
-          <View style={styles.previewColumn}>
+          {activeSection !== 'payments' ? <View style={styles.previewColumn}>
             <EstablishmentBrandPreview
               name={name}
               slogan={slogan}
@@ -808,17 +812,17 @@ export const SettingsExperience = () => {
               primaryColor={primaryColor}
               onCopyLink={copyPublicLink}
             />
-          </View>
+          </View> : null}
         </View>
         </ScrollView>
-        <StickyActionBar
+        {activeSection !== 'payments' ? <StickyActionBar
           actions={<>
             <AppButton disabled={!isDirty || saving} label="Descartar" onPress={discardChanges} testID="settings-discard-button" variant="secondary" />
             <AppButton disabled={!isDirty || Boolean(formError)} icon={<Save color={colors.white} size={17} />} label="Salvar" loading={saving} onPress={saveSettings} testID="settings-save-button" variant="admin" />
           </>}
           message={isDirty ? 'Alterações não salvas' : 'Configurações atualizadas'}
           testID="settings-sticky-actions"
-        />
+        /> : null}
       </View>
     </AdminShell>
   );

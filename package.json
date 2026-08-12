@@ -30,6 +30,7 @@
     "test:phase1:real-jwt": "node scripts/validate-phase1-real-jwt.mjs",
     "test:phase2:real-jwt": "node scripts/validate-phase2-real-jwt.mjs",
     "test:g14:homolog": "node scripts/validate-gate-g14-homolog.mjs",
+    "test:g7:homolog": "node scripts/validate-phase4-homolog-jwt.mjs",
     "build:web": "npm --workspace @cutsync/web run build:web",
     "build:control": "npm --workspace @cutsync/control run build:web",
     "serve:test": "npm run build:web && npm --workspace @cutsync/web run serve:test",

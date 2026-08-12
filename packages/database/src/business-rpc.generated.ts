@@ -613,6 +613,52 @@ export interface BusinessRpcFunctions {
     };
     Returns: unknown;
   };
+  list_establishment_payment_methods: {
+    Args: { target_establishment_id: string };
+    Returns: unknown;
+  };
+  configure_establishment_payment_method: {
+    Args: {
+      target_establishment_id: string;
+      target_method_type: string;
+      target_display_name: string;
+      target_active: boolean;
+      target_requires_reference: boolean;
+      target_expected_version: number | null;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  get_service_order_payment_summary: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+    };
+    Returns: unknown;
+  };
+  record_order_payment: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_payment_method_id: string;
+      target_amount_cents: number;
+      target_external_reference: string | null;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  void_order_payment: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_payment_entry_id: string;
+      target_reason: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
 }
 
 export type BusinessRpcName = keyof BusinessRpcFunctions;

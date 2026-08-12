@@ -1,0 +1,116 @@
+name: Phase 4 Manual POS Gate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/phase4-gate.yml'
+      - 'apps/business/.eas/workflows/phase4-g7-preview.yml'
+      - 'packages/database/src/business-rpc.generated.ts'
+      - 'packages/database/src/manual-pos.ts'
+      - 'packages/database/src/service-order-api.ts'
+      - 'packages/database/src/index.ts'
+      - 'apps/business/src/services/business-api.ts'
+      - 'apps/business/src/screens/appointment-operation.tsx'
+      - 'apps/business/src/features/payments/business-pos-outbox.ts'
+      - 'apps/business/src/features/payments/business-pos-outbox-contract.ts'
+      - 'apps/web/src/components/settings/PaymentMethodsSettings.tsx'
+      - 'apps/web/src/components/screens/SettingsExperience.tsx'
+      - 'supabase/migrations/20260824000000_phase4_manual_pos_foundation.sql'
+      - 'supabase/migrations/20260824001000_phase4_payment_summary_finance_access.sql'
+      - 'supabase/migrations/20260824002000_phase4_payment_summary_capability_scope.sql'
+      - 'supabase/tests/phase4_manual_pos.sql'
+      - 'tests/unit/phase4-manual-pos.unit.spec.ts'
+      - 'tests/unit/phase4-pos-ui.unit.spec.ts'
+      - 'scripts/validate-phase4-concurrency.mjs'
+      - 'scripts/validate-phase4-homolog-jwt.mjs'
+      - 'scripts/prepare-phase4-mobile-fixture.mjs'
+      - 'scripts/reset-supabase-reconciled.ps1'
+      - 'docs/architecture/PHASE4_MANUAL_POS.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase4-manual-pos-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phase4-manual-pos:
+    name: G7 POS manual, concorrência e superfícies
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Rebuild reconciled disposable database
+        shell: pwsh
+        run: ./scripts/reset-supabase-reconciled.ps1
+
+      - name: Run Phase 4 SQL scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i supabase_db_CutSync \
+            psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < supabase/tests/phase4_manual_pos.sql
+
+      - name: Validate concurrent payment serialization
+        run: node scripts/validate-phase4-concurrency.mjs
+
+      - name: Validate schema and privileges
+        run: |
+          supabase db lint --local --schema public --level error --fail-on error
+          supabase db advisors --local --type security --level error --fail-on error
+          supabase db advisors --local --type performance --level error --fail-on error
+
+      - name: Validate shared contracts
+        run: |
+          npm run typecheck:shared
+          npm run typecheck:business
+          npm run typecheck:web
+
+      - name: Run Phase 4 unit tests
+        run: npx playwright test --project=unit tests/unit/phase4-manual-pos.unit.spec.ts tests/unit/phase4-pos-ui.unit.spec.ts
+
+      - name: Validate mobile fixture harness
+        run: node --check scripts/prepare-phase4-mobile-fixture.mjs
+
+      - name: Validate Business and Web surfaces
+        run: |
+          npm run lint:business
+          npm run lint:web
+          npm --workspace @cutsync/business run build:web
+          npm --workspace @cutsync/web run build:web
+
+      - name: Register evidence classification
+        shell: bash
+        run: |
+          {
+            echo "## Gate G7 - evidência automatizada"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Classificação: CI reproduzido"
+            echo "- Cobertura: SQL/RLS, idempotência, concorrência, mappers, binding RPC, outbox, typecheck, lint e bundles"
+            echo "- Não comprova: papéis reais em Android físico, rede desligada/reinício real ou aprovação produtiva"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup
