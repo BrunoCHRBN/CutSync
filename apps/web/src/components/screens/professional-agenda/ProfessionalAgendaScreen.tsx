@@ -116,7 +116,7 @@ export const ProfessionalAgendaScreen = () => {
   });
 
   const {
-    appointment: nextAppointment,
+    appointments: nextAppointments,
     loading: nextAppointmentLoading,
     error: nextAppointmentError,
     refresh: refreshNextAppointment,
@@ -572,10 +572,10 @@ export const ProfessionalAgendaScreen = () => {
         />
 
         <NextAppointmentStrip
-          appointment={nextAppointment}
+          appointments={nextAppointments}
           loading={nextAppointmentLoading}
-          onConfirm={nextAppointment ? () => { void actions.updateStatus(nextAppointment.id, 'confirmed'); } : undefined}
-          onDetails={nextAppointment ? () => setSelectedAppointmentId(nextAppointment.id) : undefined}
+          onConfirm={(appointment) => { void actions.updateStatus(appointment.id, 'confirmed'); }}
+          onDetails={(appointment) => setSelectedAppointmentId(appointment.id)}
         />
 
         <OperationalCalendar

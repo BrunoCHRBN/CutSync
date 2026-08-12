@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   tablet: { maxWidth: 320 },
   desktop: { flex: 2 },
   deviceLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  deviceLabel: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.2 },
+  deviceLabel: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 12, letterSpacing: 1.2 },
   preview: { width: '100%', borderRadius: landingRadii.lg },
   note: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 19 },
 });

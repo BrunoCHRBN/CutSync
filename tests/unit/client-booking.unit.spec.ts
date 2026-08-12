@@ -81,6 +81,23 @@ test('oferece qualquer profissional com resolução client-side de slots', () =>
   expect(hook).toContain('loadClientAvailability');
 });
 
+test('recupera indisponibilidade com próxima data e alternativas acionáveis', () => {
+  const screen = readSource('apps/client/src/screens/client-booking.tsx');
+  const service = readSource('apps/client/src/features/booking/client-booking-service.ts');
+  const hook = readSource('apps/client/src/features/booking/use-client-availability.ts');
+  const migration = readSource('supabase/migrations/20260812153554_ui_ux_availability_recovery.sql');
+
+  expect(screen).toContain('client-booking-recovery-date-');
+  expect(screen).toContain('client-booking-recovery-any-professional');
+  expect(screen).toContain('client-booking-recovery-change-service');
+  expect(screen).toContain('client-booking-recovery-profile');
+  expect(service).toContain("'get_booking_availability_recovery'");
+  expect(hook).toContain('loadClientAvailabilityRecovery');
+  expect(migration).toContain('SECURITY INVOKER');
+  expect(migration).toContain('FROM PUBLIC, anon');
+  expect(migration).toContain('TO authenticated');
+});
+
 test('aceita professionalId na deep link e preserva elegibilidade ao trocar serviço', () => {
   const screen = readSource('apps/client/src/screens/client-booking.tsx');
 

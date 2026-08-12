@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
   shopLogoLetter: { fontFamily: typography.bodyStrong, fontSize: 17 },
   ratingPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
   ratingText: { color: clientTheme.star, fontFamily: typography.bodyStrong, fontSize: 12.5 },
-  reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  reviewCountText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   metaDivider: { color: colors.textMuted },
   priceLevelText: { color: clientTheme.greenDeep, fontFamily: typography.bodyStrong, fontSize: 12.5 },
   shopBody: { paddingHorizontal: 16, paddingTop: 32, paddingBottom: 14 },

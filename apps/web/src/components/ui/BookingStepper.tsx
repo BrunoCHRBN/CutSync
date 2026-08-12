@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
   done: { opacity: 1 },
   pressed: { opacity: 0.72 },
   circle: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.surfacePressed },
-  number: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 10 },
+  number: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12 },
   numberActive: { color: colors.white },
-  label: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 10 },
+  label: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12 },
   labelActive: { color: colors.text },
 });

@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.brand,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 14,
     letterSpacing: 1.4,
     textTransform: 'uppercase',

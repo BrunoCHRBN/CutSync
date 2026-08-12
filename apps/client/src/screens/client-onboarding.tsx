@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   artCardDetail: {
     color: clientTheme.colors.inkSoft,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
     fontWeight: '700',
   },
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   },
   artChipText: {
     color: clientTheme.colors.white,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
   },
   artBadge: {

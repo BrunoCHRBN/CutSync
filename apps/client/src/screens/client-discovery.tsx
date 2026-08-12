@@ -34,6 +34,7 @@ import {
 } from '@/features/discovery/client-discovery-service';
 import { useClientLocation } from '@/features/discovery/use-client-location';
 import { clientTheme } from '@/theme/client-theme';
+import { recordClientProductEvent } from '@/features/analytics/client-product-events';
 
 type CategoryFilter = {
   id: string;
@@ -92,6 +93,7 @@ export function ClientDiscoveryScreen() {
       const result = await listClientDiscoveryEstablishments(nextQuery, origin);
       if (sequence !== requestSequence.current) return;
       setEstablishments(result);
+      recordClientProductEvent({ name: 'discovery_viewed', route: '/explore' });
     } catch (nextError) {
       if (sequence !== requestSequence.current) return;
       setError(nextError instanceof Error ? nextError.message : 'Não foi possível carregar a descoberta.');
@@ -145,6 +147,7 @@ export function ClientDiscoveryScreen() {
   };
 
   const openEstablishment = useCallback((slug: string) => {
+    recordClientProductEvent({ name: 'establishment_opened', route: '/establishments/[slug]' });
     router.push({ pathname: '/establishments/[slug]', params: { slug } });
   }, [router]);
 
@@ -172,7 +175,7 @@ export function ClientDiscoveryScreen() {
     filtered.length <= 6 ? filtered : filtered.slice(0, 10)
   ), [filtered]);
 
-  const popular = useMemo(() => (
+  const mostReviewed = useMemo(() => (
     [...filtered]
       .sort((a, b) => b.reviewCount - a.reviewCount)
       .slice(0, 10)
@@ -487,15 +490,15 @@ export function ClientDiscoveryScreen() {
               </View>
             )}
 
-            {popular.length > 0 && (
+            {mostReviewed.length > 0 && (
               <View style={styles.carouselSection}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionCopy}>
-                    <Text style={styles.sectionEyebrow}>QUERIDINHOS</Text>
-                    <Text style={styles.sectionTitle}>Mais reservados</Text>
+                    <Text style={styles.sectionEyebrow}>AVALIAÇÕES</Text>
+                    <Text style={styles.sectionTitle}>Com mais avaliações</Text>
                   </View>
                   <Text style={styles.sectionCount}>
-                    {popular.length} {popular.length === 1 ? 'lugar' : 'lugares'}
+                    {mostReviewed.length} {mostReviewed.length === 1 ? 'lugar' : 'lugares'}
                   </Text>
                 </View>
                 <ScrollView
@@ -505,9 +508,9 @@ export function ClientDiscoveryScreen() {
                   snapToInterval={CARD_SNAP_INTERVAL}
                   snapToAlignment="start"
                   contentContainerStyle={styles.carouselContent}
-                  testID="client-discovery-carousel-popular"
+                  testID="client-discovery-carousel-most-reviewed"
                 >
-                  {popular.map((item, index) => (
+                  {mostReviewed.map((item, index) => (
                     <Animated.View
                       key={item.id}
                       entering={FadeInRight
@@ -587,22 +590,22 @@ const styles = StyleSheet.create({
   locationChipActive: { borderColor: discoveryColors.accent, backgroundColor: discoveryColors.accentSoft },
   locationChipText: { color: discoveryColors.secondary, fontSize: 12, fontWeight: '800' },
   locationChipTextActive: { color: discoveryColors.accent },
-  locationNotice: { color: discoveryColors.muted, fontSize: 11, lineHeight: 16 },
+  locationNotice: { color: discoveryColors.muted, fontSize: 12, lineHeight: 16 },
 
   categoriesRow: { gap: 10, paddingHorizontal: 20, paddingRight: 32 },
 
   resultsHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, paddingBottom: 14 },
   resultsCopy: { gap: 4 },
-  resultsEyebrow: { color: discoveryColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.3 },
+  resultsEyebrow: { color: discoveryColors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.3 },
   resultsTitle: { color: discoveryColors.text, fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.4 },
   activeQueryPill: { maxWidth: '52%', borderRadius: 999, backgroundColor: discoveryColors.accentSoft, paddingHorizontal: 12, paddingVertical: 8 },
-  activeQueryText: { color: discoveryColors.accent, fontSize: 11, fontWeight: '800' },
+  activeQueryText: { color: discoveryColors.accent, fontSize: 12, fontWeight: '800' },
   searchResults: { gap: 18 },
 
   carouselSection: { gap: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingHorizontal: 20 },
   sectionCopy: { gap: 4, flex: 1 },
-  sectionEyebrow: { color: discoveryColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  sectionEyebrow: { color: discoveryColors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.4 },
   sectionTitle: { color: discoveryColors.text, fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.4 },
   sectionCount: { color: discoveryColors.accent, fontSize: 12, fontWeight: '800', paddingBottom: 4 },
   carouselContent: { gap: 14, paddingHorizontal: 20, paddingRight: 32 },

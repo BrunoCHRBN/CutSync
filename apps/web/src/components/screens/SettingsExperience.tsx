@@ -20,8 +20,18 @@ import { parseOptionalCoordinate } from '../../utils/coordinate-validation';
 import { getErrorMessage } from '../../utils/errors';
 import { isValidClockTime, maskTimeInput } from '../../utils/time-input-mask';
 import { StickyActionBar } from '../ui/sticky-action-bar';
-import { normalizeInstagramHandle } from '@cutsync/domain';
+import { normalizeInstagramHandle, type PublicationReadiness } from '@cutsync/domain';
+import { BRAND_PRESET_IDS, validateBrandConfiguration, type BrandConfiguration, type BrandPresetId } from '@cutsync/brand';
+import { parsePublicationReadiness } from '@cutsync/database';
 import { PaymentMethodsSettings } from '../settings/PaymentMethodsSettings';
+import { recordWebProductEvent } from '../../services/product-events';
+import { webExperienceFlags } from '../../config/experience-flags';
+import {
+  brandStudioService,
+  fromWireBrandConfiguration,
+  type BrandEditorContext,
+  type BrandScope,
+} from '../../features/brand/brand-studio-service';
 
 type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'payments' | 'security';
 
@@ -81,7 +91,7 @@ const settingsSections: { key: SettingsSection; label: string; Icon: typeof Stor
   { key: 'images', label: 'Imagens', Icon: ImageIcon },
   { key: 'schedule', label: 'Funcionamento', Icon: Clock3 },
   { key: 'publication', label: 'Publicação', Icon: Eye },
-  { key: 'policies', label: 'Políticas & Geodecisões', Icon: ShieldCheck },
+  { key: 'policies', label: 'Políticas e localização', Icon: ShieldCheck },
   { key: 'payments', label: 'Pagamentos', Icon: CreditCard },
   { key: 'security', label: 'Segurança', Icon: KeyRound },
 ];
@@ -101,12 +111,26 @@ export const SettingsExperience = () => {
   const [phone, setPhone] = useState('');
   const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
   const [primaryColor, setPrimaryColor] = useState('#F5A524');
+  const [brandPreset, setBrandPreset] = useState<BrandPresetId>('classic');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoAltText, setLogoAltText] = useState('');
+  const [logoConsentConfirmed, setLogoConsentConfirmed] = useState(false);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [galleryAltText, setGalleryAltText] = useState('Ambiente e trabalhos do estabelecimento');
+  const [galleryConsentConfirmed, setGalleryConsentConfirmed] = useState(false);
   
   // Novos campos estéticos e de políticas
   const [slogan, setSlogan] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
+  const [bannerAltText, setBannerAltText] = useState('');
+  const [bannerConsentConfirmed, setBannerConsentConfirmed] = useState(false);
+  const [brandDescription, setBrandDescription] = useState('');
+  const [brandScope, setBrandScope] = useState<BrandScope>('establishment');
+  const [inheritOrganizationBrand, setInheritOrganizationBrand] = useState(false);
+  const [brandContext, setBrandContext] = useState<BrandEditorContext | null>(null);
+  const [brandDraftId, setBrandDraftId] = useState<string | null>(null);
+  const [brandPublishing, setBrandPublishing] = useState(false);
+  const [brandSavedSnapshot, setBrandSavedSnapshot] = useState('');
   const [instagram, setInstagram] = useState('');
   const [instantBookingEnabled, setInstantBookingEnabled] = useState(true);
   
@@ -122,6 +146,7 @@ export const SettingsExperience = () => {
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [discoveryStatus, setDiscoveryStatus] = useState<'draft' | 'published'>('draft');
   const [discoveryRequirements, setDiscoveryRequirements] = useState<DiscoveryRequirements | null>(null);
+  const [publicationReadiness, setPublicationReadiness] = useState<PublicationReadiness | null>(null);
   const [publishing, setPublishing] = useState(false);
 
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -143,7 +168,6 @@ export const SettingsExperience = () => {
     longitude,
     professionalPixAllowed,
   }), [address, bannerUrl, galleryUrls, instagram, instantBookingEnabled, logoUrl, name, phone, primaryColor, schedule, slogan, slug, minCancellationHours, noShowFeePercent, latitude, longitude, professionalPixAllowed]);
-  const isDirty = Boolean(savedSnapshot && currentSnapshot !== savedSnapshot);
   const invalidSchedule = schedule.some((day) => day.isOpen && (!/^\d{2}:\d{2}$/.test(day.open) || !/^\d{2}:\d{2}$/.test(day.close) || day.open >= day.close));
   const formError = !name.trim() || !slug.trim()
     ? 'Nome e endereço digital são obrigatórios.'
@@ -152,6 +176,29 @@ export const SettingsExperience = () => {
       : invalidSchedule
         ? 'Revise o funcionamento: a abertura deve ser anterior ao fechamento.'
         : null;
+
+  const brandConfiguration = useMemo<BrandConfiguration>(() => ({
+    presetId: brandPreset,
+    primaryColor,
+    logoUrl,
+    logoAltText: logoAltText.trim() || null,
+    logoConsentConfirmed,
+    bannerUrl: bannerUrl.trim() || null,
+    bannerAltText: bannerAltText.trim() || null,
+    bannerConsentConfirmed,
+    gallery: galleryUrls.map((url, index) => ({
+      url,
+      altText: `${galleryAltText.trim()} ${index + 1}`.trim(),
+      consentConfirmed: galleryConsentConfirmed,
+    })),
+    description: brandDescription.trim() || null,
+    slogan: slogan.trim() || null,
+    composition: 'balanced',
+  }), [bannerAltText, bannerConsentConfirmed, bannerUrl, brandDescription, brandPreset, galleryAltText, galleryConsentConfirmed, galleryUrls, logoAltText, logoConsentConfirmed, logoUrl, primaryColor, slogan]);
+  const brandValidation = useMemo(() => validateBrandConfiguration(brandConfiguration), [brandConfiguration]);
+  const brandCurrentSnapshot = useMemo(() => JSON.stringify(brandConfiguration), [brandConfiguration]);
+  const brandDirty = Boolean(brandSavedSnapshot && brandCurrentSnapshot !== brandSavedSnapshot);
+  const isDirty = Boolean(savedSnapshot && currentSnapshot !== savedSnapshot) || brandDirty;
 
   const fetchAddressByCep = async (rawCep: string) => {
     const cleanCep = rawCep.replace(/\D/g, '');
@@ -168,8 +215,8 @@ export const SettingsExperience = () => {
       const addressString = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}, Brasil`;
       setAddress(addressString);
       setNotice({ tone: 'success', message: 'Endereço preenchido automaticamente!' });
-    } catch (err) {
-      console.warn('ViaCEP fetch failed:', err);
+    } catch {
+      setNotice({ tone: 'danger', message: 'Não foi possível consultar o CEP agora.' });
     }
   };
 
@@ -212,6 +259,13 @@ export const SettingsExperience = () => {
 
       const response = await fetch(uri);
       const blob = await response.blob();
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedImageTypes.includes(blob.type)) {
+        throw new Error('image_type_not_allowed');
+      }
+      if (blob.size > 8 * 1024 * 1024) {
+        throw new Error('image_too_large');
+      }
 
       const fileExt = uri.split('.').pop()?.split('?')[0] || 'jpg';
       const fileName = `${activeEstablishmentId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -225,7 +279,6 @@ export const SettingsExperience = () => {
         });
 
       if (uploadError) {
-        console.error('Supabase upload error:', uploadError);
         throw uploadError;
       }
 
@@ -235,10 +288,13 @@ export const SettingsExperience = () => {
 
       return publicUrl;
     } catch (error: unknown) {
-      console.error('Image upload failed:', error);
       setNotice({
         tone: 'danger',
-        message: `Não foi possível carregar a imagem. Verifique se o bucket 'banners' está configurado no seu Supabase. Detalhe: ${getErrorMessage(error, 'erro desconhecido')}`,
+        message: getErrorMessage(error, '').includes('image_type_not_allowed')
+          ? 'Use uma imagem JPEG, PNG ou WebP.'
+          : getErrorMessage(error, '').includes('image_too_large')
+            ? 'A imagem deve ter no máximo 8 MB.'
+            : 'Não foi possível carregar a imagem agora.',
       });
       return null;
     } finally {
@@ -265,6 +321,10 @@ export const SettingsExperience = () => {
   };
 
   const handleAddGalleryPhoto = async () => {
+    if (galleryUrls.length >= 12) {
+      setNotice({ tone: 'danger', message: 'A galeria aceita no máximo 12 imagens.' });
+      return;
+    }
     const url = await pickImage([4, 5]);
     if (!url) return;
     const nextGallery = [...galleryUrls, url];
@@ -284,11 +344,64 @@ export const SettingsExperience = () => {
     const publication = (data as unknown as DiscoveryPublicationRow[] | null)?.[0];
     setDiscoveryStatus(publication?.discovery_status === 'published' ? 'published' : 'draft');
     setDiscoveryRequirements((publication?.requirements ?? null) as unknown as DiscoveryRequirements | null);
+    const readinessResult = await supabase.rpc('get_publication_readiness', {
+      target_establishment_id: activeEstablishmentId,
+    });
+    if (!readinessResult.error) {
+      const readiness = parsePublicationReadiness(readinessResult.data);
+      if (readiness) setPublicationReadiness(readiness);
+    }
   }, [activeEstablishmentId]);
 
   useEffect(() => {
     void loadDiscoveryPublication();
   }, [loadDiscoveryPublication]);
+
+  const applyBrandConfiguration = useCallback((configuration: BrandConfiguration) => {
+    setBrandPreset(configuration.presetId);
+    setPrimaryColor(configuration.primaryColor);
+    setLogoUrl(configuration.logoUrl);
+    setLogoAltText(configuration.logoAltText || '');
+    setLogoConsentConfirmed(configuration.logoConsentConfirmed ?? false);
+    setBannerUrl(configuration.bannerUrl || '');
+    setBannerAltText(configuration.bannerAltText || '');
+    setBannerConsentConfirmed(configuration.bannerConsentConfirmed ?? false);
+    setGalleryUrls(configuration.gallery.map((item) => item.url));
+    setGalleryAltText(configuration.gallery[0]?.altText?.replace(/\s+\d+$/, '') || 'Ambiente e trabalhos do estabelecimento');
+    setGalleryConsentConfirmed(configuration.gallery.every((item) => item.consentConfirmed));
+    setBrandDescription(configuration.description || '');
+    setSlogan(configuration.slogan || '');
+  }, []);
+
+  const loadBrandStudio = useCallback(async () => {
+    if (!activeEstablishmentId || !webExperienceFlags.brand_studio_v2) {
+      setBrandContext(null);
+      setBrandDraftId(null);
+      return;
+    }
+    try {
+      const context = await brandStudioService.getContext(activeEstablishmentId);
+      setBrandContext(context);
+      const version = context.establishmentDraft || context.establishmentPublished;
+      const configuration = fromWireBrandConfiguration(version?.configuration || context.resolved);
+      applyBrandConfiguration(configuration);
+      setBrandSavedSnapshot(JSON.stringify(configuration));
+      setBrandDraftId(context.establishmentDraft?.id || null);
+      setInheritOrganizationBrand(Boolean(
+        context.capabilities.organizationId
+        && !(version?.override_fields?.length),
+      ));
+    } catch (error) {
+      const detail = getErrorMessage(error, '');
+      if (!detail.includes('could not find the function') && !detail.includes('PGRST202')) {
+        setNotice({ tone: 'danger', message: 'Não foi possível carregar o estúdio de marca.' });
+      }
+    }
+  }, [activeEstablishmentId, applyBrandConfiguration]);
+
+  useEffect(() => {
+    void loadBrandStudio();
+  }, [loadBrandStudio]);
 
   const toggleDiscoveryPublication = async () => {
     if (!activeEstablishmentId || isDirty) {
@@ -419,26 +532,51 @@ export const SettingsExperience = () => {
       return;
     }
     if (!barbershop) return;
+    if (brandContext && brandDirty && !brandValidation.valid) {
+      setNotice({
+        tone: 'danger',
+        message: 'Revise contraste, descrição das imagens e confirmação de autoria antes de salvar a marca.',
+      });
+      return;
+    }
 
     setSaving(true);
     try {
-      const { data: updatedEstablishment, error } = await supabase.from('establishments').update({
+      const establishmentUpdate = {
         name: name.trim(), slug: cleanSlug, address: address.trim(), phone: phone.trim(),
-        slogan: slogan.trim() || null, banner_url: bannerUrl.trim() || null,
         instagram: normalizeInstagramHandle(instagram), opening_hours: JSON.stringify(schedule),
-        primary_color: primaryColor.toUpperCase(), logo_url: logoUrl,
-        gallery_urls: JSON.stringify(galleryUrls),
         instant_booking_enabled: instantBookingEnabled,
         min_cancellation_hours: parseInt(minCancellationHours, 10) || 24,
         no_show_fee_percent: parseFloat(noShowFeePercent) || 0.00,
         latitude: lat.value,
         longitude: lng.value,
         professional_pix_allowed: professionalPixAllowed,
-      }).eq('id', barbershop.id)
+        ...(brandContext ? {} : {
+          slogan: slogan.trim() || null,
+          banner_url: bannerUrl.trim() || null,
+          primary_color: primaryColor.toUpperCase(),
+          logo_url: logoUrl,
+          gallery_urls: JSON.stringify(galleryUrls),
+        }),
+      };
+      const { data: updatedEstablishment, error } = await supabase.from('establishments').update(establishmentUpdate).eq('id', barbershop.id)
         .select('id')
         .maybeSingle();
       if (error) throw error;
       if (!updatedEstablishment) throw new Error('establishment_update_not_authorized');
+      if (brandContext && brandDirty) {
+        const receipt = await brandStudioService.saveDraft({
+          establishmentId: barbershop.id,
+          scope: brandScope,
+          configuration: brandConfiguration,
+          overrideFields: brandScope === 'establishment' && !inheritOrganizationBrand
+            ? ['preset', 'primaryColor', 'logo', 'banner', 'gallery', 'description', 'slogan', 'composition']
+            : [],
+        });
+        setBrandDraftId(receipt.versionId);
+        setBrandSavedSnapshot(brandCurrentSnapshot);
+        recordWebProductEvent({ name: 'brand_draft_saved', surface: 'web_business', role: 'admin', route: '/settings' });
+      }
       setSlug(cleanSlug);
       setSavedSnapshot(JSON.stringify({
         ...JSON.parse(currentSnapshot),
@@ -452,7 +590,12 @@ export const SettingsExperience = () => {
         longitude: lng.value,
         professionalPixAllowed: professionalPixAllowed,
       }));
-      setNotice({ tone: 'success', message: 'Configurações salvas na vitrine.' });
+      setNotice({
+        tone: 'success',
+        message: brandContext && brandDirty
+          ? 'Configurações salvas. A marca permanece em rascunho até a publicação.'
+          : 'Configurações salvas.',
+      });
       await loadDiscoveryPublication();
     } catch (error) {
       const detail = getErrorMessage(error, '');
@@ -466,6 +609,67 @@ export const SettingsExperience = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const publishBrandDraft = async () => {
+    if (!activeEstablishmentId || !brandDraftId || !brandContext) return;
+    const canPublish = brandScope === 'organization'
+      ? brandContext.capabilities.publishOrganizationBrand
+      : brandContext.capabilities.publishBrand;
+    if (!canPublish) {
+      setNotice({ tone: 'danger', message: 'Seu acesso permite editar, mas a publicação exige owner ou admin da unidade.' });
+      return;
+    }
+    setBrandPublishing(true);
+    setNotice(null);
+    try {
+      await brandStudioService.publish({
+        establishmentId: activeEstablishmentId,
+        scope: brandScope,
+        versionId: brandDraftId,
+      });
+      recordWebProductEvent({ name: 'brand_published', surface: 'web_business', role: 'admin', route: '/settings' });
+      setNotice({ tone: 'success', message: 'Marca publicada e propagada para as experiências públicas.' });
+      setBrandDraftId(null);
+      await loadBrandStudio();
+    } catch (error) {
+      setNotice({
+        tone: 'danger',
+        message: getErrorMessage(error, '').includes('forbidden')
+          ? 'Seu acesso não permite publicar esta marca.'
+          : 'Não foi possível publicar. O rascunho foi preservado.',
+      });
+    } finally {
+      setBrandPublishing(false);
+    }
+  };
+
+  const restoreBrandVersion = async (versionId: string, versionNumber: number) => {
+    if (!activeEstablishmentId || !brandContext) return;
+    const canRestore = brandScope === 'organization'
+      ? brandContext.capabilities.publishOrganizationBrand
+      : brandContext.capabilities.publishBrand;
+    if (!canRestore) {
+      setNotice({ tone: 'danger', message: 'Seu acesso não permite restaurar versões publicadas.' });
+      return;
+    }
+    if (typeof globalThis.confirm === 'function'
+      && !globalThis.confirm(`Restaurar a versão ${versionNumber}? A marca pública será atualizada imediatamente.`)) return;
+    setBrandPublishing(true);
+    try {
+      await brandStudioService.restore({
+        establishmentId: activeEstablishmentId,
+        scope: brandScope,
+        versionId,
+      });
+      recordWebProductEvent({ name: 'brand_published', surface: 'web_business', role: 'admin', route: '/settings' });
+      setNotice({ tone: 'success', message: `Versão ${versionNumber} restaurada como uma nova publicação auditável.` });
+      await loadBrandStudio();
+    } catch {
+      setNotice({ tone: 'danger', message: 'Não foi possível restaurar a versão selecionada.' });
+    } finally {
+      setBrandPublishing(false);
     }
   };
 
@@ -494,6 +698,7 @@ export const SettingsExperience = () => {
     setBannerUrl(snapshot.bannerUrl);
     setInstagram(snapshot.instagram);
     setInstantBookingEnabled(snapshot.instantBookingEnabled);
+    if (brandSavedSnapshot) applyBrandConfiguration(JSON.parse(brandSavedSnapshot) as BrandConfiguration);
     setNotice(null);
   };
 
@@ -557,7 +762,6 @@ export const SettingsExperience = () => {
                   ['account_active', 'Conta do estabelecimento ativa'],
                   ['name_valid', 'Nome comercial válido'],
                   ['slug_valid', 'Endereço digital válido'],
-                  ['address_present', 'Endereço físico preenchido'],
                   ['active_service_present', 'Ao menos um serviço ativo'],
                 ] as const).map(([key, label]) => {
                   const complete = discoveryRequirements?.[key] === true;
@@ -572,19 +776,102 @@ export const SettingsExperience = () => {
                 })}
               </View>
 
+              {publicationReadiness ? (
+                <InlineNotice
+                  testID="settings-publication-completeness"
+                  tone="info"
+                  message={`Completude recomendada: ${publicationReadiness.completenessScore}%. Logo, banner, galeria, contato e endereço melhoram o perfil, mas não bloqueiam um pequeno estabelecimento.`}
+                />
+              ) : null}
+
               <AppButton
                 testID="settings-publication-toggle"
                 label={discoveryStatus === 'published' ? 'Despublicar vitrine' : 'Publicar vitrine'}
                 icon={discoveryStatus === 'published' ? <EyeOff color={colors.text} size={17} /> : <Eye color={colors.white} size={17} />}
                 variant={discoveryStatus === 'published' ? 'secondary' : 'admin'}
-                disabled={publishing || isDirty || (discoveryStatus !== 'published' && !Object.values(discoveryRequirements ?? {}).every(Boolean))}
+                disabled={publishing || isDirty || (discoveryStatus !== 'published' && !(publicationReadiness?.eligible ?? Boolean(
+                  discoveryRequirements?.account_active
+                  && discoveryRequirements?.name_valid
+                  && discoveryRequirements?.slug_valid
+                  && discoveryRequirements?.active_service_present
+                )))}
                 loading={publishing}
                 onPress={() => void toggleDiscoveryPublication()}
               />
               {isDirty ? <Text style={styles.publicationHint}>Salve as alterações pendentes antes de publicar.</Text> : null}
             </FormSection> : null}
 
-            {activeSection === 'brand' ? <FormSection testID="settings-brand-section" title="Marca da barbearia" description="A cor personaliza detalhes da experiência sem perder a identidade CutSync.">
+            {activeSection === 'brand' ? <FormSection testID="settings-brand-section" title="Estúdio de marca" description="Edite um rascunho, valide a prévia e publique sem remover a identidade CutSync.">
+              {brandContext ? (
+                <View style={styles.brandStudioStatus}>
+                  <View style={styles.brandStudioStatusCopy}>
+                    <Text style={styles.brandStudioStatusTitle}>{brandDraftId ? 'Rascunho salvo' : 'Versão publicada'}</Text>
+                    <Text style={styles.brandStudioStatusText}>
+                      {brandDraftId ? 'A vitrine ainda usa a versão publicada anterior.' : 'As experiências públicas estão usando esta versão.'}
+                    </Text>
+                  </View>
+                  {brandDraftId ? <AppButton disabled={brandDirty} label="Publicar marca" icon={<Eye color={colors.white} size={16} />} loading={brandPublishing} onPress={() => void publishBrandDraft()} testID="settings-brand-publish" variant="admin" /> : null}
+                </View>
+              ) : null}
+
+              {brandContext?.capabilities.manageOrganizationBrand ? (
+                <View style={styles.brandChoiceRow} testID="settings-brand-scope">
+                  <AppButton
+                    label="Marca desta unidade"
+                    onPress={() => {
+                      setBrandScope('establishment');
+                      const version = brandContext.establishmentDraft || brandContext.establishmentPublished;
+                      applyBrandConfiguration(fromWireBrandConfiguration(version?.configuration || brandContext.resolved));
+                      setBrandDraftId(brandContext.establishmentDraft?.id || null);
+                    }}
+                    variant={brandScope === 'establishment' ? 'admin' : 'secondary'}
+                  />
+                  <AppButton
+                    label="Marca da organização"
+                    onPress={() => {
+                      setBrandScope('organization');
+                      const version = brandContext.organizationDraft || brandContext.organizationPublished;
+                      if (version) applyBrandConfiguration(fromWireBrandConfiguration(version.configuration));
+                      setBrandDraftId(brandContext.organizationDraft?.id || null);
+                    }}
+                    variant={brandScope === 'organization' ? 'admin' : 'secondary'}
+                  />
+                </View>
+              ) : null}
+
+              {brandScope === 'establishment' && brandContext?.capabilities.organizationId ? (
+                <View style={styles.visibilityRow}>
+                  <View style={styles.visibilityCopy}>
+                    <Text style={styles.visibilityTitle}>Herdar marca da organização</Text>
+                    <Text style={styles.visibilityText}>Ao ativar, removeremos os overrides desta unidade na próxima publicação.</Text>
+                  </View>
+                  <Switch
+                    value={inheritOrganizationBrand}
+                    onValueChange={(value) => {
+                      setInheritOrganizationBrand(value);
+                      if (value && brandContext.organizationPublished) {
+                        applyBrandConfiguration(fromWireBrandConfiguration(brandContext.organizationPublished.configuration));
+                      }
+                    }}
+                    trackColor={{ false: colors.borderStrong, true: colors.success }}
+                  />
+                </View>
+              ) : null}
+
+              <View>
+                <Text style={styles.fieldLabel}>Composição</Text>
+                <View style={styles.brandChoiceRow}>
+                  {BRAND_PRESET_IDS.map((preset) => (
+                    <AppButton
+                      key={preset}
+                      label={preset === 'classic' ? 'Clássica' : preset === 'editorial' ? 'Editorial' : 'Minimalista'}
+                      onPress={() => setBrandPreset(preset)}
+                      testID={`settings-brand-preset-${preset}`}
+                      variant={brandPreset === preset ? 'admin' : 'secondary'}
+                    />
+                  ))}
+                </View>
+              </View>
               <View style={styles.logoRow}>
                 <View testID="settings-logo-preview" style={styles.logoPreview}>
                   {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : <Store color={colors.textSecondary} size={30} />}
@@ -612,6 +899,46 @@ export const SettingsExperience = () => {
               </View>
               <AppInput label="Endereço digital" testID="settings-slug-input" icon={<ExternalLink color={colors.textMuted} size={17} />} value={slug} onChangeText={setSlug} autoCapitalize="none" hint="Use letras, números e hífens. Aparece em cutsync.com/salon/…" />
               <BrandColorPicker value={primaryColor} onChange={setPrimaryColor} />
+              <AppInput label="Descrição editorial" value={brandDescription} onChangeText={setBrandDescription} multiline placeholder="Conte o que torna este estabelecimento especial." />
+              {logoUrl ? <AppInput label="Descrição acessível da logo" value={logoAltText} onChangeText={setLogoAltText} placeholder="Ex.: Símbolo verde com o nome do estúdio" /> : null}
+              {bannerUrl ? <AppInput label="Descrição acessível do banner" value={bannerAltText} onChangeText={setBannerAltText} placeholder="Ex.: Interior iluminado do estabelecimento" /> : null}
+              {galleryUrls.length ? <AppInput label="Descrição base da galeria" value={galleryAltText} onChangeText={setGalleryAltText} placeholder="Ex.: Ambiente e trabalhos do estabelecimento" /> : null}
+              {(logoUrl || bannerUrl || galleryUrls.length) ? (
+                <View style={styles.visibilityRow}>
+                  <View style={styles.visibilityCopy}>
+                    <Text style={styles.visibilityTitle}>Autoria e consentimento confirmados</Text>
+                    <Text style={styles.visibilityText}>Confirmo que o estabelecimento pode publicar estas mídias. Fotos identificáveis de clientes não são permitidas nesta fase.</Text>
+                  </View>
+                  <Switch
+                    testID="settings-brand-media-consent"
+                    value={(!logoUrl || logoConsentConfirmed) && (!bannerUrl || bannerConsentConfirmed) && (!galleryUrls.length || galleryConsentConfirmed)}
+                    onValueChange={(value) => {
+                      setLogoConsentConfirmed(value || !logoUrl);
+                      setBannerConsentConfirmed(value || !bannerUrl);
+                      setGalleryConsentConfirmed(value || !galleryUrls.length);
+                    }}
+                    trackColor={{ false: colors.borderStrong, true: colors.success }}
+                  />
+                </View>
+              ) : null}
+              {!brandValidation.valid ? <InlineNotice testID="settings-brand-validation" tone="warning" message="A publicação exige contraste AA, textos alternativos e consentimento para todas as mídias." /> : null}
+              {brandContext ? (
+                <View style={styles.brandHistory} testID="settings-brand-history">
+                  <Text style={styles.brandStudioStatusTitle}>Histórico publicado</Text>
+                  <Text style={styles.brandStudioStatusText}>Restaurar cria uma nova versão; o histórico e a auditoria anteriores são preservados.</Text>
+                  {(brandScope === 'organization' ? brandContext.organizationHistory : brandContext.establishmentHistory)
+                    ?.slice(0, 5)
+                    .map((version) => (
+                      <View key={version.id} style={styles.brandHistoryRow}>
+                        <View style={styles.brandStudioStatusCopy}>
+                          <Text style={styles.brandStudioStatusTitle}>Versão {version.version_number}</Text>
+                          <Text style={styles.brandStudioStatusText}>{version.status === 'published' ? 'Em uso' : 'Arquivada'}{version.published_at ? ` · ${new Date(version.published_at).toLocaleDateString('pt-BR')}` : ''}</Text>
+                        </View>
+                        {version.status !== 'published' ? <AppButton disabled={brandPublishing} label="Restaurar" onPress={() => void restoreBrandVersion(version.id, version.version_number)} size="sm" variant="secondary" /> : null}
+                      </View>
+                    ))}
+                </View>
+              ) : null}
             </FormSection> : null}
 
             {activeSection === 'security' ? <FormSection testID="settings-account-security-section" title="Segurança da conta" description="Atualize sua senha pessoal sem alterar dados ou permissões do estabelecimento.">
@@ -627,7 +954,7 @@ export const SettingsExperience = () => {
 
             {activeSection === 'payments' ? <PaymentMethodsSettings /> : null}
 
-            {activeSection === 'policies' ? <FormSection testID="settings-policies-section" title="Políticas de Agendamento & Geodecisões" description="Ajuste os prazos mínimos para cancelamento, taxas por falta de cliente, e coordenadas de latitude e longitude no mapa.">
+            {activeSection === 'policies' ? <FormSection testID="settings-policies-section" title="Políticas de agendamento e localização" description="Ajuste os prazos mínimos para cancelamento, regras de ausência e coordenadas usadas no mapa.">
               <View style={styles.fieldsRow}>
                 <AppInput containerStyle={styles.flexField} label="Cancelamento prévio mínimo (horas)" value={minCancellationHours} onChangeText={setMinCancellationHours} keyboardType="numeric" placeholder="24" hint="Prazos antes do agendamento." />
                 <AppInput containerStyle={styles.flexField} label="Multa No-Show (%)" value={noShowFeePercent} onChangeText={setNoShowFeePercent} keyboardType="numeric" placeholder="0" hint="Taxa cobrada em faltas." />
@@ -761,7 +1088,7 @@ export const SettingsExperience = () => {
                           maxLength={5}
                           placeholderTextColor="#666"
                         />
-                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>às</Text>
+                        <Text style={{ color: colors.textMuted, fontSize: 12 }}>às</Text>
                         <TextInput
                           testID={`settings-schedule-close-${dayItem.day}`}
                           style={styles.timeInput}
@@ -847,8 +1174,15 @@ const styles = StyleSheet.create({
   logoPreview: { width: 78, height: 78, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImage: { width: '100%', height: '100%' },
   logoCopy: { flex: 1 },
+  brandStudioStatus: { alignItems: 'center', backgroundColor: colors.canvas, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', padding: 14 },
+  brandStudioStatusCopy: { flex: 1, minWidth: 220 },
+  brandStudioStatusTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  brandStudioStatusText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
+  brandChoiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  brandHistory: { backgroundColor: colors.canvas, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, gap: 10, padding: 14 },
+  brandHistoryRow: { alignItems: 'center', borderTopColor: colors.borderSubtle, borderTopWidth: 1, flexDirection: 'row', gap: 12, justifyContent: 'space-between', paddingTop: 10 },
   logoTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
-  logoHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 4, marginBottom: 10 },
+  logoHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 4, marginBottom: 10 },
   compactButton: { alignSelf: 'flex-start', minHeight: 38, paddingVertical: 7 },
   fieldsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   flexField: { flex: 1, minWidth: 210 },
@@ -856,12 +1190,12 @@ const styles = StyleSheet.create({
   scheduleRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.hairline },
   scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 12 },
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
-  timeInput: { width: 56, height: 34, textAlign: 'center', color: colors.text, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
-  closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 120, textAlign: 'right' },
+  timeInput: { width: 56, height: 34, textAlign: 'center', color: colors.text, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 12, paddingHorizontal: 4 },
+  closedText: { color: colors.textMuted, fontSize: 12, fontFamily: typography.body, minWidth: 120, textAlign: 'right' },
   compactUploadButton: { minHeight: 32, paddingVertical: 5, paddingHorizontal: 12, alignSelf: 'flex-start', marginTop: 4 },
   uploadButton: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
-  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
-  emptyGalleryText: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic', marginVertical: 4 },
+  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8 },
+  emptyGalleryText: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginVertical: 4 },
   galleryPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 8 },
   galleryItemContainer: { width: 80, height: 100, borderRadius: radii.md, overflow: 'hidden', position: 'relative' },
   securityRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
@@ -873,17 +1207,17 @@ const styles = StyleSheet.create({
   galleryItemRemove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   instantBookingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   instantBookingTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  instantBookingDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 4, lineHeight: 16 },
+  instantBookingDesc: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, marginTop: 4, lineHeight: 16 },
   visibilityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: radii.md, backgroundColor: colors.canvasSoft, borderWidth: 1, borderColor: colors.border, marginTop: 14 },
   visibilityCopy: { flex: 1, marginRight: 16 },
   visibilityTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  visibilityText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  visibilityText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 16, marginTop: 4 },
   publicationStatus: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvasSoft },
   publicationStatusPublished: { borderColor: colors.success, backgroundColor: colors.successSoft },
   publicationStatusIcon: { width: 38, height: 38, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   publicationStatusCopy: { flex: 1, gap: 3 },
   publicationStatusTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  publicationStatusText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
+  publicationStatusText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 16 },
   requirementsList: { gap: 10 },
   requirementRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   requirementIcon: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
@@ -891,5 +1225,5 @@ const styles = StyleSheet.create({
   requirementPending: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 14 },
   requirementText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   requirementTextComplete: { color: colors.text, fontFamily: typography.bodyStrong },
-  publicationHint: { color: colors.warning, fontFamily: typography.body, fontSize: 11 },
+  publicationHint: { color: colors.warning, fontFamily: typography.body, fontSize: 12 },
 });

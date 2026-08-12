@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   mobilePanel: { width: '100%', maxHeight: '92%', borderTopLeftRadius: landingRadii.xl, borderTopRightRadius: landingRadii.xl, padding: 22, paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
   headerCopy: { flex: 1 },
-  eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 10, letterSpacing: 1.5 },
+  eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 12, letterSpacing: 1.5 },
   title: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 28, lineHeight: 34, letterSpacing: -1, marginTop: 9 },
   description: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 21, marginTop: 7 },
   closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.md },
@@ -250,6 +250,6 @@ const styles = StyleSheet.create({
   optionCopy: { flex: 1, gap: 4 },
   optionTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
   optionDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 17 },
-  securityNote: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 18 },
+  securityNote: { color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
   pressed: { opacity: 0.6 },
 });

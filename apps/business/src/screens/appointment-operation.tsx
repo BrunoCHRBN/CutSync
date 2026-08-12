@@ -1113,7 +1113,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: businessTheme.colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
   },

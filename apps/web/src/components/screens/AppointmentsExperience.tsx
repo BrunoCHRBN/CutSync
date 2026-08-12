@@ -540,9 +540,9 @@ const styles = StyleSheet.create({
   card: { flexDirection: 'row', gap: 16 },
   nextCard: { borderColor: clientTheme.accentBorder, borderWidth: 1.5, backgroundColor: colors.surface },
   dateBlock: { width: 66, alignSelf: 'flex-start', alignItems: 'center', paddingVertical: 12, backgroundColor: clientTheme.accentSoft, borderRadius: radii.md },
-  month: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
+  month: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 },
   day: { color: clientTheme.accentDark, fontFamily: typography.display, fontSize: 26, lineHeight: 30, marginTop: 2 },
-  time: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 3 },
+  time: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 3 },
   copy: { flex: 1, minWidth: 0, paddingLeft: 4 },
   titleRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   shopName: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   reasonChipText: {
     color: colors.textSecondary,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
   },
   reasonChipActiveText: {
     color: colors.ink,
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   lateNoticeText: {
     color: colors.warning,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
   rescheduleBadge: {
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   rescheduleBadgeText: {
     color: colors.info,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.4,
   },
   reasonDisplay: {
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
   reasonDisplayText: {
     color: colors.danger,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
   },
   lateButtonsRow: {
     flexDirection: 'row',
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   inputMinLabel: {
     color: colors.labelSoft,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: 5,
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   },
   modalActions: { width: '100%' },
   reviewedBadge: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: clientTheme.accentSoft, borderWidth: 1, borderColor: clientTheme.accentBorder },
-  reviewedBadgeText: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 11 },
+  reviewedBadgeText: { color: clientTheme.accent, fontFamily: typography.bodyStrong, fontSize: 12 },
   historyActionsRow: { marginTop: 12, width: '100%' },
   reviewBtn: { alignSelf: 'flex-start', minWidth: 140 },
 });

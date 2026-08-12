@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   badgeDanger: { backgroundColor: supportColors.dangerSoft },
   badgeText: {
     color: supportColors.text,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
   },
   syncBadge: {
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   syncBadgeFailed: { backgroundColor: supportColors.dangerSoft },
   syncBadgeSuccess: { backgroundColor: clientTheme.colors.successSoft },
-  syncBadgeText: { color: supportColors.secondary, fontSize: 10, fontWeight: '800' },
+  syncBadgeText: { color: supportColors.secondary, fontSize: 12, fontWeight: '800' },
   ticketCard: {
     gap: clientTheme.spacing.sm,
     borderWidth: 1,
@@ -317,13 +317,13 @@ const styles = StyleSheet.create({
   category: {
     flex: 1,
     color: supportColors.accent,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   ticketSubject: { color: supportColors.text, fontSize: 17, lineHeight: 23, fontWeight: '800' },
-  ticketProtocol: { color: supportColors.secondary, fontSize: 11, lineHeight: 16 },
+  ticketProtocol: { color: supportColors.secondary, fontSize: 12, lineHeight: 16 },
   ticketNextAction: { color: supportColors.warning, fontSize: 12, fontWeight: '900' },
   ticketFooter: {
     flexDirection: 'row',
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: clientTheme.spacing.sm,
   },
-  ticketDate: { flex: 1, color: supportColors.muted, fontSize: 11 },
+  ticketDate: { flex: 1, color: supportColors.muted, fontSize: 12 },
   fieldGroup: { gap: clientTheme.spacing.sm },
   fieldLabel: { color: supportColors.text, fontSize: 13, fontWeight: '800' },
   choiceList: { gap: clientTheme.spacing.xs },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   choiceCopy: { flex: 1, gap: 2 },
   choiceLabel: { color: supportColors.text, fontSize: 13, fontWeight: '700' },
   choiceLabelSelected: { color: supportColors.accent },
-  choiceDescription: { color: supportColors.secondary, fontSize: 11, lineHeight: 16 },
+  choiceDescription: { color: supportColors.secondary, fontSize: 12, lineHeight: 16 },
   input: {
     minHeight: clientTheme.sizing.control,
     borderWidth: 1,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     paddingTop: clientTheme.spacing.md,
     paddingBottom: clientTheme.spacing.md,
   },
-  helper: { color: supportColors.muted, fontSize: 11, lineHeight: 16 },
+  helper: { color: supportColors.muted, fontSize: 12, lineHeight: 16 },
   messageRow: { width: '100%', flexDirection: 'row' },
   messageRowRequester: { justifyContent: 'flex-end' },
   messageRowSupport: { justifyContent: 'flex-start' },
@@ -408,11 +408,11 @@ const styles = StyleSheet.create({
     borderColor: clientTheme.colors.infoBorder,
     backgroundColor: supportColors.infoSoft,
   },
-  messageAuthor: { color: supportColors.accent, fontSize: 10, fontWeight: '900' },
+  messageAuthor: { color: supportColors.accent, fontSize: 12, fontWeight: '900' },
   messageAuthorRequester: { color: 'rgba(255, 255, 255, 0.78)' },
   messageBody: { color: supportColors.text, fontSize: 14, lineHeight: 21 },
   messageBodyRequester: { color: clientTheme.colors.white },
-  messageDate: { color: supportColors.muted, fontSize: 9 },
+  messageDate: { color: supportColors.muted, fontSize: 12 },
   messageDateRequester: { color: 'rgba(255, 255, 255, 0.68)' },
   metadataRow: {
     minHeight: 58,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   metadataRowBorder: { borderBottomWidth: 1, borderBottomColor: supportColors.border },
   metadataCopy: { flex: 1, gap: 3 },
-  metadataLabel: { color: supportColors.muted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  metadataLabel: { color: supportColors.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   metadataValue: { color: supportColors.text, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   pressed: { opacity: clientTheme.opacity.pressed, transform: [{ scale: 0.99 }] },
 });

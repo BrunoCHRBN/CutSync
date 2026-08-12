@@ -1,3 +1,5 @@
+import { designSystem } from '@cutsync/brand';
+
 export const businessTheme = {
   colors: {
     canvas: '#0B100D',
@@ -24,13 +26,13 @@ export const businessTheme = {
     white: '#FFFFFF',
   },
   spacing: {
-    xxs: 4,
-    xs: 8,
-    sm: 12,
-    md: 16,
-    lg: 20,
-    xl: 24,
-    xxl: 32,
+    xxs: designSystem.spacing.xxs,
+    xs: designSystem.spacing.xs,
+    sm: designSystem.spacing.sm,
+    md: designSystem.spacing.md,
+    lg: designSystem.spacing.lg,
+    xl: designSystem.spacing.xl,
+    xxl: designSystem.spacing.xxl,
   },
   radii: {
     sm: 10,
@@ -68,13 +70,13 @@ export const businessTheme = {
       fontWeight: '700' as const,
     },
     caption: {
-      fontSize: 11,
-      lineHeight: 16,
+      fontSize: designSystem.typography.minimumFunctionalSize,
+      lineHeight: designSystem.typography.caption.lineHeight,
       fontWeight: '600' as const,
     },
     eyebrow: {
-      fontSize: 11,
-      lineHeight: 14,
+      fontSize: designSystem.typography.minimumFunctionalSize,
+      lineHeight: designSystem.typography.caption.lineHeight,
       fontWeight: '900' as const,
       letterSpacing: 1.45,
       textTransform: 'uppercase' as const,
@@ -82,11 +84,11 @@ export const businessTheme = {
   },
   sizing: {
     control: 50,
-    touchTarget: 48,
+    touchTarget: designSystem.sizing.minimumTouchTarget,
     contentMaxWidth: 720,
   },
   opacity: {
-    pressed: 0.74,
-    disabled: 0.45,
+    pressed: designSystem.opacity.pressed,
+    disabled: designSystem.opacity.disabled,
   },
 } as const;

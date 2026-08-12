@@ -39,7 +39,7 @@ export function RestrictedBusinessExperience() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 560, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: 30 },
-  eyebrow: { color: colors.accent, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4, marginTop: 20 },
+  eyebrow: { color: colors.accent, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.4, marginTop: 20 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 29, marginTop: 8 },
   body: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 15, lineHeight: 23, marginTop: 14 },
   note: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14, lineHeight: 21, marginTop: 16 },

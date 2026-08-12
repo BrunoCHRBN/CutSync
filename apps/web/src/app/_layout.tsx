@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import Head from 'expo-router/head';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -39,6 +40,16 @@ function RootLayoutNavigation() {
   const isClientEstablishmentRequest = firstSegment === '(client)' && secondSegment === 'request-establishment';
   const isPublicCompliance = firstSegment === 'privacy' || firstSegment === 'account-deletion';
   const isPublicMarketing = firstSegment == null || firstSegment === 'index' || firstSegment === 'para-estabelecimentos' || isPublicCompliance;
+  const shouldNoIndex = ![
+    undefined,
+    'index',
+    'para-estabelecimentos',
+    'privacy',
+    'account-deletion',
+    '[slug]',
+    'salon',
+    'profile',
+  ].includes(firstSegment);
   const shouldBlockForOperationalContext = Boolean(
     user &&
     !operationalInitialized &&
@@ -147,7 +158,12 @@ function RootLayoutNavigation() {
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      {shouldNoIndex ? <Head><meta name="robots" content="noindex,nofollow" /></Head> : null}
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  );
 }
 
 export default function RootLayout() {
@@ -244,7 +260,7 @@ const styles = StyleSheet.create({
   configurationEyebrow: {
     color: colors.textMuted,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.6,
   },
   configurationTitle: {

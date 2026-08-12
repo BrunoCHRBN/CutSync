@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   title: { color: colors.ink, fontFamily: typography.displaySemiBold, fontSize: 19 },
   subtitle: { color: colors.inkSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21 },
   availableBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.successSoft },
-  availableBadgeText: { color: colors.success, fontFamily: typography.bodySemiBold, fontSize: 11, letterSpacing: 0.5 },
+  availableBadgeText: { color: colors.success, fontFamily: typography.bodySemiBold, fontSize: 12, letterSpacing: 0.5 },
   list: { gap: 10 },
   serviceRow: { minHeight: 72, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surfaceSoft },
   serviceRowStacked: { alignItems: 'flex-start', flexWrap: 'wrap' },

@@ -287,13 +287,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textTransform: 'uppercase',
   },
-  methodStatus: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  methodStatus: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   referenceRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   referenceTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   referenceDescription: {
     color: colors.textMuted,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
 });

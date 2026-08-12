@@ -294,6 +294,8 @@ export interface AppointmentRecord {
   originalDateTime?: Date | null;
   transferredFromProfessionalId?: string | null;
   transferReason?: string | null;
+  /** Actions computed by a server read model for the current actor and state. */
+  allowedActions?: readonly string[];
   client?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   professional?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   service?: Pick<ServiceRecord, 'id' | 'name' | 'price' | 'durationMinutes'> | null;

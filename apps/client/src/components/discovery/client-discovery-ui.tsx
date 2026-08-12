@@ -496,14 +496,14 @@ const styles = StyleSheet.create({
   featuredGradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 160, backgroundColor: 'rgba(20, 27, 23, 0.7)' },
   featuredBadgeRow: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   featuredInstantBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.92)' },
-  featuredInstantText: { color: discoveryColors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  featuredInstantText: { color: discoveryColors.accent, fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
   featuredRatingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(20, 27, 23, 0.62)' },
   featuredRatingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   featuredCopy: { position: 'absolute', left: 20, right: 20, bottom: 20, gap: 6 },
   featuredTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 24, fontWeight: '800', letterSpacing: -0.4 },
   featuredAddress: { color: 'rgba(255, 255, 255, 0.86)', fontSize: 12, lineHeight: 18 },
   featuredMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 6 },
-  featuredMeta: { color: 'rgba(255, 255, 255, 0.82)', fontSize: 11, fontWeight: '600' },
+  featuredMeta: { color: 'rgba(255, 255, 255, 0.82)', fontSize: 12, fontWeight: '600' },
   featuredMetaDot: { width: 3, height: 3, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.55)' },
 
   // Compact horizontal card
@@ -522,14 +522,14 @@ const styles = StyleSheet.create({
   compactHeadline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   compactTitle: { flex: 1, color: discoveryColors.text, fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
   compactRatingPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: discoveryColors.amberSoft },
-  compactRatingText: { color: discoveryColors.amber, fontSize: 11, fontWeight: '800' },
-  compactAddress: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
-  compactServices: { color: discoveryColors.accent, fontSize: 11, fontWeight: '700' },
+  compactRatingText: { color: discoveryColors.amber, fontSize: 12, fontWeight: '800' },
+  compactAddress: { color: discoveryColors.secondary, fontSize: 12, lineHeight: 16 },
+  compactServices: { color: discoveryColors.accent, fontSize: 12, fontWeight: '700' },
   compactMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
-  compactDistance: { color: discoveryColors.accent, fontSize: 11, fontWeight: '800' },
-  compactPrice: { color: discoveryColors.text, fontSize: 11, fontWeight: '800' },
+  compactDistance: { color: discoveryColors.accent, fontSize: 12, fontWeight: '800' },
+  compactPrice: { color: discoveryColors.text, fontSize: 12, fontWeight: '800' },
   compactInstantBadge: { borderRadius: 999, backgroundColor: discoveryColors.accentSoft, paddingHorizontal: 8, paddingVertical: 3 },
-  compactInstantText: { color: discoveryColors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
+  compactInstantText: { color: discoveryColors.accent, fontSize: 12, fontWeight: '900', letterSpacing: 0.7 },
 
   // Category chip
   categoryChip: {
@@ -565,9 +565,9 @@ const styles = StyleSheet.create({
   ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: discoveryColors.amberSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   ratingValue: { color: discoveryColors.amber, fontSize: 12, fontWeight: '800' },
   previewText: { color: discoveryColors.accent, fontSize: 12, fontWeight: '700' },
-  professionalText: { color: discoveryColors.muted, fontSize: 11, lineHeight: 17 },
+  professionalText: { color: discoveryColors.muted, fontSize: 12, lineHeight: 17 },
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: discoveryColors.border, paddingTop: 13 },
-  cardMeta: { flex: 1, color: discoveryColors.muted, fontSize: 10, lineHeight: 16 },
+  cardMeta: { flex: 1, color: discoveryColors.muted, fontSize: 12, lineHeight: 16 },
   openLabel: { color: discoveryColors.accent, fontSize: 12, fontWeight: '800' },
 
   // Professional row
@@ -578,8 +578,8 @@ const styles = StyleSheet.create({
   professionalCopy: { flex: 1, gap: 3 },
   professionalName: { color: discoveryColors.text, fontSize: 15, fontWeight: '700' },
   professionalTitle: { color: discoveryColors.accent, fontSize: 12, fontWeight: '700' },
-  professionalSpecialties: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
-  professionalProfileHint: { color: discoveryColors.muted, fontSize: 11, fontWeight: '700', paddingTop: 2 },
+  professionalSpecialties: { color: discoveryColors.secondary, fontSize: 12, lineHeight: 16 },
+  professionalProfileHint: { color: discoveryColors.muted, fontSize: 12, fontWeight: '700', paddingTop: 2 },
 
   pressed: { opacity: 0.65 },
 

@@ -25,12 +25,12 @@ export default function BusinessTabsLayout() {
       labelStyle={{
         default: {
           color: businessTheme.colors.textMuted,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '700',
         },
         selected: {
           color: businessTheme.colors.accentStrong,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '800',
         },
       }}

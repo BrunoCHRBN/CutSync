@@ -92,12 +92,12 @@ const styles = StyleSheet.create({
   },
   endTime: {
     color: businessTheme.colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   copy: { flex: 1, minWidth: 0, gap: 2 },
   client: { color: businessTheme.colors.text, fontSize: 14, fontWeight: '800' },
   service: { color: businessTheme.colors.textSoft, fontSize: 12, fontWeight: '600' },
-  professional: { color: businessTheme.colors.textMuted, fontSize: 11 },
+  professional: { color: businessTheme.colors.textMuted, fontSize: 12 },
 });

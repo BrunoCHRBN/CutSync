@@ -39,6 +39,6 @@ export const DashboardSyncIndicator = ({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
-  text: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  text: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   offline: { color: colors.danger },
 });

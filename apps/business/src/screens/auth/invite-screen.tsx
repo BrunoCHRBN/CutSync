@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     color: '#839188',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,

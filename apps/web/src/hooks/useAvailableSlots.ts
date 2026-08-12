@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import {
   type AvailabilityRpcRow,
   fetchLegacyAvailableSlots,
   isAvailabilityRpcMissing,
 } from '../services/legacyAvailability';
-import { appointmentFeedbackMessages, formatCalendarDate } from '@cutsync/domain';
+import {
+  type AvailabilityRecovery,
+  appointmentFeedbackMessages,
+  formatCalendarDate,
+} from '@cutsync/domain';
+import { webExperienceFlags } from '../config/experience-flags';
+import { parseAvailabilityRecoveryRows } from '@cutsync/database';
 
 export interface AvailableSlot {
   startsAt: string;
@@ -26,13 +32,6 @@ interface UseAvailableSlotsOptions {
 }
 
 const MERGED_PROFESSIONAL_LIMIT = 5;
-
-const reasonMessages: Record<string, string> = {
-  closed: 'Sem expediente nesta data.',
-  blocked: 'Os horários desta data estão bloqueados.',
-  schedule_not_configured: 'Jornada não configurada para esta data.',
-  service_exceeds_workday: 'O serviço não cabe no expediente desta data.',
-};
 
 const availabilityErrorMessage = (message: string) => {
   if (message.includes('professional_unavailable')) return 'Este profissional não está disponível nesta unidade.';
@@ -116,13 +115,21 @@ export function useAvailableSlots({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState('');
+  const [recovery, setRecovery] = useState<AvailabilityRecovery | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [resolvedQueryKey, setResolvedQueryKey] = useState<string | null>(null);
   const requestId = useRef(0);
   const localDate = date ? formatCalendarDate(date) : null;
-  const mergeTargets = (professionalIds ?? []).filter(Boolean).slice(0, MERGED_PROFESSIONAL_LIMIT);
-  const targets = mergeTargets.length > 0
-    ? mergeTargets
-    : (professionalId ? [professionalId] : []);
+  const requestedProfessionalKey = (professionalIds ?? [])
+    .filter(Boolean)
+    .slice(0, MERGED_PROFESSIONAL_LIMIT)
+    .join(',');
+  const targets = useMemo(
+    () => requestedProfessionalKey
+      ? requestedProfessionalKey.split(',')
+      : (professionalId ? [professionalId] : []),
+    [professionalId, requestedProfessionalKey],
+  );
   const targetKey = targets.join(',');
   const queryKey = establishmentId && targetKey && serviceId && localDate
     ? `${establishmentId}:${targetKey}:${serviceId}:${localDate}:${appointmentId || ''}`
@@ -134,6 +141,8 @@ export function useAvailableSlots({
       setSlots([]);
       setError(null);
       setEmptyMessage('');
+      setRecovery(null);
+      setRecoveryLoading(false);
       setResolvedQueryKey(null);
       setLoading(false);
       return [];
@@ -170,8 +179,51 @@ export function useAvailableSlots({
       if (currentRequest === requestId.current) {
         setSlots(merged);
         setEmptyMessage(availableOnly.length > 0 ? '' : computedEmptyMessage);
+        setRecovery(null);
         setResolvedQueryKey(queryKey);
         setLoading(false);
+      }
+      if (
+        availableOnly.length === 0
+        && currentRequest === requestId.current
+        && webExperienceFlags.client_availability_recovery_v2
+      ) {
+        setRecoveryLoading(true);
+        void Promise.resolve(supabase.rpc('get_booking_availability_recovery', {
+          target_establishment_id: establishmentId,
+          target_professional_ids: targets,
+          target_service_id: serviceId,
+          target_local_date: localDate,
+          target_appointment_id: appointmentIdOverride ?? appointmentId ?? undefined,
+          search_days: 14,
+        })).then(({ data, error: recoveryError }) => {
+          if (recoveryError || currentRequest !== requestId.current) return;
+          const rows = parseAvailabilityRecoveryRows(data);
+          if (!rows) return;
+          const nearbyDates = [...new Set(rows.map((row) => row.localDate))];
+          const recoverySlots = rows.map((row) => ({
+            startsAt: row.startsAt,
+            localDate: row.localDate,
+            localTime: row.localTime,
+            durationMinutes: row.durationMinutes,
+            professionalId: row.professionalId,
+          }));
+          const nextAvailableDate = nearbyDates.find((value) => value !== localDate) ?? nearbyDates[0] ?? null;
+          setRecovery({
+            requestedDate: localDate,
+            requestedProfessionalIds: targets,
+            slots: recoverySlots,
+            nextAvailableDate,
+            nearbyDates,
+            alternativeProfessionalIds: [...new Set(recoverySlots.map((slot) => slot.professionalId))],
+            strategy: recoverySlots.length === 0 ? 'none' : nextAvailableDate === localDate ? 'same_date' : 'next_date',
+            emptyReason: recoverySlots.length === 0 ? 'no_availability_in_search_window' : null,
+          });
+        }).finally(() => {
+          if (currentRequest === requestId.current) setRecoveryLoading(false);
+        });
+      } else if (currentRequest === requestId.current) {
+        setRecoveryLoading(false);
       }
       return merged;
     } catch (queryError) {
@@ -183,12 +235,14 @@ export function useAvailableSlots({
           : String((queryError as { message?: string }).message || queryError);
         setError(availabilityErrorMessage(queryErrorMessage));
         setEmptyMessage('');
+        setRecovery(null);
+        setRecoveryLoading(false);
         setResolvedQueryKey(queryKey);
         setLoading(false);
       }
       return null;
     }
-  }, [appointmentId, establishmentId, localDate, queryKey, serviceId, targetKey]);
+  }, [appointmentId, establishmentId, localDate, queryKey, serviceId, targets]);
 
   useEffect(() => {
     void refresh();
@@ -200,7 +254,7 @@ export function useAvailableSlots({
       clearInterval(timer);
       requestId.current += 1;
     };
-  }, [establishmentId, localDate, refresh, serviceId, targetKey]);
+  }, [establishmentId, localDate, refresh, serviceId, targetKey, targets.length]);
 
   const hasCurrentResult = Boolean(queryKey && resolvedQueryKey === queryKey);
   const currentSlots = hasCurrentResult ? slots : [];
@@ -211,6 +265,8 @@ export function useAvailableSlots({
     loading: loading || Boolean(queryKey && !hasCurrentResult),
     error: hasCurrentResult ? error : null,
     emptyMessage: hasCurrentResult ? emptyMessage : '',
+    recovery: hasCurrentResult ? recovery : null,
+    recoveryLoading: hasCurrentResult ? recoveryLoading : false,
     refresh,
   };
 }

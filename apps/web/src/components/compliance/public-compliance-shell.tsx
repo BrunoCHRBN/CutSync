@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
   brandMark: { width: 28, height: 28, borderRadius: 9, backgroundColor: colors.brand },
   brand: { color: colors.text, fontFamily: typography.display, fontSize: 19 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.4 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 34, lineHeight: 41, letterSpacing: -1.2 },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 16, lineHeight: 25, maxWidth: 680 },
   card: {

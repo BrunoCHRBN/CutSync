@@ -251,5 +251,5 @@ const styles = StyleSheet.create({
   },
   submitPressed: { opacity: 0.86 },
   submitLabel: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
-  privacyNote: { maxWidth: 520, color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 11.5, lineHeight: 18 },
+  privacyNote: { maxWidth: 520, color: landingColors.inkMuted, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },
 });

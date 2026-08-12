@@ -7975,6 +7975,33 @@ export type Database = {
           unavailable_reason: string
         }[]
       }
+      get_booking_availability_recovery: {
+        Args: {
+          search_days?: number
+          target_appointment_id?: string
+          target_establishment_id: string
+          target_local_date: string
+          target_professional_ids: string[]
+          target_service_id: string
+        }
+        Returns: {
+          duration_minutes: number
+          local_date: string
+          local_time: string
+          professional_id: string
+          recovery_rank: number
+          requested_date: string
+          starts_at: string
+        }[]
+      }
+      get_brand_editor_context: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      get_business_command_center: {
+        Args: { target_establishment_id: string; target_local_date?: string }
+        Returns: Json
+      }
       get_business_agenda_day: {
         Args: {
           target_establishment_id: string
@@ -8019,6 +8046,18 @@ export type Database = {
         Returns: Json
       }
       get_business_team: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      get_professional_daily_focus: {
+        Args: { target_establishment_id: string; target_local_date?: string }
+        Returns: Json
+      }
+      get_public_establishment_experience: {
+        Args: { target_slug: string }
+        Returns: Json
+      }
+      get_publication_readiness: {
         Args: { target_establishment_id: string }
         Returns: Json
       }
@@ -9219,6 +9258,15 @@ export type Database = {
           requirements: Json
         }[]
       }
+      publish_brand_version: {
+        Args: {
+          target_establishment_id: string
+          target_request_id: string
+          target_scope: string
+          target_version_id: string
+        }
+        Returns: Json
+      }
       pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
       purge_expired_support_content: {
         Args: { target_limit?: number; target_now?: string }
@@ -9271,6 +9319,18 @@ export type Database = {
           target_service_order_id: string
         }
         Returns: Json
+      }
+      record_product_event: {
+        Args: {
+          target_actor_role: string
+          target_event_name: string
+          target_experience_version: string
+          target_identifiers?: Json
+          target_request_id: string
+          target_route_template: string
+          target_surface: string
+        }
+        Returns: number
       }
       refresh_appointment_decision_queue_item: {
         Args: { target_reassignment_request_id: string }
@@ -9568,9 +9628,28 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_brand_version: {
+        Args: {
+          target_establishment_id: string
+          target_request_id: string
+          target_scope: string
+          target_version_id: string
+        }
+        Returns: Json
+      }
       restore_governance_kb_revision: {
         Args: { requested_change_summary: string; target_revision_id: number }
         Returns: undefined
+      }
+      save_brand_draft: {
+        Args: {
+          target_configuration: Json
+          target_establishment_id: string
+          target_override_fields: string[]
+          target_request_id: string
+          target_scope: string
+        }
+        Returns: Json
       }
       review_governance_verification: {
         Args: {

@@ -3,7 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type ClientAvailableSlot,
   loadClientAvailability,
+  loadClientAvailabilityRecovery,
 } from '@/features/booking/client-booking-service';
+import type { AvailabilityRecovery } from '@cutsync/domain';
+import { clientExperienceFlags } from '@/config/experience-flags';
 
 interface ClientAvailabilitySelection {
   establishmentId: string | null;
@@ -20,6 +23,8 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState('');
+  const [recovery, setRecovery] = useState<AvailabilityRecovery | null>(null);
+  const [isRecoveryLoading, setIsRecoveryLoading] = useState(false);
 
   // Identity of the array changes on every render, so the effect keys off the
   // ids themselves instead of the array reference.
@@ -36,6 +41,8 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
       setSlots([]);
       setError(null);
       setEmptyMessage('');
+      setRecovery(null);
+      setIsRecoveryLoading(false);
       setIsLoading(false);
       return [];
     }
@@ -53,11 +60,32 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
       if (sequence !== requestSequence.current) return null;
       setSlots(result.slots);
       setEmptyMessage(result.emptyMessage);
+      setRecovery(null);
+      if (result.slots.length === 0 && clientExperienceFlags.client_availability_recovery_v2) {
+        setIsRecoveryLoading(true);
+        void loadClientAvailabilityRecovery({
+          establishmentId,
+          professionalIds: targets,
+          serviceId,
+          localDate,
+          appointmentId,
+        }).then((nextRecovery) => {
+          if (sequence === requestSequence.current) setRecovery(nextRecovery);
+        }).catch(() => {
+          if (sequence === requestSequence.current) setRecovery(null);
+        }).finally(() => {
+          if (sequence === requestSequence.current) setIsRecoveryLoading(false);
+        });
+      } else {
+        setIsRecoveryLoading(false);
+      }
       return result.slots;
     } catch (nextError) {
       if (sequence !== requestSequence.current) return null;
       setSlots([]);
       setEmptyMessage('');
+      setRecovery(null);
+      setIsRecoveryLoading(false);
       setError(nextError instanceof Error ? nextError.message : 'Não foi possível consultar os horários.');
       return null;
     } finally {
@@ -81,5 +109,5 @@ export function useClientAvailability(selection: ClientAvailabilitySelection) {
     };
   }, [establishmentId, localDate, refresh, serviceId, targets]);
 
-  return { slots, isLoading, error, emptyMessage, refresh };
+  return { slots, isLoading, error, emptyMessage, recovery, isRecoveryLoading, refresh };
 }

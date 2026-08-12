@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ActivityIndicator, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, Camera, Clock3, Coins, MapPin, Phone, Scissors, Store, UsersRound } from 'lucide-react-native';
 import { useEstablishment } from '../../hooks/useEstablishment';
@@ -158,23 +159,55 @@ export const EstablishmentProfileExperience = () => {
     );
   }
 
+  const isEligiblePublicProfile = by === 'slug'
+    && barbershop.accountStatus === 'active'
+    && barbershop.discoveryStatus === 'published';
+  const publicSlug = slug || barbershop.slug;
+  const configuredSiteUrl = process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, '');
+  const canonicalUrl = configuredSiteUrl ? `${configuredSiteUrl}/${publicSlug}` : `/${publicSlug}`;
+  const description = (barbershop.description || `Conheça serviços, equipe e horários de ${barbershop.name}.`).slice(0, 160);
+  const structuredData = isEligiblePublicProfile ? {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: barbershop.name,
+    description,
+    url: canonicalUrl,
+    ...(barbershop.logoUrl ? { image: barbershop.logoUrl } : {}),
+    ...(barbershop.phone ? { telephone: barbershop.phone } : {}),
+    ...(barbershop.address ? { address: barbershop.address } : {}),
+  } : null;
+
   return (
-    <EstablishmentThemeProvider primaryColor={barbershop.primaryColor} establishmentId={barbershop.id} establishmentName={barbershop.name}>
-      <EstablishmentThemeScope>
-        <EstablishmentProfileBody
-          barbershop={barbershop}
-          barbers={barbers}
-          services={services}
-          galleryPhotos={galleryPhotos}
-          mapUrl={mapUrl}
-          statusInfo={statusInfo}
-          isWide={isWide}
-          slug={slug}
-          goBack={goBack}
-          currency={currency}
-        />
-      </EstablishmentThemeScope>
-    </EstablishmentThemeProvider>
+    <>
+      <Head>
+        <title>{barbershop.name} — serviços e horários | CutSync</title>
+        <meta name="description" content={description} />
+        <meta name="robots" content={isEligiblePublicProfile ? 'index,follow' : 'noindex,nofollow'} />
+        {isEligiblePublicProfile ? <link rel="canonical" href={canonicalUrl} /> : null}
+        {isEligiblePublicProfile ? <meta property="og:type" content="website" /> : null}
+        {isEligiblePublicProfile ? <meta property="og:title" content={`${barbershop.name} — serviços e horários`} /> : null}
+        {isEligiblePublicProfile ? <meta property="og:description" content={description} /> : null}
+        {isEligiblePublicProfile ? <meta property="og:url" content={canonicalUrl} /> : null}
+        {isEligiblePublicProfile && barbershop.bannerUrl ? <meta property="og:image" content={barbershop.bannerUrl} /> : null}
+        {structuredData ? <script type="application/ld+json">{JSON.stringify(structuredData)}</script> : null}
+      </Head>
+      <EstablishmentThemeProvider primaryColor={barbershop.primaryColor} establishmentId={barbershop.id} establishmentName={barbershop.name}>
+        <EstablishmentThemeScope>
+          <EstablishmentProfileBody
+            barbershop={barbershop}
+            barbers={barbers}
+            services={services}
+            galleryPhotos={galleryPhotos}
+            mapUrl={mapUrl}
+            statusInfo={statusInfo}
+            isWide={isWide}
+            slug={slug}
+            goBack={goBack}
+            currency={currency}
+          />
+        </EstablishmentThemeScope>
+      </EstablishmentThemeProvider>
+    </>
   );
 };
 
@@ -630,7 +663,7 @@ const styles = StyleSheet.create({
   backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.pill },
   topbarTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   topbarStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8 },
+  topbarStatusText: { fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8 },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', paddingBottom: 150 },
   // Hero
   heroContainer: { width: '100%', height: 250, position: 'relative' },
@@ -649,23 +682,23 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1 },
   slogan: { fontFamily: typography.serif, fontSize: 13, marginTop: 5, fontStyle: 'italic' },
   instagramBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surface, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: hairlineW, borderColor: colors.border },
-  instagramBadgeText: { fontSize: 11, fontFamily: typography.bodyStrong, color: colors.textSecondary },
+  instagramBadgeText: { fontSize: 12, fontFamily: typography.bodyStrong, color: colors.textSecondary },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 19, marginTop: 8 },
   // Info Grid
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 24 },
   infoItem: { flex: 1, minWidth: 200, flexDirection: 'row', gap: 11, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, padding: 15, ...atmosphericShadow },
   infoIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas, borderRadius: radii.pill },
   infoCopyText: { flex: 1 },
-  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.6 },
-  infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  infoLabel: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.6 },
+  infoValue: { color: colors.text, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusLabelText: { fontSize: 11, fontFamily: typography.bodyStrong },
+  statusLabelText: { fontSize: 12, fontFamily: typography.bodyStrong },
   // Mapa
   mapCard: { marginHorizontal: 20, marginTop: 24, borderRadius: radii.xl, borderWidth: hairlineW, borderColor: colors.hairline, overflow: 'hidden', backgroundColor: colors.surface, ...atmosphericShadow },
   mapThumbnail: { width: '100%', height: '100%' },
   mapInfoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: colors.surface, borderTopWidth: hairlineW, borderTopColor: colors.hairline },
-  mapInfoAddress: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
+  mapInfoAddress: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   routeBtn: { minHeight: 34, paddingVertical: 6, paddingHorizontal: 12 },
   section: { marginTop: 44, paddingHorizontal: 20, gap: 16 },
   cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
@@ -677,18 +710,18 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8, flexWrap: 'wrap' },
   listPrice: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, textDecorationLine: 'line-through' },
   servicePrice: { fontFamily: typography.display, fontSize: 16, letterSpacing: -0.4 },
-  comboSavings: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
-  serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
+  comboSavings: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 4 },
+  serviceDuration: { color: colors.labelSoft, fontFamily: typography.body, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginTop: 5 },
   // Equipe
   professionalCard: { width: 180, alignItems: 'center', gap: 6, padding: 18, backgroundColor: colors.surface, borderWidth: hairlineW, borderColor: colors.hairline, borderRadius: radii.lg, ...atmosphericShadow },
   avatarCircleSmall: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.canvas },
   avatarImage: { width: '100%', height: '100%' },
   avatarInitials: { fontFamily: typography.serif, fontSize: 20, letterSpacing: 1 },
   professionalName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12, textAlign: 'center', marginTop: 6 },
-  professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4 },
-  professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, textAlign: 'center', marginTop: 2 },
+  professionalRole: { color: colors.labelSoft, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4 },
+  professionalSpecialties: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, textAlign: 'center', marginTop: 2 },
   barberInstaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4, paddingHorizontal: 9, borderRadius: radii.pill, backgroundColor: colors.canvas, borderWidth: hairlineW, borderColor: colors.hairline },
-  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
+  barberInstaText: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   galleryImage: { width: 200, height: 260, borderRadius: radii.lg, resizeMode: 'cover' },
   // Barra flutuante
   floatingWrap: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'center', zIndex: 10 },
@@ -710,7 +743,7 @@ const styles = StyleSheet.create({
     }),
   },
   floatingCopy: { flex: 1, minWidth: 0 },
-  floatingEyebrow: { fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8, textTransform: 'uppercase' },
+  floatingEyebrow: { fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.8, textTransform: 'uppercase' },
   floatingTitle: { color: colors.text, fontFamily: typography.display, fontSize: 13, letterSpacing: -0.3, marginTop: 3 },
   floatingButton: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 18, borderRadius: radii.pill },
   floatingButtonText: { fontFamily: typography.bodyStrong, fontSize: 12 },

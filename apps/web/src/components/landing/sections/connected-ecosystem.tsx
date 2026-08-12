@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   stepStacked: { paddingRight: 0, minHeight: 0, paddingBottom: 8 },
   stepHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: landingColors.brandSoft },
-  role: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.3 },
+  role: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 12, letterSpacing: 1.3 },
   stepTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 22 },
   stepText: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13, lineHeight: 21 },
   connector: {

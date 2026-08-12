@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, ArrowUpRight, Copy, Link2, Store } from 'lucide-react-native';
+import { ArrowRight, ArrowUpRight, Copy, Link2 } from 'lucide-react-native';
 import { buildEstablishmentTheme } from '@cutsync/brand';
 import { EstablishmentMedia } from '../ui/EstablishmentMedia';
 import { accentText, logoRing, primaryButton } from '../../theme/establishment-styles';
@@ -120,6 +120,20 @@ export const EstablishmentBrandPreview = ({
           </View>
         </View>
       </View>
+
+      <View testID="settings-booking-preview" style={styles.bookingPreview}>
+        <Text style={styles.exploreEyebrow}>AGENDAMENTO</Text>
+        <View style={styles.bookingPreviewBody}>
+          <View style={styles.bookingPreviewCopy}>
+            <Text style={styles.exploreName}>Confirme seu horário</Text>
+            <Text style={styles.exploreMeta}>{displayName} · Serviço selecionado</Text>
+          </View>
+          <View style={[styles.bookingPreviewButton, primaryButton(theme)]}>
+            <Text style={[styles.bookingButtonText, { color: theme.onPrimary }]}>Continuar</Text>
+            <ArrowRight color={theme.onPrimary} size={14} />
+          </View>
+        </View>
+      </View>
     </View>
   );
 };
@@ -140,7 +154,7 @@ const styles = StyleSheet.create({
   previewEyebrow: {
     alignSelf: 'flex-start',
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     marginTop: 4,
   },
@@ -172,7 +186,7 @@ const styles = StyleSheet.create({
   },
   previewSlogan: {
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -192,7 +206,7 @@ const styles = StyleSheet.create({
   },
   bookingEyebrow: {
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.4,
   },
   bookingButton: {
@@ -216,7 +230,7 @@ const styles = StyleSheet.create({
     padding: 9,
     marginTop: 14,
   },
-  linkText: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 11 },
+  linkText: { flex: 1, fontFamily: typography.bodyStrong, fontSize: 12 },
   copyButton: {
     width: 30,
     height: 30,
@@ -231,10 +245,14 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     overflow: 'hidden',
   },
+  bookingPreview: { backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderRadius: radii.lg, borderWidth: 1, overflow: 'hidden' },
+  bookingPreviewBody: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12, padding: 14 },
+  bookingPreviewCopy: { flex: 1, minWidth: 180 },
+  bookingPreviewButton: { alignItems: 'center', borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: 7, minHeight: 44, paddingHorizontal: 16 },
   exploreEyebrow: {
     color: colors.labelSoft,
     fontFamily: typography.bodyStrong,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.2,
     paddingHorizontal: 14,
     paddingTop: 12,
@@ -244,7 +262,7 @@ const styles = StyleSheet.create({
   exploreLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2 },
   exploreBody: { padding: 14, gap: 4 },
   exploreName: { color: colors.text, fontFamily: typography.display, fontSize: 15 },
-  exploreMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
+  exploreMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   exploreFooter: {
     flexDirection: 'row',
     alignItems: 'center',

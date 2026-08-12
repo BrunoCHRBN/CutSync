@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 14,
     letterSpacing: 0.3,
     textTransform: 'uppercase',

@@ -159,5 +159,5 @@ export function ClientPreferencesScreen() {
 }
 
 const styles = StyleSheet.create({
-  privacyNote: { color: '#817A6C', fontSize: 11, lineHeight: 17 },
+  privacyNote: { color: '#817A6C', fontSize: 12, lineHeight: 17 },
 });

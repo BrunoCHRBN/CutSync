@@ -17,6 +17,25 @@ export const sharedBrand = {
   },
 } as const;
 
+export { designSystem, type DesignSystem } from './design-system';
+
+export {
+  BRAND_PRESET_IDS,
+  resolveBrandTheme,
+  validateBrandConfiguration,
+  type BrandCapability,
+  type BrandConfiguration,
+  type BrandDraft,
+  type BrandDraftStatus,
+  type BrandDraftValidation,
+  type BrandFieldSources,
+  type BrandMediaItem,
+  type BrandPresetId,
+  type BrandValueSource,
+  type ExperienceCapabilities,
+  type ResolvedBrandTheme,
+} from './brand-contracts';
+
 export const products = {
   web: {
     name: 'CutSync Web',

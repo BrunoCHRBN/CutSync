@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: landingColors.brandStrong,
   },
   editorialCopy: { maxWidth: 720, gap: 11 },
-  editorialEyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
+  editorialEyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 12, letterSpacing: 1.8 },
   editorialTitle: { color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 42, lineHeight: 48, letterSpacing: -1.8 },
   editorialDescription: { maxWidth: 650, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
   productStory: {
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     borderLeftColor: landingColors.border,
   },
   productStoryActive: { borderLeftColor: landingColors.brand, backgroundColor: landingColors.brandSoft },
-  productStoryIndex: { color: landingColors.inkMuted, fontFamily: landingTypography.mono, fontSize: 11, paddingTop: 3 },
+  productStoryIndex: { color: landingColors.inkMuted, fontFamily: landingTypography.mono, fontSize: 12, paddingTop: 3 },
   productStoryIndexActive: { color: landingColors.brand },
   productStoryCopy: { flex: 1, gap: 5 },
   productStoryTitle: { color: landingColors.inkSecondary, fontFamily: landingTypography.bodySemiBold, fontSize: 15 },
@@ -112,5 +112,5 @@ const styles = StyleSheet.create({
   mediaFallback: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: landingColors.brandSoft },
   fallbackOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(197,166,109,0.22)' },
   fallbackIcon: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,254,252,0.72)', borderWidth: 1, borderColor: landingColors.border },
-  mediaCaption: { maxWidth: '80%', color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 11 },
+  mediaCaption: { maxWidth: '80%', color: landingColors.inkSecondary, fontFamily: landingTypography.bodyMedium, fontSize: 12 },
 });

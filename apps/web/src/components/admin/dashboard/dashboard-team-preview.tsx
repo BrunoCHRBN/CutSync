@@ -54,7 +54,7 @@ export const DashboardTeamPreview = ({
 const styles = StyleSheet.create({
   wrap: { gap: 10, marginTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
+  title: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase' },
   link: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   linkText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   row: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
   copy: { flex: 1, minWidth: 0 },
   name: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
-  meta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, marginTop: 2 },
-  value: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 },
+  meta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 2 },
+  value: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 2 },
   empty: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
 });

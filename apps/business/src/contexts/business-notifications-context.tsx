@@ -11,6 +11,7 @@ import {
   registerRotatedBusinessPushToken,
   syncBusinessPushNotifications,
 } from '@/features/notifications/business-push-service';
+import { recordBusinessProductEvent } from '@/features/analytics/business-product-events';
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -36,6 +37,7 @@ export function BusinessNotificationsProvider({ children }: PropsWithChildren) {
     const route = getBusinessNotificationRoute(response.notification.request.content.data);
     if (!route) return;
     handledResponseId.current = notificationId;
+    recordBusinessProductEvent({ name: 'notification_opened', route: route.pathname });
     Notifications.clearLastNotificationResponse();
     const { targetEstablishmentId, ...href } = route;
     if (

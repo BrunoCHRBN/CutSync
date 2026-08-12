@@ -1,5 +1,5 @@
-import type { Database, Json } from '@cutsync/database';
-import { resolveBookingOffer } from '@cutsync/domain';
+import { parseAvailabilityRecoveryRows, type Database, type Json } from '@cutsync/database';
+import { type AvailabilityRecovery, resolveBookingOffer } from '@cutsync/domain';
 
 import { supabase } from '@/lib/supabase';
 
@@ -57,6 +57,7 @@ export interface ClientBookingResult {
   appointmentId: string;
   status: 'pending' | 'confirmed';
 }
+
 
 const isObject = (value: Json): value is { [key: string]: Json | undefined } => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -301,6 +302,71 @@ export const loadClientAvailability = async ({
       : results.find((result) => result.emptyMessage)?.emptyMessage
         || 'Nenhum horário disponível nesta data.',
   };
+};
+
+export const loadClientAvailabilityRecovery = async ({
+  establishmentId,
+  professionalIds,
+  serviceId,
+  localDate,
+  appointmentId,
+}: {
+  establishmentId: string;
+  professionalIds: string[];
+  serviceId: string;
+  localDate: string;
+  appointmentId?: string | null;
+}): Promise<AvailabilityRecovery> => {
+  const targets = professionalIds.slice(0, MERGED_AVAILABILITY_PROFESSIONAL_LIMIT);
+  if (targets.length === 0) {
+    return {
+      requestedDate: localDate,
+      requestedProfessionalIds: [],
+      slots: [],
+      nextAvailableDate: null,
+      nearbyDates: [],
+      alternativeProfessionalIds: [],
+      strategy: 'none',
+      emptyReason: 'professional_required',
+    };
+  }
+
+  try {
+    const { data, error } = await requireClient().rpc('get_booking_availability_recovery', {
+      target_establishment_id: establishmentId,
+      target_professional_ids: targets,
+      target_service_id: serviceId,
+      target_local_date: localDate,
+      target_appointment_id: appointmentId ?? undefined,
+      search_days: 14,
+    });
+    if (error) throw error;
+
+    const rows = parseAvailabilityRecoveryRows(data);
+    if (!rows) throw new Error('invalid_availability_recovery_response');
+    const nearbyDates = [...new Set(rows.map((row) => row.localDate))];
+    const slots = rows.map((row) => ({
+      startsAt: row.startsAt,
+      localDate: row.localDate,
+      localTime: row.localTime,
+      durationMinutes: row.durationMinutes,
+      professionalId: row.professionalId,
+    }));
+    const nextAvailableDate = nearbyDates.find((date) => date !== localDate) ?? nearbyDates[0] ?? null;
+
+    return {
+      requestedDate: localDate,
+      requestedProfessionalIds: targets,
+      slots,
+      nextAvailableDate,
+      nearbyDates,
+      alternativeProfessionalIds: [...new Set(slots.map((slot) => slot.professionalId))],
+      strategy: slots.length === 0 ? 'none' : nextAvailableDate === localDate ? 'same_date' : 'next_date',
+      emptyReason: slots.length === 0 ? 'no_availability_in_search_window' : null,
+    };
+  } catch (error) {
+    throw new Error(bookingErrorMessage(error, 'Não foi possível buscar datas alternativas.'));
+  }
 };
 
 export const createClientAppointment = async ({

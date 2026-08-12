@@ -170,5 +170,5 @@ const styles = StyleSheet.create({
     gap: 16,
     flexWrap: 'wrap',
   },
-  hint: { flex: 1, minWidth: 240, color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  hint: { flex: 1, minWidth: 240, color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
 });

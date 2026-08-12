@@ -28,9 +28,9 @@ export const PasswordStrengthChecklist = ({ password, testID }: PasswordStrength
 
 const styles = StyleSheet.create({
   container: { gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surfaceRaised, padding: 16 },
-  title: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2 },
+  title: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   item: { width: '47%', minWidth: 170, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  label: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  label: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   labelMet: { color: colors.success, fontFamily: typography.bodyStrong },
 });

@@ -281,7 +281,7 @@ export const TeamExperience = () => {
                       <View style={styles.avatar}><Text style={styles.avatarText}>{barber.name.charAt(0).toUpperCase()}</Text></View>
                       <View style={styles.memberCopy}>
                         <Text testID={`team-member-${barber.id}-name`} style={styles.memberName}>{barber.name}</Text>
-                        <Text testID={`team-member-${barber.id}-title`} style={{ color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 2 }}>
+                        <Text testID={`team-member-${barber.id}-title`} style={{ color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 2 }}>
                           {barber.tituloProfissional || 'Especialista'}{barber.specialties ? ` • ${barber.specialties}` : ''}
                         </Text>
                         {!expanded ? <Text style={styles.memberContact} numberOfLines={1}>{barber.email}</Text> : null}
@@ -304,7 +304,7 @@ export const TeamExperience = () => {
 
                     {!expanded ? null : editingId === barber.id ? (
                       <View testID={`team-member-${barber.id}-commission-form`} style={styles.expandedForm}>
-                        <Text style={styles.workHoursTitle}>Configurações do Profissional (LGPD Safe)</Text>
+                        <Text style={styles.workHoursTitle}>Configurações do profissional</Text>
                         <View style={styles.fieldsRow}>
                           <AppInput containerStyle={{ flex: 0.5, minWidth: 100 }} label="Comissão (%)" testID={`team-member-${barber.id}-commission-input`} value={commission} onChangeText={setCommission} keyboardType="decimal-pad" />
                           <AppInput containerStyle={{ flex: 1, minWidth: 180 }} label="Instagram (sem @)" testID={`team-member-${barber.id}-instagram-input`} value={barberInstagram} onChangeText={setBarberInstagram} placeholder="ex: joaobarber" />
@@ -350,7 +350,7 @@ export const TeamExperience = () => {
                                     maxLength={5}
                                     placeholderTextColor="#666"
                                   />
-                                  <Text style={{ color: colors.textMuted, fontSize: 11 }}>às</Text>
+                                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>às</Text>
                                   <TextInput
                                     testID={`team-member-${barber.id}-schedule-close-${dayItem.day}`}
                                     style={styles.timeInput}
@@ -457,24 +457,24 @@ const styles = StyleSheet.create({
   workspace: { gap: 18, marginTop: 12 },
   pendingStrip: { gap: 6, padding: 14 },
   inviteIcon: { width: 46, height: 46, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border },
-  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.6, marginTop: 12 },
+  inviteEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.6, marginTop: 12 },
   inviteTitle: { color: colors.text, fontFamily: typography.display, fontSize: 23, lineHeight: 28, letterSpacing: -0.8, marginTop: 7 },
-  inviteDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 18, marginTop: 10 },
+  inviteDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 18, marginTop: 10 },
   codeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, padding: 10, marginTop: 22 },
   code: { flex: 1, color: colors.text, fontFamily: typography.display, fontSize: 15, letterSpacing: 0.5 },
   copyButton: { width: 34, height: 34, borderRadius: radii.sm, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 14, marginTop: 10 },
-  invitationSectionTitle: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.2 },
+  inviteHint: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, lineHeight: 14, marginTop: 10 },
+  invitationSectionTitle: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.2 },
   invitationRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: colors.canvasSoft, borderRadius: radii.sm },
   invitationCopy: { flex: 1 },
   invitationEmail: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
-  invitationMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  invitationMeta: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   historyBlock: { marginTop: 8, alignItems: 'flex-start' },
   historyList: { width: '100%', gap: 8, marginTop: 6 },
   teamColumn: { flex: 1 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   listTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, letterSpacing: -0.5 },
-  listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  listSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   loader: { margin: 50 },
   teamList: { gap: 10 },
   memberCard: { gap: 10 },
@@ -483,9 +483,9 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
   memberCopy: { flex: 1, minWidth: 0 },
   memberName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  memberContact: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  memberContact: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   commissionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surfacePressed, borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 7 },
-  commissionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  commissionText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   memberExpanded: { gap: 4 },
   memberActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 8 },
   modalOverlay: {
@@ -513,10 +513,10 @@ const styles = StyleSheet.create({
   workHoursTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
   scheduleGrid: { backgroundColor: colors.canvas, borderRadius: radii.md, padding: 12, gap: 8, borderWidth: 1, borderColor: colors.border },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: `${colors.border}44` },
-  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 11 },
+  scheduleDayName: { flex: 1, color: colors.text, fontFamily: typography.body, fontSize: 12 },
   scheduleTimes: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 16 },
-  timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 11, paddingHorizontal: 4 },
-  closedText: { color: colors.textMuted, fontSize: 11, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
+  timeInput: { width: 52, height: 32, textAlign: 'center', color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, fontSize: 12, paddingHorizontal: 4 },
+  closedText: { color: colors.textMuted, fontSize: 12, fontFamily: typography.body, minWidth: 110, textAlign: 'right' },
   workHoursActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   warningContainer: {
     flexDirection: 'row',
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.warning,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 14,
   },
 });

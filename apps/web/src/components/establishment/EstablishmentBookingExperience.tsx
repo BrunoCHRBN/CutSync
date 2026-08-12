@@ -35,6 +35,7 @@ import { supabase } from '../../services/supabase';
 import { colors, layout, radii, typography } from '../../theme/tokens';
 import { buildMonthWeeks, CALENDAR_WEEKDAYS } from '../../utils/booking-calendar';
 import { tapLight, tapSuccess } from '../../utils/haptics';
+import { recordWebProductEvent } from '../../services/product-events';
 import { buildEstablishmentTheme } from '@cutsync/brand';
 import {
   accentText,
@@ -50,13 +51,24 @@ import { PublicBookingAuthModal } from '../booking/PublicBookingAuthModal';
 import { EstablishmentThemeProvider } from '../../contexts/establishment-theme-context';
 import { EstablishmentThemeScope } from '../theme/establishment-theme-scope';
 import { isStrongPassword, passwordPolicyMessage } from '@cutsync/validation';
-import { getBookingDateOptions, getTodayInTimeZone, translateAppointmentError } from '@cutsync/domain';
+import {
+  UX_COPY,
+  formatLocalDate,
+  getBookingDateOptions,
+  getTodayInTimeZone,
+  translateAppointmentError,
+} from '@cutsync/domain';
 import { InlineNotice } from '../ui/InlineNotice';
 import { AppButton } from '../ui/AppButton';
 import { BookingStepper } from '../ui/BookingStepper';
 import { StatusBadge } from '../ui/StatusBadge';
 
 const ANY_PROFESSIONAL = 'any';
+
+const dateFromLocalDate = (localDate: string) => {
+  const [year, month, day] = localDate.split('-').map(Number);
+  return new Date(year, month - 1, day, 12);
+};
 
 export const EstablishmentBookingExperience = () => {
   const { width } = useWindowDimensions();
@@ -87,6 +99,8 @@ export const EstablishmentBookingExperience = () => {
   // Step transition animation — only opacity, useNativeDriver:false for web compat
   const stepOpacity = useRef(new Animated.Value(1)).current;
   const pendingStep = useRef<1 | 2 | 3 | 4 | null>(null);
+  const bookingStartedRecorded = useRef(false);
+  const availabilityEmptyRecorded = useRef<string | null>(null);
 
   // After wizardStep changes, fade in the new content
   useEffect(() => {
@@ -188,14 +202,35 @@ export const EstablishmentBookingExperience = () => {
     loading: availabilityLoading,
     error: availabilityError,
     emptyMessage,
+    recovery: availabilityRecovery,
+    recoveryLoading,
     refresh: refreshAvailability,
   } = useAvailableSlots({
     establishmentId: barbershop?.id,
     professionalId: isAnyProfessional ? null : selectedBarber,
+    professionalIds: isAnyProfessional ? barbers.map((barber) => barber.id) : null,
     serviceId: selectedService,
     date: selectedDate,
     appointmentId: user ? rescheduleId : null,
   });
+
+  useEffect(() => {
+    if (!barbershop || bookingStartedRecorded.current) return;
+    bookingStartedRecorded.current = true;
+    recordWebProductEvent({ name: 'booking_started', surface: 'web_client', role: 'client', route: '/:slug/booking' });
+  }, [barbershop]);
+
+  useEffect(() => {
+    if (availabilityLoading || availabilityError || !selectedDate || !selectedService || !selectedBarber) return;
+    if (availableSlots.length > 0) {
+      availabilityEmptyRecorded.current = null;
+      return;
+    }
+    const key = `${selectedService}:${selectedBarber}:${selectedDate.toISOString().slice(0, 10)}`;
+    if (availabilityEmptyRecorded.current === key) return;
+    availabilityEmptyRecorded.current = key;
+    recordWebProductEvent({ name: 'availability_empty', surface: 'web_client', role: 'client', route: '/:slug/booking' });
+  }, [availabilityError, availabilityLoading, availableSlots.length, selectedBarber, selectedDate, selectedService]);
 
   // Auth Modal State
   const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
@@ -404,6 +439,7 @@ export const EstablishmentBookingExperience = () => {
         });
         if (rescheduleError) throw rescheduleError;
         tapSuccess();
+        recordWebProductEvent({ name: 'booking_confirmed', surface: 'web_client', role: 'client', route: '/:slug/booking' });
         router.replace('/appointments?feedback=appointment_rescheduled' as never);
         return;
       }
@@ -418,6 +454,7 @@ export const EstablishmentBookingExperience = () => {
       if (insertError) throw insertError;
 
       tapSuccess();
+      recordWebProductEvent({ name: 'booking_confirmed', surface: 'web_client', role: 'client', route: '/:slug/booking' });
       void scheduleAppointmentNotification(
         created.appointment_id,
         barbershop.name,
@@ -426,6 +463,7 @@ export const EstablishmentBookingExperience = () => {
 
       router.replace('/appointments?feedback=appointment_created' as never);
     } catch (err: unknown) {
+      recordWebProductEvent({ name: 'booking_failed', surface: 'web_client', role: 'client', route: '/:slug/booking' });
       console.error('Booking execution error:', err);
       setBookingError(
         rescheduleId
@@ -888,7 +926,69 @@ export const EstablishmentBookingExperience = () => {
                   ) : availabilityError ? (
                     <InlineNotice tone="danger" message={availabilityError} />
                   ) : availableSlots.length === 0 ? (
-                    <InlineNotice tone="info" message={emptyMessage || 'Nenhum horário livre nesta data.'} />
+                    <View testID="booking-availability-recovery" style={styles.recoveryState}>
+                      <InlineNotice
+                        tone="info"
+                        title={UX_COPY.unavailableTitle}
+                        message={emptyMessage || UX_COPY.unavailableDescription}
+                      />
+                      {recoveryLoading && (
+                        <View style={styles.recoveryLoading}>
+                          <ActivityIndicator color={theme.primary} />
+                          <Text style={styles.recoveryDescription}>Buscando as próximas opções…</Text>
+                        </View>
+                      )}
+                      {!recoveryLoading && (
+                        <View style={styles.recoveryActions}>
+                          {availabilityRecovery?.nearbyDates.slice(0, 3).map((localDate, index) => (
+                            <AppButton
+                              key={localDate}
+                              testID={`booking-recovery-date-${localDate}`}
+                              label={`${index === 0 ? 'Próximo horário · ' : ''}${formatLocalDate(localDate)}`}
+                              onPress={() => {
+                                recordWebProductEvent({ name: 'availability_recovery_selected', surface: 'web_client', role: 'client', route: '/:slug/booking', properties: { recoveryStrategy: 'next_date' } });
+                                tapLight();
+                                setSelectedDate(dateFromLocalDate(localDate));
+                                setSelectedTime(null);
+                              }}
+                              variant={index === 0 ? 'primary' : 'secondary'}
+                              fullWidth
+                            />
+                          ))}
+                          {!isAnyProfessional && barbers.length > 1 && (
+                            <AppButton
+                              testID="booking-recovery-any-professional"
+                              label="Ver qualquer profissional nesta data"
+                              onPress={() => {
+                                recordWebProductEvent({ name: 'availability_recovery_selected', surface: 'web_client', role: 'client', route: '/:slug/booking', properties: { recoveryStrategy: 'any_professional' } });
+                                tapLight();
+                                setSelectedBarber(ANY_PROFESSIONAL);
+                                setSelectedTime(null);
+                              }}
+                              variant="secondary"
+                              fullWidth
+                            />
+                          )}
+                          <AppButton
+                            testID="booking-recovery-change-service"
+                            label="Escolher outro serviço"
+                            onPress={() => {
+                              recordWebProductEvent({ name: 'availability_recovery_selected', surface: 'web_client', role: 'client', route: '/:slug/booking', properties: { recoveryStrategy: 'change_service' } });
+                              animateStep(1);
+                            }}
+                            variant="secondary"
+                            fullWidth
+                          />
+                          <AppButton
+                            testID="booking-recovery-profile"
+                            label="Voltar ao perfil"
+                            onPress={goBackFromBooking}
+                            variant="ghost"
+                            fullWidth
+                          />
+                        </View>
+                      )}
+                    </View>
                   ) : (
                     <View style={styles.timeSlotsContainer}>
                       {groupedSlots.morning.length > 0 && (
@@ -1195,7 +1295,7 @@ const styles = StyleSheet.create({
     color: '#1A1A1E',
   },
   salonAddress: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.body,
     color: colors.textMuted,
   },
@@ -1211,7 +1311,7 @@ const styles = StyleSheet.create({
     borderColor: '#E4E5DF',
   },
   ratingText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.bodyStrong,
     color: '#1A1A1E',
   },
@@ -1238,7 +1338,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E9F2EA',
   },
   stepPillText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.body,
     color: colors.textMuted,
   },
@@ -1259,7 +1359,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   stepEyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.bodyStrong,
     color: '#F5A524',
     letterSpacing: 1.4,
@@ -1305,7 +1405,7 @@ const styles = StyleSheet.create({
     color: '#1A1A1E',
   },
   serviceMeta: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.body,
     color: colors.textMuted,
   },
@@ -1320,7 +1420,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyStrong,
   },
   priceTagStrike: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: typography.body,
     color: colors.textMuted,
     textDecorationLine: 'line-through',
@@ -1359,7 +1459,7 @@ const styles = StyleSheet.create({
     color: '#1A1A1E',
   },
   barberRole: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textMuted,
     fontFamily: typography.body,
   },
@@ -1398,9 +1498,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  quickDateWeekday: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'capitalize' },
+  quickDateWeekday: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'capitalize' },
   quickDateDay: { color: colors.text, fontFamily: typography.display, fontSize: 20, marginVertical: 2 },
-  quickDateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 10, textTransform: 'capitalize' },
+  quickDateMonth: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, textTransform: 'capitalize' },
   calendarTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1436,7 +1536,7 @@ const styles = StyleSheet.create({
   },
   weekHeaderDay: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.bodyStrong,
     color: colors.textMuted,
     textAlign: 'center',
@@ -1481,6 +1581,10 @@ const styles = StyleSheet.create({
     fontFamily: typography.bodyStrong,
     color: '#1A1A1E',
   },
+  recoveryState: { gap: 12 },
+  recoveryLoading: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  recoveryDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
+  recoveryActions: { gap: 8 },
   timeSlotsContainer: {
     gap: 12,
   },
@@ -1488,7 +1592,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   periodLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: typography.bodyStrong,
   },
   timeGrid: {

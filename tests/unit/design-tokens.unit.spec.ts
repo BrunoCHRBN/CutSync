@@ -41,7 +41,7 @@ test('garante contraste AA nos pares funcionais principais', () => {
   expect(contrast('#2C4334', '#DAD2B6')).toBeGreaterThanOrEqual(4.5);
 });
 
-test('não deixa fonte funcional literal abaixo de 11 px em src', () => {
+test('não deixa fonte funcional literal abaixo de 12 px em src', () => {
   const files: string[] = [];
   const visit = (directory: string) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -56,7 +56,7 @@ test('não deixa fonte funcional literal abaixo de 11 px em src', () => {
   const violations = files.flatMap((file) => {
     const content = fs.readFileSync(file, 'utf8');
     return [...content.matchAll(/fontSize:\s*(\d+(?:\.\d+)?)/g)]
-      .filter((match) => Number(match[1]) < 11)
+      .filter((match) => Number(match[1]) < 12)
       .map((match) => `${path.relative(root, file)}:${match.index}`);
   });
   expect(violations).toEqual([]);

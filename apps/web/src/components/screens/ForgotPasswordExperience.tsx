@@ -89,9 +89,9 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 20, paddingVertical: 36 },
   shell: { width: '100%', maxWidth: layout.formMax, alignSelf: 'center' },
   backLink: { marginTop: 34, flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingVertical: 8 },
-  backText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  backText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   intro: { marginTop: 34, marginBottom: 24 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 2 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 2 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 37, lineHeight: 42, letterSpacing: -1.6, marginTop: 12 },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: 12 },
   card: { gap: 18, padding: 24 },
@@ -100,5 +100,5 @@ const styles = StyleSheet.create({
   sentTitle: { color: colors.text, fontFamily: typography.display, fontSize: 22 },
   sentDescription: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 19, textAlign: 'center', marginBottom: 6 },
   securityNote: { marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  securityText: { flexShrink: 1, color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  securityText: { flexShrink: 1, color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
 });

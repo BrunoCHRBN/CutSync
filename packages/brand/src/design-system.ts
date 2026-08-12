@@ -1,0 +1,103 @@
+export const designSystem = {
+  colors: {
+    action: {
+      primary: '#2C4334',
+      primaryPressed: '#203327',
+      onPrimary: '#FFFFFF',
+      secondary: '#DAD2B6',
+      onSecondary: '#18201B',
+    },
+    surface: {
+      canvas: '#FBF8F2',
+      raised: '#FFFFFF',
+      muted: '#F5EFDF',
+      overlay: 'rgba(24, 32, 27, 0.34)',
+    },
+    text: {
+      primary: '#141B17',
+      secondary: '#5B665D',
+      muted: '#737D75',
+      disabled: '#8A9089',
+    },
+    border: {
+      subtle: '#EAE4D3',
+      strong: '#C9C1AA',
+      focus: '#3F7A5B',
+    },
+    status: {
+      success: '#2D633A',
+      successSoft: '#E9F3EA',
+      warning: '#6A5620',
+      warningSoft: '#F7EFD5',
+      danger: '#8E2F26',
+      dangerSoft: '#FFF2EF',
+      info: '#315E99',
+      infoSoft: '#E9F0FA',
+    },
+  },
+  spacing: {
+    xxs: 4,
+    xs: 8,
+    sm: 12,
+    md: 16,
+    lg: 20,
+    xl: 24,
+    xxl: 32,
+    hero: 40,
+    page: 48,
+  },
+  radii: {
+    sm: 10,
+    md: 14,
+    lg: 20,
+    card: 26,
+    hero: 32,
+    pill: 999,
+  },
+  elevation: {
+    none: { level: 0, shadowOpacity: 0 },
+    card: { level: 2, shadowOpacity: 0.08 },
+    floating: { level: 6, shadowOpacity: 0.14 },
+    modal: { level: 12, shadowOpacity: 0.2 },
+  },
+  icons: {
+    compact: 16,
+    standard: 20,
+    prominent: 24,
+    hero: 32,
+    strokeWidth: 1.8,
+  },
+  typography: {
+    minimumFunctionalSize: 12,
+    caption: { fontSize: 12, lineHeight: 18 },
+    body: { fontSize: 15, lineHeight: 23 },
+    heading: { fontSize: 20, lineHeight: 26 },
+    title: { fontSize: 28, lineHeight: 34 },
+    display: { fontSize: 40, lineHeight: 44 },
+  },
+  sizing: {
+    minimumTouchTarget: 48,
+    minimumWebPointerTarget: 44,
+    contentMaxWidth: 1200,
+  },
+  motion: {
+    fast: 180,
+    standard: 240,
+    emphasized: 300,
+    reduced: 0,
+  },
+  opacity: {
+    pressed: 0.72,
+    disabled: 0.45,
+    loading: 0.62,
+  },
+  breakpoints: {
+    phone: 390,
+    tablet: 768,
+    tabletLandscape: 1024,
+    desktop: 1440,
+    desktopWide: 1920,
+  },
+} as const;
+
+export type DesignSystem = typeof designSystem;
