@@ -1,8 +1,8 @@
 # Fase 4 — POS manual
 
-Estado: **Fatias 1 a 3 implementadas localmente, fundação da Fatia 4
-homologada no banco, matriz JWT da Fatia 5 aprovada em Homolog e APK local da
-Fatia 6 validado; Gate G7 ainda não aprovado**.
+Estado: **implementação funcional concluída, matriz JWT/AAL2 aprovada em
+Homolog e superfícies Web/Android validadas pelo operador; Gate G7 em
+pré-fechamento, aguardando apenas CI no HEAD corretivo**.
 
 ## Escopo desta fatia
 
@@ -116,8 +116,8 @@ duplicadas:
 - lint de Business e Web sem erros (avisos preexistentes do Web preservados);
 - teste concorrente confirmado com `1` entry, `6000` centavos e um único avanço
   de versão;
-- 26 testes unitários focados de contratos, mappers, API, outbox e superfícies
-  verdes.
+- 54 testes unitários focados de contratos, mappers, API, outbox, reatribuição
+  e superfícies verdes.
 
 Em 12/08/2026, a reprodução local foi renovada após a inclusão da operação Web:
 
@@ -250,10 +250,40 @@ flag habilitada e zero entries.
 Não executado ou ainda não aprovado nesta fatia:
 
 - aplicação em produção;
-- Android com papéis reais;
-- desligamento real de rede e replay após reinício em Android físico;
-- execução do workflow em PR;
+- execução verde do workflow no HEAD que contém a reconciliação aditiva dos
+  read models de UI/UX;
 - aprovação do Gate G7.
+
+## Renovação de evidência para fechamento
+
+Em 12/08/2026, após a validação funcional informada pelo operador em Web e
+Android, a matriz automatizada foi executada novamente:
+
+- banco descartável reconstruído com a sequência completa de migrations;
+- suítes `phase4_manual_pos.sql`, `service_order_operational_date.sql`,
+  `phase3_business_decision_read_models.sql` e
+  `ui_ux_experience_read_models.sql` verdes;
+- concorrência física confirmada como `1|6000|4`;
+- lint e advisors locais de segurança/performance sem erros;
+- typechecks Shared/Business, 54 testes unitários, lint e bundles Web/Business
+  verdes;
+- harness remoto verde em Homolog para owner, admin, cashier, finance,
+  professional e outsider, com JWT real, TOTP/AAL2, isolamento cross-unit,
+  replay idempotente, void compensatório, reconstrução e fechamento;
+- cleanup remoto concluído (`FIXTURE_CLEANUP=PASS`);
+- advisors remotos sem achados de nível erro; avisos globais preexistentes
+  permanecem fora do escopo do G7.
+
+O operador também confirmou em dispositivo físico os caminhos mobile do POS,
+incluindo persistência e replay sem duplicação após indisponibilidade de rede e
+reinício do aplicativo. Essa evidência é classificada como homologação física
+informada pelo operador e complementa a matriz automatizada de backend.
+
+O workflow da PR falhou depois que uma fatia posterior de UI/UX introduziu uma
+referência a `profiles.profile_slug` e concatenação escalar em arrays. A
+migration aditiva `20260812191333_reconcile_ui_ux_experience_read_models.sql`
+corrige os dois contratos sem alterar migration potencialmente aplicada. O
+workflow agora também executa a suíte de regressão desses read models.
 
 ## Preparação de CI e build física
 
@@ -274,13 +304,8 @@ Não executado ou ainda não aprovado nesta fatia:
   limpa;
 - o workflow EAS é manual para evitar consumo involuntário de minutos.
 
-## Próxima fatia
+## Pendências para decisão do Gate G7
 
-1. consolidar as mudanças locais em commit focado e executar o workflow da
-   Fase 4 em PR;
-2. homologar cashier, finance, professional e usuário sem vínculo no
-   Android/Web — backend com JWT real concluído; superfícies físicas pendentes;
-3. homologar pagamento parcial, misto, estorno AAL2 e fechamento concorrente
-   pela nova superfície Web;
-4. validar desligamento de rede, encerramento do app e replay no Android;
-5. reunir as evidências e decidir explicitamente o Gate G7.
+1. consolidar a migration corretiva, a cobertura do workflow e este registro
+   em commit focado, então executar o workflow da Fase 4 na PR #34;
+2. registrar o resultado do CI e decidir explicitamente o Gate G7.

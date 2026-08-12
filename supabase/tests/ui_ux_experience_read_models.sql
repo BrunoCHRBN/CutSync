@@ -23,13 +23,34 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 INSERT INTO auth.users(id, email, raw_user_meta_data, email_confirmed_at, created_at, updated_at)
-VALUES ('77000000-0000-0000-0000-000000000001', 'ux-read-model-admin@example.test', '{"name":"UX Admin"}', now(), now(), now());
+VALUES
+  ('77000000-0000-0000-0000-000000000001', 'ux-read-model-admin@example.test', '{"name":"UX Admin"}', now(), now(), now()),
+  ('77000000-0000-0000-0000-000000000002', 'ux-read-model-professional@example.test', '{"name":"UX Professional"}', now(), now(), now());
+
+UPDATE public.profiles
+SET titulo_profissional = 'Barbeiro',
+    work_hours = '{"monday":[]}'
+WHERE id = '77000000-0000-0000-0000-000000000002';
 
 INSERT INTO public.establishments(id, name, slug, account_status, discovery_status, address)
 VALUES ('77000000-0000-0000-0000-000000000010', 'Ateliê Read Model', 'atelie-read-model', 'active', 'draft', NULL);
 
 INSERT INTO public.memberships(id, establishment_id, profile_id, role, role_template, status)
-VALUES ('77000000-0000-0000-0000-000000000020', '77000000-0000-0000-0000-000000000010', '77000000-0000-0000-0000-000000000001', 'admin', 'admin', 'active');
+VALUES
+  ('77000000-0000-0000-0000-000000000020', '77000000-0000-0000-0000-000000000010', '77000000-0000-0000-0000-000000000001', 'admin', 'admin', 'active'),
+  ('77000000-0000-0000-0000-000000000021', '77000000-0000-0000-0000-000000000010', '77000000-0000-0000-0000-000000000002', 'professional', 'professional', 'active');
+
+INSERT INTO public.professional_profiles(id, user_id, slug, is_public)
+VALUES (
+  '77000000-0000-0000-0000-000000000030',
+  '77000000-0000-0000-0000-000000000002',
+  'ux-professional',
+  true
+);
+
+UPDATE public.memberships
+SET professional_profile_id = '77000000-0000-0000-0000-000000000030'
+WHERE id = '77000000-0000-0000-0000-000000000021';
 
 INSERT INTO public.services(id, establishment_id, name, price, duration_minutes, is_active, sort_order)
 VALUES ('ux-read-model-service', '77000000-0000-0000-0000-000000000010', 'Corte essencial', 55, 30, true, 1);
@@ -48,6 +69,7 @@ BEGIN
   public_experience := public.get_public_establishment_experience('atelie-read-model');
   IF public_experience#>>'{establishment,name}' <> 'Ateliê Read Model'
     OR jsonb_array_length(public_experience->'services') <> 1
+    OR public_experience#>>'{team,0,profileSlug}' <> 'ux-professional'
   THEN RAISE EXCEPTION 'FAIL: public read model is incomplete: %', public_experience; END IF;
 END $$;
 
