@@ -36,6 +36,7 @@ export interface ProfessionalProfileContentProps {
   theme?: EstablishmentTheme;
   showPrivacyNote?: boolean;
   testIDPrefix?: string;
+  contextLabel?: string;
 }
 
 export const ProfessionalProfileContent: React.FC<ProfessionalProfileContentProps> = ({
@@ -46,6 +47,7 @@ export const ProfessionalProfileContent: React.FC<ProfessionalProfileContentProp
   theme,
   showPrivacyNote = false,
   testIDPrefix = 'public-professional-profile',
+  contextLabel,
 }) => {
   const { width } = useWindowDimensions();
   const isWide = width >= 860;
@@ -90,7 +92,7 @@ export const ProfessionalProfileContent: React.FC<ProfessionalProfileContentProp
 
         <View style={styles.heroCopy}>
           <Text testID={`${testIDPrefix}-eyebrow`} style={[styles.eyebrow, theme && accentText(theme)]}>
-            PROFISSIONAL INDEPENDENTE
+            {(contextLabel || 'PROFISSIONAL INDEPENDENTE').toUpperCase()}
           </Text>
           <Text testID={`${testIDPrefix}-name`} style={styles.name}>
             {profile.name}

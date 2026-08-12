@@ -2435,6 +2435,70 @@ export type Database = {
           },
         ]
       }
+      establishment_payment_methods: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          display_name: string
+          establishment_id: string
+          id: string
+          method_type: string
+          requires_reference: boolean
+          updated_at: string
+          updated_by: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          display_name: string
+          establishment_id: string
+          id?: string
+          method_type: string
+          requires_reference?: boolean
+          updated_at?: string
+          updated_by: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          display_name?: string
+          establishment_id?: string
+          id?: string
+          method_type?: string
+          requires_reference?: boolean
+          updated_at?: string
+          updated_by?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_payment_methods_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_payment_methods_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_payment_methods_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishment_requests: {
         Row: {
           address: string | null
@@ -3830,6 +3894,164 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payment_entries: {
+        Row: {
+          amount_cents: number
+          correlation_id: string
+          created_at: string
+          currency: string
+          entry_type: string
+          establishment_id: string
+          external_reference: string | null
+          id: string
+          method_name_snapshot: string
+          method_type_snapshot: string
+          original_payment_entry_id: string | null
+          payment_method_id: string
+          reason: string | null
+          recorded_by: string
+          request_id: string
+          service_order_id: string
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          correlation_id: string
+          created_at?: string
+          currency?: string
+          entry_type: string
+          establishment_id: string
+          external_reference?: string | null
+          id?: string
+          method_name_snapshot: string
+          method_type_snapshot: string
+          original_payment_entry_id?: string | null
+          payment_method_id: string
+          reason?: string | null
+          recorded_by: string
+          request_id: string
+          service_order_id: string
+          status: string
+        }
+        Update: {
+          amount_cents?: number
+          correlation_id?: string
+          created_at?: string
+          currency?: string
+          entry_type?: string
+          establishment_id?: string
+          external_reference?: string | null
+          id?: string
+          method_name_snapshot?: string
+          method_type_snapshot?: string
+          original_payment_entry_id?: string | null
+          payment_method_id?: string
+          reason?: string | null
+          recorded_by?: string
+          request_id?: string
+          service_order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_entries_method_tenant_fk"
+            columns: ["payment_method_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_payment_methods"
+            referencedColumns: ["id", "establishment_id"]
+          },
+          {
+            foreignKeyName: "order_payment_entries_order_tenant_fk"
+            columns: ["service_order_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "establishment_id"]
+          },
+          {
+            foreignKeyName: "order_payment_entries_original_tenant_fk"
+            columns: [
+              "original_payment_entry_id",
+              "establishment_id",
+              "service_order_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "order_payment_entries"
+            referencedColumns: ["id", "establishment_id", "service_order_id"]
+          },
+          {
+            foreignKeyName: "order_payment_entries_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payment_events: {
+        Row: {
+          actor_id: string
+          correlation_id: string
+          created_at: string
+          establishment_id: string
+          event_type: string
+          id: number
+          metadata: Json
+          payment_entry_id: string
+          request_id: string
+          service_order_id: string
+        }
+        Insert: {
+          actor_id: string
+          correlation_id: string
+          created_at?: string
+          establishment_id: string
+          event_type: string
+          id?: never
+          metadata?: Json
+          payment_entry_id: string
+          request_id: string
+          service_order_id: string
+        }
+        Update: {
+          actor_id?: string
+          correlation_id?: string
+          created_at?: string
+          establishment_id?: string
+          event_type?: string
+          id?: never
+          metadata?: Json
+          payment_entry_id?: string
+          request_id?: string
+          service_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payment_events_entry_tenant_fk"
+            columns: [
+              "payment_entry_id",
+              "establishment_id",
+              "service_order_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "order_payment_entries"
+            referencedColumns: ["id", "establishment_id", "service_order_id"]
+          },
+          {
+            foreignKeyName: "order_payment_events_order_tenant_fk"
+            columns: ["service_order_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "establishment_id"]
           },
         ]
       }
@@ -6900,6 +7122,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      assert_service_order_payment_read_access: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
+        Returns: undefined
+      }
       assert_service_order_read_access: {
         Args: {
           target_establishment_id: string
@@ -6944,6 +7173,20 @@ export type Database = {
           target_version: number
         }
         Returns: Json
+      }
+      calculate_service_order_payment_summary: {
+        Args: {
+          target_establishment_id: string
+          target_service_order_id: string
+        }
+        Returns: {
+          balance_cents: number
+          currency: string
+          last_entry_at: string
+          paid_cents: number
+          payment_status: string
+          total_cents: number
+        }[]
       }
       can_manage_business_invitation: {
         Args: { target_establishment_id: string; target_role: string }
@@ -7230,6 +7473,18 @@ export type Database = {
           target_plan_code: string
         }
         Returns: string
+      }
+      configure_establishment_payment_method: {
+        Args: {
+          target_active: boolean
+          target_display_name: string
+          target_establishment_id: string
+          target_expected_version: number
+          target_method_type: string
+          target_request_id: string
+          target_requires_reference: boolean
+        }
+        Returns: Json
       }
       configure_support_team_member: {
         Args: {
@@ -8323,6 +8578,13 @@ export type Database = {
         Args: { target_appointment_id: string; target_establishment_id: string }
         Returns: Json
       }
+      get_service_order_payment_summary: {
+        Args: {
+          target_establishment_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
       get_subscription_entitlement_for_establishment: {
         Args: { target_establishment_id: string }
         Returns: Json
@@ -8628,6 +8890,10 @@ export type Database = {
           status: string
           target_contact: string
         }[]
+      }
+      list_establishment_payment_methods: {
+        Args: { target_establishment_id: string }
+        Returns: Json
       }
       list_establishment_service_prices: {
         Args: { target_establishment_id: string; target_local_date?: string }
@@ -8992,6 +9258,18 @@ export type Database = {
       }
       reconcile_appointment_assignment_shadow: {
         Args: { target_establishment_id: string; target_request_id: string }
+        Returns: Json
+      }
+      record_order_payment: {
+        Args: {
+          target_amount_cents: number
+          target_establishment_id: string
+          target_expected_version: number
+          target_external_reference: string
+          target_payment_method_id: string
+          target_request_id: string
+          target_service_order_id: string
+        }
         Returns: Json
       }
       refresh_appointment_decision_queue_item: {
@@ -9792,6 +10070,17 @@ export type Database = {
           target_expected_version: number
           target_reassignment_request_id: string
           target_request_id: string
+        }
+        Returns: Json
+      }
+      void_order_payment: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_payment_entry_id: string
+          target_reason: string
+          target_request_id: string
+          target_service_order_id: string
         }
         Returns: Json
       }

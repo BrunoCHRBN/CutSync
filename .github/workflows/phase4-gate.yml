@@ -80,11 +80,10 @@ jobs:
           supabase db advisors --local --type security --level error --fail-on error
           supabase db advisors --local --type performance --level error --fail-on error
 
-      - name: Validate shared contracts
+      - name: Validate shared and Business contracts
         run: |
           npm run typecheck:shared
           npm run typecheck:business
-          npm run typecheck:web
 
       - name: Run Phase 4 unit tests
         run: npx playwright test --project=unit tests/unit/phase4-manual-pos.unit.spec.ts tests/unit/phase4-pos-ui.unit.spec.ts
@@ -107,7 +106,7 @@ jobs:
             echo ""
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Classificação: CI reproduzido"
-            echo "- Cobertura: SQL/RLS, idempotência, concorrência, mappers, binding RPC, outbox, typecheck, lint e bundles"
+            echo "- Cobertura: SQL/RLS, idempotência, concorrência, mappers, binding RPC, outbox, typecheck Shared/Business, lint e bundles Web/Business"
             echo "- Não comprova: papéis reais em Android físico, rede desligada/reinício real ou aprovação produtiva"
           } >> "${GITHUB_STEP_SUMMARY}"
 

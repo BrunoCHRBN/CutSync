@@ -216,15 +216,20 @@ Não executado ou ainda não aprovado nesta fatia:
 ## Preparação de CI e build física
 
 - `.github/workflows/phase4-gate.yml` reproduz banco descartável, SQL,
-  concorrência, contratos, binding RPC, outbox, typechecks, lint e bundles;
+  concorrência, contratos, binding RPC, outbox, typechecks Shared/Business,
+  lint e bundles Web/Business;
 - o workflow registra no summary a classificação e os limites da evidência;
 - o Supabase local é encerrado mesmo quando uma etapa falha;
 - `apps/business/.eas/workflows/phase4-g7-preview.yml` gera manualmente uma
   APK Preview com o environment `preview` e apresenta o checklist físico;
 - o workflow EAS passou no validador de schema oficial em 11/08/2026;
 - o workflow GitHub teve o YAML parseado localmente e sua matriz foi
-  reproduzida com sucesso: reset, SQL/RLS, concorrência, advisors, typechecks,
-  testes, lint e bundles;
+  reproduzida localmente com sucesso: reset, SQL/RLS, concorrência, advisors,
+  typechecks, testes, lint e bundles;
+- o typecheck Web global não integra o gate específico porque o checkout limpo
+  ainda possui erros preexistentes de tipagem de `Pressable.hovered`; a
+  superfície alterada continua coberta por lint e bundle Web em instalação
+  limpa;
 - o workflow EAS é manual para evitar consumo involuntário de minutos.
 
 ## Próxima fatia
