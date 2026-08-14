@@ -9532,6 +9532,10 @@ export type Database = {
         }
         Returns: Json
       }
+      project_legacy_role_from_template: {
+        Args: { target_role_template: string }
+        Returns: string
+      }
       project_published_brand: {
         Args: { target_establishment_id: string }
         Returns: undefined
