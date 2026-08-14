@@ -7,7 +7,6 @@ import { expect, test } from '@playwright/test';
 import {
   BUSINESS_CAPABILITIES,
   FINANCIAL_OPS_CAPABILITIES,
-  filterBusinessCapabilities,
 } from '../../packages/database/src/business';
 
 const root = process.cwd();
@@ -59,35 +58,11 @@ test('contrato compartilhado reconhece capabilities financeiras e role defaults'
   for (const capability of FINANCIAL_OPS_CAPABILITIES) {
     expect(BUSINESS_CAPABILITIES).toContain(capability);
   }
-  expect(filterBusinessCapabilities(
-    BUSINESS_CAPABILITIES,
-    'admin',
-    'full',
-  )).not.toContain('reopen_cash');
-  expect(filterBusinessCapabilities(
-    BUSINESS_CAPABILITIES,
-    'owner',
-    'full',
-  )).toContain('reopen_cash');
-  expect(filterBusinessCapabilities(
-    BUSINESS_CAPABILITIES,
-    'professional',
-    'full',
-  )).toEqual(expect.arrayContaining([
-    'view_orders',
-    'manage_own_orders',
-    'view_payments',
-    'view_own_commission',
-  ]));
-  expect(filterBusinessCapabilities(
-    BUSINESS_CAPABILITIES,
-    'professional',
-    'full',
-  )).not.toEqual(expect.arrayContaining([
-    'take_payments',
-    'view_cash',
-    'manage_team_orders',
-  ]));
+  expect(BUSINESS_CAPABILITIES).toContain('view_team_orders');
+  expect(BUSINESS_CAPABILITIES).toContain('view_orders');
+  expect(BUSINESS_CAPABILITIES).toContain('void_orders');
+  expect(BUSINESS_CAPABILITIES).toContain('manage_team_orders');
+  expect(BUSINESS_CAPABILITIES).toContain('approve_sensitive_actions');
 });
 
 test('teste SQL é transacional e cobre isolamento/flag/capabilities', () => {

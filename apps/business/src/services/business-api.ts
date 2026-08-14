@@ -322,24 +322,6 @@ const remoteErrorCode = (error: unknown): string | null => {
   return normalized && normalized.length <= 48 ? normalized : null;
 };
 
-const logSanitizedRpcError = (operation: Operation, error: unknown) => {
-  if (!__DEV__) return;
-  const record = error && typeof error === 'object'
-    ? error as Record<string, unknown>
-    : null;
-  const name = typeof record?.name === 'string'
-    ? normalizeBusinessDiagnosticCode(record.name)
-    : null;
-  const status = typeof record?.status === 'number' && Number.isInteger(record.status)
-    ? record.status
-    : null;
-  console.warn('BUSINESS_RPC_FAILURE', {
-    operation,
-    code: remoteErrorCode(error),
-    name,
-    status,
-  });
-};
 
 const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'contexts') return 'contexts_unavailable';
@@ -375,7 +357,6 @@ const translateServiceOrderCode = (code: string): BusinessApiErrorCode | null =>
 };
 
 const translateRpcError = (operation: Operation, error: unknown): BusinessApiError => {
-  logSanitizedRpcError(operation, error);
   if (error instanceof ServiceOrderApiError) {
     const mapped = translateServiceOrderCode(error.code);
     if (mapped) return new BusinessApiError(mapped);

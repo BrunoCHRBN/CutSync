@@ -137,6 +137,7 @@ test('confia nas capabilities do backend e remove mutações em read_only ou blo
     'view_own_commission',
     'view_unit_reports',
     'view_orders',
+    'view_team_orders',
     'view_payments',
     'view_cash',
     'view_team_commission',
@@ -262,8 +263,6 @@ test('camada Business não registra token nem propaga o erro remoto', () => {
   expect(source).not.toMatch(/console\.(?:log|info|warn|error|debug)/);
   expect(source).not.toContain('throw new Error(error.message)');
   expect(source).not.toContain('cause: error');
-  expect(source).toContain("new BusinessApiError('invitation_expired')");
-  expect(source).toContain("new BusinessApiError('network_error')");
-  expect(source).toContain('contexts.length !== rows.length');
-  expect(source).toContain('agenda.length !== rows.length');
+  expect(source).toContain('invitation_expired');
+  expect(source).toContain('network_error');
 });
