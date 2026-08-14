@@ -7,7 +7,7 @@ BEGIN;
 -- 1. Canonical Authorization Primitive
 CREATE OR REPLACE FUNCTION public.has_business_capability(
   target_establishment_id uuid,
-  required_capability text
+  target_capability text
 )
 RETURNS boolean
 LANGUAGE plpgsql
@@ -20,14 +20,14 @@ DECLARE
   resolved_access_mode text;
   capabilities text[];
 BEGIN
-  IF caller_id IS NULL OR target_establishment_id IS NULL OR required_capability IS NULL THEN
+  IF caller_id IS NULL OR target_establishment_id IS NULL OR target_capability IS NULL THEN
     RETURN false;
   END IF;
 
   -- Ensure capability is registered and active in the business catalog
   IF NOT EXISTS (
     SELECT 1 FROM public.business_capability_catalog AS catalog
-    WHERE catalog.capability = required_capability AND catalog.active
+    WHERE catalog.capability = target_capability AND catalog.active
   ) THEN
     RETURN false;
   END IF;
@@ -47,7 +47,7 @@ BEGIN
     resolved_access_mode
   );
 
-  RETURN required_capability = ANY(capabilities);
+  RETURN target_capability = ANY(capabilities);
 END;
 $$;
 
@@ -484,7 +484,7 @@ BEGIN
   previous_range_end := target_range_start - 1;
   previous_range_start := previous_range_end - day_count + 1;
   range_starts_at := target_range_start::timestamp AT TIME ZONE target_timezone;
-  range_ends_at := (target_range_end + 1):timestamp AT TIME ZONE target_timezone;
+  range_ends_at := (target_range_end + 1)::timestamp AT TIME ZONE target_timezone;
   previous_starts_at := previous_range_start::timestamp AT TIME ZONE target_timezone;
   previous_ends_at := (previous_range_end + 1)::timestamp AT TIME ZONE target_timezone;
 
