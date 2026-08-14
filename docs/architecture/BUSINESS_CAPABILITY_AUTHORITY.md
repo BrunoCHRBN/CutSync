@@ -76,3 +76,62 @@ RETURNS boolean
 1. **Plataforma / Superadmin:** `public.is_superadmin()` é um predicado de governança e auditoria da plataforma SaaS e não substitui capabilities operacionais de rotina de negócios.
 2. **Organizações Multiunidade:** Cargos em `organization_members` (`owner`, `manager`, `finance`) governam visões consolidadas da organização e não injetam automaticamente capabilities locais em unidades não vinculadas.
 3. **Billing / Payer Authority:** A autoridade sobre contratos Stripe e assinaturas decorre de `BusinessAccessContext` (`billing_owner`, `payer_role`) e nunca da simples navegação na superfície operacional da unidade.
+
+---
+
+## 6. Service Order Scope Policy (PS1-E1B.2)
+
+A governança do domínio de **Service Orders / Comandas** opera sob segregação estrita de escopo operacional, desacoplada de papéis legados (`owner`, `admin`, `membership.role`, `profiles.role`):
+
+### 6.1 Taxonomia de Capabilities de Comanda
+
+1. **`view_orders` (Leitura Base):**
+   - Concede acesso à leitura de comandas.
+   - Sem `view_team_orders`, a leitura é **estritamente restrita** a comandas onde `target_professional_id = (SELECT auth.uid())`.
+   - `read_only_allowed = true` (permanece ativa em modo read-only por inadimplência).
+
+2. **`view_team_orders` (Escopo Team-Wide):**
+   - Concede visibilidade de comandas de todos os profissionais da unidade.
+   - Atribuída por padrão aos templates `reception`, `cashier`, `manager` e `admin`.
+   - **NÃO** é atribuída a `professional` nem a `finance`.
+   - `read_only_allowed = true`.
+
+3. **`manage_own_orders` (Mutação Própria):**
+   - Permite criar itens, iniciar, concluir e fechar comandas onde o ator é o profissional responsável.
+   - Atribuída a `professional`, `manager` e `admin`.
+   - `read_only_allowed = false`.
+
+4. **`manage_team_orders` (Mutação da Equipe):**
+   - Permite mutações em comandas de qualquer profissional da equipe (ex: atendimento pela recepção ou caixa).
+   - Atribuída a `reception`, `cashier`, `manager` e `admin`.
+   - `read_only_allowed = false`.
+
+5. **`void_orders` (Anulação de Comanda):**
+   - Permite anular uma comanda aberta com motivo formal (`void_reason`) e versão concorrente.
+   - Atribuída a `manager` e `admin` (e `owner` via resolvedor total).
+   - `read_only_allowed = false`, `sensitive_override = true`.
+
+6. **`approve_sensitive_actions` (Aprovação / Reabertura Sensível):**
+   - Exigida **cumulativamente** para operações de alta criticidade e reversão de estado final.
+   - O contrato canônico de `reopen_voided_service_order` exige:
+     $$\text{void\_orders} \land \text{manage\_team\_orders} \land \text{approve\_sensitive\_actions}$$
+   - Atribuída a `manager` e `admin` (e `owner`). Sujeita a bloqueio imediato se houver override com `effect = 'deny'`.
+
+### 6.2 Níveis de Acesso: Read vs Team Scope vs Mutation vs Sensitive Mutation
+
+| Nível de Acesso | Capabilities Exigidas | Quem Possui por Default |
+| :--- | :--- | :--- |
+| **Read Próprio** | `view_orders` | `professional`, `reception`, `cashier`, `manager`, `admin`, `owner` |
+| **Read Equipe (Team Scope)** | `view_orders` + `view_team_orders` | `reception`, `cashier`, `manager`, `admin`, `owner` |
+| **Mutação Própria** | `manage_own_orders` (quando `target_professional = actor`) OU `manage_team_orders` | `professional`, `reception`, `cashier`, `manager`, `admin`, `owner` |
+| **Mutação Equipe** | `manage_team_orders` | `reception`, `cashier`, `manager`, `admin`, `owner` |
+| **Anulação (Void)** | `void_orders` | `manager`, `admin`, `owner` |
+| **Reabertura (Sensitive Mutation)** | `void_orders` + `manage_team_orders` + `approve_sensitive_actions` | `manager`, `admin`, `owner` |
+
+### 6.3 Política Canônica de Finance
+
+O cargo **`finance`** foi concebido para auditoria contábil, conciliação e visão consolidada de faturamento:
+- **Possui:** `view_financial_reports`, `view_unit_reports`, `view_payments`, `view_cash`, `view_team_commission`, `view_reconciliation`, `manage_reconciliation`, `view_fiscal`, `view_payment_provider`.
+- **NÃO Possui:** `view_team_orders`, `manage_team_orders`, `void_orders`, `approve_sensitive_actions`.
+- **Comportamento:** O usuário Finance não visualiza notas internas (`internalNotes`), metadados de eventos operacionais ou comandas individuais da equipe. Ele acessa agregações financeiras e relatórios analíticos, mantendo a segregação de deveres (SoD) recomendada para o motor financeiro **PS8 — Financial Operations**.
+

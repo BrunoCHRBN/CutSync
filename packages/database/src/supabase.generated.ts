@@ -7,11 +7,6 @@
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -756,20 +751,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barber_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_barbershop_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "appointments_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -781,6 +762,20 @@ export type Database = {
             columns: ["establishment_client_id"]
             isOneToOne: false
             referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1032,6 +1027,7 @@ export type Database = {
           establishment_id: string
           fiscal_address: Json
           id: string
+          legal_entity_id: string | null
           municipal_registration: string | null
           operationally_activated_at: string | null
           owner_resolution_status: string
@@ -1051,6 +1047,7 @@ export type Database = {
           establishment_id: string
           fiscal_address?: Json
           id?: string
+          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -1070,6 +1067,7 @@ export type Database = {
           establishment_id?: string
           fiscal_address?: Json
           id?: string
+          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -1094,6 +1092,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: true
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_accounts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
@@ -2861,7 +2866,7 @@ export type Database = {
           professional_pix_allowed: boolean
           published_at: string | null
           review_count: number
-          share_agendas: boolean | null
+          share_agendas: boolean
           slogan: string | null
           slug: string
           timezone: string
@@ -2907,7 +2912,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean | null
+          share_agendas?: boolean
           slogan?: string | null
           slug: string
           timezone?: string
@@ -2953,7 +2958,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean | null
+          share_agendas?: boolean
           slogan?: string | null
           slug?: string
           timezone?: string
@@ -5188,21 +5193,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "barber_services_barber_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "barber_services_barbershop_id_fkey"
+            foreignKeyName: "professional_services_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "barber_services_service_id_fkey"
+            foreignKeyName: "professional_services_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_services_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
@@ -5234,14 +5239,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profile_barbershops_barbershop_id_fkey"
+            foreignKeyName: "profile_establishments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profile_barbershops_profile_id_fkey"
+            foreignKeyName: "profile_establishments_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -5307,7 +5312,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          commission_rate: number | null
+          commission_rate: number
           created_at: string
           deleted_at: string | null
           email: string
@@ -5330,7 +5335,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          commission_rate?: number | null
+          commission_rate?: number
           created_at?: string
           deleted_at?: string | null
           email: string
@@ -5353,7 +5358,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          commission_rate?: number | null
+          commission_rate?: number
           created_at?: string
           deleted_at?: string | null
           email?: string
@@ -5376,7 +5381,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_barbershop_id_fkey"
+            foreignKeyName: "profiles_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -5996,7 +6001,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "services_barbershop_id_fkey"
+            foreignKeyName: "services_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -7170,17 +7175,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barber_id_fkey"
-            columns: ["projected_professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_barbershop_id_fkey"
+            foreignKeyName: "appointments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["projected_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -7198,7 +7203,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barbershop_id_fkey"
+            foreignKeyName: "appointments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -7486,7 +7491,6 @@ export type Database = {
         Returns: boolean
       }
       can_read_control_live: { Args: never; Returns: boolean }
-      can_upload_professional_gallery_image: { Args: never; Returns: boolean }
       can_use_establishment_feature: {
         Args: { target_establishment_id: string; target_feature: string }
         Returns: boolean
@@ -7509,10 +7513,6 @@ export type Database = {
       can_view_profile: {
         Args: { target_profile_id: string }
         Returns: boolean
-      }
-      cancel_appointment: {
-        Args: { reason: string; target_appointment_id: string }
-        Returns: undefined
       }
       cancel_business_appointment: {
         Args: {
@@ -7627,10 +7627,6 @@ export type Database = {
       compare_mobile_semver: {
         Args: { left_version: string; right_version: string }
         Returns: number
-      }
-      complete_appointment: {
-        Args: { target_appointment_id: string }
-        Returns: undefined
       }
       complete_business_appointment: {
         Args: {
@@ -7781,10 +7777,6 @@ export type Database = {
           target_role: string
         }
         Returns: Json
-      }
-      confirm_appointment: {
-        Args: { target_appointment_id: string }
-        Returns: undefined
       }
       confirm_business_appointment: {
         Args: {
@@ -9051,14 +9043,6 @@ export type Database = {
           invitation_token: string
         }[]
       }
-      is_active_establishment_professional: {
-        Args: { target_establishment_id: string; target_profile_id: string }
-        Returns: boolean
-      }
-      is_active_establishment_service: {
-        Args: { target_establishment_id: string; target_service_id: string }
-        Returns: boolean
-      }
       is_business_administrator: {
         Args: { require_full_access?: boolean; target_establishment_id: string }
         Returns: boolean
@@ -9578,7 +9562,6 @@ export type Database = {
           requirements: Json
         }[]
       }
-      pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
       purge_expired_support_content: {
         Args: { target_limit?: number; target_now?: string }
         Returns: number
@@ -9587,7 +9570,6 @@ export type Database = {
         Args: { target_profile_id: string }
         Returns: number
       }
-      push_changes: { Args: { changes: Json }; Returns: undefined }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
@@ -10649,3 +10631,4 @@ export const Constants = {
     },
   },
 } as const
+

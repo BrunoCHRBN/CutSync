@@ -408,6 +408,15 @@ BEGIN
     'forbidden'
   );
 
+  -- 4.6 Admin reopen -> ALLOWED (Admin template holds void_orders + manage_team_orders + approve_sensitive_actions)
+  PERFORM pg_temp.set_so_actor(admin_user_id);
+  order_receipt := public.reopen_voided_service_order(
+    unit_a_id, order_void_target_id, 4, 'Reopened by admin', gen_random_uuid()
+  );
+  IF order_receipt->>'status' <> 'open' THEN
+    RAISE EXCEPTION 'Test 4.6 Failed: Admin reopening order failed, got %', order_receipt;
+  END IF;
+
   -- =========================================================================
   -- TEST GROUP 5: FINANCE
   -- =========================================================================
