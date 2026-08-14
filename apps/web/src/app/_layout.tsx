@@ -101,7 +101,14 @@ function RootLayoutNavigation() {
       }
       if (isRestricted) {
         if (access?.access_mode === 'full') {
-          router.replace(access.membership_role === 'admin' ? '/(admin)' : '/(professional)');
+          const operationalSurface = resolveWebOperationalSurface(activeContext);
+          if (operationalSurface === 'admin') {
+            router.replace('/(admin)');
+          } else if (operationalSurface === 'professional') {
+            router.replace('/(professional)');
+          } else {
+            router.replace('/(client)');
+          }
         }
         return;
       }

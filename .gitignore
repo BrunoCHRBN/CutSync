@@ -3,18 +3,24 @@
 # dependencies
 node_modules/
 
-# Expo
+# Expo & Build Artifacts
 .expo/
 dist/
-dist-phase*-check/
+dist-*/
+dist-phase*/
+**/dist-*/
 web-build/
 expo-env.d.ts
+.tmp/
+.codex-remote-attachments/
+*.apk
+*.aab
+*.hbc
 
 # Native
 .kotlin/
 *.orig.*
 *.jks
-*.p8
 *.p12
 *.key
 *.mobileprovision

@@ -10,6 +10,13 @@ export function RestrictedBusinessExperience() {
   const router = useRouter();
   const { signOut } = useAuth();
   const { access, connectionError, loading, refresh } = useBillingAccess();
+  const canManageBilling = Boolean(
+    access && (
+      access.billing_owner ||
+      ['owner', 'finance', 'billing_owner'].includes(access.payer_role ?? '')
+    )
+  );
+
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
@@ -24,10 +31,9 @@ export function RestrictedBusinessExperience() {
           : 'O responsável financeiro do estabelecimento precisa regularizar a conta.'}</Text>
         {connectionError ? <Text style={styles.error}>Sem conexão para confirmar a situação agora.</Text> : null}
         <View style={styles.actions}>
-          {access && (access.billing_owner || ['owner', 'finance'].includes(access.payer_role ?? ''))
-            && access.membership_role === 'admin'
-            ? <AppButton label="Ver cobrança" onPress={() => router.push('/(admin)/billing')} />
-            : null}
+          {canManageBilling ? (
+            <AppButton label="Ver cobrança" onPress={() => router.push('/(admin)/billing')} />
+          ) : null}
           <AppButton label="Verificar novamente" variant="secondary" loading={loading} onPress={() => void refresh()} />
           <AppButton label="Sair" variant="ghost" onPress={() => void signOut()} />
         </View>
