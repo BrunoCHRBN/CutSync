@@ -92,6 +92,12 @@ BEGIN
   ) THEN RAISE EXCEPTION 'unsupported_professional_field'; END IF;
 
   IF updates ? 'commission_rate' THEN
+    IF NOT public.has_business_capability(target_establishment_id, 'manage_commission_policies')
+      AND NOT public.is_superadmin()
+    THEN
+      RAISE EXCEPTION 'forbidden';
+    END IF;
+
     new_commission := (updates->>'commission_rate')::numeric;
     IF new_commission < 0 OR new_commission > 1 THEN RAISE EXCEPTION 'invalid_commission'; END IF;
     UPDATE public.memberships SET commission_rate = new_commission, updated_at = now()
@@ -495,57 +501,229 @@ BEGIN
     target_establishment_id, previous_range_start, previous_range_end, target_professional_id
   );
 
-  summary := public.admin_report_summary(
-    target_establishment_id, range_starts_at, range_ends_at, target_timezone,
-    available_minutes, target_professional_id, target_service_id, target_status
-  );
-  previous_summary := public.admin_report_summary(
-    target_establishment_id, previous_starts_at, previous_ends_at, target_timezone,
-    previous_available_minutes, target_professional_id, target_service_id, target_status
-  );
-  daily_series := public.admin_report_daily_series(
-    target_establishment_id, target_range_start, target_range_end, target_timezone,
-    target_professional_id, target_service_id, target_status
-  );
-  hourly_demand := public.admin_report_hourly_demand(
-    target_establishment_id, range_starts_at, range_ends_at, target_timezone,
-    target_professional_id, target_service_id, target_status
-  );
-  services := public.admin_report_services(
-    target_establishment_id, range_starts_at, range_ends_at,
-    target_professional_id, target_status
-  );
-  professionals := public.admin_report_professionals(
-    target_establishment_id, range_starts_at, range_ends_at,
-    target_service_id, target_status
-  );
-  cancellations := public.admin_report_cancellations(
-    target_establishment_id, range_starts_at, range_ends_at,
-    target_professional_id, target_service_id
-  );
-  clients := public.admin_report_clients(
-    target_establishment_id, range_starts_at, range_ends_at,
-    target_professional_id, target_service_id, target_status
-  );
+  WITH filtered AS (
+    SELECT appointment.*, service.price
+    FROM public.appointments appointment
+    LEFT JOIN public.services service ON service.id = appointment.service_id
+    WHERE appointment.establishment_id = target_establishment_id
+      AND appointment.deleted_at IS NULL
+      AND appointment.date_time >= range_starts_at
+      AND appointment.date_time < range_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+  )
+  SELECT jsonb_build_object(
+    'production_realized', COALESCE(sum(price) FILTER (WHERE status = 'completed'), 0),
+    'scheduled_value', COALESCE(sum(price) FILTER (WHERE status IN ('pending', 'confirmed')), 0),
+    'average_ticket', COALESCE(sum(price) FILTER (WHERE status = 'completed') / NULLIF(count(*) FILTER (WHERE status = 'completed'), 0), 0),
+    'occupancy_rate', CASE WHEN available_minutes > 0 THEN LEAST(round(COALESCE(sum(duration_minutes) FILTER (WHERE status <> 'cancelled'), 0) * 100.0 / available_minutes, 1), 100) ELSE 0 END,
+    'occupied_minutes', COALESCE(sum(duration_minutes) FILTER (WHERE status <> 'cancelled'), 0),
+    'available_minutes', available_minutes,
+    'idle_minutes', GREATEST(available_minutes - COALESCE(sum(duration_minutes) FILTER (WHERE status <> 'cancelled'), 0), 0),
+    'completed_count', count(*) FILTER (WHERE status = 'completed'),
+    'cancelled_count', count(*) FILTER (WHERE status = 'cancelled'),
+    'pending_count', count(*) FILTER (WHERE status = 'pending'),
+    'confirmed_count', count(*) FILTER (WHERE status = 'confirmed'),
+    'active_count', count(*) FILTER (WHERE status IN ('pending', 'confirmed'))
+  ) INTO summary FROM filtered;
+
+  WITH filtered AS (
+    SELECT appointment.*, service.price
+    FROM public.appointments appointment
+    LEFT JOIN public.services service ON service.id = appointment.service_id
+    WHERE appointment.establishment_id = target_establishment_id
+      AND appointment.deleted_at IS NULL
+      AND appointment.date_time >= previous_starts_at
+      AND appointment.date_time < previous_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+  )
+  SELECT jsonb_build_object(
+    'production_realized', COALESCE(sum(price) FILTER (WHERE status = 'completed'), 0),
+    'scheduled_value', COALESCE(sum(price) FILTER (WHERE status IN ('pending', 'confirmed')), 0),
+    'average_ticket', COALESCE(sum(price) FILTER (WHERE status = 'completed') / NULLIF(count(*) FILTER (WHERE status = 'completed'), 0), 0),
+    'occupancy_rate', CASE WHEN previous_available_minutes > 0 THEN LEAST(round(COALESCE(sum(duration_minutes) FILTER (WHERE status <> 'cancelled'), 0) * 100.0 / previous_available_minutes, 1), 100) ELSE 0 END,
+    'occupied_minutes', COALESCE(sum(duration_minutes) FILTER (WHERE status <> 'cancelled'), 0),
+    'available_minutes', previous_available_minutes,
+    'idle_minutes', GREATEST(previous_available_minutes - COALESCE(sum(duration_minutes) FILTER (WHERE status <> 'cancelled'), 0), 0),
+    'completed_count', count(*) FILTER (WHERE status = 'completed'),
+    'cancelled_count', count(*) FILTER (WHERE status = 'cancelled'),
+    'pending_count', count(*) FILTER (WHERE status = 'pending'),
+    'confirmed_count', count(*) FILTER (WHERE status = 'confirmed'),
+    'active_count', count(*) FILTER (WHERE status IN ('pending', 'confirmed'))
+  ) INTO previous_summary FROM filtered;
+
+  WITH days AS (
+    SELECT generate_series(target_range_start, target_range_end, interval '1 day')::date AS day
+  ), filtered AS (
+    SELECT appointment.*, service.price, (appointment.date_time AT TIME ZONE target_timezone)::date AS local_day
+    FROM public.appointments appointment
+    LEFT JOIN public.services service ON service.id = appointment.service_id
+    WHERE appointment.establishment_id = target_establishment_id
+      AND appointment.deleted_at IS NULL
+      AND appointment.date_time >= range_starts_at
+      AND appointment.date_time < range_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+  ), day_rows AS (
+    SELECT days.day,
+      COALESCE(sum(filtered.price) FILTER (WHERE filtered.status = 'completed'), 0) AS production_realized,
+      COALESCE(sum(filtered.price) FILTER (WHERE filtered.status IN ('pending', 'confirmed')), 0) AS scheduled_value,
+      COALESCE(sum(filtered.duration_minutes) FILTER (WHERE filtered.status <> 'cancelled'), 0) AS occupied_minutes,
+      public.admin_report_available_minutes(target_establishment_id, days.day, days.day, target_professional_id) AS day_available_minutes,
+      count(filtered.id) FILTER (WHERE filtered.status = 'completed') AS completed_count,
+      count(filtered.id) FILTER (WHERE filtered.status = 'cancelled') AS cancelled_count,
+      count(filtered.id) FILTER (WHERE filtered.status <> 'cancelled') AS appointment_count
+    FROM days LEFT JOIN filtered ON filtered.local_day = days.day
+    GROUP BY days.day
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'date', day_rows.day,
+    'production_realized', day_rows.production_realized,
+    'scheduled_value', day_rows.scheduled_value,
+    'occupied_minutes', day_rows.occupied_minutes,
+    'available_minutes', day_rows.day_available_minutes,
+    'occupancy_rate', CASE
+      WHEN day_rows.day_available_minutes > 0
+      THEN LEAST(round(day_rows.occupied_minutes * 100.0 / day_rows.day_available_minutes, 1), 100)
+      ELSE 0 END,
+    'completed_count', day_rows.completed_count,
+    'cancelled_count', day_rows.cancelled_count,
+    'appointment_count', day_rows.appointment_count
+  ) ORDER BY day_rows.day), '[]'::jsonb)
+  INTO daily_series
+  FROM day_rows;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(hour_report) ORDER BY hour_report.day_of_week, hour_report.hour), '[]'::jsonb)
+  INTO hourly_demand
+  FROM (
+    SELECT extract(dow FROM appointment.date_time AT TIME ZONE target_timezone)::integer AS day_of_week,
+      extract(hour FROM appointment.date_time AT TIME ZONE target_timezone)::integer AS hour,
+      count(*) AS appointment_count
+    FROM public.appointments appointment
+    WHERE appointment.establishment_id = target_establishment_id
+      AND appointment.deleted_at IS NULL AND appointment.status <> 'cancelled'
+      AND appointment.date_time >= range_starts_at AND appointment.date_time < range_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+    GROUP BY 1, 2
+  ) hour_report;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(service_report) ORDER BY service_report.production_realized DESC, service_report.appointment_count DESC), '[]'::jsonb)
+  INTO services
+  FROM (
+    SELECT service.id, service.name,
+      count(appointment.id) FILTER (WHERE appointment.status <> 'cancelled') AS appointment_count,
+      count(appointment.id) FILTER (WHERE appointment.status = 'completed') AS completed_count,
+      count(appointment.id) FILTER (WHERE appointment.status = 'cancelled') AS cancelled_count,
+      COALESCE(sum(service.price) FILTER (WHERE appointment.status = 'completed'), 0) AS production_realized,
+      COALESCE(sum(service.price) FILTER (WHERE appointment.status = 'completed') / NULLIF(count(appointment.id) FILTER (WHERE appointment.status = 'completed'), 0), 0) AS average_ticket,
+      COALESCE(round(avg(appointment.duration_minutes) FILTER (WHERE appointment.status <> 'cancelled')), 0) AS average_duration_minutes,
+      COALESCE(round(count(appointment.id) FILTER (WHERE appointment.status <> 'cancelled') * 100.0
+        / NULLIF(sum(count(appointment.id) FILTER (WHERE appointment.status <> 'cancelled')) OVER (), 0), 1), 0) AS demand_share
+    FROM public.services service
+    LEFT JOIN public.appointments appointment ON appointment.service_id = service.id
+      AND appointment.establishment_id = target_establishment_id AND appointment.deleted_at IS NULL
+      AND appointment.date_time >= range_starts_at AND appointment.date_time < range_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+    WHERE service.establishment_id = target_establishment_id
+      AND (target_service_id IS NULL OR service.id = target_service_id)
+    GROUP BY service.id, service.name
+  ) service_report;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(professional_report) ORDER BY professional_report.production_realized DESC, professional_report.name), '[]'::jsonb)
+  INTO professionals
+  FROM (
+    SELECT profile.id, profile.name, membership.commission_rate,
+      count(appointment.id) FILTER (WHERE appointment.status <> 'cancelled') AS appointment_count,
+      count(appointment.id) FILTER (WHERE appointment.status = 'completed') AS completed_count,
+      count(appointment.id) FILTER (WHERE appointment.status = 'cancelled') AS cancelled_count,
+      COALESCE(sum(service.price) FILTER (WHERE appointment.status = 'completed'), 0) AS production_realized,
+      COALESCE(sum(service.price) FILTER (WHERE appointment.status = 'completed'), 0) * membership.commission_rate AS commission_amount,
+      COALESCE(round(COALESCE(sum(service.price) FILTER (WHERE appointment.status = 'completed'), 0) * 100.0
+        / NULLIF(sum(COALESCE(sum(service.price) FILTER (WHERE appointment.status = 'completed'), 0)) OVER (), 0), 1), 0) AS production_share,
+      public.admin_report_available_minutes(target_establishment_id, target_range_start, target_range_end, profile.id) AS available_minutes,
+      COALESCE(sum(appointment.duration_minutes) FILTER (WHERE appointment.status <> 'cancelled'), 0) AS occupied_minutes,
+      CASE WHEN public.admin_report_available_minutes(target_establishment_id, target_range_start, target_range_end, profile.id) > 0
+        THEN LEAST(round(COALESCE(sum(appointment.duration_minutes) FILTER (WHERE appointment.status <> 'cancelled'), 0) * 100.0
+          / public.admin_report_available_minutes(target_establishment_id, target_range_start, target_range_end, profile.id), 1), 100)
+        ELSE 0 END AS occupancy_rate
+    FROM public.memberships membership
+    JOIN public.profiles profile ON profile.id = membership.profile_id AND profile.deleted_at IS NULL
+    LEFT JOIN public.appointments appointment ON appointment.professional_id = profile.id
+      AND appointment.establishment_id = target_establishment_id AND appointment.deleted_at IS NULL
+      AND appointment.date_time >= range_starts_at AND appointment.date_time < range_ends_at
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+    LEFT JOIN public.services service ON service.id = appointment.service_id
+    WHERE membership.establishment_id = target_establishment_id
+      AND membership.status = 'active' AND membership.role IN ('professional', 'admin')
+      AND (target_professional_id IS NULL OR profile.id = target_professional_id)
+    GROUP BY profile.id, profile.name, membership.commission_rate
+  ) professional_report;
+
+  SELECT jsonb_build_object(
+    'total', COALESCE(sum(count), 0),
+    'by_reason', COALESCE(jsonb_agg(jsonb_build_object('reason', reason, 'count', count) ORDER BY count DESC, reason), '[]'::jsonb),
+    'by_role', '[]'::jsonb
+  ) INTO cancellations
+  FROM (
+    SELECT COALESCE(NULLIF(trim(appointment.cancellation_reason), ''), 'Não informado') AS reason, count(*) AS count
+    FROM public.appointments appointment
+    WHERE appointment.establishment_id = target_establishment_id AND appointment.deleted_at IS NULL
+      AND appointment.status = 'cancelled'
+      AND appointment.date_time >= range_starts_at AND appointment.date_time < range_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+    GROUP BY 1
+  ) cancellation_report;
+
+  WITH completed_clients AS (
+    SELECT DISTINCT appointment.client_id
+    FROM public.appointments appointment
+    WHERE appointment.establishment_id = target_establishment_id AND appointment.deleted_at IS NULL
+      AND appointment.status = 'completed' AND appointment.client_id IS NOT NULL
+      AND appointment.date_time >= range_starts_at AND appointment.date_time < range_ends_at
+      AND (target_professional_id IS NULL OR appointment.professional_id = target_professional_id)
+      AND (target_service_id IS NULL OR appointment.service_id = target_service_id)
+      AND (target_status IS NULL OR appointment.status = target_status)
+  ), classified AS (
+    SELECT client_id, EXISTS (
+      SELECT 1 FROM public.appointments previous
+      WHERE previous.establishment_id = target_establishment_id AND previous.deleted_at IS NULL
+        AND previous.status = 'completed' AND previous.client_id = completed_clients.client_id
+        AND previous.date_time < range_starts_at
+    ) AS is_returning
+    FROM completed_clients
+  )
+  SELECT jsonb_build_object(
+    'identified_clients', count(*),
+    'new_clients', count(*) FILTER (WHERE NOT is_returning),
+    'returning_clients', count(*) FILTER (WHERE is_returning),
+    'return_rate', COALESCE(round(count(*) FILTER (WHERE is_returning) * 100.0 / NULLIF(count(*), 0), 1), 0),
+    'walk_in_appointments', (
+      SELECT count(*) FROM public.appointments walk_in
+      WHERE walk_in.establishment_id = target_establishment_id AND walk_in.deleted_at IS NULL
+        AND walk_in.status = 'completed' AND walk_in.client_id IS NULL
+        AND walk_in.date_time >= range_starts_at AND walk_in.date_time < range_ends_at
+        AND (target_professional_id IS NULL OR walk_in.professional_id = target_professional_id)
+        AND (target_service_id IS NULL OR walk_in.service_id = target_service_id)
+        AND (target_status IS NULL OR walk_in.status = target_status)
+    )
+  ) INTO clients FROM classified;
 
   RETURN jsonb_build_object(
-    'establishment_id', target_establishment_id,
-    'range_start', target_range_start,
-    'range_end', target_range_end,
-    'timezone', target_timezone,
-    'filters', jsonb_build_object(
-      'professional_id', target_professional_id,
-      'service_id', target_service_id,
-      'status', target_status
-    ),
-    'summary', summary,
-    'comparison_summary', previous_summary,
-    'daily_series', daily_series,
-    'hourly_demand', hourly_demand,
-    'services', services,
-    'professionals', professionals,
-    'cancellations', cancellations,
-    'clients', clients
+    'period', jsonb_build_object('start', target_range_start, 'end', target_range_end, 'days', day_count,
+      'previous_start', previous_range_start, 'previous_end', previous_range_end, 'timezone', target_timezone),
+    'summary', summary, 'previous_summary', previous_summary, 'daily_series', daily_series,
+    'hourly_demand', hourly_demand, 'services', services, 'professionals', professionals,
+    'cancellations', cancellations, 'clients', clients, 'generated_at', now()
   );
 END;
 $function$;

@@ -80,12 +80,17 @@ BEGIN
     )
     RETURNING * INTO request_row;
 
-    INSERT INTO public.governance_audit_log (
-      actor_id, target_entity, target_id, action, state_before, state_after
+    INSERT INTO public.security_audit_logs (
+      actor_id,
+      action,
+      target_id,
+      target_type,
+      changes
     ) VALUES (
-      caller_id, 'profiles', caller_id,
-      'privacy_deletion_requested',
-      '{}'::jsonb,
+      caller_id,
+      'client.account_deletion.requested',
+      caller_id,
+      'profiles',
       jsonb_build_object('request_id', request_row.id, 'status', request_row.status)
     );
   END IF;

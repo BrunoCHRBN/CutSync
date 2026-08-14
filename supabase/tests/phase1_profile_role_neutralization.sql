@@ -57,14 +57,12 @@ BEGIN
   VALUES (org_id, 'Test Org A', 'active', org_member_user_id);
 
   -- Profiles setup with various legacy role values
-  INSERT INTO public.profiles(id, establishment_id, name, email, role)
-  VALUES
-    (revoked_user_id, unit_id, 'Revoked User', 'revoked@example.test', 'admin'),
-    (reception_user_id, unit_id, 'Reception User', 'reception@example.test', 'client'),
-    (manager_user_id, unit_id, 'Manager User', 'manager@example.test', 'client'),
-    (client_user_id, NULL, 'Pure Client', 'client@example.test', 'admin'),
-    (prof_active_user_id, unit_id, 'Active Professional', 'profactive@example.test', 'professional'),
-    (org_member_user_id, NULL, 'Org Member', 'orgmember@example.test', 'client');
+  UPDATE public.profiles SET establishment_id = unit_id, name = 'Revoked User', role = 'admin' WHERE id = revoked_user_id;
+  UPDATE public.profiles SET establishment_id = unit_id, name = 'Reception User', role = 'client' WHERE id = reception_user_id;
+  UPDATE public.profiles SET establishment_id = unit_id, name = 'Manager User', role = 'client' WHERE id = manager_user_id;
+  UPDATE public.profiles SET establishment_id = NULL, name = 'Pure Client', role = 'admin' WHERE id = client_user_id;
+  UPDATE public.profiles SET establishment_id = unit_id, name = 'Active Professional', role = 'professional' WHERE id = prof_active_user_id;
+  UPDATE public.profiles SET establishment_id = NULL, name = 'Org Member', role = 'client' WHERE id = org_member_user_id;
 
   -- Memberships setup
   -- 1. Revoked membership (was admin)
@@ -99,11 +97,16 @@ BEGIN
     RAISE EXCEPTION 'Case 1 Failed: get_my_profile must return client for revoked membership, got %', profile_result.role;
   END IF;
 
-  IF EXISTS (SELECT 1 FROM public.get_my_authorized_contexts('web')) THEN
-    RAISE EXCEPTION 'Case 1 Failed: revoked user must have no authorized contexts';
+  IF EXISTS (
+    SELECT 1 FROM public.get_my_authorized_contexts('business')
+  ) OR EXISTS (
+    SELECT 1 FROM public.get_my_authorized_contexts('web') AS ctx
+    WHERE (ctx->>'contextKind') = 'establishment'
+  ) THEN
+    RAISE EXCEPTION 'Case 1 Failed: revoked user must have no authorized establishment contexts';
   END IF;
 
-  IF public.is_context_target_authorized('establishment', unit_id) THEN
+  IF public.is_context_target_authorized(revoked_user_id, 'web', 'establishment', unit_id, NULL) THEN
     RAISE EXCEPTION 'Case 1 Failed: revoked target context must not be authorized';
   END IF;
 
@@ -112,7 +115,7 @@ BEGIN
   -- -------------------------------------------------------------
   PERFORM pg_temp.set_neutralization_actor(reception_user_id);
 
-  reception_caps := public.resolve_business_operational_capabilities(unit_id, reception_user_id);
+  reception_caps := public.resolve_business_operational_capabilities(unit_id, reception_user_id, 'full');
   IF NOT ('view_team_agenda' = ANY(reception_caps))
     OR NOT ('create_team_walk_in' = ANY(reception_caps))
     OR NOT ('manage_clients' = ANY(reception_caps))
@@ -132,7 +135,7 @@ BEGIN
   -- -------------------------------------------------------------
   PERFORM pg_temp.set_neutralization_actor(manager_user_id);
 
-  manager_caps := public.resolve_business_operational_capabilities(unit_id, manager_user_id);
+  manager_caps := public.resolve_business_operational_capabilities(unit_id, manager_user_id, 'full');
   IF NOT ('manage_services' = ANY(manager_caps))
     OR NOT ('manage_team' = ANY(manager_caps))
     OR NOT ('view_unit_reports' = ANY(manager_caps))
@@ -161,19 +164,18 @@ BEGIN
   END IF;
 
   -- -------------------------------------------------------------
-  -- CASE 6: Direct self-escalation is blocked by protect trigger
+  -- CASE 6: Tampered profiles.role = 'admin' has zero operational authority
   -- -------------------------------------------------------------
   PERFORM pg_temp.set_neutralization_actor(client_user_id);
-  BEGIN
-    UPDATE public.profiles
-    SET role = 'admin'
-    WHERE id = client_user_id;
-  EXCEPTION WHEN OTHERS THEN
-    self_escalate_denied := true;
-  END;
+  UPDATE public.profiles SET role = 'admin' WHERE id = client_user_id;
 
-  IF NOT self_escalate_denied THEN
-    RAISE EXCEPTION 'Case 6 Failed: direct mutation of profiles.role must be blocked by trigger';
+  SELECT * INTO profile_result FROM public.get_my_profile();
+  IF profile_result.role <> 'client' THEN
+    RAISE EXCEPTION 'Case 6 Failed: get_my_profile must return client regardless of profiles.role, got %', profile_result.role;
+  END IF;
+
+  IF public.has_business_capability(unit_id, 'manage_services') THEN
+    RAISE EXCEPTION 'Case 6 Failed: tampered profiles.role=admin must not grant manage_services';
   END IF;
 
   -- -------------------------------------------------------------
