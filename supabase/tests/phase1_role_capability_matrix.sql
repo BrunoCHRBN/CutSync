@@ -158,7 +158,7 @@ BEGIN
       WHEN 'cashier' THEN
         IF NOT ('take_payments' = ANY(capabilities))
           OR NOT ('view_team_orders' = ANY(capabilities))
-          OR NOT ('manage_team_orders' = ANY(capabilities))
+          OR 'manage_team_orders' = ANY(capabilities)
           OR 'void_orders' = ANY(capabilities)
           OR 'manage_services' = ANY(capabilities)
         THEN RAISE EXCEPTION 'cashier capabilities invalid: %', capabilities;

@@ -346,11 +346,38 @@ BEGIN
     RAISE EXCEPTION 'Test 3.2 Failed: Cashier should see team orders';
   END IF;
 
-  -- 3.3 Void order -> FORBIDDEN (Cashier holds void_payments, NOT void_orders)
+  -- 3.3 Mutation on order (start service order) -> FORBIDDEN (Cashier lacks manage_team_orders)
+  PERFORM pg_temp.expect_so_error(
+    format(
+      'SELECT public.start_service_order(%L::uuid, %L::uuid, 1::bigint, %L::uuid)',
+      unit_a_id, order_pro_b_id, gen_random_uuid()
+    ),
+    'forbidden'
+  );
+
+  -- 3.4 Mutation on order (add item) -> FORBIDDEN (Cashier lacks manage_team_orders)
+  PERFORM pg_temp.expect_so_error(
+    format(
+      'SELECT public.upsert_service_order_item(%L::uuid, %L::uuid, 1::bigint, %L::uuid, NULL::uuid, %L, %L::uuid, %L, 1, 0::bigint, 3000::bigint)',
+      unit_a_id, order_pro_b_id, gen_random_uuid(), 'srv-1', prof_b_id, 'Cashier item add'
+    ),
+    'forbidden'
+  );
+
+  -- 3.5 Void order -> FORBIDDEN (Cashier holds void_payments, NOT void_orders)
   PERFORM pg_temp.expect_so_error(
     format(
       'SELECT public.void_service_order(%L::uuid, %L::uuid, 2, %L, %L::uuid)',
       unit_a_id, order_pro_a_id, 'Cashier void attempt', gen_random_uuid()
+    ),
+    'forbidden'
+  );
+
+  -- 3.6 Reopen voided order -> FORBIDDEN (Cashier lacks void_orders and approve_sensitive_actions)
+  PERFORM pg_temp.expect_so_error(
+    format(
+      'SELECT public.reopen_voided_service_order(%L::uuid, %L::uuid, 2, %L, %L::uuid)',
+      unit_a_id, order_void_target_id, 'Cashier reopen attempt', gen_random_uuid()
     ),
     'forbidden'
   );

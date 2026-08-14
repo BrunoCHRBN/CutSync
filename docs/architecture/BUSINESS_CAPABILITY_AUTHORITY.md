@@ -62,12 +62,12 @@ RETURNS boolean
 
 | Cargo (`role_template`) | Capabilities Operacionais Principais | Capabilities Proibidas (Negadas) |
 | :--- | :--- | :--- |
-| **`admin`** | `manage_services`, `manage_team`, `manage_admins`, `view_unit_reports`, `manage_operational_settings`, `manage_team_blocks`, `create_team_walk_in`, `view_clients`, `manage_clients` | *(Nenhuma dentro do escopo da unidade)* |
-| **`manager`** | `manage_services`, `manage_team`, `view_unit_reports`, `manage_team_blocks`, `create_team_walk_in`, `view_clients`, `manage_clients` | `manage_admins` *(somente admin/owner pode gerenciar administradores)* |
-| **`reception`** | `create_team_walk_in`, `manage_clients`, `view_clients`, `view_team_agenda` | `manage_services`, `manage_team`, `manage_admins`, `manage_operational_settings` |
-| **`cashier`** | `view_orders`, `manage_own_orders`, `take_payments`, `view_cash` | `manage_services`, `manage_team`, `manage_admins` |
-| **`finance`** | `view_financial_reports`, `view_unit_reports`, `view_team_commission`, `view_payments` | `manage_team`, `manage_services`, `manage_operational_settings` |
-| **`professional`** | `view_own_agenda`, `manage_own_blocks`, `create_self_walk_in`, `view_services`, `view_own_commission` | `manage_services`, `manage_team`, `manage_admins`, `manage_team_blocks`, `view_unit_reports` |
+| **`admin`** | `manage_services`, `manage_team`, `manage_admins`, `view_unit_reports`, `manage_operational_settings`, `manage_team_blocks`, `create_team_walk_in`, `view_clients`, `manage_clients`, `approve_sensitive_actions` | *(Nenhuma dentro do escopo da unidade)* |
+| **`manager`** | `manage_services`, `manage_team`, `view_unit_reports`, `manage_team_blocks`, `create_team_walk_in`, `view_clients`, `manage_clients`, `approve_sensitive_actions` | `manage_admins`, `manage_payment_provider` |
+| **`reception`** | `create_team_walk_in`, `manage_clients`, `view_clients`, `view_team_agenda`, `view_orders`, `view_team_orders`, `manage_team_orders` | `manage_services`, `manage_team`, `manage_admins`, `manage_operational_settings`, `take_payments`, `void_orders` |
+| **`cashier`** | `view_orders`, `view_team_orders`, `view_payments`, `take_payments`, `void_payments`, `view_cash`, `operate_cash`, `close_cash` | `manage_services`, `manage_team`, `manage_admins`, `manage_team_orders`, `manage_own_orders`, `void_orders`, `approve_sensitive_actions` |
+| **`finance`** | `view_financial_reports`, `view_unit_reports`, `view_team_commission`, `view_payments`, `view_cash`, `view_reconciliation`, `manage_reconciliation`, `view_fiscal`, `view_payment_provider` | `manage_team`, `manage_services`, `manage_operational_settings`, `view_team_orders`, `manage_team_orders`, `void_orders` |
+| **`professional`** | `view_own_agenda`, `manage_own_blocks`, `create_self_walk_in`, `view_services`, `view_own_commission`, `view_orders`, `manage_own_orders`, `view_payments` | `manage_services`, `manage_team`, `manage_admins`, `manage_team_blocks`, `view_unit_reports`, `view_team_orders`, `manage_team_orders`, `void_orders` |
 
 ---
 
@@ -79,7 +79,7 @@ RETURNS boolean
 
 ---
 
-## 6. Service Order Scope Policy (PS1-E1B.2)
+## 6. Service Order Scope Policy (PS1-E1B.2 & PS1-E1B.2.2)
 
 A governança do domínio de **Service Orders / Comandas** opera sob segregação estrita de escopo operacional, desacoplada de papéis legados (`owner`, `admin`, `membership.role`, `profiles.role`):
 
@@ -102,8 +102,9 @@ A governança do domínio de **Service Orders / Comandas** opera sob segregaçã
    - `read_only_allowed = false`.
 
 4. **`manage_team_orders` (Mutação da Equipe):**
-   - Permite mutações em comandas de qualquer profissional da equipe (ex: atendimento pela recepção ou caixa).
-   - Atribuída a `reception`, `cashier`, `manager` e `admin`.
+   - Permite mutações em comandas de qualquer profissional da equipe (ex: atendimento pela recepção).
+   - Atribuída a `reception`, `manager` e `admin`.
+   - **NÃO** é atribuída a `cashier` nem a `finance` (SoD estrita).
    - `read_only_allowed = false`.
 
 5. **`void_orders` (Anulação de Comanda):**
@@ -123,15 +124,26 @@ A governança do domínio de **Service Orders / Comandas** opera sob segregaçã
 | :--- | :--- | :--- |
 | **Read Próprio** | `view_orders` | `professional`, `reception`, `cashier`, `manager`, `admin`, `owner` |
 | **Read Equipe (Team Scope)** | `view_orders` + `view_team_orders` | `reception`, `cashier`, `manager`, `admin`, `owner` |
-| **Mutação Própria** | `manage_own_orders` (quando `target_professional = actor`) OU `manage_team_orders` | `professional`, `reception`, `cashier`, `manager`, `admin`, `owner` |
-| **Mutação Equipe** | `manage_team_orders` | `reception`, `cashier`, `manager`, `admin`, `owner` |
+| **Mutação Própria** | `manage_own_orders` (quando `target_professional = actor`) OU `manage_team_orders` | `professional`, `reception`, `manager`, `admin`, `owner` |
+| **Mutação Equipe** | `manage_team_orders` | `reception`, `manager`, `admin`, `owner` |
 | **Anulação (Void)** | `void_orders` | `manager`, `admin`, `owner` |
 | **Reabertura (Sensitive Mutation)** | `void_orders` + `manage_team_orders` + `approve_sensitive_actions` | `manager`, `admin`, `owner` |
 
-### 6.3 Política Canônica de Finance
+### 6.3 Segregação de Funções (SoD): Reception vs Cashier vs Finance
 
-O cargo **`finance`** foi concebido para auditoria contábil, conciliação e visão consolidada de faturamento:
-- **Possui:** `view_financial_reports`, `view_unit_reports`, `view_payments`, `view_cash`, `view_team_commission`, `view_reconciliation`, `manage_reconciliation`, `view_fiscal`, `view_payment_provider`.
-- **NÃO Possui:** `view_team_orders`, `manage_team_orders`, `void_orders`, `approve_sensitive_actions`.
-- **Comportamento:** O usuário Finance não visualiza notas internas (`internalNotes`), metadados de eventos operacionais ou comandas individuais da equipe. Ele acessa agregações financeiras e relatórios analíticos, mantendo a segregação de deveres (SoD) recomendada para o motor financeiro **PS8 — Financial Operations**.
+1. **Reception (Atendente / Balcão Operacional):**
+   - **Papel:** Operador de fluxo de atendimento da recepção.
+   - **Autoridade:** Abre comandas de clientes, adiciona itens/serviços durante o fluxo de atendimento, altera profissionais na comanda da equipe (`view_team_orders`, `manage_team_orders`, `manage_clients`, `create_team_walk_in`).
+   - **Restrição:** **NÃO** cobra pagamentos (`take_payments = false`), **NÃO** anula comandas (`void_orders = false`).
+
+2. **Cashier (Operador de Caixa / Pagamento):**
+   - **Papel:** Operador financeiro de caixa e recebimento.
+   - **Autoridade:** Localiza qualquer comanda da unidade para conferência e recebimento (`view_orders`, `view_team_orders`), processa pagamentos e estorno de pagamentos do turno (`take_payments`, `void_payments`), opera e fecha o livro de caixa (`view_cash`, `operate_cash`, `close_cash`).
+   - **Restrição:** **NÃO** altera itens, quantidades, valores ou status da comanda (`manage_team_orders = false`, `manage_own_orders = false`), **NÃO** anula comandas (`void_orders = false`).
+
+3. **Finance (Auditoria e Gestão Financeira):**
+   - **Papel:** Gestão contábil e conciliação financeira do estabelecimento.
+   - **Autoridade:** Acessa relatórios agregados de faturamento, conciliação e relatórios fiscais (`view_financial_reports`, `view_unit_reports`, `view_payments`, `view_cash`, `view_team_commission`, `view_reconciliation`, `manage_reconciliation`, `view_fiscal`, `view_payment_provider`).
+   - **Restrição:** **NÃO** acessa o escopo individual de comandas da equipe (`view_team_orders = false`), **NÃO** altera itens operacionais nem anula comandas (`manage_team_orders = false`, `void_orders = false`).
+
 
