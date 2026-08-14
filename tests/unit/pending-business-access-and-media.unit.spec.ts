@@ -25,7 +25,7 @@ test('provisions full billing access after the first pending establishment admin
 });
 
 test('keeps establishment media isolated by admin membership and full access', () => {
-  expect(migration).toContain("VALUES (\n  'banners'");
+  expect(migration).toMatch(/VALUES \(\r?\n\s+'banners'/);
   expect(migration).toContain('Establishment admins upload own brand media');
   expect(migration).toContain('Establishment admins update own brand media');
   expect(migration).toContain('Establishment admins delete own brand media');

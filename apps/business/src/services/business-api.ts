@@ -120,6 +120,20 @@ export interface BusinessApi {
     expectedVersion: number;
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
+  voidServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    reason: string;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
+  reopenVoidedServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    reason: string;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
   inspectInvitation: (token: string) => Promise<BusinessInvitationDetails>;
   acceptInvitation: (
     token: string,
@@ -392,6 +406,24 @@ export const createBusinessApi = (
     const client = requireClient(nullableClient);
     try {
       return await createServiceOrderApi(client).finishServiceOrder(input);
+    } catch (error) {
+      throw translateRpcError('service_order', error);
+    }
+  },
+
+  async voidServiceOrder(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createServiceOrderApi(client).voidServiceOrder(input);
+    } catch (error) {
+      throw translateRpcError('service_order', error);
+    }
+  },
+
+  async reopenVoidedServiceOrder(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createServiceOrderApi(client).reopenVoidedServiceOrder(input);
     } catch (error) {
       throw translateRpcError('service_order', error);
     }

@@ -18,9 +18,20 @@ const read = (relativePath: string) => fs
 const migration = read(
   'supabase/migrations/20260816000000_service_order_lifecycle_rpcs.sql',
 );
+const mobileSurfaceHardening = read(
+  'supabase/migrations/20260819001000_harden_mobile_public_surface.sql',
+);
 const sqlTest = read('supabase/tests/service_order_lifecycle_rpcs.sql');
 const generatedRpc = read('packages/database/src/business-rpc.generated.ts');
 const canonicalDoc = read('docs/architecture/FINANCIAL_OPERATIONAL_P0.md');
+
+test('close_service_order permanece fora da superfície mobile autenticada', () => {
+  expect(mobileSurfaceHardening).toContain(
+    'REVOKE ALL ON FUNCTION public.close_service_order(uuid, uuid, bigint, uuid)',
+  );
+  expect(mobileSurfaceHardening).toContain('FROM PUBLIC, anon, authenticated');
+  expect(mobileSurfaceHardening).toContain('TO service_role');
+});
 
 const lifecycleRpcs = [
   'open_service_order',

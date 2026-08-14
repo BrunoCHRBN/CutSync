@@ -148,7 +148,14 @@ BEGIN
     (owner_id, unit_a_id, 'Owner', 'so-owner@example.test', 'admin'),
     (pro_a_id, unit_a_id, 'Pro A', 'so-pro-a@example.test', 'professional'),
     (pro_b_id, unit_b_id, 'Pro B', 'so-pro-b@example.test', 'professional'),
-    (outsider_id, NULL, 'Outsider', 'so-outsider@example.test', 'client');
+    (outsider_id, NULL, 'Outsider', 'so-outsider@example.test', 'client')
+  ON CONFLICT (id) DO UPDATE
+  SET establishment_id = EXCLUDED.establishment_id,
+      name = EXCLUDED.name,
+      email = EXCLUDED.email,
+      role = EXCLUDED.role,
+      deleted_at = NULL,
+      updated_at = now();
 
   INSERT INTO public.memberships(
     profile_id, establishment_id, role, status, commission_rate, created_by

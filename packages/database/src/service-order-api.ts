@@ -141,6 +141,20 @@ export interface ServiceOrderApi {
     expectedVersion: number;
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
+  voidServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    reason: string;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
+  reopenVoidedServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    reason: string;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
 }
 
 export const createServiceOrderApi = (
@@ -227,6 +241,64 @@ export const createServiceOrderApi = (
         target_establishment_id: establishmentId,
         target_service_order_id: serviceOrderId,
         target_expected_version: expectedVersion,
+        target_request_id: requestId,
+      });
+    } catch (error) {
+      throw translateServiceOrderRpcError(error);
+    }
+    if (result.error) throw translateServiceOrderRpcError(result.error);
+    return mapReceiptOrThrow(result.data);
+  },
+
+  async voidServiceOrder({
+    establishmentId,
+    serviceOrderId,
+    expectedVersion,
+    reason,
+    requestId,
+  }) {
+    requireUuid(establishmentId, 'establishment_id');
+    requireUuid(serviceOrderId, 'service_order_id');
+    requireUuid(requestId, 'request_id');
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || !reason.trim()) {
+      throw new ServiceOrderApiError('invalid_request');
+    }
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'void_service_order', {
+        target_establishment_id: establishmentId,
+        target_service_order_id: serviceOrderId,
+        target_expected_version: expectedVersion,
+        target_reason: reason.trim(),
+        target_request_id: requestId,
+      });
+    } catch (error) {
+      throw translateServiceOrderRpcError(error);
+    }
+    if (result.error) throw translateServiceOrderRpcError(result.error);
+    return mapReceiptOrThrow(result.data);
+  },
+
+  async reopenVoidedServiceOrder({
+    establishmentId,
+    serviceOrderId,
+    expectedVersion,
+    reason,
+    requestId,
+  }) {
+    requireUuid(establishmentId, 'establishment_id');
+    requireUuid(serviceOrderId, 'service_order_id');
+    requireUuid(requestId, 'request_id');
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || !reason.trim()) {
+      throw new ServiceOrderApiError('invalid_request');
+    }
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'reopen_voided_service_order', {
+        target_establishment_id: establishmentId,
+        target_service_order_id: serviceOrderId,
+        target_expected_version: expectedVersion,
+        target_reason: reason.trim(),
         target_request_id: requestId,
       });
     } catch (error) {

@@ -39,7 +39,7 @@ GRANT EXECUTE ON FUNCTION public.client_discovery_distance_meters(double precisi
 DROP FUNCTION IF EXISTS public.list_client_discovery_establishments(text, integer);
 DROP FUNCTION IF EXISTS public.get_client_discovery_establishment(text);
 
-CREATE FUNCTION public.list_client_discovery_establishments(
+CREATE OR REPLACE FUNCTION public.list_client_discovery_establishments(
   target_query text DEFAULT '',
   result_limit integer DEFAULT 30,
   target_latitude double precision DEFAULT NULL,
@@ -204,7 +204,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.get_client_discovery_establishment(target_slug text)
+CREATE OR REPLACE FUNCTION public.get_client_discovery_establishment(target_slug text)
 RETURNS TABLE (
   id uuid,
   slug text,

@@ -102,7 +102,7 @@ test('expõe cancelamento fechado e ações orientadas pelas permissões do back
   expect(detail).toContain('appointment.canCancel');
   expect(detail).toContain('appointment.canReschedule');
   expect(detail).toContain('cancellation_window_closed');
-  expect(service).toContain("rpc('update_appointment_status'");
+  expect(service).toContain("rpc('update_appointment_status_v2'");
   expect(service).not.toContain("from('appointments')");
   expect(webAppointments).toContain('item.minCancellationHours');
   expect(webAppointments).toContain('clientCancellationReasonOptions.map');
@@ -149,8 +149,10 @@ test('separa o motivo público da nota interna na migração aditiva', () => {
 
 test('admin e profissional registram nota interna pelo contrato v2', () => {
   const admin = readSource('apps/web/src/components/screens/AdminDashboardExperience.tsx');
-  const professional = readSource('apps/web/src/components/screens/BarberDashboardExperience.tsx');
-  for (const source of [admin, professional]) {
+  const professionalActions = readSource(
+    'apps/web/src/features/appointments/use-appointment-actions.ts',
+  );
+  for (const source of [admin, professionalActions]) {
     expect(source).toContain("rpc('update_appointment_status_v2'");
     expect(source).toContain('new_cancellation_note_internal');
   }

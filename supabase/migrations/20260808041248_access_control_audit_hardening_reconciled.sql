@@ -31,13 +31,13 @@ DECLARE
   caller_is_manager boolean;
 BEGIN
   IF NOT public.is_superadmin()
-    AND NOT public.has_active_membership(target_establishment_id, ARRAY['admin', 'professional'])
+    AND NOT public.has_business_capability(target_establishment_id, 'view_own_agenda')
   THEN
     RAISE EXCEPTION 'forbidden';
   END IF;
 
   caller_is_manager := public.is_superadmin()
-    OR public.has_active_membership(target_establishment_id, ARRAY['admin']);
+    OR public.is_business_administrator(target_establishment_id, false);
 
   RETURN QUERY
   SELECT
@@ -76,6 +76,8 @@ GRANT EXECUTE ON FUNCTION public.get_establishment_team(uuid, boolean) TO authen
 --    do estabelecimento e superadmin.
 -- ---------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Anyone can read reviews" ON public.establishment_reviews;
+DROP POLICY IF EXISTS "Reviews visible to owner and establishment managers"
+  ON public.establishment_reviews;
 
 CREATE POLICY "Reviews visible to owner and establishment managers"
   ON public.establishment_reviews FOR SELECT
@@ -90,6 +92,8 @@ CREATE POLICY "Reviews visible to owner and establishment managers"
 -- concluídos (remove a brecha de avaliar 'confirmed' apenas por estar no passado,
 -- que permitia avaliar no-shows).
 DROP POLICY IF EXISTS "Clients can insert their own reviews for past or completed appointments"
+  ON public.establishment_reviews;
+DROP POLICY IF EXISTS "Clients review only completed appointments"
   ON public.establishment_reviews;
 
 CREATE POLICY "Clients review only completed appointments"

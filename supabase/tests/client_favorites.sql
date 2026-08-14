@@ -105,7 +105,7 @@ END $$;
 SELECT pg_temp.expect_error(
   $$INSERT INTO public.client_favorite_establishments (client_id, establishment_id)
     VALUES ('87000000-0000-0000-0000-000000000001', '87000000-0000-0000-0000-000000000010')$$,
-  'new row violates row-level security'
+  'permission denied'
 );
 
 RESET ROLE;

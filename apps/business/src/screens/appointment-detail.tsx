@@ -1,9 +1,14 @@
 import type { BusinessAppointmentAction } from '@cutsync/database';
-import { encodeOpaqueAppointmentIdPathSegment } from '@cutsync/domain';
+import {
+  AWAITING_PAYMENT_NOTICE,
+  encodeOpaqueAppointmentIdPathSegment,
+  formatMoneyCents,
+  getServiceOrderStatusLabel,
+} from '@cutsync/domain';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   BusinessButton,
@@ -22,6 +27,11 @@ import {
 } from '@/features/agenda/business-agenda';
 import { useBusinessAppointment } from '@/features/appointments/use-business-appointment';
 import { normalizeBusinessAppointmentRouteId } from '@/features/links/business-deep-links';
+import {
+  type AppointmentServiceOrderAction,
+  useAppointmentServiceOrder,
+} from '@/features/service-orders/use-appointment-service-order';
+import { BusinessApiError } from '@/services/business-api';
 import { businessTheme } from '@/theme/business-theme';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -45,6 +55,8 @@ const eventLabels: Record<string, string> = {
 
 const errorMessage = (error: unknown) => error instanceof BusinessFeatureError
   ? error.message
+  : error instanceof BusinessApiError
+    ? error.message
   : 'Não foi possível concluir a operação.';
 
 export function BusinessAppointmentDetailScreen() {
@@ -55,7 +67,17 @@ export function BusinessAppointmentDetailScreen() {
   const { activeContext } = useBusinessOperational();
   const appointment = useBusinessAppointment(appointmentId);
   const [notice, setNotice] = useState<string | null>(null);
+  const [orderNotice, setOrderNotice] = useState<string | null>(null);
+  const [orderReason, setOrderReason] = useState('');
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
+  const order = useAppointmentServiceOrder({
+    appointmentId,
+    appointmentStatus: appointment.appointment?.status,
+    appointmentProfessionalId: appointment.appointment?.professionalId,
+  });
+  const visibleAppointmentActions = appointment.appointment?.allowedActions.filter(
+    (action) => !(order.financialOpsEnabled && action === 'complete'),
+  ) ?? [];
 
   const execute = async (action: Exclude<BusinessAppointmentAction, 'reschedule'>) => {
     setNotice(null);
@@ -83,6 +105,43 @@ export function BusinessAppointmentDetailScreen() {
           text: action === 'cancel' ? 'Cancelar atendimento' : 'Registrar',
           style: 'destructive',
           onPress: () => void execute(action),
+        },
+      ],
+    );
+  };
+
+  const executeOrderAction = async (action: AppointmentServiceOrderAction) => {
+    const needsReason = action === 'void_order' || action === 'reopen_order';
+    if (needsReason && !orderReason.trim()) {
+      setOrderNotice('Informe um motivo antes de continuar.');
+      return;
+    }
+    setOrderNotice(null);
+    try {
+      await order.runAction(action, needsReason ? orderReason : null);
+      setOrderReason('');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+      setOrderNotice('Comanda atualizada com segurança.');
+    } catch (error) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined);
+      setOrderNotice(errorMessage(error));
+    }
+  };
+
+  const confirmOrderAction = (action: AppointmentServiceOrderAction) => {
+    if (action !== 'void_order' && action !== 'reopen_order') {
+      void executeOrderAction(action);
+      return;
+    }
+    Alert.alert(
+      action === 'void_order' ? 'Anular comanda?' : 'Reabrir comanda?',
+      'O motivo será auditado e o backend validará novamente sua permissão e a versão atual.',
+      [
+        { text: 'Voltar', style: 'cancel' },
+        {
+          text: action === 'void_order' ? 'Anular comanda' : 'Reabrir comanda',
+          style: action === 'void_order' ? 'destructive' : 'default',
+          onPress: () => void executeOrderAction(action),
         },
       ],
     );
@@ -125,6 +184,81 @@ export function BusinessAppointmentDetailScreen() {
             </Text>
           </BusinessCard>
 
+          {order.financialOpsEnabled ? (
+            <View style={styles.section} testID="business-service-order-section">
+              <BusinessSectionTitle>Comanda operacional</BusinessSectionTitle>
+              {order.isLoading ? (
+                <ActivityIndicator color={businessTheme.colors.accent} />
+              ) : order.error ? (
+                <>
+                  <BusinessNotice tone="danger" message={errorMessage(order.error)} />
+                  <BusinessButton label="Recarregar comanda" variant="secondary" onPress={() => void order.refresh()} />
+                </>
+              ) : !order.serviceOrder ? (
+                <BusinessNotice message="Comanda ainda não aberta." />
+              ) : (
+                <BusinessCard>
+                  <BusinessPill
+                    label={getServiceOrderStatusLabel(order.serviceOrder.status)}
+                    tone={order.serviceOrder.status === 'awaiting_payment' ? 'warning' : 'neutral'}
+                  />
+                  <Text selectable style={styles.muted}>Versão {order.serviceOrder.version}</Text>
+                  {order.serviceOrder.items.map((item) => (
+                    <View key={item.id} style={styles.orderItem}>
+                      <Text selectable style={styles.body}>{item.quantity}× {item.descriptionSnapshot}</Text>
+                      <Text selectable style={styles.muted}>{formatMoneyCents(item.totalCents, 'BRL')}</Text>
+                    </View>
+                  ))}
+                  <Text selectable style={styles.orderTotal}>
+                    Total {formatMoneyCents(order.serviceOrder.totalCents, 'BRL')}
+                  </Text>
+                  {order.serviceOrder.status === 'awaiting_payment' ? (
+                    <BusinessNotice tone="warning" message={AWAITING_PAYMENT_NOTICE} />
+                  ) : null}
+                </BusinessCard>
+              )}
+
+              {order.primaryAction !== 'none' && order.primaryActionLabel ? (
+                <BusinessButton
+                  testID="business-order-primary-action"
+                  label={order.primaryActionLabel}
+                  loading={order.isPending}
+                  disabled={order.isPending || activeContext?.accessMode !== 'full'}
+                  onPress={() => {
+                    if (order.primaryAction !== 'none') confirmOrderAction(order.primaryAction);
+                  }}
+                />
+              ) : null}
+
+              {order.canVoid || order.canReopen ? (
+                <>
+                  <TextInput
+                    value={orderReason}
+                    onChangeText={setOrderReason}
+                    editable={!order.isPending}
+                    placeholder={order.canVoid ? 'Motivo da anulação' : 'Motivo da reabertura'}
+                    placeholderTextColor={businessTheme.colors.textMuted}
+                    style={styles.input}
+                    testID="business-order-reason"
+                  />
+                  <BusinessButton
+                    label={order.canVoid ? 'Anular comanda' : 'Reabrir comanda'}
+                    variant={order.canVoid ? 'danger' : 'secondary'}
+                    loading={order.isPending}
+                    disabled={order.isPending || activeContext?.accessMode !== 'full'}
+                    onPress={() => confirmOrderAction(order.canVoid ? 'void_order' : 'reopen_order')}
+                  />
+                </>
+              ) : null}
+              {orderNotice ? (
+                <BusinessNotice
+                  tone={orderNotice.startsWith('Comanda atualizada') ? 'success' : 'danger'}
+                  message={orderNotice}
+                />
+              ) : null}
+            </View>
+          ) : null}
+
           {(appointment.appointment.clientPhone || appointment.appointment.clientEmail) ? (
             <View style={styles.section}>
               <BusinessSectionTitle>Contato autorizado</BusinessSectionTitle>
@@ -149,10 +283,10 @@ export function BusinessAppointmentDetailScreen() {
             />
           ) : null}
 
-          {appointment.appointment.allowedActions.length > 0 ? (
+          {visibleAppointmentActions.length > 0 ? (
             <View style={styles.section}>
               <BusinessSectionTitle>Ações permitidas agora</BusinessSectionTitle>
-              {appointment.appointment.allowedActions.map((action) => (
+              {visibleAppointmentActions.map((action) => (
                 <BusinessButton
                   key={action}
                   label={actionLabels[action]}
@@ -200,4 +334,20 @@ const styles = StyleSheet.create({
   muted: { ...businessTheme.typography.caption, color: businessTheme.colors.textMuted },
   schedule: { color: businessTheme.colors.accentStrong, fontSize: 22, fontWeight: '900' },
   eventCard: { paddingVertical: businessTheme.spacing.sm },
+  orderItem: {
+    gap: businessTheme.spacing.xxs,
+    paddingVertical: businessTheme.spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: businessTheme.colors.border,
+  },
+  orderTotal: { color: businessTheme.colors.text, fontSize: 17, fontWeight: '900' },
+  input: {
+    minHeight: 48,
+    paddingHorizontal: businessTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: businessTheme.colors.border,
+    borderRadius: businessTheme.radii.md,
+    color: businessTheme.colors.text,
+    backgroundColor: businessTheme.colors.surface,
+  },
 });

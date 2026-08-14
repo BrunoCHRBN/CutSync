@@ -45,12 +45,12 @@ export const isNetworkStateOnline = (state: {
 
 export const createClientQueryKey = <T extends readonly unknown[]>(
   userId: string,
-  establishmentId: string | null,
+  establishmentScope: string,
   ...segments: T
 ) => [
   'client',
   userId,
-  establishmentId ?? 'global',
+  establishmentScope,
   ...segments,
 ] as const;
 
@@ -77,16 +77,14 @@ export const clientQueryClient = createClientQueryClient();
 export const resetClientQueryCacheForScope = (
   queryClient: QueryClient,
   userId: string | null,
-  establishmentId?: string | null,
+  establishmentId?: string,
 ) => {
   if (!userId) {
     queryClient.clear();
     return;
   }
 
-  const establishmentScope = establishmentId === undefined
-    ? undefined
-    : establishmentId ?? 'global';
+  const establishmentScope = establishmentId;
   queryClient.removeQueries({
     predicate: ({ queryKey }) => (
       queryKey[0] !== 'client'

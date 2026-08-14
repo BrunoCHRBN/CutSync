@@ -67,10 +67,10 @@ test('query keys isolam usuário e estabelecimento e mutações nunca repetem so
     'agenda',
     '2026-08-01',
   ]);
-  expect(createClientQueryKey('user-a', null, 'profile')).toEqual([
+  expect(createClientQueryKey('user-a', 'account', 'profile')).toEqual([
     'client',
     'user-a',
-    'global',
+    'account',
     'profile',
   ]);
   expect(createClientQueryKey('user-a', 'unit-a', 'links')).toEqual([
@@ -195,7 +195,7 @@ test('tela mantém request_id até concluir ativação e só então navega', () 
   expect(invitationScreen).toContain(
     "disabled={invitation.data.status !== 'pending' && !requestId.current}",
   );
-  expect(invitationScreen).toContain('useEffect(() => {\n    requestId.current = null;');
+  expect(invitationScreen).toMatch(/useEffect\(\(\) => \{\s+requestId\.current = null;/u);
   expect(invitationScreen).toContain("}, [invitationId]);");
   expect(invitationScreen).toContain('accept.reset();');
   expect(teamApi).toContain('mapTeamInvitationAcceptance(data, invitationId)');
@@ -230,8 +230,8 @@ test('troca de escopo remove cache antigo sem apagar query nova ativa', async ()
   unsubscribeBusiness();
 
   const client = createClientQueryClient();
-  const previousClientKey = createClientQueryKey('user-a', null, 'establishment-links');
-  const nextClientKey = createClientQueryKey('user-b', null, 'establishment-links');
+  const previousClientKey = createClientQueryKey('user-a', 'account', 'establishment-links');
+  const nextClientKey = createClientQueryKey('user-b', 'account', 'establishment-links');
   client.setQueryData(previousClientKey, ['old-user']);
   const clientFetch = deferred<string[]>();
   const clientObserver = new QueryObserver(client, {
@@ -706,7 +706,7 @@ test('configuração Business fixa runtime, update URL e canais por ambiente', (
     };
   };
   const easConfig = JSON.parse(read('apps/business/eas.json')) as {
-    build: Record<string, { channel: string }>;
+    build: Record<string, { channel: string; env?: Record<string, string> }>;
     submit: { production: { android: { track: string } } };
   };
   const dynamicConfig = read('apps/business/app.config.js');
@@ -721,6 +721,8 @@ test('configuração Business fixa runtime, update URL e canais por ambiente', (
   expect(easConfig.build.development.channel).toBe('development');
   expect(easConfig.build.preview.channel).toBe('preview');
   expect(easConfig.build.production.channel).toBe('production');
+  expect(easConfig.build.preview.env?.SENTRY_DISABLE_AUTO_UPLOAD).toBe('true');
+  expect(easConfig.build.production.env?.SENTRY_DISABLE_AUTO_UPLOAD).toBeUndefined();
   expect(easConfig.submit.production.android.track).toBe('internal');
   expect(dynamicConfig).toContain('process.env.GOOGLE_SERVICES_JSON');
   expect(dynamicConfig).toContain('googleServicesFile');

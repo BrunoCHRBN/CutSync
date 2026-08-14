@@ -105,7 +105,14 @@ BEGIN
     (admin_id, unit_a_id, 'Admin', 'financial-ops-admin@example.test', 'admin'),
     (professional_id, unit_a_id, 'Pro', 'financial-ops-pro@example.test', 'professional'),
     (outsider_id, NULL, 'Outsider', 'financial-ops-outsider@example.test', 'client'),
-    (superadmin_id, NULL, 'Superadmin', 'financial-ops-superadmin@example.test', 'admin');
+    (superadmin_id, NULL, 'Superadmin', 'financial-ops-superadmin@example.test', 'admin')
+  ON CONFLICT (id) DO UPDATE
+  SET establishment_id = EXCLUDED.establishment_id,
+      name = EXCLUDED.name,
+      email = EXCLUDED.email,
+      role = EXCLUDED.role,
+      deleted_at = NULL,
+      updated_at = now();
 
   INSERT INTO public.superadmins(profile_id, granted_by)
   VALUES (superadmin_id, NULL);

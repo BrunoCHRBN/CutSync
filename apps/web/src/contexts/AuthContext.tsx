@@ -120,43 +120,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    let active = true;
-    let pendingAuthTask: ReturnType<typeof setTimeout> | null = null;
-
     // 1. Verificar sessão inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!active) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => {
-          if (active) setLoading(false);
-        });
+        fetchProfile(session.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
     });
 
     // 2. Escutar mudanças de estado do Auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-
-      if (pendingAuthTask) clearTimeout(pendingAuthTask);
       if (session?.user) {
         const shouldBlockNavigation = !profileRef.current;
         if (shouldBlockNavigation) setLoading(true);
-        // Supabase can deadlock when another async client call is awaited
-        // inside onAuthStateChange. Defer profile loading until the callback
-        // releases the auth lock.
-        pendingAuthTask = setTimeout(() => {
-          pendingAuthTask = null;
-          if (!active) return;
-          void fetchProfile(session.user.id).finally(() => {
-            if (active) setLoading(false);
-          });
-        }, 0);
+        await fetchProfile(session.user.id);
+        setLoading(false);
       } else {
         setProfile(null);
         profileRef.current = null;
@@ -167,8 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
-      active = false;
-      if (pendingAuthTask) clearTimeout(pendingAuthTask);
       subscription.unsubscribe();
     };
   }, []);

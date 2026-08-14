@@ -2,6 +2,28 @@
 
 Status deste documento: checklist operacional. Nenhum item externo deve ser marcado como concluído sem evidência do ambiente correspondente.
 
+## Evidências da preparação em 2026-08-08
+
+- Homolog está canônico até a migration `20260819001000`; os tipos Supabase
+  foram regenerados depois dessa convergência.
+- `dispatch-business-notifications` está ACTIVE em Homolog, versão 1, id
+  `a6688b77-ebd6-4f1a-9aa2-02bcb32c5276`. A execução com token real e os
+  receipts de push ainda dependem do secret operacional e de dispositivo real.
+- APK Preview Android concluído no EAS Build
+  `b1291e82-e084-450a-a1a3-1056fcee026a`, runtime `0.1.0`, fingerprint
+  `b06aeed8091465e5e1537c6867bce62253a22b74`.
+- Update Android inicial `03464af2-b4e8-4a11-bf58-1e320e1d3b25`; rollback
+  validado para o bundle embarcado pelo grupo
+  `a35be096-2b4a-482d-a5a8-00263e42d918`; Preview restaurado no grupo
+  `45d2dd85-8668-4d6b-908c-e7eb676caa72`.
+- O ambiente Production ainda não possui `EXPO_PUBLIC_SENTRY_DSN`,
+  `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` nem
+  `GOOGLE_SERVICES_JSON`. O AAB não foi iniciado para não contornar esses
+  controles nem produzir um artefato sem a observabilidade/push exigidos.
+- Esta seção registra preparação técnica. Ela não substitui a rodada em
+  aparelhos, os fluxos com JWTs reais, o track interno/fechado nem o relatório
+  final de testadores.
+
 ## Ordem segura de promoção
 
 1. Aplicar `20260806000000_android_business_operational_cycle.sql` no Supabase de homologação.
@@ -21,6 +43,13 @@ Status deste documento: checklist operacional. Nenhum item externo deve ser marc
    update anterior e rollback para o bundle embarcado.
 9. Enviar o AAB ao track interno; somente depois da rodada interna, promover para teste fechado.
 10. Manter `mobile_app_release_policies.enforcement_enabled = false` até o AAB correspondente estar visível para todos os testadores-alvo.
+
+O perfil Preview define `SENTRY_DISABLE_AUTO_UPLOAD=true` para que a ausência
+temporária das credenciais administrativas do Sentry não impeça a geração do
+APK interno. A instrumentação e a sanitização permanecem ativas no aplicativo.
+Production não define essa exceção: o AAB falha de forma explícita até
+`SENTRY_ORG`, `SENTRY_PROJECT` e `SENTRY_AUTH_TOKEN` estarem provisionados, e o
+aceite exige repetir o Preview sem a exceção para comprovar o sourcemap.
 
 `GOOGLE_SERVICES_JSON` aponta para o arquivo cliente do Firebase, não para a
 service account FCM v1. Em EAS Build, use uma file variable com visibilidade

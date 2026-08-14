@@ -218,5 +218,5 @@ test('migration não cria RPCs de lifecycle nem tabelas financeiras POS', () => 
 test('documento canônico registra Etapa 2 e critério de pronto', () => {
   expect(canonicalDoc).toContain('20260815000000_service_orders_foundation.sql');
   expect(canonicalDoc).toContain('15.3 Critério de pronto desta Etapa 2');
-  expect(canonicalDoc).toContain('Etapa 3 não iniciada');
+  expect(canonicalDoc).toContain('Etapa 3: **implementada e endurecida');
 });

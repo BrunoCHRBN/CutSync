@@ -13,7 +13,7 @@ import {
 } from './client-establishment-links-service';
 
 export const clientEstablishmentLinksQueryKey = (userId: string) => (
-  createClientQueryKey(userId, null, 'establishment-links')
+  createClientQueryKey(userId, 'account', 'establishment-links')
 );
 
 export function useClientEstablishmentLinks(userId: string | null) {
@@ -29,7 +29,7 @@ export function useClientEstablishmentLinks(userId: string | null) {
   });
 
   const mutation = useMutation({
-    mutationKey: createClientQueryKey(userId ?? 'signed-out', null, 'establishment-links', 'mutation'),
+    mutationKey: createClientQueryKey(userId ?? 'signed-out', 'account', 'establishment-links', 'mutation'),
     retry: false,
     mutationFn: async ({ action, linkId }: {
       action: ClientEstablishmentLinkAction;

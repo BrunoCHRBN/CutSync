@@ -22,7 +22,10 @@ const read = (relativePath: string) => fs
 const appointmentCard = read('apps/business/src/components/operations/appointment-card.tsx');
 const todayScreen = read('apps/business/src/screens/today.tsx');
 const agendaScreen = read('apps/business/src/screens/agenda.tsx');
-const operationScreen = read('apps/business/src/screens/appointment-operation.tsx');
+const operationScreen = read('apps/business/src/screens/appointment-detail.tsx');
+const operationHook = read(
+  'apps/business/src/features/service-orders/use-appointment-service-order.ts',
+);
 const businessApi = read('apps/business/src/services/business-api.ts');
 const professionalAgenda = read(
   'apps/web/src/components/screens/professional-agenda/ProfessionalAgendaScreen.tsx',
@@ -75,14 +78,14 @@ test('Business appointment card supports accessible onPress without nested butto
 
 test('Business operation screen gates bridge and mutations by flag/capabilities', () => {
   expect(operationScreen).toContain('financialOpsEnabled');
-  expect(operationScreen).toContain('getServiceOrderForAppointment');
-  expect(operationScreen).toContain('openServiceOrder');
-  expect(operationScreen).toContain('startServiceOrder');
-  expect(operationScreen).toContain('finishServiceOrder');
-  expect(operationScreen).toContain('service_order_already_exists');
+  expect(operationHook).toContain('getServiceOrderForAppointment');
+  expect(operationHook).toContain('openServiceOrder');
+  expect(operationHook).toContain('startServiceOrder');
+  expect(operationHook).toContain('finishServiceOrder');
+  expect(operationHook).toContain('voidServiceOrder');
+  expect(operationHook).toContain('reopenVoidedServiceOrder');
+  expect(operationHook).toContain('pendingRetry');
   expect(operationScreen).toContain('AWAITING_PAYMENT_NOTICE');
-  expect(operationScreen).toContain('inFlightRef');
-  expect(operationScreen).toContain('createMobileRequestId');
   expect(operationScreen).not.toContain('Pago');
   expect(operationScreen).not.toContain('Pagamento concluído');
   expect(businessApi).toContain('service_order_already_exists');

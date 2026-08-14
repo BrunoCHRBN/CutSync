@@ -1,3 +1,4 @@
+// Gerado pelo Supabase CLI. Atualize com: yarn types:supabase
 export type Json =
   | string
   | number
@@ -185,6 +186,13 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_transferred_from_professional_id_fkey"
+            columns: ["transferred_from_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1508,6 +1516,7 @@ export type Database = {
           document_number: string | null
           document_type: string | null
           email_verified: boolean | null
+          financial_ops_enabled: boolean
           gallery_urls: string | null
           id: string
           instagram: string | null
@@ -1549,6 +1558,7 @@ export type Database = {
           document_number?: string | null
           document_type?: string | null
           email_verified?: boolean | null
+          financial_ops_enabled?: boolean
           gallery_urls?: string | null
           id?: string
           instagram?: string | null
@@ -1590,6 +1600,7 @@ export type Database = {
           document_number?: string | null
           document_type?: string | null
           email_verified?: boolean | null
+          financial_ops_enabled?: boolean
           gallery_urls?: string | null
           id?: string
           instagram?: string | null
@@ -3851,6 +3862,311 @@ export type Database = {
           },
         ]
       }
+      service_order_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          establishment_id: string
+          event_type: string
+          id: number
+          metadata: Json
+          previous_status: string | null
+          resulting_status: string
+          service_order_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          establishment_id: string
+          event_type: string
+          id?: never
+          metadata?: Json
+          previous_status?: string | null
+          resulting_status: string
+          service_order_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          establishment_id?: string
+          event_type?: string
+          id?: never
+          metadata?: Json
+          previous_status?: string | null
+          resulting_status?: string
+          service_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_events_order_tenant_fk"
+            columns: ["service_order_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "establishment_id"]
+          },
+        ]
+      }
+      service_order_items: {
+        Row: {
+          created_at: string
+          created_by: string
+          description_snapshot: string
+          discount_cents: number
+          establishment_id: string
+          id: string
+          metadata: Json
+          professional_id: string | null
+          quantity: number
+          service_id: string | null
+          service_order_id: string
+          sort_order: number
+          subtotal_cents: number | null
+          total_cents: number | null
+          unit_price_cents: number
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description_snapshot: string
+          discount_cents?: number
+          establishment_id: string
+          id?: string
+          metadata?: Json
+          professional_id?: string | null
+          quantity?: number
+          service_id?: string | null
+          service_order_id: string
+          sort_order?: number
+          subtotal_cents?: number | null
+          total_cents?: number | null
+          unit_price_cents: number
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description_snapshot?: string
+          discount_cents?: number
+          establishment_id?: string
+          id?: string
+          metadata?: Json
+          professional_id?: string | null
+          quantity?: number
+          service_id?: string | null
+          service_order_id?: string
+          sort_order?: number
+          subtotal_cents?: number | null
+          total_cents?: number | null
+          unit_price_cents?: number
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_items_order_tenant_fk"
+            columns: ["service_order_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "establishment_id"]
+          },
+          {
+            foreignKeyName: "service_order_items_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_items_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_orders: {
+        Row: {
+          appointment_id: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          discount_cents: number
+          establishment_client_id: string | null
+          establishment_id: string
+          finished_at: string | null
+          finished_by: string | null
+          id: string
+          internal_notes: string | null
+          opened_at: string
+          professional_id: string | null
+          started_at: string | null
+          started_by: string | null
+          status: string
+          subtotal_cents: number
+          total_cents: number
+          updated_at: string
+          updated_by: string
+          version: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          discount_cents?: number
+          establishment_client_id?: string | null
+          establishment_id: string
+          finished_at?: string | null
+          finished_by?: string | null
+          id?: string
+          internal_notes?: string | null
+          opened_at?: string
+          professional_id?: string | null
+          started_at?: string | null
+          started_by?: string | null
+          status?: string
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+          updated_by: string
+          version?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          discount_cents?: number
+          establishment_client_id?: string | null
+          establishment_id?: string
+          finished_at?: string | null
+          finished_by?: string | null
+          id?: string
+          internal_notes?: string | null
+          opened_at?: string
+          professional_id?: string | null
+          started_at?: string | null
+          started_by?: string | null
+          status?: string
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+          updated_by?: string
+          version?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_establishment_client_id_fkey"
+            columns: ["establishment_client_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_finished_by_fkey"
+            columns: ["finished_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_promotions: {
         Row: {
           created_at: string
@@ -5018,6 +5334,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      assert_financial_ops_enabled: {
+        Args: { target_establishment_id: string }
+        Returns: undefined
+      }
+      assert_service_order_mutation_access: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
+        Returns: undefined
+      }
+      assert_service_order_read_access: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
+        Returns: undefined
+      }
       assert_valid_establishment_client_values: {
         Args: {
           target_email: string
@@ -5047,6 +5381,15 @@ export type Database = {
         Returns: string
       }
       bootstrap_superadmins_from_config: { Args: never; Returns: number }
+      build_service_order_mutation_response: {
+        Args: {
+          target_item_id?: string
+          target_service_order_id: string
+          target_status: string
+          target_version: number
+        }
+        Returns: Json
+      }
       can_manage_business_invitation: {
         Args: { target_establishment_id: string; target_role: string }
         Returns: boolean
@@ -5174,6 +5517,24 @@ export type Database = {
           payload: Json
           ticket_id: string
         }[]
+      }
+      client_discovery_distance_meters: {
+        Args: {
+          origin_latitude: number
+          origin_longitude: number
+          target_latitude: number
+          target_longitude: number
+        }
+        Returns: number
+      }
+      close_service_order: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_request_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
       }
       compare_mobile_semver: {
         Args: { left_version: string; right_version: string }
@@ -5320,15 +5681,6 @@ export type Database = {
           target_role: string
         }
         Returns: Json
-      }
-      client_discovery_distance_meters: {
-        Args: {
-          origin_latitude: number
-          origin_longitude: number
-          target_latitude: number
-          target_longitude: number
-        }
-        Returns: number
       }
       confirm_appointment: {
         Args: { target_appointment_id: string }
@@ -5627,6 +5979,19 @@ export type Database = {
           name: string
           profile_id: string
         }[]
+      }
+      finish_service_order: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_request_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
+      fold_establishment_client_search_text: {
+        Args: { target_value: string }
+        Returns: string
       }
       get_admin_report: {
         Args: {
@@ -6000,6 +6365,25 @@ export type Database = {
         Args: { target_ticket_id: string }
         Returns: Json
       }
+      get_effective_price: {
+        Args: {
+          target_local_date: string
+          target_professional_id?: string
+          target_service_id: string
+        }
+        Returns: {
+          discount_type: string
+          discount_value: number
+          duration_minutes: number
+          effective_price: number
+          establishment_id: string
+          kind: string
+          list_price: number
+          promotion_id: string
+          savings: number
+          service_id: string
+        }[]
+      }
       get_establishment_client: {
         Args: {
           target_establishment_client_id: string
@@ -6110,6 +6494,7 @@ export type Database = {
           establishment_id: string
           establishment_name: string
           establishment_slug: string
+          financial_ops_enabled: boolean
           grace_ends_at: string
           membership_id: string
           membership_role: string
@@ -6200,7 +6585,7 @@ export type Database = {
           instagram: string
           name: string
           phone: string
-          pix_key: string | null
+          pix_key: string
           push_token: string
           role: string
           specialties: string
@@ -6285,6 +6670,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_service_order: {
+        Args: {
+          target_establishment_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
+      get_service_order_for_appointment: {
+        Args: { target_appointment_id: string; target_establishment_id: string }
+        Returns: Json
+      }
       get_subscription_entitlement_for_establishment: {
         Args: { target_establishment_id: string }
         Returns: Json
@@ -6340,6 +6736,18 @@ export type Database = {
           target_ticket_id: string
         }
         Returns: Json
+      }
+      insert_service_order_event: {
+        Args: {
+          target_actor_id: string
+          target_establishment_id: string
+          target_event_type: string
+          target_metadata?: Json
+          target_previous_status: string
+          target_resulting_status: string
+          target_service_order_id: string
+        }
+        Returns: undefined
       }
       inspect_business_invitation_token: {
         Args: { target_invitation_token: string }
@@ -6543,6 +6951,24 @@ export type Database = {
           target_contact: string
         }[]
       }
+      list_establishment_service_prices: {
+        Args: { target_establishment_id: string; target_local_date?: string }
+        Returns: {
+          discount_type: string
+          discount_value: number
+          duration_minutes: number
+          effective_price: number
+          is_active: boolean
+          kind: string
+          list_price: number
+          members_total: number
+          name: string
+          promotion_id: string
+          savings: number
+          service_id: string
+          sort_order: number
+        }[]
+      }
       list_governance_audit_events: {
         Args: {
           action_filter?: string
@@ -6720,6 +7146,14 @@ export type Database = {
           timezone: string
         }[]
       }
+      list_service_orders_for_day: {
+        Args: {
+          target_establishment_id: string
+          target_local_date: string
+          target_scope?: string
+        }
+        Returns: Json
+      }
       list_support_tickets_for_reconciliation: {
         Args: { target_limit?: number }
         Returns: {
@@ -6729,6 +7163,47 @@ export type Database = {
           provider_updated_at: string
           ticket_id: string
         }[]
+      }
+      lock_service_order_for_mutation: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_service_order_id: string
+        }
+        Returns: {
+          appointment_id: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          discount_cents: number
+          establishment_client_id: string | null
+          establishment_id: string
+          finished_at: string | null
+          finished_by: string | null
+          id: string
+          internal_notes: string | null
+          opened_at: string
+          professional_id: string | null
+          started_at: string | null
+          started_by: string | null
+          status: string
+          subtotal_cents: number
+          total_cents: number
+          updated_at: string
+          updated_by: string
+          version: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "service_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       mark_business_appointment_no_show: {
         Args: {
@@ -6764,6 +7239,21 @@ export type Database = {
         Args: { target_phone: string }
         Returns: string
       }
+      numeric_money_to_cents: {
+        Args: { target_amount: number }
+        Returns: number
+      }
+      open_service_order: {
+        Args: {
+          target_appointment_id?: string
+          target_establishment_client_id?: string
+          target_establishment_id: string
+          target_internal_notes?: string
+          target_professional_id?: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
       publish_establishment_discovery: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -6782,56 +7272,9 @@ export type Database = {
         Returns: number
       }
       push_changes: { Args: { changes: Json }; Returns: undefined }
-      get_effective_price: {
-        Args: {
-          target_service_id: string
-          target_local_date: string
-          target_professional_id?: string
-        }
-        Returns: {
-          service_id: string
-          establishment_id: string
-          kind: string
-          list_price: number
-          effective_price: number
-          duration_minutes: number
-          discount_type: string
-          discount_value: number
-          promotion_id: string
-          savings: number
-        }[]
-      }
-      list_establishment_service_prices: {
-        Args: {
-          target_establishment_id: string
-          target_local_date?: string
-        }
-        Returns: {
-          service_id: string
-          kind: string
-          name: string
-          list_price: number
-          effective_price: number
-          duration_minutes: number
-          discount_type: string
-          discount_value: number
-          promotion_id: string
-          savings: number
-          members_total: number
-          is_active: boolean
-          sort_order: number
-        }[]
-      }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
-      }
-      replace_service_combo_items: {
-        Args: {
-          target_combo_id: string
-          target_member_service_ids: string[]
-        }
-        Returns: undefined
       }
       queue_establishment_client_match: {
         Args: {
@@ -6851,6 +7294,10 @@ export type Database = {
           target_request_id: string
         }
         Returns: Json
+      }
+      recalculate_service_order_totals: {
+        Args: { target_service_order_id: string }
+        Returns: undefined
       }
       register_business_identity_atomic: {
         Args: {
@@ -6920,6 +7367,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      remove_service_order_item: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_request_id: string
+          target_service_order_id: string
+          target_service_order_item_id: string
+        }
+        Returns: Json
+      }
+      reopen_voided_service_order: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_reason: string
+          target_request_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
       reorder_business_services: {
         Args: {
           target_establishment_id: string
@@ -6934,6 +7401,10 @@ export type Database = {
           target_establishment_id: string
           target_service_id: string
         }
+        Returns: undefined
+      }
+      replace_service_combo_items: {
+        Args: { target_combo_id: string; target_member_service_ids: string[] }
         Returns: undefined
       }
       reprocess_support_sync: {
@@ -6963,15 +7434,6 @@ export type Database = {
           target_appointment_id: string
         }
         Returns: string
-      }
-      transfer_professional_absence: {
-        Args: {
-          range_end: string
-          range_start: string
-          target_professional_id: string
-          transfers: Json
-        }
-        Returns: Json
       }
       reschedule_appointment_before_schedule_blocks: {
         Args: {
@@ -7230,6 +7692,15 @@ export type Database = {
         }
         Returns: Json
       }
+      start_service_order: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_request_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
       submit_client_account_deletion_request: {
         Args: never
         Returns: {
@@ -7337,6 +7808,15 @@ export type Database = {
       transfer_organization_ownership: {
         Args: { target_organization_id: string; target_profile_id: string }
         Returns: undefined
+      }
+      transfer_professional_absence: {
+        Args: {
+          range_end: string
+          range_start: string
+          target_professional_id: string
+          transfers: Json
+        }
+        Returns: Json
       }
       unpublish_establishment_discovery: {
         Args: { target_establishment_id: string }
@@ -7496,6 +7976,32 @@ export type Database = {
           profile_id: string
           profile_slug: string
         }[]
+      }
+      upsert_service_order_item: {
+        Args: {
+          target_custom_unit_price_cents?: number
+          target_description_snapshot?: string
+          target_discount_cents?: number
+          target_establishment_id: string
+          target_expected_version: number
+          target_item_id?: string
+          target_professional_id?: string
+          target_quantity?: number
+          target_request_id: string
+          target_service_id?: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
+      void_service_order: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_reason: string
+          target_request_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
