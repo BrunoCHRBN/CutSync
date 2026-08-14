@@ -1,0 +1,2 @@
+-- Historical marker recovered from CutSync.io.
+-- The remote migration record contains no executable statements.

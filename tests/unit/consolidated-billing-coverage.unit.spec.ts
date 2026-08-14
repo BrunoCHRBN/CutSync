@@ -9,6 +9,10 @@ const migration = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260729000000_consolidated_billing_coverage.sql'),
   'utf8',
 ).replace(/\r\n/g, '\n');
+const catalogSeedMigration = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260730003000_billing_catalog_seed_hardening.sql'),
+  'utf8',
+).replace(/\r\n/g, '\n');
 const cutoverWorker = fs.readFileSync(
   path.join(root, 'supabase/functions/process-billing-cutovers/index.ts'),
   'utf8',
@@ -51,6 +55,16 @@ test('freezes the approved progressive unit prices', () => {
   expect(migration).toContain('WHEN 3 THEN 3990');
   expect(migration).toContain("'network_plan_required'");
   expect(migration).toContain("'pricing_model', 'fixed_progressive_units'");
+});
+
+test('recreates the billing catalog after a schema-only restore', () => {
+  expect(catalogSeedMigration).toContain("'multi_unit_standard'");
+  expect(catalogSeedMigration).toContain("'network'");
+  expect(catalogSeedMigration).toContain('(1, 1, 10000, 4990)');
+  expect(catalogSeedMigration).toContain('(2, 2, 9000, 4490)');
+  expect(catalogSeedMigration).toContain('(3, 4, 8000, 3990)');
+  expect(catalogSeedMigration).toContain('ON CONFLICT (code) DO UPDATE');
+  expect(catalogSeedMigration).toContain('ON CONFLICT (plan_id, unit_from) DO UPDATE');
 });
 
 test('requires a reconciled cutover instead of switching on a return URL', () => {

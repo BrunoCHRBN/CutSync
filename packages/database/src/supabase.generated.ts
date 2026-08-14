@@ -1,4 +1,3 @@
-// Gerado pelo Supabase. Atualize com: npm run types:supabase
 export type Json =
   | string
   | number
@@ -158,6 +157,603 @@ export type Database = {
             columns: ["target_profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_accounts: {
+        Row: {
+          billing_email: string | null
+          billing_owner_profile_id: string | null
+          courtesy_ends_at: string | null
+          created_at: string
+          establishment_id: string
+          fiscal_address: Json
+          id: string
+          municipal_registration: string | null
+          operationally_activated_at: string | null
+          owner_resolution_status: string
+          plan_id: string
+          taxpayer_document: string | null
+          taxpayer_name: string | null
+          transition_ends_at: string | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_email?: string | null
+          billing_owner_profile_id?: string | null
+          courtesy_ends_at?: string | null
+          created_at?: string
+          establishment_id: string
+          fiscal_address?: Json
+          id?: string
+          municipal_registration?: string | null
+          operationally_activated_at?: string | null
+          owner_resolution_status?: string
+          plan_id: string
+          taxpayer_document?: string | null
+          taxpayer_name?: string | null
+          transition_ends_at?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_email?: string | null
+          billing_owner_profile_id?: string | null
+          courtesy_ends_at?: string | null
+          created_at?: string
+          establishment_id?: string
+          fiscal_address?: Json
+          id?: string
+          municipal_registration?: string | null
+          operationally_activated_at?: string | null
+          owner_resolution_status?: string
+          plan_id?: string
+          taxpayer_document?: string | null
+          taxpayer_name?: string | null
+          transition_ends_at?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_accounts_billing_owner_profile_id_fkey"
+            columns: ["billing_owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_accounts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: true
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_accounts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_coverage_assignments: {
+        Row: {
+          billing_account_id: string | null
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_until: string | null
+          establishment_id: string
+          id: string
+          organization_subscription_id: string | null
+          reason: string
+          source_scope: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          billing_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          effective_until?: string | null
+          establishment_id: string
+          id?: string
+          organization_subscription_id?: string | null
+          reason?: string
+          source_scope: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          billing_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_until?: string | null
+          establishment_id?: string
+          id?: string
+          organization_subscription_id?: string | null
+          reason?: string
+          source_scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_coverage_assignments_billing_account_id_fkey"
+            columns: ["billing_account_id"]
+            isOneToOne: false
+            referencedRelation: "billing_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_coverage_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_coverage_assignments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_coverage_assignments_organization_subscription_id_fkey"
+            columns: ["organization_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "organization_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_cutover_requests: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          created_at: string
+          cutover_at: string
+          establishment_ids: string[]
+          failure_code: string | null
+          id: string
+          organization_subscription_id: string
+          requested_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          created_at?: string
+          cutover_at: string
+          establishment_ids: string[]
+          failure_code?: string | null
+          id?: string
+          organization_subscription_id: string
+          requested_by: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          created_at?: string
+          cutover_at?: string
+          establishment_ids?: string[]
+          failure_code?: string | null
+          id?: string
+          organization_subscription_id?: string
+          requested_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_cutover_requests_applied_by_fkey"
+            columns: ["applied_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_cutover_requests_organization_subscription_id_fkey"
+            columns: ["organization_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "organization_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_cutover_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_events: {
+        Row: {
+          attempts: number
+          available_at: string
+          created_at: string
+          event_type: string
+          external_event_id: string
+          id: number
+          last_error_code: string | null
+          locked_at: string | null
+          locked_by: string | null
+          payload: Json
+          processed_at: string | null
+          provider: string
+          provider_created_at: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          available_at?: string
+          created_at?: string
+          event_type: string
+          external_event_id: string
+          id?: never
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          payload: Json
+          processed_at?: string | null
+          provider: string
+          provider_created_at: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          available_at?: string
+          created_at?: string
+          event_type?: string
+          external_event_id?: string
+          id?: never
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          payload?: Json
+          processed_at?: string | null
+          provider?: string
+          provider_created_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      billing_invoices: {
+        Row: {
+          billing_account_id: string
+          billing_subscription_id: string | null
+          created_at: string
+          currency: string
+          due_at: string | null
+          external_invoice_id: string
+          hosted_invoice_url: string | null
+          id: string
+          invoice_pdf_url: string | null
+          number: string | null
+          paid_at: string | null
+          paid_cents: number
+          provider: string
+          provider_event_created_at: string | null
+          refunded_cents: number
+          status: string
+          subtotal_cents: number
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          billing_account_id: string
+          billing_subscription_id?: string | null
+          created_at?: string
+          currency: string
+          due_at?: string | null
+          external_invoice_id: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          number?: string | null
+          paid_at?: string | null
+          paid_cents?: number
+          provider: string
+          provider_event_created_at?: string | null
+          refunded_cents?: number
+          status: string
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          billing_account_id?: string
+          billing_subscription_id?: string | null
+          created_at?: string
+          currency?: string
+          due_at?: string | null
+          external_invoice_id?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          number?: string | null
+          paid_at?: string | null
+          paid_cents?: number
+          provider?: string
+          provider_event_created_at?: string | null
+          refunded_cents?: number
+          status?: string
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_billing_account_id_fkey"
+            columns: ["billing_account_id"]
+            isOneToOne: false
+            referencedRelation: "billing_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_billing_subscription_id_fkey"
+            columns: ["billing_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_plans: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          currency: string
+          entitlements: Json
+          id: string
+          interval_count: number
+          interval_unit: string
+          is_public: boolean
+          name: string
+          price_cents: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          currency: string
+          entitlements?: Json
+          id?: string
+          interval_count?: number
+          interval_unit: string
+          is_public?: boolean
+          name: string
+          price_cents: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          currency?: string
+          entitlements?: Json
+          id?: string
+          interval_count?: number
+          interval_unit?: string
+          is_public?: boolean
+          name?: string
+          price_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      billing_provider_products: {
+        Row: {
+          active: boolean
+          created_at: string
+          environment: string
+          external_price_id: string
+          external_product_id: string
+          id: string
+          plan_id: string
+          provider: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          environment: string
+          external_price_id: string
+          external_product_id: string
+          id?: string
+          plan_id: string
+          provider: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          environment?: string
+          external_price_id?: string
+          external_product_id?: string
+          id?: string
+          plan_id?: string
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_provider_products_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_subscriptions: {
+        Row: {
+          billing_account_id: string
+          cancel_at_period_end: boolean
+          cancelled_at: string | null
+          created_at: string
+          current_period_ends_at: string | null
+          current_period_starts_at: string | null
+          ended_at: string | null
+          external_customer_id: string | null
+          external_subscription_id: string | null
+          grace_ends_at: string | null
+          grace_started_at: string | null
+          id: string
+          provider: string
+          provider_event_created_at: string | null
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_account_id: string
+          cancel_at_period_end?: boolean
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_ends_at?: string | null
+          current_period_starts_at?: string | null
+          ended_at?: string | null
+          external_customer_id?: string | null
+          external_subscription_id?: string | null
+          grace_ends_at?: string | null
+          grace_started_at?: string | null
+          id?: string
+          provider: string
+          provider_event_created_at?: string | null
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_account_id?: string
+          cancel_at_period_end?: boolean
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_ends_at?: string | null
+          current_period_starts_at?: string | null
+          ended_at?: string | null
+          external_customer_id?: string | null
+          external_subscription_id?: string | null
+          grace_ends_at?: string | null
+          grace_started_at?: string | null
+          id?: string
+          provider?: string
+          provider_event_created_at?: string | null
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscriptions_billing_account_id_fkey"
+            columns: ["billing_account_id"]
+            isOneToOne: false
+            referencedRelation: "billing_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_push_deliveries: {
+        Row: {
+          appointment_id: string
+          attempts: number
+          available_at: string
+          body: string
+          created_at: string
+          event_key: string
+          event_type: string
+          expo_ticket_id: string | null
+          id: string
+          last_error_code: string | null
+          locked_at: string | null
+          payload: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at: string | null
+          sent_at: string | null
+          status: string
+          ticketed_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          attempts?: number
+          available_at?: string
+          body: string
+          created_at?: string
+          event_key: string
+          event_type: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          payload?: Json
+          profile_id: string
+          push_device_id: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticketed_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          attempts?: number
+          available_at?: string
+          body?: string
+          created_at?: string
+          event_key?: string
+          event_type?: string
+          expo_ticket_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          locked_at?: string | null
+          payload?: Json
+          profile_id?: string
+          push_device_id?: string
+          receipt_checked_at?: string | null
+          sent_at?: string | null
+          status?: string
+          ticketed_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_push_deliveries_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_push_deliveries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_push_deliveries_push_device_id_fkey"
+            columns: ["push_device_id"]
+            isOneToOne: false
+            referencedRelation: "push_devices"
             referencedColumns: ["id"]
           },
         ]
@@ -389,8 +985,8 @@ export type Database = {
           id: string
           instagram: string | null
           instant_booking_enabled: boolean
-          kyc_document_url: string | null
           kyc_document_path: string | null
+          kyc_document_url: string | null
           kyc_status: string | null
           latitude: number | null
           logo_url: string | null
@@ -428,8 +1024,8 @@ export type Database = {
           id?: string
           instagram?: string | null
           instant_booking_enabled?: boolean
-          kyc_document_url?: string | null
           kyc_document_path?: string | null
+          kyc_document_url?: string | null
           kyc_status?: string | null
           latitude?: number | null
           logo_url?: string | null
@@ -467,8 +1063,8 @@ export type Database = {
           id?: string
           instagram?: string | null
           instant_booking_enabled?: boolean
-          kyc_document_url?: string | null
           kyc_document_path?: string | null
+          kyc_document_url?: string | null
           kyc_status?: string | null
           latitude?: number | null
           logo_url?: string | null
@@ -489,6 +1085,123 @@ export type Database = {
           updated_at?: string
           verification_level?: number | null
           whatsapp_verified?: boolean | null
+        }
+        Relationships: []
+      }
+      fiscal_documents: {
+        Row: {
+          billing_invoice_id: string | null
+          cancelled_at: string | null
+          created_at: string
+          external_document_id: string | null
+          external_reference: string
+          id: string
+          issued_at: string | null
+          last_error_code: string | null
+          manual_review_reason: string | null
+          number: string | null
+          organization_billing_invoice_id: string | null
+          provider: string
+          status: string
+          updated_at: string
+          verification_code: string | null
+        }
+        Insert: {
+          billing_invoice_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          external_document_id?: string | null
+          external_reference: string
+          id?: string
+          issued_at?: string | null
+          last_error_code?: string | null
+          manual_review_reason?: string | null
+          number?: string | null
+          organization_billing_invoice_id?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          verification_code?: string | null
+        }
+        Update: {
+          billing_invoice_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          external_document_id?: string | null
+          external_reference?: string
+          id?: string
+          issued_at?: string | null
+          last_error_code?: string | null
+          manual_review_reason?: string | null
+          number?: string | null
+          organization_billing_invoice_id?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          verification_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_documents_billing_invoice_id_fkey"
+            columns: ["billing_invoice_id"]
+            isOneToOne: true
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_documents_organization_billing_invoice_id_fkey"
+            columns: ["organization_billing_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "organization_billing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_events: {
+        Row: {
+          attempts: number
+          available_at: string
+          created_at: string
+          external_event_id: string
+          external_reference: string | null
+          id: number
+          last_error_code: string | null
+          locked_at: string | null
+          locked_by: string | null
+          payload: Json
+          processed_at: string | null
+          provider: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          available_at?: string
+          created_at?: string
+          external_event_id: string
+          external_reference?: string | null
+          id?: never
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          payload: Json
+          processed_at?: string | null
+          provider?: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          available_at?: string
+          created_at?: string
+          external_event_id?: string
+          external_reference?: string | null
+          id?: never
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          payload?: Json
+          processed_at?: string | null
+          provider?: string
+          status?: string
         }
         Relationships: []
       }
@@ -811,45 +1524,6 @@ export type Database = {
           },
         ]
       }
-      governance_users: {
-        Row: {
-          granted_at: string
-          granted_by: string | null
-          profile_id: string
-          role: Database["public"]["Enums"]["governance_role_enum"]
-          updated_at: string
-        }
-        Insert: {
-          granted_at?: string
-          granted_by?: string | null
-          profile_id: string
-          role: Database["public"]["Enums"]["governance_role_enum"]
-          updated_at?: string
-        }
-        Update: {
-          granted_at?: string
-          granted_by?: string | null
-          profile_id?: string
-          role?: Database["public"]["Enums"]["governance_role_enum"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "governance_users_granted_by_fkey"
-            columns: ["granted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "governance_users_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       governance_privacy_requests: {
         Row: {
           attempt_count: number
@@ -905,7 +1579,68 @@ export type Database = {
           target_profile_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "governance_privacy_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "governance_privacy_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "governance_privacy_requests_target_profile_id_fkey"
+            columns: ["target_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      governance_users: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          profile_id: string
+          role: Database["public"]["Enums"]["governance_role_enum"]
+          updated_at: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          profile_id: string
+          role: Database["public"]["Enums"]["governance_role_enum"]
+          updated_at?: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          profile_id?: string
+          role?: Database["public"]["Enums"]["governance_role_enum"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "governance_users_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "governance_users_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       governance_verification_reviews: {
         Row: {
@@ -938,7 +1673,102 @@ export type Database = {
           reason?: string
           reviewer_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "governance_verification_reviews_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "governance_verification_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_migration_conflicts: {
+        Row: {
+          created_at: string
+          document_last4: string | null
+          document_type: string | null
+          id: string
+          legacy_record_id: string | null
+          legacy_source: string
+          legal_entity_id: string | null
+          organization_id: string | null
+          reason_code: string
+          requester_profile_id: string | null
+          resolution_reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          document_last4?: string | null
+          document_type?: string | null
+          id?: string
+          legacy_record_id?: string | null
+          legacy_source: string
+          legal_entity_id?: string | null
+          organization_id?: string | null
+          reason_code: string
+          requester_profile_id?: string | null
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          document_last4?: string | null
+          document_type?: string | null
+          id?: string
+          legacy_record_id?: string | null
+          legacy_source?: string
+          legal_entity_id?: string | null
+          organization_id?: string | null
+          reason_code?: string
+          requester_profile_id?: string | null
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_migration_conflicts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_migration_conflicts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_migration_conflicts_requester_profile_id_fkey"
+            columns: ["requester_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_migration_conflicts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invitations: {
         Row: {
@@ -1006,6 +1836,59 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_entities: {
+        Row: {
+          created_at: string
+          created_by: string
+          document_fingerprint: string
+          document_last4: string
+          document_type: string
+          encrypted_document: string
+          encryption_iv: string
+          encryption_key_version: string
+          entity_type: string
+          id: string
+          updated_at: string
+          verification_status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          document_fingerprint: string
+          document_last4: string
+          document_type: string
+          encrypted_document: string
+          encryption_iv: string
+          encryption_key_version: string
+          entity_type: string
+          id?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          document_fingerprint?: string
+          document_last4?: string
+          document_type?: string
+          encrypted_document?: string
+          encryption_iv?: string
+          encryption_key_version?: string
+          entity_type?: string
+          id?: string
+          updated_at?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_entities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1078,6 +1961,774 @@ export type Database = {
           {
             foreignKeyName: "memberships_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          establishment_id: string | null
+          id: number
+          metadata: Json
+          organization_id: string
+          target_profile_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          establishment_id?: string | null
+          id?: never
+          metadata?: Json
+          organization_id: string
+          target_profile_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          establishment_id?: string | null
+          id?: never
+          metadata?: Json
+          organization_id?: string
+          target_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_audit_log_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_audit_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_audit_log_target_profile_id_fkey"
+            columns: ["target_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_billing_accounts: {
+        Row: {
+          billing_email: string | null
+          billing_owner_profile_id: string | null
+          created_at: string
+          display_name: string
+          fiscal_address: Json
+          id: string
+          legal_entity_id: string | null
+          municipal_registration: string | null
+          organization_id: string
+          status: string
+          taxpayer_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_email?: string | null
+          billing_owner_profile_id?: string | null
+          created_at?: string
+          display_name: string
+          fiscal_address?: Json
+          id?: string
+          legal_entity_id?: string | null
+          municipal_registration?: string | null
+          organization_id: string
+          status?: string
+          taxpayer_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_email?: string | null
+          billing_owner_profile_id?: string | null
+          created_at?: string
+          display_name?: string
+          fiscal_address?: Json
+          id?: string
+          legal_entity_id?: string | null
+          municipal_registration?: string | null
+          organization_id?: string
+          status?: string
+          taxpayer_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_billing_accounts_billing_owner_profile_id_fkey"
+            columns: ["billing_owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_billing_accounts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_billing_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_billing_events: {
+        Row: {
+          actor_id: string | null
+          billing_account_id: string
+          created_at: string
+          event_type: string
+          id: number
+          invoice_id: string | null
+          metadata: Json
+          subscription_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          billing_account_id: string
+          created_at?: string
+          event_type: string
+          id?: never
+          invoice_id?: string | null
+          metadata?: Json
+          subscription_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          billing_account_id?: string
+          created_at?: string
+          event_type?: string
+          id?: never
+          invoice_id?: string | null
+          metadata?: Json
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_billing_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_billing_events_billing_account_id_fkey"
+            columns: ["billing_account_id"]
+            isOneToOne: false
+            referencedRelation: "organization_billing_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_billing_events_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "organization_billing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_billing_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "organization_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_billing_invoices: {
+        Row: {
+          created_at: string
+          currency: string
+          discount_cents: number
+          due_date: string
+          external_invoice_id: string | null
+          hosted_invoice_url: string | null
+          id: string
+          invoice_pdf_url: string | null
+          issued_at: string
+          issued_by: string | null
+          number: string | null
+          paid_at: string | null
+          paid_cents: number
+          period_end: string
+          period_start: string
+          plan_snapshot: Json
+          provider: string
+          provider_event_created_at: string | null
+          refunded_cents: number
+          status: string
+          subscription_id: string
+          subtotal_cents: number
+          total_cents: number
+          unit_snapshot: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency: string
+          discount_cents: number
+          due_date: string
+          external_invoice_id?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          issued_at?: string
+          issued_by?: string | null
+          number?: string | null
+          paid_at?: string | null
+          paid_cents?: number
+          period_end: string
+          period_start: string
+          plan_snapshot: Json
+          provider?: string
+          provider_event_created_at?: string | null
+          refunded_cents?: number
+          status?: string
+          subscription_id: string
+          subtotal_cents: number
+          total_cents: number
+          unit_snapshot: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          discount_cents?: number
+          due_date?: string
+          external_invoice_id?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          issued_at?: string
+          issued_by?: string | null
+          number?: string | null
+          paid_at?: string | null
+          paid_cents?: number
+          period_end?: string
+          period_start?: string
+          plan_snapshot?: Json
+          provider?: string
+          provider_event_created_at?: string | null
+          refunded_cents?: number
+          status?: string
+          subscription_id?: string
+          subtotal_cents?: number
+          total_cents?: number
+          unit_snapshot?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_billing_invoices_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_billing_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "organization_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_billing_plans: {
+        Row: {
+          active: boolean
+          base_price_cents: number | null
+          code: string
+          created_at: string
+          currency: string
+          entitlements: Json
+          id: string
+          is_network: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          base_price_cents?: number | null
+          code: string
+          created_at?: string
+          currency?: string
+          entitlements?: Json
+          id?: string
+          is_network?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          base_price_cents?: number | null
+          code?: string
+          created_at?: string
+          currency?: string
+          entitlements?: Json
+          id?: string
+          is_network?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organization_establishments: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_until: string | null
+          establishment_id: string
+          id: string
+          linked_by: string | null
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          effective_from?: string
+          effective_until?: string | null
+          establishment_id: string
+          id?: string
+          linked_by?: string | null
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_until?: string | null
+          establishment_id?: string
+          id?: string
+          linked_by?: string | null
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_establishments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_establishments_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_establishments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          invited_email: string
+          organization_id: string
+          role: string
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          invited_email: string
+          organization_id: string
+          role: string
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          invited_email?: string
+          organization_id?: string
+          role?: string
+          status?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invitations_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_invitations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_legal_entities: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          legal_entity_id: string
+          organization_id: string
+          relationship: string
+          revoked_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          legal_entity_id: string
+          organization_id: string
+          relationship?: string
+          revoked_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          legal_entity_id?: string
+          organization_id?: string
+          relationship?: string
+          revoked_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_legal_entities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_legal_entities_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_legal_entities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          profile_id: string
+          revoked_at: string | null
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          profile_id: string
+          revoked_at?: string | null
+          role: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          profile_id?: string
+          revoked_at?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_subscriptions: {
+        Row: {
+          billing_account_id: string
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          enforcement_enabled: boolean
+          external_customer_id: string | null
+          external_subscription_id: string | null
+          grace_ends_at: string | null
+          id: string
+          plan_id: string
+          provider: string
+          provider_event_created_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          billing_account_id: string
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          enforcement_enabled?: boolean
+          external_customer_id?: string | null
+          external_subscription_id?: string | null
+          grace_ends_at?: string | null
+          id?: string
+          plan_id: string
+          provider?: string
+          provider_event_created_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          billing_account_id?: string
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          enforcement_enabled?: boolean
+          external_customer_id?: string | null
+          external_subscription_id?: string | null
+          grace_ends_at?: string | null
+          id?: string
+          plan_id?: string
+          provider?: string
+          provider_event_created_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_subscriptions_billing_account_id_fkey"
+            columns: ["billing_account_id"]
+            isOneToOne: true
+            referencedRelation: "organization_billing_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "organization_billing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_unit_tiers: {
+        Row: {
+          created_at: string
+          id: string
+          percentage_basis_points: number
+          plan_id: string
+          unit_from: number
+          unit_price_cents: number | null
+          unit_to: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          percentage_basis_points: number
+          plan_id: string
+          unit_from: number
+          unit_price_cents?: number | null
+          unit_to?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          percentage_basis_points?: number
+          plan_id?: string
+          unit_from?: number
+          unit_price_cents?: number | null
+          unit_to?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_unit_tiers_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "organization_billing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_fiscal_settings: {
+        Row: {
+          accountant_approved_at: string | null
+          approved_by: string | null
+          cnae: string | null
+          document_number: string | null
+          environment: string
+          id: boolean
+          legal_name: string | null
+          municipal_registration: string | null
+          production_enabled: boolean
+          retention_rules: Json
+          service_code: string | null
+          tax_rate: number | null
+          tax_regime: string | null
+          updated_at: string
+        }
+        Insert: {
+          accountant_approved_at?: string | null
+          approved_by?: string | null
+          cnae?: string | null
+          document_number?: string | null
+          environment?: string
+          id?: boolean
+          legal_name?: string | null
+          municipal_registration?: string | null
+          production_enabled?: boolean
+          retention_rules?: Json
+          service_code?: string | null
+          tax_rate?: number | null
+          tax_regime?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accountant_approved_at?: string | null
+          approved_by?: string | null
+          cnae?: string | null
+          document_number?: string | null
+          environment?: string
+          id?: boolean
+          legal_name?: string | null
+          municipal_registration?: string | null
+          production_enabled?: boolean
+          retention_rules?: Json
+          service_code?: string | null
+          tax_rate?: number | null
+          tax_regime?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_fiscal_settings_approved_by_fkey"
+            columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1228,93 +2879,57 @@ export type Database = {
           },
         ]
       }
-      client_push_deliveries: {
+      profile_legal_entities: {
         Row: {
-          appointment_id: string
-          attempts: number
-          available_at: string
-          body: string
           created_at: string
-          event_key: string
-          event_type: string
-          expo_ticket_id: string | null
+          created_by: string | null
           id: string
-          last_error_code: string | null
-          locked_at: string | null
-          payload: Json
+          legal_entity_id: string
           profile_id: string
-          push_device_id: string
-          receipt_checked_at: string | null
-          sent_at: string | null
+          relationship: string
+          revoked_at: string | null
           status: string
-          ticketed_at: string | null
-          title: string
-          updated_at: string
         }
         Insert: {
-          appointment_id: string
-          attempts?: number
-          available_at?: string
-          body: string
           created_at?: string
-          event_key: string
-          event_type: string
-          expo_ticket_id?: string | null
+          created_by?: string | null
           id?: string
-          last_error_code?: string | null
-          locked_at?: string | null
-          payload?: Json
+          legal_entity_id: string
           profile_id: string
-          push_device_id: string
-          receipt_checked_at?: string | null
-          sent_at?: string | null
+          relationship: string
+          revoked_at?: string | null
           status?: string
-          ticketed_at?: string | null
-          title: string
-          updated_at?: string
         }
         Update: {
-          appointment_id?: string
-          attempts?: number
-          available_at?: string
-          body?: string
           created_at?: string
-          event_key?: string
-          event_type?: string
-          expo_ticket_id?: string | null
+          created_by?: string | null
           id?: string
-          last_error_code?: string | null
-          locked_at?: string | null
-          payload?: Json
+          legal_entity_id?: string
           profile_id?: string
-          push_device_id?: string
-          receipt_checked_at?: string | null
-          sent_at?: string | null
+          relationship?: string
+          revoked_at?: string | null
           status?: string
-          ticketed_at?: string | null
-          title?: string
-          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "client_push_deliveries_appointment_id_fkey"
-            columns: ["appointment_id"]
-            isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_push_deliveries_profile_id_fkey"
-            columns: ["profile_id"]
+            foreignKeyName: "profile_legal_entities_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_push_deliveries_push_device_id_fkey"
-            columns: ["push_device_id"]
+            foreignKeyName: "profile_legal_entities_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
             isOneToOne: false
-            referencedRelation: "push_devices"
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_legal_entities_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1333,7 +2948,7 @@ export type Database = {
           lgpd_marketing_accepted: boolean | null
           lgpd_terms_accepted: boolean | null
           name: string
-          notification_channels: string[] | null
+          notification_channels: string[]
           phone: string | null
           pix_key: string | null
           push_token: string | null
@@ -1356,7 +2971,7 @@ export type Database = {
           lgpd_marketing_accepted?: boolean | null
           lgpd_terms_accepted?: boolean | null
           name: string
-          notification_channels?: string[] | null
+          notification_channels?: string[]
           phone?: string | null
           pix_key?: string | null
           push_token?: string | null
@@ -1379,7 +2994,7 @@ export type Database = {
           lgpd_marketing_accepted?: boolean | null
           lgpd_terms_accepted?: boolean | null
           name?: string
-          notification_channels?: string[] | null
+          notification_channels?: string[]
           phone?: string | null
           pix_key?: string | null
           push_token?: string | null
@@ -1595,6 +3210,48 @@ export type Database = {
           },
         ]
       }
+      subscription_units: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_until: string | null
+          establishment_id: string
+          id: string
+          subscription_id: string
+        }
+        Insert: {
+          created_at?: string
+          effective_from: string
+          effective_until?: string | null
+          establishment_id: string
+          id?: string
+          subscription_id: string
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_until?: string | null
+          establishment_id?: string
+          id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_units_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_units_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "organization_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       superadmins: {
         Row: {
           granted_at: string
@@ -1743,10 +3400,6 @@ export type Database = {
       }
     }
     Functions: {
-      accept_my_lgpd_terms: {
-        Args: { target_marketing_accepted: boolean }
-        Returns: boolean
-      }
       accept_governance_kb_solution: {
         Args: { target_reply_id?: string; target_topic_id: string }
         Returns: undefined
@@ -1765,6 +3418,29 @@ export type Database = {
           accepted_role: string
         }[]
       }
+      accept_my_lgpd_terms: {
+        Args: { target_marketing_accepted: boolean }
+        Returns: boolean
+      }
+      accept_organization_invitation: {
+        Args: { invitation_token: string }
+        Returns: string
+      }
+      activate_control_subscription: {
+        Args: {
+          target_organization_id: string
+          target_period_start?: string
+          target_plan_code: string
+        }
+        Returns: string
+      }
+      add_organization_establishment: {
+        Args: {
+          target_establishment_id: string
+          target_organization_id: string
+        }
+        Returns: undefined
+      }
       admin_report_available_minutes: {
         Args: {
           target_establishment_id: string
@@ -1782,6 +3458,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      anonymize_client_account_deletion: {
+        Args: { target_request_id: string }
+        Returns: Json
+      }
       anonymize_user_profile: {
         Args: { target_user_id: string }
         Returns: undefined
@@ -1796,8 +3476,36 @@ export type Database = {
           raw_token: string
         }[]
       }
+      approve_governance_establishment_request: {
+        Args: { reason: string; target_request_id: string }
+        Returns: {
+          establishment_id: string
+          expires_at: string
+          invitation_id: string
+          invited_email: string
+          raw_token: string
+        }[]
+      }
+      begin_client_account_deletion_execution: {
+        Args: { execution_reason: string; target_request_id: string }
+        Returns: {
+          auth_deleted_at: string
+          profile_anonymized_at: string
+          request_id: string
+          status: string
+          target_profile_id: string
+        }[]
+      }
+      billing_access_mode: {
+        Args: { target_establishment_id: string }
+        Returns: string
+      }
       bootstrap_superadmins_from_config: { Args: never; Returns: number }
       can_upload_professional_gallery_image: { Args: never; Returns: boolean }
+      can_use_establishment_feature: {
+        Args: { target_establishment_id: string; target_feature: string }
+        Returns: boolean
+      }
       can_view_private_profile: {
         Args: { target_profile_id: string }
         Returns: boolean
@@ -1827,6 +3535,14 @@ export type Database = {
           expo_ticket_id: string
         }[]
       }
+      complete_appointment: {
+        Args: { target_appointment_id: string }
+        Returns: undefined
+      }
+      complete_client_account_deletion: {
+        Args: { target_request_id: string }
+        Returns: Json
+      }
       complete_client_push_delivery: {
         Args: {
           target_delivery_id: string
@@ -1844,10 +3560,6 @@ export type Database = {
           target_success: boolean
         }
         Returns: boolean
-      }
-      complete_appointment: {
-        Args: { target_appointment_id: string }
-        Returns: undefined
       }
       compute_available_slots: {
         Args: {
@@ -1880,6 +3592,14 @@ export type Database = {
           starts_at: string
           unavailable_reason: string
         }[]
+      }
+      configure_control_plan: {
+        Args: {
+          target_base_price_cents: number
+          target_currency?: string
+          target_plan_code: string
+        }
+        Returns: string
       }
       confirm_appointment: {
         Args: { target_appointment_id: string }
@@ -1967,6 +3687,10 @@ export type Database = {
           raw_token: string
         }[]
       }
+      create_organization: {
+        Args: { initial_establishment_id: string; organization_name: string }
+        Returns: string
+      }
       create_schedule_block: {
         Args: {
           requested_end: string
@@ -1978,12 +3702,36 @@ export type Database = {
         }
         Returns: string
       }
+      current_session_is_aal2: { Args: never; Returns: boolean }
       delete_schedule_block: {
         Args: { target_block_id: string }
         Returns: string
       }
+      ensure_billing_account_for_establishment: {
+        Args: {
+          target_establishment_id: string
+          target_transition_days?: number
+        }
+        Returns: string
+      }
+      execute_governance_privacy_request: {
+        Args: { reason: string; request_id: string }
+        Returns: Json
+      }
+      fail_client_account_deletion: {
+        Args: { target_error_code: string; target_request_id: string }
+        Returns: undefined
+      }
+      finalize_establishment_onboarding: {
+        Args: { opening_hours: string; target_establishment_id: string }
+        Returns: undefined
+      }
       finalize_governance_kb_attachment: {
         Args: { target_attachment_id: string }
+        Returns: undefined
+      }
+      finalize_organization_billing_cutover: {
+        Args: { target_cutover_request_id: string }
         Returns: undefined
       }
       get_admin_report: {
@@ -1991,6 +3739,34 @@ export type Database = {
           target_establishment_id: string
           target_range_end: string
           target_range_start: string
+        }
+        Returns: Json
+      }
+      get_admin_report_details: {
+        Args: {
+          target_cursor?: string
+          target_day?: string
+          target_day_of_week?: number
+          target_dimension: string
+          target_establishment_id: string
+          target_hour?: number
+          target_limit?: number
+          target_professional_id?: string
+          target_range_end: string
+          target_range_start: string
+          target_service_id?: string
+          target_status?: string
+        }
+        Returns: Json
+      }
+      get_admin_report_v2: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id?: string
+          target_range_end: string
+          target_range_start: string
+          target_service_id?: string
+          target_status?: string
         }
         Returns: Json
       }
@@ -2018,43 +3794,32 @@ export type Database = {
           unavailable_reason: string
         }[]
       }
-      get_client_discovery_establishment: {
-        Args: { target_slug: string }
+      get_available_slots_before_billing: {
+        Args: {
+          target_appointment_id?: string
+          target_establishment_id: string
+          target_local_date: string
+          target_professional_id: string
+          target_service_id: string
+        }
         Returns: {
-          address: string | null
-          average_price: number
-          average_rating: number
-          banner_url: string | null
-          currency: string
-          description: string | null
-          id: string
-          instant_booking_enabled: boolean
-          logo_url: string | null
-          name: string
-          opening_hours: string | null
-          price_level: number
-          primary_color: string | null
-          professionals: Json
-          review_count: number
-          services: Json
-          slogan: string | null
-          slug: string
-          timezone: string
+          available: boolean
+          duration_minutes: number
+          local_time: string
+          starts_at: string
+          unavailable_reason: string
         }[]
       }
-      get_client_booking_options: {
-        Args: { target_slug: string }
+      get_client_account_deletion_request: {
+        Args: never
         Returns: {
-          establishment_address: string | null
-          establishment_currency: string
-          establishment_id: string
-          establishment_name: string
-          establishment_slug: string
-          establishment_timezone: string
-          instant_booking_enabled: boolean
-          professional_services: Json
-          professionals: Json
-          services: Json
+          created_at: string
+          decision_reason: string
+          executed_at: string
+          id: string
+          processing_started_at: string
+          status: string
+          updated_at: string
         }[]
       }
       get_client_appointment: {
@@ -2064,27 +3829,27 @@ export type Database = {
           appointment_status: string
           can_cancel: boolean
           can_reschedule: boolean
-          cancel_block_reason: string | null
+          cancel_block_reason: string
           cancellation_deadline: string
-          cancellation_reason: string | null
-          cancelled_by_role: string | null
+          cancellation_reason: string
+          cancelled_by_role: string
           created_at: string
           duration_minutes: number
           ends_at: string
-          establishment_address: string | null
+          establishment_address: string
           establishment_currency: string
           establishment_id: string
           establishment_name: string
-          establishment_phone: string | null
+          establishment_phone: string
           establishment_slug: string
           establishment_timezone: string
           instant_booking_enabled: boolean
           min_cancellation_hours: number
-          original_starts_at: string | null
-          professional_avatar_url: string | null
+          original_starts_at: string
+          professional_avatar_url: string
           professional_id: string
           professional_name: string
-          reschedule_block_reason: string | null
+          reschedule_block_reason: string
           reschedule_count: number
           service_id: string
           service_name: string
@@ -2099,27 +3864,62 @@ export type Database = {
           appointment_status: string
           can_cancel: boolean
           can_reschedule: boolean
-          cancel_block_reason: string | null
+          cancel_block_reason: string
           cancellation_deadline: string
-          cancellation_reason: string | null
-          cancelled_by_role: string | null
+          cancellation_reason: string
+          cancelled_by_role: string
           created_at: string
           duration_minutes: number
           ends_at: string
-          establishment_address: string | null
+          establishment_address: string
           establishment_currency: string
           establishment_id: string
           establishment_name: string
-          establishment_phone: string | null
+          establishment_phone: string
           establishment_slug: string
           establishment_timezone: string
           instant_booking_enabled: boolean
           min_cancellation_hours: number
-          original_starts_at: string | null
-          professional_avatar_url: string | null
+          original_starts_at: string
+          professional_avatar_url: string
           professional_id: string
           professional_name: string
-          reschedule_block_reason: string | null
+          reschedule_block_reason: string
+          reschedule_count: number
+          service_id: string
+          service_name: string
+          starts_at: string
+          updated_at: string
+        }[]
+      }
+      get_client_appointments_before_billing: {
+        Args: never
+        Returns: {
+          appointment_id: string
+          appointment_status: string
+          can_cancel: boolean
+          can_reschedule: boolean
+          cancel_block_reason: string
+          cancellation_deadline: string
+          cancellation_reason: string
+          cancelled_by_role: string
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          establishment_address: string
+          establishment_currency: string
+          establishment_id: string
+          establishment_name: string
+          establishment_phone: string
+          establishment_slug: string
+          establishment_timezone: string
+          instant_booking_enabled: boolean
+          min_cancellation_hours: number
+          original_starts_at: string
+          professional_avatar_url: string
+          professional_id: string
+          professional_name: string
+          reschedule_block_reason: string
           reschedule_count: number
           service_id: string
           service_name: string
@@ -2152,6 +3952,45 @@ export type Database = {
           starts_at: string
         }[]
       }
+      get_client_booking_options: {
+        Args: { target_slug: string }
+        Returns: {
+          establishment_address: string
+          establishment_currency: string
+          establishment_id: string
+          establishment_name: string
+          establishment_slug: string
+          establishment_timezone: string
+          instant_booking_enabled: boolean
+          professional_services: Json
+          professionals: Json
+          services: Json
+        }[]
+      }
+      get_client_discovery_establishment: {
+        Args: { target_slug: string }
+        Returns: {
+          address: string
+          average_price: number
+          average_rating: number
+          banner_url: string
+          currency: string
+          description: string
+          id: string
+          instant_booking_enabled: boolean
+          logo_url: string
+          name: string
+          opening_hours: string
+          price_level: number
+          primary_color: string
+          professionals: Json
+          review_count: number
+          services: Json
+          slogan: string
+          slug: string
+          timezone: string
+        }[]
+      }
       get_establishment_client_contacts: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -2181,20 +4020,62 @@ export type Database = {
           work_hours: string
         }[]
       }
+      get_governance_establishment_detail: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
       get_governance_kb_topic: {
         Args: { target_topic_id: string }
         Returns: Json
       }
+      get_my_billing_overview: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      get_my_business_access_context: {
+        Args: { target_establishment_id: string }
+        Returns: {
+          access_mode: string
+          account_status: string
+          billing_account_id: string
+          billing_owner: boolean
+          billing_scope: string
+          billing_status: string
+          cancel_at_period_end: boolean
+          covered_establishment_ids: string[]
+          current_period_ends_at: string
+          entitlements: Json
+          establishment_id: string
+          grace_ends_at: string
+          membership_role: string
+          organization_id: string
+          payer_role: string
+          pending_change_at: string
+          subscription_id: string
+          trial_ends_at: string
+        }[]
+      }
       get_my_client_profile: {
         Args: never
         Returns: {
-          avatar_url: string | null
-          email: string | null
+          avatar_url: string
+          email: string
           id: string
           lgpd_marketing_accepted: boolean
           name: string
           notification_channels: string[]
-          phone: string | null
+          phone: string
+        }[]
+      }
+      get_my_legal_entity_context: {
+        Args: never
+        Returns: {
+          document_type: string
+          entity_type: string
+          legal_entity_id: string
+          masked_document: string
+          organization_id: string
+          verification_status: string
         }[]
       }
       get_my_operational_contexts: {
@@ -2208,6 +4089,16 @@ export type Database = {
           membership_id: string
           membership_role: string
           membership_status: string
+        }[]
+      }
+      get_my_organizations: {
+        Args: never
+        Returns: {
+          establishment_count: number
+          member_role: string
+          organization_id: string
+          organization_name: string
+          organization_status: string
         }[]
       }
       get_my_professional_profile: {
@@ -2242,6 +4133,22 @@ export type Database = {
           titulo_profissional: string
           work_hours: string
         }[]
+      }
+      get_organization_billing_context: {
+        Args: { target_organization_id: string }
+        Returns: Json
+      }
+      get_organization_context: {
+        Args: { target_organization_id: string }
+        Returns: Json
+      }
+      get_organization_report: {
+        Args: {
+          range_end: string
+          range_start: string
+          target_organization_id: string
+        }
+        Returns: Json
       }
       get_public_busy_slots: {
         Args: {
@@ -2300,8 +4207,36 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_subscription_entitlement_for_establishment: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      grant_governance_role: {
+        Args: {
+          reason: string
+          target_profile_id: string
+          target_role: Database["public"]["Enums"]["governance_role_enum"]
+        }
+        Returns: {
+          granted_at: string
+          granted_by: string | null
+          profile_id: string
+          role: Database["public"]["Enums"]["governance_role_enum"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "governance_users"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_active_membership: {
         Args: { allowed_roles?: string[]; target_establishment_id: string }
+        Returns: boolean
+      }
+      has_organization_role: {
+        Args: { allowed_roles?: string[]; target_organization_id: string }
         Returns: boolean
       }
       immutable_array_to_string: {
@@ -2326,6 +4261,18 @@ export type Database = {
           invitation_status: string
           invited_contact: string
           invited_role: string
+        }[]
+      }
+      invite_organization_member: {
+        Args: {
+          invited_email: string
+          target_organization_id: string
+          target_role: string
+        }
+        Returns: {
+          expires_at: string
+          invitation_id: string
+          invitation_token: string
         }[]
       }
       is_active_establishment_professional: {
@@ -2353,6 +4300,62 @@ export type Database = {
       is_safe_public_url: { Args: { value: string }; Returns: boolean }
       is_superadmin: { Args: never; Returns: boolean }
       is_valid_professional_gallery: { Args: { value: Json }; Returns: boolean }
+      issue_manual_billing_invoice: {
+        Args: { target_due_date: string; target_subscription_id: string }
+        Returns: string
+      }
+      list_client_discovery_establishments: {
+        Args: { result_limit?: number; target_query?: string }
+        Returns: {
+          address: string
+          average_price: number
+          average_rating: number
+          banner_url: string
+          currency: string
+          description: string
+          id: string
+          instant_booking_enabled: boolean
+          logo_url: string
+          name: string
+          opening_hours: string
+          price_level: number
+          primary_color: string
+          professional_count: number
+          professional_names: string[]
+          review_count: number
+          service_count: number
+          service_names: string[]
+          slogan: string
+          slug: string
+          timezone: string
+        }[]
+      }
+      list_control_billing_accounts: {
+        Args: never
+        Returns: {
+          active_units: number
+          billing_account_id: string
+          current_period_end: string
+          enforcement_enabled: boolean
+          organization_id: string
+          organization_name: string
+          plan_code: string
+          subscription_id: string
+          subscription_status: string
+        }[]
+      }
+      list_control_billing_cutovers: {
+        Args: never
+        Returns: {
+          cutover_at: string
+          cutover_request_id: string
+          organization_id: string
+          organization_name: string
+          organization_subscription_id: string
+          status: string
+          unit_count: number
+        }[]
+      }
       list_establishment_invitations: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -2362,32 +4365,6 @@ export type Database = {
           invited_email: string
           role: string
           status: string
-        }[]
-      }
-      list_client_discovery_establishments: {
-        Args: { result_limit?: number; target_query?: string }
-        Returns: {
-          address: string | null
-          average_price: number
-          average_rating: number
-          banner_url: string | null
-          currency: string
-          description: string | null
-          id: string
-          instant_booking_enabled: boolean
-          logo_url: string | null
-          name: string
-          opening_hours: string | null
-          price_level: number
-          primary_color: string | null
-          professional_count: number
-          professional_names: string[]
-          review_count: number
-          service_count: number
-          service_names: string[]
-          slogan: string | null
-          slug: string
-          timezone: string
         }[]
       }
       list_establishment_invites_v2: {
@@ -2401,15 +4378,196 @@ export type Database = {
           target_contact: string
         }[]
       }
+      list_governance_audit_events: {
+        Args: {
+          action_filter?: string
+          date_from?: string
+          date_to?: string
+          page_offset?: number
+          page_size?: number
+          search_term?: string
+        }
+        Returns: {
+          action: string
+          actor_name: string
+          changes: Json
+          client_ip: string
+          created_at: string
+          id: number
+          target_id: string
+          target_name: string
+          target_type: string
+          total_count: number
+        }[]
+      }
+      list_governance_establishment_requests: {
+        Args: {
+          page_offset?: number
+          page_size?: number
+          search_term?: string
+          status_filter?: string
+        }
+        Returns: {
+          address: string
+          created_at: string
+          document_number: string
+          establishment_id: string
+          id: string
+          name: string
+          phone: string
+          rejection_reason: string
+          requester_email: string
+          requester_id: string
+          requester_name: string
+          reviewed_at: string
+          slug: string
+          status: string
+          total_count: number
+        }[]
+      }
+      list_governance_establishments: {
+        Args: {
+          page_offset?: number
+          page_size?: number
+          search_term?: string
+          status_filter?: string
+        }
+        Returns: {
+          account_status: string
+          address: string
+          document_number: string
+          document_type: string
+          email_verified: boolean
+          id: string
+          kyc_status: string
+          name: string
+          recent_status_changed_at: string
+          slug: string
+          total_count: number
+          verification_level: number
+          whatsapp_verified: boolean
+        }[]
+      }
+      list_governance_invitations: {
+        Args: { status_filter?: string }
+        Returns: {
+          created_at: string
+          establishment_id: string
+          establishment_name: string
+          expires_at: string
+          id: string
+          invited_email: string
+          role: string
+          status: string
+        }[]
+      }
+      list_governance_memberships: {
+        Args: { status_filter?: string }
+        Returns: {
+          created_at: string
+          establishment_id: string
+          establishment_name: string
+          id: string
+          profile_email: string
+          profile_id: string
+          profile_name: string
+          revoked_at: string
+          role: string
+          status: string
+        }[]
+      }
+      list_governance_privacy_requests: {
+        Args: { status_filter?: string }
+        Returns: {
+          created_at: string
+          decided_at: string
+          decided_by: string
+          decision_reason: string
+          executed_at: string
+          id: string
+          request_reason: string
+          requested_by: string
+          status: string
+          target_name: string
+          target_profile_id: string
+          updated_at: string
+        }[]
+      }
+      list_governance_users: {
+        Args: never
+        Returns: {
+          email: string
+          granted_at: string
+          name: string
+          profile_id: string
+          role: Database["public"]["Enums"]["governance_role_enum"]
+          updated_at: string
+        }[]
+      }
+      list_governance_verification_reviews: {
+        Args: { status_filter?: string; target_establishment_id?: string }
+        Returns: {
+          created_at: string
+          decision: string
+          document_path: string
+          establishment_id: string
+          establishment_name: string
+          id: string
+          previous_status: string
+          reason: string
+          reviewer_id: string
+        }[]
+      }
+      list_identity_migration_conflicts: {
+        Args: never
+        Returns: {
+          conflict_id: string
+          created_at: string
+          document_type: string
+          legacy_record_id: string
+          legacy_source: string
+          legal_entity_id: string
+          masked_document: string
+          organization_id: string
+          reason_code: string
+          requester_profile_id: string
+          status: string
+        }[]
+      }
       moderate_governance_kb_topic: {
         Args: { requested_action: string; target_topic_id: string }
         Returns: undefined
+      }
+      normalize_brazil_phone_e164: {
+        Args: { input_phone: string }
+        Returns: string
       }
       pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
       push_changes: { Args: { changes: Json }; Returns: undefined }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
+      }
+      register_business_identity_atomic: {
+        Args: {
+          actor_profile_id: string
+          encrypted_document_value: string
+          encryption_iv_value: string
+          encryption_key_version_value: string
+          requested_address: string
+          requested_name: string
+          requested_phone: string
+          requested_primary_color: string
+          requested_slug: string
+          target_document_fingerprint: string
+          target_document_last4: string
+          target_document_type: string
+        }
+        Returns: {
+          establishment_id: string
+          organization_id: string
+          result_status: string
+        }[]
       }
       register_push_device: {
         Args: {
@@ -2421,6 +4579,21 @@ export type Database = {
       }
       reject_establishment_request: {
         Args: { reason: string; target_request_id: string }
+        Returns: undefined
+      }
+      reject_governance_establishment_request: {
+        Args: { reason: string; target_request_id: string }
+        Returns: undefined
+      }
+      reject_governance_privacy_request: {
+        Args: { reason: string; request_id: string }
+        Returns: Json
+      }
+      remove_organization_establishment: {
+        Args: {
+          target_establishment_id: string
+          target_organization_id: string
+        }
         Returns: undefined
       }
       remove_professional: {
@@ -2449,6 +4622,7 @@ export type Database = {
         }
         Returns: string
       }
+      require_aal2: { Args: never; Returns: undefined }
       reschedule_appointment: {
         Args: {
           requested_date_time: string
@@ -2483,13 +4657,73 @@ export type Database = {
           storage_path: string
         }[]
       }
+      resolve_business_billing_context: {
+        Args: { target_establishment_id: string }
+        Returns: {
+          access_mode: string
+          billing_account_id: string
+          billing_owner_profile_id: string
+          billing_scope: string
+          billing_status: string
+          cancel_at_period_end: boolean
+          covered_establishment_ids: string[]
+          current_period_ends_at: string
+          enforcement_enabled: boolean
+          entitlements: Json
+          grace_ends_at: string
+          organization_id: string
+          pending_change_at: string
+          subscription_id: string
+          trial_ends_at: string
+        }[]
+      }
+      resolve_identity_migration_conflict: {
+        Args: {
+          actor_profile_id: string
+          target_action: string
+          target_conflict_id: string
+          target_reason: string
+        }
+        Returns: string
+      }
       restore_governance_kb_revision: {
         Args: { requested_change_summary: string; target_revision_id: number }
+        Returns: undefined
+      }
+      review_governance_verification: {
+        Args: {
+          reason: string
+          target_decision: string
+          target_review_id: string
+        }
+        Returns: Json
+      }
+      revoke_governance_invitation: {
+        Args: { reason: string; target_invitation_id: string }
+        Returns: undefined
+      }
+      revoke_governance_membership: {
+        Args: { reason: string; target_membership_id: string }
+        Returns: undefined
+      }
+      revoke_governance_role: {
+        Args: { reason: string; target_profile_id: string }
         Returns: undefined
       }
       revoke_invitation: {
         Args: { reason: string; target_invitation_id: string }
         Returns: undefined
+      }
+      revoke_organization_member: {
+        Args: { target_organization_id: string; target_profile_id: string }
+        Returns: undefined
+      }
+      schedule_organization_billing_cutover: {
+        Args: {
+          target_establishment_ids?: string[]
+          target_organization_id: string
+        }
+        Returns: string
       }
       search_governance_kb_topics: {
         Args: {
@@ -2523,6 +4757,66 @@ export type Database = {
           version: number
         }[]
       }
+      set_control_subscription_enforcement: {
+        Args: {
+          enabled: boolean
+          reason: string
+          target_subscription_id: string
+        }
+        Returns: undefined
+      }
+      set_control_subscription_status: {
+        Args: {
+          reason: string
+          target_status: string
+          target_subscription_id: string
+        }
+        Returns: undefined
+      }
+      submit_client_account_deletion_request: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+        }[]
+      }
+      submit_governance_privacy_request: {
+        Args: { reason: string; target_profile_id: string }
+        Returns: {
+          attempt_count: number
+          auth_deleted_at: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          executed_at: string | null
+          id: string
+          last_error_code: string | null
+          processing_started_at: string | null
+          profile_anonymized_at: string | null
+          request_reason: string
+          requested_by: string
+          status: string
+          target_profile_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "governance_privacy_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      submit_governance_verification: {
+        Args: {
+          document_path: string
+          reason: string
+          target_establishment_id: string
+        }
+        Returns: Json
+      }
       switch_active_establishment: {
         Args: { target_establishment_id: string }
         Returns: string
@@ -2530,6 +4824,10 @@ export type Database = {
       text_array_has_duplicates: {
         Args: { target_values: string[] }
         Returns: boolean
+      }
+      transfer_organization_ownership: {
+        Args: { target_organization_id: string; target_profile_id: string }
+        Returns: undefined
       }
       unregister_push_device: {
         Args: { target_expo_push_token: string }
@@ -2552,16 +4850,24 @@ export type Database = {
         }
         Returns: string
       }
+      update_governance_establishment_status: {
+        Args: {
+          target_establishment_id: string
+          target_reason: string
+          target_status: string
+        }
+        Returns: Json
+      }
       update_my_client_avatar: {
-        Args: { target_avatar_url: string | null }
+        Args: { target_avatar_url: string }
         Returns: {
-          avatar_url: string | null
-          email: string | null
+          avatar_url: string
+          email: string
           id: string
           lgpd_marketing_accepted: boolean
           name: string
           notification_channels: string[]
-          phone: string | null
+          phone: string
         }[]
       }
       update_my_client_preferences: {
@@ -2570,82 +4876,35 @@ export type Database = {
           target_notification_channels: string[]
         }
         Returns: {
-          avatar_url: string | null
-          email: string | null
+          avatar_url: string
+          email: string
           id: string
           lgpd_marketing_accepted: boolean
           name: string
           notification_channels: string[]
-          phone: string | null
+          phone: string
         }[]
       }
       update_my_client_profile: {
         Args: { target_name: string; target_phone: string }
         Returns: {
-          avatar_url: string | null
-          email: string | null
+          avatar_url: string
+          email: string
           id: string
           lgpd_marketing_accepted: boolean
           name: string
           notification_channels: string[]
-          phone: string | null
+          phone: string
         }[]
       }
-      approve_governance_establishment_request: {
-        Args: { reason: string; target_request_id: string }
-        Returns: { establishment_id: string; expires_at: string; invitation_id: string; invited_email: string; raw_token: string }[]
-      }
-      anonymize_client_account_deletion: { Args: { target_request_id: string }; Returns: Json }
-      begin_client_account_deletion_execution: {
-        Args: { execution_reason: string; target_request_id: string }
-        Returns: {
-          auth_deleted_at: string | null
-          profile_anonymized_at: string | null
-          request_id: string
-          status: string
+      update_organization_member_role: {
+        Args: {
+          target_organization_id: string
           target_profile_id: string
-        }[]
+          target_role: string
+        }
+        Returns: undefined
       }
-      complete_client_account_deletion: { Args: { target_request_id: string }; Returns: Json }
-      execute_governance_privacy_request: { Args: { reason: string; request_id: string }; Returns: Json }
-      fail_client_account_deletion: { Args: { target_error_code: string; target_request_id: string }; Returns: undefined }
-      finalize_establishment_onboarding: { Args: { opening_hours: string; target_establishment_id: string }; Returns: undefined }
-      grant_governance_role: { Args: { reason: string; target_profile_id: string; target_role: Database["public"]["Enums"]["governance_role_enum"] }; Returns: Database["public"]["Tables"]["governance_users"]["Row"] }
-      list_governance_establishment_requests: { Args: { page_offset?: number; page_size?: number; search_term?: string; status_filter?: string }; Returns: Json[] }
-      list_governance_invitations: { Args: { status_filter?: string }; Returns: Json[] }
-      list_governance_memberships: { Args: { status_filter?: string }; Returns: Json[] }
-      list_governance_privacy_requests: { Args: { status_filter?: string }; Returns: Json[] }
-      list_governance_users: { Args: never; Returns: Json[] }
-      list_governance_verification_reviews: { Args: { status_filter?: string; target_establishment_id?: string }; Returns: Json[] }
-      get_client_account_deletion_request: {
-        Args: never
-        Returns: {
-          created_at: string
-          decision_reason: string | null
-          executed_at: string | null
-          id: string
-          processing_started_at: string | null
-          status: string
-          updated_at: string
-        }[]
-      }
-      reject_governance_establishment_request: { Args: { reason: string; target_request_id: string }; Returns: undefined }
-      reject_governance_privacy_request: { Args: { reason: string; request_id: string }; Returns: Json }
-      revoke_governance_invitation: { Args: { reason: string; target_invitation_id: string }; Returns: undefined }
-      revoke_governance_membership: { Args: { reason: string; target_membership_id: string }; Returns: undefined }
-      revoke_governance_role: { Args: { reason: string; target_profile_id: string }; Returns: undefined }
-      review_governance_verification: { Args: { reason: string; target_decision: string; target_review_id: string }; Returns: Json }
-      submit_governance_privacy_request: { Args: { reason: string; target_profile_id: string }; Returns: Database["public"]["Tables"]["governance_privacy_requests"]["Row"] }
-      submit_client_account_deletion_request: {
-        Args: never
-        Returns: {
-          created_at: string
-          id: string
-          status: string
-          updated_at: string
-        }[]
-      }
-      submit_governance_verification: { Args: { document_path: string; reason: string; target_establishment_id: string }; Returns: Json }
       upsert_my_professional_profile: {
         Args: {
           requested_bio?: string
