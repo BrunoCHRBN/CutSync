@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { CalendarDays } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
+import { BusinessEmptyState } from '@/components/ui/business-empty-state';
 import {
   BusinessButton,
   BusinessHeader,
@@ -30,7 +32,8 @@ export function BusinessAgendaScreen() {
   return (
     <BusinessPage testID="business-agenda-screen">
       <BusinessHeader
-        eyebrow="AGENDA OPERACIONAL"
+        testID="business-agenda-header"
+        eyebrow="SUA ROTINA"
         title="Agenda"
         description={activeContext?.establishmentName}
       />
@@ -38,23 +41,25 @@ export function BusinessAgendaScreen() {
       {activeContext?.accessMode === 'full' ? (
         <View style={styles.quickActions}>
           {(hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
-            <BusinessButton label="Novo encaixe" onPress={() => router.push('/(app)/walk-in' as never)} />
+            <BusinessButton testID="business-agenda-create-appointment" label="Novo atendimento" onPress={() => router.push('/(app)/walk-in' as never)} />
           ) : null}
           {(hasCapability('manage_own_blocks') || hasCapability('manage_team_blocks')) ? (
-            <BusinessButton label="Gerir bloqueios" variant="secondary" onPress={() => router.push('/(app)/schedule-blocks' as never)} />
+            <BusinessButton testID="business-agenda-manage-blocks" label="Horários bloqueados" variant="secondary" onPress={() => router.push('/(app)/schedule-blocks' as never)} />
           ) : null}
         </View>
       ) : null}
 
       {activeContext?.accessMode === 'read_only' ? (
         <BusinessNotice
+          testID="business-agenda-read-only"
           tone="warning"
-          message="Consulta liberada em modo somente leitura."
+          message="Você pode consultar esta agenda, mas não fazer alterações."
         />
       ) : null}
 
       <View style={styles.dateControl}>
         <Pressable
+          testID="business-agenda-previous-day"
           accessibilityRole="button"
           accessibilityLabel="Dia anterior"
           onPress={() => agenda.setLocalDate(shiftLocalDate(agenda.localDate, -1))}
@@ -63,6 +68,7 @@ export function BusinessAgendaScreen() {
           <Text style={styles.dateArrowText}>‹</Text>
         </Pressable>
         <Pressable
+          testID="business-agenda-today"
           accessibilityRole="button"
           accessibilityLabel="Voltar para hoje"
           onPress={() => agenda.setLocalDate(today)}
@@ -72,6 +78,7 @@ export function BusinessAgendaScreen() {
           <Text style={styles.dateHint}>{agenda.localDate === today ? 'HOJE' : 'TOCAR PARA HOJE'}</Text>
         </Pressable>
         <Pressable
+          testID="business-agenda-next-day"
           accessibilityRole="button"
           accessibilityLabel="Próximo dia"
           onPress={() => agenda.setLocalDate(shiftLocalDate(agenda.localDate, 1))}
@@ -88,6 +95,7 @@ export function BusinessAgendaScreen() {
             return (
               <Pressable
                 key={scope}
+                testID={`business-agenda-scope-${scope}`}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
                 onPress={() => agenda.setScope(scope)}
@@ -105,25 +113,33 @@ export function BusinessAgendaScreen() {
       {agenda.isLoading ? (
         <View testID="business-agenda-loading" style={styles.centerState}>
           <ActivityIndicator color={businessTheme.colors.accent} />
-          <Text style={styles.stateText}>Carregando agenda confirmada…</Text>
+          <Text testID="business-agenda-loading-label" style={styles.stateText}>Carregando agenda…</Text>
         </View>
       ) : agenda.error ? (
         <View style={styles.centerState}>
           <BusinessNotice testID="business-agenda-error" tone="danger" message={agenda.error} />
-          <BusinessButton label="Tentar novamente" variant="secondary" onPress={() => void agenda.refresh()} />
+          <BusinessButton testID="business-agenda-retry" label="Tentar novamente" variant="secondary" onPress={() => void agenda.refresh()} />
         </View>
       ) : agenda.items.length === 0 ? (
-        <BusinessNotice
+        <BusinessEmptyState
           testID="business-agenda-empty"
-          message={agenda.scope === 'team'
-            ? 'A equipe não possui atendimentos neste dia.'
-            : 'Você não possui atendimentos neste dia.'}
+          icon={<CalendarDays color={businessTheme.colors.accentStrong} size={24} />}
+          title={agenda.localDate === today ? 'Agenda livre hoje' : 'Nenhum atendimento neste dia'}
+          description={agenda.scope === 'team'
+            ? 'A equipe ainda não tem atendimentos marcados para esta data.'
+            : 'Você ainda não tem atendimentos marcados para esta data.'}
+          actionLabel={activeContext?.accessMode === 'full'
+            && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'))
+            ? 'Agendar atendimento'
+            : undefined}
+          onAction={() => router.push('/(app)/walk-in' as never)}
         />
       ) : (
         <View testID="business-agenda-list" style={styles.list}>
           {agenda.items.map((item) => (
             <AppointmentCard
               key={item.id}
+              testID={`business-agenda-appointment-${item.id}`}
               item={item}
               timeZone={timeZone}
               onPress={() => openAppointment(item.id)}

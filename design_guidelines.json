@@ -1,201 +1,134 @@
 {
-  "theme": "light",
-  "app_type": "React Native Web (Expo) - Mobile-First",
+  "project_name": "CutSync Business",
+  "global_principles": {
+    "emotion_first": "The app must feel like a premium, high-end business tool, not a generic template. It should inspire confidence, efficiency, and style. Think private clinic or luxury fitness app rather than a standard salon app.",
+    "anti_ai_patterns": "DO NOT use 'Inter', 'Roboto', or 'Open Sans'. DO NOT use center-everything layouts. DO NOT use SaaS Blue. DO NOT use generic nested cards (cards inside cards).",
+    "tension_and_contrast": "Use bold typography, generous negative space, and sharp 1px borders instead of heavy, muddy drop shadows.",
+    "tactile_interactions": "Every tap must have a defined state (scale down slightly) and trigger haptic feedback."
+  },
   "typography": {
-    "fonts": {
-      "display": "Montserrat",
-      "body": "Inter"
+    "headings": {
+      "family": "Cabinet Grotesk, Outfit, or Clash Display",
+      "weight": "800 (ExtraBold) or 300 (Light) for extreme contrast",
+      "tracking": "tracking-tight",
+      "usage": "Headers, metrics, and primary CTA buttons"
     },
-    "scales": {
-      "h1": { "fontFamily": "Montserrat_700Bold", "fontSize": 32, "lineHeight": 40, "letterSpacing": -0.5 },
-      "h2": { "fontFamily": "Montserrat_700Bold", "fontSize": 24, "lineHeight": 32, "letterSpacing": -0.3 },
-      "h3": { "fontFamily": "Montserrat_600SemiBold", "fontSize": 20, "lineHeight": 28 },
-      "h4": { "fontFamily": "Montserrat_600SemiBold", "fontSize": 18, "lineHeight": 24 },
-      "bodyLarge": { "fontFamily": "Inter_500Medium", "fontSize": 16, "lineHeight": 24 },
-      "bodyMedium": { "fontFamily": "Inter_400Regular", "fontSize": 14, "lineHeight": 20 },
-      "bodySmall": { "fontFamily": "Inter_400Regular", "fontSize": 12, "lineHeight": 16 },
-      "label": { "fontFamily": "Inter_600SemiBold", "fontSize": 11, "lineHeight": 14, "letterSpacing": 0.5, "textTransform": "uppercase" }
-    }
+    "body": {
+      "family": "Manrope or Plus Jakarta Sans",
+      "weight": "400 (Regular) to 600 (SemiBold)",
+      "tracking": "tracking-normal",
+      "usage": "Timeline data, client names, input fields, and lists"
+    },
+    "forbidden_fonts": ["Inter", "Roboto", "Space Grotesk"]
   },
   "colors": {
+    "archetype": "Organic & Earthy mixed with Swiss High-Contrast",
     "background": {
-      "main": "#F5F5F2",
+      "main": "#F8F6F4",
       "surface": "#FFFFFF",
-      "creamBrand": "#DAD2B6",
-      "overlay": "rgba(0,0,0,0.5)"
+      "overlay": "rgba(10, 10, 10, 0.4)"
     },
-    "primary": {
-      "violetAccent": "#5C33F6",
-      "violetLight": "#EBE5FF",
-      "violetDark": "#4A29C6"
+    "border": {
+      "light": "#E5E2DC",
+      "focus": "#D95D39"
     },
     "brand": {
-      "deepGreen": "#2C4334",
-      "greenLight": "#E4EDE7"
+      "primary": "#D95D39",
+      "primary_hover": "#C04F2E",
+      "secondary": "#2B3A41",
+      "accent_success": "#2E5C50",
+      "accent_warning": "#E69C24"
     },
     "text": {
       "primary": "#1A1A1A",
-      "secondary": "#666666",
-      "tertiary": "#999999",
-      "inverse": "#FFFFFF",
-      "brand": "#2C4334"
+      "secondary": "#6A6863",
+      "inverse": "#FFFFFF"
     },
-    "border": {
-      "light": "#EEEEEE",
-      "medium": "#DDDDDD",
-      "brand": "#DAD2B6"
-    },
-    "status": {
-      "success": "#10B981",
-      "warning": "#F59E0B",
-      "error": "#EF4444"
-    }
-  },
-  "spacing": {
-    "xs": 4,
-    "sm": 8,
-    "md": 16,
-    "lg": 24,
-    "xl": 32,
-    "xxl": 48
-  },
-  "radii": {
-    "sm": 8,
-    "md": 12,
-    "lg": 16,
-    "xl": 24,
-    "pill": 9999
-  },
-  "shadows": {
-    "sm": {
-      "shadowColor": "#000",
-      "shadowOffset": { "width": 0, "height": 2 },
-      "shadowOpacity": 0.05,
-      "shadowRadius": 4,
-      "elevation": 2
-    },
-    "md": {
-      "shadowColor": "#000",
-      "shadowOffset": { "width": 0, "height": 4 },
-      "shadowOpacity": 0.08,
-      "shadowRadius": 8,
-      "elevation": 4
-    },
-    "lg": {
-      "shadowColor": "#000",
-      "shadowOffset": { "width": 0, "height": 8 },
-      "shadowOpacity": 0.12,
-      "shadowRadius": 16,
-      "elevation": 8
-    }
-  },
-  "breakpoints": {
-    "mobile": 760,
-    "desktop": 1040
-  },
-  "component_specifications": {
-    "bottomNavigation": {
-      "style": "sticky bottom, fixed position on mobile",
-      "backgroundColor": "#FFFFFF",
-      "height": 65,
-      "paddingBottom": "safeAreaInset",
-      "borderTopWidth": 1,
-      "borderColor": "#EEEEEE",
-      "activeColor": "#5C33F6",
-      "inactiveColor": "#999999",
-      "shadow": "md"
-    },
-    "establishmentCard": {
-      "backgroundColor": "#FFFFFF",
-      "borderRadius": 16,
-      "shadow": "sm",
-      "overflow": "hidden",
-      "marginBottom": 24,
-      "imageBannerHeight": 180,
-      "logoSize": 48,
-      "logoOffset": -24
-    },
-    "filterChips": {
-      "backgroundColor": "#FFFFFF",
-      "borderWidth": 1,
-      "borderColor": "#DDDDDD",
-      "borderRadius": 9999,
-      "paddingHorizontal": 16,
-      "paddingVertical": 8,
-      "activeBackgroundColor": "#EBE5FF",
-      "activeBorderColor": "#5C33F6",
-      "activeTextColor": "#5C33F6"
-    },
-    "stickyCTABar": {
-      "position": "absolute",
-      "bottom": 0,
-      "left": 0,
-      "right": 0,
-      "backgroundColor": "#FFFFFF",
-      "padding": 16,
-      "borderTopWidth": 1,
-      "borderColor": "#EEEEEE",
-      "shadow": "lg",
-      "buttonBackgroundColor": "#5C33F6",
-      "buttonTextColor": "#FFFFFF",
-      "buttonBorderRadius": 12
-    }
+    "forbidden_colors": ["#7351B7", "#1B93A4", "#007AFF"]
   },
   "layouts": {
-    "explorePage": "Header with Search Input -> Horizontal ScrollView for Filter Chips -> FlatList for Establishment Cards",
-    "profilePage": "ScrollView -> Hero Banner -> Overlapping Info Section (Logo, Name, Rating) -> Horizontal ScrollView for Team -> Services List -> Map Section -> Fixed Bottom Sticky CTA",
-    "bookingFlow": "Wizard Layout -> Progress Bar on top -> Step Content in ScrollView -> Fixed Bottom Nav for 'Next/Confirm'",
-    "myAppointments": "Top Tabs -> FlatList of Appointment Cards (Date block on left, details on right)",
-    "shellLayout": "On width < 760: use Bottom Navigation. On width >= 1040: use Top Navigation Bar with deep green #2C4334 background and keyboard shortcut hints."
+    "spacing": "Generous. Use 24px (p-6) to 32px (p-8) for container margins. Dense spacing (8px to 12px) only inside functional timeline blocks.",
+    "border_radius": "Subtle roundness. Use 12px (rounded-xl) for main containers and buttons, 0px for full-width lists.",
+    "shadows": "Avoid muddy shadows. Use sharp, flat borders (border-width: 1px) or a very subtle diffuse shadow (shadow-sm) for floating elements."
   },
-  "image_urls": {
-    "establishment_banners": [
-      {
-        "url": "https://images.pexels.com/photos/9146943/pexels-photo-9146943.jpeg",
-        "description": "Spacious and stylish hair salon featuring empty barber chairs",
-        "category": "Hair Salon"
-      },
-      {
-        "url": "https://images.pexels.com/photos/37764947/pexels-photo-37764947.jpeg",
-        "description": "Charming vintage barber shop",
-        "category": "Barber Shop"
-      },
-      {
-        "url": "https://images.pexels.com/photos/7195805/pexels-photo-7195805.jpeg",
-        "description": "Comfortable backwash chairs with sinks",
-        "category": "Beauty Salon"
-      }
-    ],
-    "services_thumbnails": [
-      {
-        "url": "https://images.unsplash.com/photo-1647140655214-e4a2d914971f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwzfHxoYWlyY3V0fGVufDB8fHx8MTc4NTcyMzE3N3ww&ixlib=rb-4.1.0&q=85",
-        "description": "Haircut service",
-        "category": "Service"
-      },
-      {
-        "url": "https://images.pexels.com/photos/10593034/pexels-photo-10593034.jpeg",
-        "description": "Blonde hair cutting",
-        "category": "Service"
-      }
-    ]
+  "components": {
+    "fab_booking": {
+      "style": "Pill-shaped (e.g., 'New Booking' text + Icon), placed bottom-center or right. Background #2B3A41 or #D95D39, Text #FFFFFF.",
+      "interaction": "On press: scale to 0.95, Haptic feedback (ImpactLight)."
+    },
+    "bottom_sheet": {
+      "style": "Used for the multi-step booking flow and filters. Top corners rounded (24px). Background #FFFFFF. Must have a drag indicator (pill) at the top.",
+      "behavior": "Snap points at 50% and 90%. Smooth spring animation."
+    },
+    "buttons": {
+      "primary": "Solid background, no border, bold uppercase/tracking-wide text.",
+      "secondary": "Transparent background, 1px solid border (#E5E2DC), dark text.",
+      "states": "Opacity 0.7 on press/active."
+    },
+    "empty_states": {
+      "style": "Center-aligned inside a full-height flex container. Large, monochromatic geometric icon. Bold H3 text. Secondary body text. Prominent primary button to take action."
+    },
+    "toasts": {
+      "style": "Floating at the bottom, above safe area. Dark background (#1A1A1A), white text. Sharp corners (8px). Icon + Message."
+    }
+  },
+  "screens": {
+    "dashboard_today": {
+      "header": "Large greeting ('Good Morning, Ana') + Current Date.",
+      "metrics_bento": "Grid layout. 1 wide block (Revenue/Earnings), 2 square blocks (Appointments, New Clients). 1px border, pure white background.",
+      "timeline": "Vertical list. Left side shows time, right side shows appointment card. Do not use generic cards; use a flush left border line connecting the timeline nodes."
+    },
+    "agenda": {
+      "layout": "Horizontal date picker at the top (sticky). Vertical timeline grid for the day.",
+      "blocks": "Appointment blocks overlay the grid. Background colors should be pale (e.g., tinted versions of secondary colors) with a solid 2px left border indicating status (confirmed, pending, blocked).",
+      "density": "Maximize vertical space. Hide empty hours dynamically if possible, or keep a tight 48px height per hour."
+    },
+    "management": {
+      "layout": "Flat, full-width list items. No cards. Each row has a left icon (Phosphor icon), title, optional subtitle, and right chevron.",
+      "hierarchy": "Group items clearly (e.g., 'Team', 'Services', 'Clients') with thick typographic section headers (text-sm, uppercase, tracking-wide, text-secondary)."
+    },
+    "account": {
+      "layout": "Avatar/Profile section centered at the top. Followed by a settings list similar to Management. Destructive actions (Logout, Delete Account) should be pure red text (#D32F2F) with no background, placed at the very bottom."
+    },
+    "checkout_details": {
+      "layout": "Drawer/Bottom sheet or modal. Clear breakdown of Service cost, Products, Discount, and Total. Massive 'Confirm Payment' button pinned to the bottom safe area."
+    }
+  },
+  "motion_and_haptics": {
+    "page_transitions": "Slide horizontally (standard iOS/Android behavior), but ensure it feels snappy.",
+    "haptics": "MANDATORY. Add haptics to FAB press, bottom sheet snap, success actions (toast appearance), and time slot selection.",
+    "loading": "Use skeleton screens (pulsing #E5E2DC blocks) instead of infinite spinners for data fetching."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text, especially inside appointment blocks and buttons, meets at least 4.5:1 contrast ratio.",
+    "touch_targets": "All interactive elements must be at least 48x48px.",
+    "test_ids": "CRITICAL: Add `testID` (React Native equivalent of data-testid) to EVERY interactive element (e.g., `testID=\"fab-new-appointment\"`, `testID=\"login-submit-button\"`)."
   },
   "instructions_to_main_agent": [
-    "This is a React Native Web (Expo) project using pure StyleSheet. DO NOT USE Tailwind or CSS classes.",
-    "Implement a cohesive design integrating the 'Fresha' look (light clean backgrounds with vibrant Violet #5C33F6 accents for CTAs and active states) with CutSync's brand (Deep Green #2C4334 for top nav in desktop, major headings, and Cream #DAD2B6 for secondary backgrounds/badges).",
-    "Use Montserrat for headings (h1, h2, h3) and Inter for body text to keep the identity.",
-    "The Explore page should have a horizontal ScrollView for filter chips and a FlatList of Establishment Cards. Establishments cards must be touch-optimized with large tap targets, featuring a banner image, floating logo, and clear details.",
-    "Profile page needs a sticky 'Agendar agora' CTA at the bottom using safe area insets.",
-    "Implement responsive shell: if window width < 760px, render bottom navigation (icons + text). If >= 1040px, render a top navigation bar (deep green background).",
-    "Add 'testID' to all interactive elements for automated testing (e.g., testID='explore-search-input').",
-    "Ensure all buttons have active opacity or scale feedback using Pressable.",
-    "Do not use `transparent` background over content. Use solid or semi-transparent backgrounds with blur (where available in RN Web) for sticky headers/CTAs."
+    "You are working with React Native Expo (.js files, NOT .tsx). Do not output TypeScript syntax unless specifically requested by the project setup.",
+    "Do not use generic UI libraries blindly. Build components with styled-components or React Native StyleSheet matching the exact spacing, colors, and typography defined here.",
+    "Prioritize F1 (Quick wins) - Ensure the Today Dashboard and Agenda look distinct, professional, and not like a generic template.",
+    "Never use `alignItems: 'center'` globally on screens. Let data flow left-to-right naturally.",
+    "Use @phosphor-icons/react-native or similar premium icon set (avoid thin, generic icons).",
+    "Avoid nested shadow boxes. A card inside a card is forbidden. Use layout groupings and borders instead.",
+    "Implement the UI changes specifically taking Fresha, Booksy, and Trinks as benchmarks to beat, offering a cleaner, more tactile Neo-Brutalist/Premium feel."
   ],
-  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
-    "Prioritize accessibility, ensuring high contrast between text and background.",
-    "Embrace generous spacing (padding/margin) to ensure a premium, uncluttered look.",
-    "Avoid centered layouts for lists/forms; left-align text for natural reading.",
-    "Use pill-shaped or soft-rounded buttons (borderRadius: 12 or 16).",
-    "Implement subtle hover effects on React Native Web using Pressable hovered state if possible, or standard scale animations on press.",
-    "Include micro-animations (like a gentle scale down on press) for touch interactions."
-  ]
+  "image_urls": [
+    {
+      "category": "salon_background_auth",
+      "url": "https://images.unsplash.com/photo-1781450090585-1a511b7066d9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODl8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzYWxvbiUyMGludGVyaW9yfGVufDB8fHx8MTc4Njc1NjE1NXww&ixlib=rb-4.1.0&q=85",
+      "description": "A modern hair salon interior with stylish chairs and mirrors. Good for login/auth background overlay."
+    },
+    {
+      "category": "professional_avatar_placeholder",
+      "url": "https://images.unsplash.com/photo-1553521041-d168abd31de3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBiYXJiZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODY3NTYxNTl8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Shallow focus photo of man holding scissors. Good for team member avatar."
+    },
+    {
+      "category": "professional_avatar_placeholder_2",
+      "url": "https://images.pexels.com/photos/8552627/pexels-photo-8552627.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "A confident barber in an apron. Good for active user profile."
+    }
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": "Do not make generic centered layouts. Use 2-3x more spacing than feels comfortable. Every interaction needs a touch state (opacity/scale) and haptics. Missing categories must not use placeholder text (lorem ipsum). Prioritize building flat, bordered bento layouts over shadow-heavy layered cards. Make sure all files use .js extension."
 }

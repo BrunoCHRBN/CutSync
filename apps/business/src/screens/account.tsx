@@ -50,7 +50,9 @@ export function BusinessAccountScreen() {
 
   const displayName = typeof user?.user_metadata?.name === 'string'
     ? user.user_metadata.name
-    : 'Conta operacional';
+    : typeof user?.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : 'Minha conta';
 
   const sendRecovery = async () => {
     if (!user?.email) return;
@@ -68,6 +70,17 @@ export function BusinessAccountScreen() {
     setExitBusy(false);
   };
 
+  const confirmExit = () => {
+    Alert.alert(
+      'Sair da sua conta?',
+      'Você precisará entrar novamente para acessar a rotina do estabelecimento.',
+      [
+        { text: 'Continuar conectado', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: () => void exit() },
+      ],
+    );
+  };
+
   const checkUpdate = async () => {
     setUpdateBusy(true);
     setUpdateNotice(null);
@@ -75,8 +88,8 @@ export function BusinessAccountScreen() {
     setUpdateBusy(false);
     if (result.status === 'downloaded') {
       Alert.alert(
-        result.rollbackToEmbedded ? 'Rollback pronto' : 'Atualização pronta',
-        'Reinicie agora para carregar o bundle validado.',
+        'Atualização pronta',
+        'Reinicie o aplicativo para aplicar a nova versão.',
         [
           { text: 'Depois', style: 'cancel' },
           { text: 'Reiniciar', onPress: () => void reloadDownloadedBusinessUpdate() },
@@ -85,10 +98,10 @@ export function BusinessAccountScreen() {
       return;
     }
     setUpdateNotice(result.status === 'current'
-      ? 'Este build já está no update compatível mais recente.'
+      ? 'Seu aplicativo já está atualizado.'
       : result.status === 'disabled'
-        ? 'Updates ficam disponíveis em builds Development, Preview e Production.'
-        : 'Não foi possível consultar updates agora.');
+        ? 'A busca de atualizações não está disponível nesta versão.'
+        : 'Não foi possível buscar atualizações agora.');
   };
 
   const togglePush = async () => {
@@ -116,11 +129,13 @@ export function BusinessAccountScreen() {
   return (
     <BusinessPage testID="business-account-screen">
       <BusinessHeader
-        eyebrow="CONTA"
+        testID="business-account-header"
+        eyebrow="SUA CONTA"
         title={displayName}
         description={user?.email ?? 'Sessão operacional'}
         trailing={activeContext ? (
           <BusinessPill
+            testID="business-account-role"
             label={roleLabel[activeContext.operationalRole]}
             tone={activeContext.accessMode === 'read_only' ? 'warning' : 'success'}
           />
@@ -128,12 +143,12 @@ export function BusinessAccountScreen() {
       />
 
       <View style={styles.section}>
-        <BusinessSectionTitle>Estabelecimento ativo</BusinessSectionTitle>
-        <BusinessCard>
-          <Text selectable style={styles.cardTitle}>{activeContext?.establishmentName ?? 'Nenhum selecionado'}</Text>
-          <Text selectable style={styles.cardMeta}>
+        <BusinessSectionTitle testID="business-account-establishment-title">Estabelecimento</BusinessSectionTitle>
+        <BusinessCard testID="business-account-establishment-card">
+          <Text testID="business-account-establishment-name" selectable style={styles.cardTitle}>{activeContext?.establishmentName ?? 'Nenhum selecionado'}</Text>
+          <Text testID="business-account-establishment-access" selectable style={styles.cardMeta}>
             {activeContext
-              ? `${activeContext.timezone} · ${activeContext.accessMode === 'full' ? 'Acesso completo' : 'Somente leitura'}`
+              ? `${activeContext.timezone} · ${activeContext.accessMode === 'full' ? 'Acesso total' : 'Somente consulta'}`
               : 'Escolha uma unidade para continuar.'}
           </Text>
           <BusinessButton
@@ -146,17 +161,20 @@ export function BusinessAccountScreen() {
       </View>
 
       <View style={styles.section}>
-        <BusinessSectionTitle>Perfil profissional</BusinessSectionTitle>
-        <BusinessCard>
-          <Text selectable style={styles.cardTitle}>Identidade operacional</Text>
+        <BusinessSectionTitle testID="business-account-profile-title">Perfil público</BusinessSectionTitle>
+        <BusinessCard testID="business-account-profile-card">
+          <View style={styles.cardTitleRow}>
+            <Text selectable style={styles.cardTitle}>Sua apresentação aos clientes</Text>
+            <BusinessPill testID="business-account-profile-status" label="Em breve" />
+          </View>
           <Text selectable style={styles.cardMeta}>
-            Nesta fatia, o Business confirma identidade, papel e unidade. A edição do perfil público entra em Perfil e desempenho.
+            Em breve você poderá editar foto, apresentação e portfólio diretamente por aqui.
           </Text>
         </BusinessCard>
       </View>
 
       <View style={styles.section}>
-        <BusinessSectionTitle>Segurança</BusinessSectionTitle>
+        <BusinessSectionTitle testID="business-account-security-title">Segurança</BusinessSectionTitle>
         <BusinessCard>
           <Text selectable style={styles.cardMeta}>
             Enviaremos um link seguro para redefinir a senha. O Business nunca solicita sua senha por mensagem.
@@ -180,13 +198,14 @@ export function BusinessAccountScreen() {
       </View>
 
       <View style={styles.section}>
-        <BusinessSectionTitle>Notificações Android</BusinessSectionTitle>
+        <BusinessSectionTitle testID="business-account-notifications-title">Notificações</BusinessSectionTitle>
         <BusinessCard>
           <Text selectable style={styles.cardMeta}>
-            Receba novos atendimentos, cancelamentos, mudanças, convites e conflitos operacionais sem dados pessoais no push.
+            Receba avisos de novos atendimentos, cancelamentos, mudanças e convites neste dispositivo.
           </Text>
-          {pushNotice ? <BusinessNotice message={pushNotice} tone={pushStatus === 'enabled' ? 'success' : 'neutral'} /> : null}
+          {pushNotice ? <BusinessNotice testID="business-account-push-notice" message={pushNotice} tone={pushStatus === 'enabled' ? 'success' : 'neutral'} /> : null}
           <BusinessButton
+            testID="business-account-toggle-notifications"
             label={pushStatus === 'enabled' ? 'Desativar neste dispositivo' : 'Ativar neste dispositivo'}
             variant={pushStatus === 'enabled' ? 'danger' : 'secondary'}
             loading={pushBusy}
@@ -197,13 +216,13 @@ export function BusinessAccountScreen() {
       </View>
 
       <View style={styles.section}>
-        <BusinessSectionTitle>Versão e atualizações</BusinessSectionTitle>
+        <BusinessSectionTitle testID="business-account-updates-title">Sobre o aplicativo</BusinessSectionTitle>
         <BusinessCard>
           <Text selectable style={styles.cardMeta}>
-            Updates são aceitos somente quando o runtime nativo é compatível com esta versão do aplicativo.
+            Busque melhorias e correções disponíveis para esta versão do CutSync Business.
           </Text>
-          {updateNotice ? <BusinessNotice message={updateNotice} tone={updateNotice.startsWith('Este build') ? 'success' : 'neutral'} /> : null}
-          <BusinessButton label="Verificar update compatível" variant="secondary" loading={updateBusy} onPress={() => void checkUpdate()} />
+          {updateNotice ? <BusinessNotice testID="business-account-update-notice" message={updateNotice} tone={updateNotice.startsWith('Seu aplicativo') ? 'success' : 'neutral'} /> : null}
+          <BusinessButton testID="business-account-check-updates" label="Buscar atualizações" variant="secondary" loading={updateBusy} onPress={() => void checkUpdate()} />
         </BusinessCard>
       </View>
 
@@ -212,7 +231,7 @@ export function BusinessAccountScreen() {
         label="Sair do Business"
         variant="danger"
         loading={exitBusy}
-        onPress={() => void exit()}
+        onPress={confirmExit}
       />
     </BusinessPage>
   );
@@ -220,6 +239,7 @@ export function BusinessAccountScreen() {
 
 const styles = StyleSheet.create({
   section: { gap: businessTheme.spacing.sm },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: businessTheme.spacing.sm },
   cardTitle: { ...businessTheme.typography.heading, color: businessTheme.colors.text },
   cardMeta: { ...businessTheme.typography.body, color: businessTheme.colors.textSoft },
 });

@@ -26,6 +26,7 @@ export function BusinessPage({
   return (
     <ScrollView
       testID={testID}
+      style={styles.pageScroll}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={[styles.page, contentStyle]}
       keyboardShouldPersistTaps="handled"
@@ -41,18 +42,24 @@ export function BusinessHeader({
   title,
   description,
   trailing,
+  testID,
 }: {
   eyebrow: string;
   title: string;
   description?: string;
   trailing?: ReactNode;
+  testID?: string;
 }) {
   return (
-    <View style={styles.header}>
+    <View testID={testID} style={styles.header}>
       <View style={styles.headerCopy}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text selectable style={styles.title}>{title}</Text>
-        {description ? <Text selectable style={styles.description}>{description}</Text> : null}
+        <Text testID={testID ? `${testID}-eyebrow` : undefined} style={styles.eyebrow}>{eyebrow}</Text>
+        <Text testID={testID ? `${testID}-title` : undefined} selectable style={styles.title}>{title}</Text>
+        {description ? (
+          <Text testID={testID ? `${testID}-description` : undefined} selectable style={styles.description}>
+            {description}
+          </Text>
+        ) : null}
       </View>
       {trailing}
     </View>
@@ -196,11 +203,16 @@ export function BusinessMetric({
 export function BusinessSectionTitle({
   children,
   style,
-}: PropsWithChildren<{ style?: StyleProp<TextStyle> }>) {
-  return <Text selectable style={[styles.sectionTitle, style]}>{children}</Text>;
+  testID,
+}: PropsWithChildren<{ style?: StyleProp<TextStyle>; testID?: string }>) {
+  return <Text testID={testID} selectable style={[styles.sectionTitle, style]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
+  pageScroll: {
+    flex: 1,
+    backgroundColor: businessTheme.colors.canvas,
+  },
   page: {
     flexGrow: 1,
     width: '100%',

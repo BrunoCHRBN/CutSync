@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { CalendarCheck2 } from 'lucide-react-native';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
+import { BusinessEmptyState } from '@/components/ui/business-empty-state';
 import {
   BusinessButton,
   BusinessHeader,
@@ -38,11 +40,13 @@ export function BusinessTodayScreen() {
   return (
     <BusinessPage testID="business-today-screen">
       <BusinessHeader
-        eyebrow="HOJE NA OPERAÇÃO"
+        testID="business-today-header"
+        eyebrow="RESUMO DO DIA"
         title={activeContext?.establishmentName ?? 'Meu dia'}
         description={formatAgendaDate(agenda.localDate, timeZone)}
         trailing={activeContext ? (
           <BusinessPill
+            testID="business-today-role"
             label={roleLabel[activeContext.operationalRole]}
             tone={activeContext.accessMode === 'read_only' ? 'warning' : 'success'}
           />
@@ -51,7 +55,11 @@ export function BusinessTodayScreen() {
 
       {activeContext?.accessMode === 'full'
         && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
-          <BusinessButton label="Criar encaixe" onPress={() => router.push('/(app)/walk-in' as never)} />
+          <BusinessButton
+            testID="business-today-create-appointment"
+            label="Novo atendimento"
+            onPress={() => router.push('/(app)/walk-in' as never)}
+          />
         ) : null}
 
       {activeContext?.accessMode === 'read_only' ? (
@@ -69,13 +77,13 @@ export function BusinessTodayScreen() {
       </View>
 
       <View style={styles.section}>
-        <BusinessSectionTitle>Próximo atendimento</BusinessSectionTitle>
+        <BusinessSectionTitle testID="business-today-next-title">Próximo atendimento</BusinessSectionTitle>
         {agenda.isLoading ? (
           <ActivityIndicator color={businessTheme.colors.accent} />
         ) : agenda.error ? (
           <>
             <BusinessNotice tone="danger" message={agenda.error} />
-            <BusinessButton label="Tentar novamente" variant="secondary" onPress={() => void agenda.refresh()} />
+            <BusinessButton testID="business-today-retry" label="Tentar novamente" variant="secondary" onPress={() => void agenda.refresh()} />
           </>
         ) : summary.next ? (
           <AppointmentCard
@@ -85,28 +93,36 @@ export function BusinessTodayScreen() {
             onPress={() => openAppointment(summary.next!.id)}
           />
         ) : (
-          <BusinessNotice
+          <BusinessEmptyState
             testID="business-today-empty"
-            message="Nenhum próximo atendimento ativo para hoje."
+            icon={<CalendarCheck2 color={businessTheme.colors.accentStrong} size={24} />}
+            title="Seu dia está livre"
+            description="Quando um atendimento for marcado para hoje, ele aparecerá aqui."
+            actionLabel={activeContext?.accessMode === 'full'
+              && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'))
+              ? 'Agendar atendimento'
+              : undefined}
+            onAction={() => router.push('/(app)/walk-in' as never)}
           />
         )}
       </View>
 
       {!agenda.isLoading && !agenda.error && agenda.items.length > 0 ? (
         <View style={styles.section}>
-          <BusinessSectionTitle>Sequência do dia</BusinessSectionTitle>
+          <BusinessSectionTitle testID="business-today-sequence-title">Agenda de hoje</BusinessSectionTitle>
           <View style={styles.list}>
             {agenda.items.slice(0, 6).map((item) => (
               <AppointmentCard
                 key={item.id}
+                testID={`business-today-appointment-${item.id}`}
                 item={item}
                 timeZone={timeZone}
                 onPress={() => openAppointment(item.id)}
               />
             ))}
           </View>
-          <Text selectable style={styles.foundationNote}>
-            Toque em um atendimento para consultar as ações autorizadas pelo servidor.
+          <Text testID="business-today-list-hint" selectable style={styles.foundationNote}>
+            Toque em um atendimento para ver detalhes e próximas ações.
           </Text>
         </View>
       ) : null}

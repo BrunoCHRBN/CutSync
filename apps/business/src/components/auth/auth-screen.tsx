@@ -43,7 +43,7 @@ export function AuthScreen({
               </View>
               <View>
                 <Text style={styles.brand}>CutSync Business</Text>
-                <Text style={styles.brandCaption}>CENTRAL OPERACIONAL</Text>
+                <Text style={styles.brandCaption}>GESTÃO DO SEU NEGÓCIO</Text>
               </View>
             </View>
 

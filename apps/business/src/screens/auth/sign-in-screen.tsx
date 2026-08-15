@@ -65,18 +65,20 @@ export function SignInScreen({ redirect }: SignInScreenProps) {
   return (
     <AuthScreen
       testID="business-sign-in-screen"
-      eyebrow="ACESSO OPERACIONAL"
-      title="Entre para começar o dia."
-      description="Use a conta vinculada à sua unidade. Suas permissões serão confirmadas antes de liberar a operação."
+      eyebrow="CUTSYNC BUSINESS"
+      title="Sua rotina começa aqui."
+      description="Acesse a agenda, sua equipe e os atendimentos do dia."
       footer={(
         <>
           <AuthButton
+            testID="business-sign-in-forgot-password"
             label="Esqueci minha senha"
             variant="text"
             onPress={openForgotPassword}
           />
           {invitationToken ? (
             <AuthButton
+              testID="business-sign-in-invite-sign-up"
               label="Criar conta com este convite"
               variant="text"
               onPress={openInviteSignUp}
@@ -117,7 +119,7 @@ export function SignInScreen({ redirect }: SignInScreenProps) {
         testID="business-sign-in-submit"
         label={isLoading ? 'Restaurando sessão…' : 'Entrar'}
         busy={busy || isLoading}
-        disabled={!isConfigured}
+        disabled={!isConfigured || !email.trim() || !password}
         onPress={() => void submit()}
       />
     </AuthScreen>

@@ -1128,3 +1128,28 @@ Code review das roles client, admin/dono e professional; apontar não conformida
 
 ### Ação pendente do usuário
 - Aplicar a migração `20260811001000_deprecate_appointment_status_v1.sql` no Supabase (apenas COMMENT; segura e idempotente).
+
+---
+
+# CutSync Business — evolução mobile
+
+## Problema original
+Melhorar todas as telas do CutSync Business com referências de qualidade de Fresha, Booksy e Trinks, preservando as regras operacionais e superando a experiência concorrente em clareza, velocidade e capacidade de ação.
+
+## Arquitetura da iniciativa
+- Aplicativo React Native/Expo Router em `apps/business`.
+- Dados, autenticação e autorização via Supabase, RPCs e capabilities retornadas pelo servidor.
+- Componentes visuais compartilhados em `apps/business/src/components/ui`.
+- Tema em `apps/business/src/theme/business-theme.ts`.
+- Branch aprovada: `codex/android-first-cycle`.
+
+## Requisitos estáticos
+- Não expor termos de implementação, backend, RPC, build ou runtime ao usuário final.
+- Respeitar `accessMode` e capabilities para toda ação operacional ou financeira.
+- Toda ação e informação crítica deve possuir `testID` único.
+- Fluxos devem continuar acessíveis e funcionar em Android, iOS e export web.
+
+## Estado em 15/08/2026
+- F0 e F1 concluídas e testadas.
+- Detalhes de entrega em `memory/CHANGELOG.md`.
+- Próximas fases priorizadas em `memory/ROADMAP.md`.
