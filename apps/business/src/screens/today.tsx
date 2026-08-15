@@ -4,6 +4,8 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
 import { BusinessFloatingAction } from '@/components/appointments/business-floating-action';
+import { NextAppointmentActions } from '@/components/dashboard/next-appointment-actions';
+import { TodayFinancialMetrics } from '@/components/dashboard/today-financial-metrics';
 import { BusinessEmptyState } from '@/components/ui/business-empty-state';
 import {
   BusinessButton,
@@ -15,6 +17,7 @@ import {
   BusinessSectionTitle,
 } from '@/components/ui/business-ui';
 import { useBusinessOperational } from '@/contexts/business-operational-context';
+import { useBusinessSession } from '@/contexts/business-session';
 import {
   formatAgendaDate,
   summarizeBusinessAgenda,
@@ -30,12 +33,20 @@ const roleLabel = {
 
 export function BusinessTodayScreen() {
   const router = useRouter();
+  const { user } = useBusinessSession();
   const { activeContext, hasCapability } = useBusinessOperational();
   const agenda = useBusinessAgenda();
   const summary = summarizeBusinessAgenda(agenda.items);
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
   const canCreate = activeContext?.accessMode === 'full'
     && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'));
+  const displayName = typeof user?.user_metadata?.name === 'string'
+    ? user.user_metadata.name
+    : typeof user?.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : null;
+  const hour = Number(new Intl.DateTimeFormat('pt-BR', { timeZone, hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   const openAppointment = (appointmentId: string) => {
     router.push(`/(app)/appointments/${appointmentId}`);
   };
@@ -45,8 +56,8 @@ export function BusinessTodayScreen() {
     <BusinessPage testID="business-today-screen" contentStyle={styles.pageContent}>
       <BusinessHeader
         testID="business-today-header"
-        eyebrow="RESUMO DO DIA"
-        title={activeContext?.establishmentName ?? 'Meu dia'}
+        eyebrow={(activeContext?.establishmentName ?? 'CUTSYNC BUSINESS').toUpperCase()}
+        title={`${greeting}${displayName ? `, ${displayName.split(' ')[0]}` : ''}`}
         description={formatAgendaDate(agenda.localDate, timeZone)}
         trailing={activeContext ? (
           <BusinessPill
@@ -65,6 +76,9 @@ export function BusinessTodayScreen() {
         />
       ) : null}
 
+      <TodayFinancialMetrics localDate={agenda.localDate} />
+
+      <BusinessSectionTitle testID="business-today-operation-title">Operação</BusinessSectionTitle>
       <View style={styles.metrics}>
         <BusinessMetric testID="business-today-total" label="Atendimentos" value={String(agenda.items.length)} />
         <BusinessMetric testID="business-today-remaining" label="Restantes" value={String(summary.remaining)} emphasis="accent" />
@@ -77,16 +91,19 @@ export function BusinessTodayScreen() {
           <ActivityIndicator color={businessTheme.colors.accent} />
         ) : agenda.error ? (
           <>
-            <BusinessNotice tone="danger" message={agenda.error} />
+            <BusinessNotice testID="business-today-agenda-error" tone="danger" message={agenda.error} />
             <BusinessButton testID="business-today-retry" label="Tentar novamente" variant="secondary" onPress={() => void agenda.refresh()} />
           </>
         ) : summary.next ? (
-          <AppointmentCard
-            testID="business-next-appointment"
-            item={summary.next}
-            timeZone={timeZone}
-            onPress={() => openAppointment(summary.next!.id)}
-          />
+          <>
+            <AppointmentCard
+              testID="business-next-appointment"
+              item={summary.next}
+              timeZone={timeZone}
+              onPress={() => openAppointment(summary.next!.id)}
+            />
+            <NextAppointmentActions item={summary.next} />
+          </>
         ) : (
           <BusinessEmptyState
             testID="business-today-empty"

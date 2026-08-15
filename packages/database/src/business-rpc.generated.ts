@@ -396,6 +396,13 @@ export interface BusinessRpcFunctions {
     };
     Returns: unknown;
   };
+  get_business_daily_metrics: {
+    Args: {
+      target_establishment_id: string;
+      target_local_date: string;
+    };
+    Returns: unknown;
+  };
 }
 
 export type BusinessRpcName = keyof BusinessRpcFunctions;

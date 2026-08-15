@@ -1,5 +1,21 @@
 # Changelog — CutSync Business
 
+## 15/08/2026 — F4 Dashboard Hoje
+
+- Saudação dinâmica pelo horário local e primeiro nome, mantendo o estabelecimento como sinal principal.
+- Nova RPC `get_business_daily_metrics` para receita fechada, ticket médio e ocupação diária.
+- RPC protegida por autenticação, `financialOpsEnabled`, capability `view_unit_reports`, timezone local e permissões restritas.
+- Métricas financeiras permanecem completamente ocultas quando o contexto não possui produto e capability adequados.
+- Receita usa comandas realmente fechadas no dia; ticket usa essas comandas; ocupação usa minutos disponíveis e agendados válidos.
+- Próximo atendimento recebeu ações rápidas para confirmação autorizada, acesso à comanda e WhatsApp click-to-chat.
+- WhatsApp usa `wa.me`, valida telefone, apenas pré-preenche a mensagem e nunca envia automaticamente.
+- Adicionada rota de compatibilidade `/business/sign-in` para redirecionar ao acesso oficial do app Business.
+
+### Validação F4
+- TypeScript, ESLint, Expo web export e smoke externo: aprovados.
+- Regressão F4: 14/14 após correção do fallback nulo de minutos disponíveis.
+- E2E autenticado e aplicação da migration permanecem pendentes por ausência das variáveis públicas Supabase nesta prévia. Nenhuma API foi simulada.
+
 ## 15/08/2026 — F3 Agenda em timeline
 
 - Faixa semanal de segunda a domingo com navegação, botão Hoje e indicadores de ocupação vindos da agenda real.

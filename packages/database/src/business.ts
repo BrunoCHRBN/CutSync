@@ -148,6 +148,17 @@ export interface ServiceOrderSummary {
   version: number;
 }
 
+export interface BusinessDailyMetrics {
+  localDate: string;
+  currency: 'BRL';
+  revenueCents: number;
+  closedOrders: number;
+  averageTicketCents: number;
+  occupiedMinutes: number;
+  availableMinutes: number;
+  occupancyRate: number;
+}
+
 export interface BusinessOperationalContext {
   membershipId: string;
   membershipRole: BusinessMembershipRole;
@@ -829,5 +840,45 @@ export const mapServiceOrderSummary = (value: unknown): ServiceOrderSummary | nu
     totalCents,
     openedAt,
     version,
+  };
+};
+
+/** Fail-closed mapper for get_business_daily_metrics. */
+export const mapBusinessDailyMetrics = (value: unknown): BusinessDailyMetrics | null => {
+  if (!isRecord(value)) return null;
+  const localDate = typeof value.localDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.localDate)
+    ? value.localDate
+    : null;
+  const currency = value.currency === 'BRL' ? 'BRL' as const : null;
+  const revenueCents = asMoneyCentsField(value.revenueCents);
+  const closedOrders = asSafeInteger(value.closedOrders);
+  const averageTicketCents = asMoneyCentsField(value.averageTicketCents);
+  const occupiedMinutes = asSafeInteger(value.occupiedMinutes);
+  const availableMinutes = asSafeInteger(value.availableMinutes);
+  const occupancyRate = typeof value.occupancyRate === 'number'
+    && Number.isFinite(value.occupancyRate)
+    && value.occupancyRate >= 0
+    && value.occupancyRate <= 100
+      ? value.occupancyRate
+      : null;
+  if (
+    !localDate
+    || !currency
+    || revenueCents === null
+    || closedOrders === null
+    || averageTicketCents === null
+    || occupiedMinutes === null
+    || availableMinutes === null
+    || occupancyRate === null
+  ) return null;
+  return {
+    localDate,
+    currency,
+    revenueCents,
+    closedOrders,
+    averageTicketCents,
+    occupiedMinutes,
+    availableMinutes,
+    occupancyRate,
   };
 };
