@@ -3,6 +3,7 @@ import { CalendarCheck2 } from 'lucide-react-native';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
+import { BusinessFloatingAction } from '@/components/appointments/business-floating-action';
 import { BusinessEmptyState } from '@/components/ui/business-empty-state';
 import {
   BusinessButton,
@@ -33,12 +34,15 @@ export function BusinessTodayScreen() {
   const agenda = useBusinessAgenda();
   const summary = summarizeBusinessAgenda(agenda.items);
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
+  const canCreate = activeContext?.accessMode === 'full'
+    && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'));
   const openAppointment = (appointmentId: string) => {
     router.push(`/(app)/appointments/${appointmentId}`);
   };
 
   return (
-    <BusinessPage testID="business-today-screen">
+    <View style={styles.screen}>
+    <BusinessPage testID="business-today-screen" contentStyle={styles.pageContent}>
       <BusinessHeader
         testID="business-today-header"
         eyebrow="RESUMO DO DIA"
@@ -52,15 +56,6 @@ export function BusinessTodayScreen() {
           />
         ) : null}
       />
-
-      {activeContext?.accessMode === 'full'
-        && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
-          <BusinessButton
-            testID="business-today-create-appointment"
-            label="Novo atendimento"
-            onPress={() => router.push('/(app)/walk-in' as never)}
-          />
-        ) : null}
 
       {activeContext?.accessMode === 'read_only' ? (
         <BusinessNotice
@@ -98,11 +93,6 @@ export function BusinessTodayScreen() {
             icon={<CalendarCheck2 color={businessTheme.colors.accentStrong} size={24} />}
             title="Seu dia está livre"
             description="Quando um atendimento for marcado para hoje, ele aparecerá aqui."
-            actionLabel={activeContext?.accessMode === 'full'
-              && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'))
-              ? 'Agendar atendimento'
-              : undefined}
-            onAction={() => router.push('/(app)/walk-in' as never)}
           />
         )}
       </View>
@@ -127,10 +117,14 @@ export function BusinessTodayScreen() {
         </View>
       ) : null}
     </BusinessPage>
+    {canCreate ? <BusinessFloatingAction testID="business-today-fab-schedule" label="Agendar" onPress={() => router.push('/(app)/walk-in' as never)} /> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: businessTheme.colors.canvas },
+  pageContent: { paddingBottom: 112 },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: businessTheme.spacing.sm },
   section: { gap: businessTheme.spacing.sm },
   list: { gap: businessTheme.spacing.sm },

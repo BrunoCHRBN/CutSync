@@ -3,6 +3,7 @@ import { CalendarDays } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/operations/appointment-card';
+import { BusinessFloatingAction } from '@/components/appointments/business-floating-action';
 import { BusinessEmptyState } from '@/components/ui/business-empty-state';
 import {
   BusinessButton,
@@ -25,12 +26,15 @@ export function BusinessAgendaScreen() {
   const agenda = useBusinessAgenda();
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
   const today = getLocalDateInTimeZone(timeZone);
+  const canCreate = activeContext?.accessMode === 'full'
+    && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'));
   const openAppointment = (appointmentId: string) => {
     router.push(`/(app)/appointments/${appointmentId}`);
   };
 
   return (
-    <BusinessPage testID="business-agenda-screen">
+    <View style={styles.screen}>
+    <BusinessPage testID="business-agenda-screen" contentStyle={styles.pageContent}>
       <BusinessHeader
         testID="business-agenda-header"
         eyebrow="SUA ROTINA"
@@ -40,9 +44,6 @@ export function BusinessAgendaScreen() {
 
       {activeContext?.accessMode === 'full' ? (
         <View style={styles.quickActions}>
-          {(hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in')) ? (
-            <BusinessButton testID="business-agenda-create-appointment" label="Novo atendimento" onPress={() => router.push('/(app)/walk-in' as never)} />
-          ) : null}
           {(hasCapability('manage_own_blocks') || hasCapability('manage_team_blocks')) ? (
             <BusinessButton testID="business-agenda-manage-blocks" label="Horários bloqueados" variant="secondary" onPress={() => router.push('/(app)/schedule-blocks' as never)} />
           ) : null}
@@ -128,11 +129,6 @@ export function BusinessAgendaScreen() {
           description={agenda.scope === 'team'
             ? 'A equipe ainda não tem atendimentos marcados para esta data.'
             : 'Você ainda não tem atendimentos marcados para esta data.'}
-          actionLabel={activeContext?.accessMode === 'full'
-            && (hasCapability('create_self_walk_in') || hasCapability('create_team_walk_in'))
-            ? 'Agendar atendimento'
-            : undefined}
-          onAction={() => router.push('/(app)/walk-in' as never)}
         />
       ) : (
         <View testID="business-agenda-list" style={styles.list}>
@@ -148,10 +144,14 @@ export function BusinessAgendaScreen() {
         </View>
       )}
     </BusinessPage>
+    {canCreate ? <BusinessFloatingAction testID="business-agenda-fab-schedule" label="Agendar" onPress={() => router.push('/(app)/walk-in' as never)} /> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: businessTheme.colors.canvas },
+  pageContent: { paddingBottom: 112 },
   dateControl: {
     minHeight: 72,
     flexDirection: 'row',

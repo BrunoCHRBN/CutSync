@@ -1,0 +1,56 @@
+{
+  "summary": "Frontend-only F2 validation for CutSync Business completed with runtime smoke + static contract regression. typecheck/lint/expo web export passed. Walk-in flow contract is implemented in reviewed code and static pytest checks (6/6) passed. Full authenticated runtime validation remains blocked because preview is not configured with public Supabase keys.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Authenticated F2 runtime flow (Hoje/Agenda -> FAB -> Walk-in -> confirmação)",
+        "issue": "Could not execute end-to-end runtime flow in preview: sign-in shows 'Este ambiente ainda não está configurado.' (missing public Supabase runtime config). Therefore availability RPC, create appointment RPC, haptics at runtime, cache invalidation effects, and post-confirmation navigation were validated by code/static tests only.",
+        "affected_selectors": [
+          "business-sign-in-screen",
+          "business-today-fab-schedule",
+          "business-agenda-fab-schedule",
+          "business-walk-in-confirm"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/test_business_walkin_f2_static.py",
+    "/app/test_reports/pytest/pytest_results_iteration_23.xml",
+    "/app/apps/business/src/screens/walk-in.tsx",
+    "/app/apps/business/src/screens/today.tsx",
+    "/app/apps/business/src/screens/agenda.tsx",
+    "/app/apps/business/src/components/appointments/business-floating-action.tsx",
+    "/app/apps/business/src/components/appointments/walk-in-client-step.tsx",
+    "/app/apps/business/src/components/appointments/walk-in-selection-step.tsx",
+    "/app/apps/business/src/components/appointments/walk-in-schedule-step.tsx",
+    "/app/apps/business/src/features/appointments/business-appointments-api.ts"
+  ],
+  "action_items": [
+    "Configure preview runtime with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY, then rerun authenticated E2E for full F2 acceptance.",
+    "After env is available, verify real RPC responses for get_available_slots and create_business_appointment including idempotency behavior and post-success navigation to appointment detail."
+  ],
+  "critical_code_review_comments": [
+    "F2 implementation matches requested contract by inspection: 5-step walk-in, future-step lock, editable previous steps, BRL price/duration display, role-aware professional list, slot-reset on service/professional/date change, idempotent requestId usage, cache invalidation, success toast+haptic, and route transition.",
+    "No mocked API usage detected in reviewed F2 flow; RPC integration uses callBusinessRpc with get_available_slots and create_business_appointment."
+  ],
+  "updated_files": [
+    "/app/tests/test_business_walkin_f2_static.py",
+    "/app/test_reports/iteration_23.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (not requested)",
+    "frontend": "92%"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Static contract regression added: /app/tests/test_business_walkin_f2_static.py (6 tests, all passing). Build checks passed with --ignore-engines: typecheck:business, lint:business, and expo export web. Runtime smoke at /sign-in works but authenticated navigation is blocked by missing Supabase public env in preview.",
+  "rca of the issue": "Root cause of incomplete runtime F2 verification is environment configuration, not feature code regression: preview authentication gate remains in 'not configured' mode, preventing access to Hoje/Agenda/Walk-in authenticated screens. Mitigation: enable public Supabase vars in preview and rerun E2E on real session."
+}

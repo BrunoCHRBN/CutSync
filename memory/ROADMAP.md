@@ -1,11 +1,10 @@
 # Roadmap — CutSync Business
 
 ## P0 — Próxima entrega
-- **F2 FAB + Agendamento rápido:** FAB persistente em Hoje/Agenda e fluxo cliente → serviço → profissional → data/horário usando disponibilidade existente.
+- **F3 Agenda timeline:** faixa de sete dias, timeline proporcional, visão individual/equipe, bloqueios e toque em slot vazio.
 - Configurar as variáveis públicas Supabase da prévia e validar rotas autenticadas de Hoje, Agenda, Gestão e Conta.
 
 ## P1
-- **F3 Agenda timeline:** faixa de sete dias, timeline proporcional, visão individual/equipe, bloqueios e toque em slot vazio.
 - **F4 Dashboard financeiro:** receita, ticket médio, ocupação e ações rápidas, sempre condicionados às capabilities.
 
 ## P2

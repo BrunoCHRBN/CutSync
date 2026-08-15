@@ -1150,6 +1150,7 @@ Melhorar todas as telas do CutSync Business com referências de qualidade de Fre
 - Fluxos devem continuar acessíveis e funcionar em Android, iOS e export web.
 
 ## Estado em 15/08/2026
-- F0 e F1 concluídas e testadas.
+- F0, F1 e F2 concluídas e testadas.
+- F2 adicionou FAB persistente em Hoje/Agenda e agendamento rápido em cinco etapas usando RPCs reais de disponibilidade e criação.
 - Detalhes de entrega em `memory/CHANGELOG.md`.
 - Próximas fases priorizadas em `memory/ROADMAP.md`.

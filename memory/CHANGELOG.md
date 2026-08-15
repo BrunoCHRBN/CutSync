@@ -1,5 +1,22 @@
 # Changelog — CutSync Business
 
+## 15/08/2026 — F2 FAB e agendamento rápido
+
+- Adicionado FAB “Agendar” persistente em Hoje e Agenda, visível apenas com acesso total e capability de criação.
+- Fluxo de novo atendimento reorganizado em cinco etapas: Cliente, Serviço, Profissional, Horário e Revisão.
+- Busca de clientes existentes e cadastro rápido no mesmo fluxo, com validação mínima de nome.
+- Serviços exibem preço e duração; profissionais respeitam papel e membros ativos da equipe.
+- Nova faixa horizontal de sete dias com navegação diária e grade de horários obtida pela RPC real `get_available_slots`.
+- Trocar serviço, profissional ou data invalida o horário selecionado.
+- Confirmação mantém request idempotente, invalida agenda/clientes, emite haptic e toast de sucesso antes de abrir o detalhe.
+- Componentes F2 modularizados em `components/appointments`, com testIDs únicos e acessibilidade.
+
+### Validação F2
+- TypeScript, ESLint e Expo web export: aprovados.
+- Smoke test externo: aprovado.
+- Testing agent: 6/6 regressões estáticas aprovadas; nenhum bug de UI reportado.
+- E2E autenticado pendente porque as variáveis públicas Supabase não estão disponíveis na prévia. Nenhuma API foi simulada.
+
 ## 15/08/2026 — F0 Preparação e F1 Quick wins
 
 - Ativada a branch aprovada `codex/android-first-cycle` e instalado o monorepo com os pacotes do app Business.
