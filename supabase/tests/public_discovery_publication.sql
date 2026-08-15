@@ -25,11 +25,11 @@ END $$;
 INSERT INTO auth.users (id, email, raw_user_meta_data, email_confirmed_at, created_at, updated_at)
 VALUES ('85000000-0000-0000-0000-000000000001', 'publication-owner@example.test', '{"name":"Publication Owner"}'::jsonb, now(), now(), now());
 
-INSERT INTO public.establishments (id, name, slug, address, account_status)
+INSERT INTO public.establishments (id, name, slug, address, account_status, lifecycle_status)
 VALUES
-  ('85000000-0000-0000-0000-000000000010', 'Studio Publicavel', 'studio-publicavel', 'Centro, Sao Paulo - SP', 'active'),
-  ('85000000-0000-0000-0000-000000000011', 'Shop 235831', 'shop-235831', 'Centro, Sao Paulo - SP', 'active'),
-  ('85000000-0000-0000-0000-000000000012', 'Studio Bloqueado', 'studio-bloqueado', 'Centro, Sao Paulo - SP', 'blocked');
+  ('85000000-0000-0000-0000-000000000010', 'Studio Publicavel', 'studio-publicavel', 'Centro, Sao Paulo - SP', 'active', 'active'),
+  ('85000000-0000-0000-0000-000000000011', 'Shop 235831', 'shop-235831', 'Centro, Sao Paulo - SP', 'active', 'active'),
+  ('85000000-0000-0000-0000-000000000012', 'Studio Bloqueado', 'studio-bloqueado', 'Centro, Sao Paulo - SP', 'blocked', 'active');
 
 INSERT INTO public.services (id, establishment_id, name, price, duration_minutes, is_active, sort_order)
 VALUES
