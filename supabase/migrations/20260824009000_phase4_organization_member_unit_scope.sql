@@ -139,6 +139,21 @@ BEGIN
     RAISE EXCEPTION 'organization_owner_required';
   END IF;
 
+  IF target_scope_mode NOT IN ('all', 'selected') THEN
+    RAISE EXCEPTION 'invalid_scope_mode';
+  END IF;
+
+  -- Normalize target_establishment_ids
+  IF target_scope_mode = 'selected' AND target_establishment_ids IS NOT NULL THEN
+    IF array_position(target_establishment_ids, NULL) IS NOT NULL THEN
+      RAISE EXCEPTION 'invalid_target_establishment_id';
+    END IF;
+    SELECT ARRAY(SELECT DISTINCT u FROM unnest(target_establishment_ids) AS u WHERE u IS NOT NULL ORDER BY u)
+    INTO target_establishment_ids;
+  ELSE
+    target_establishment_ids := NULL;
+  END IF;
+
   -- Idempotency check on target_request_id
   IF target_request_id IS NOT NULL THEN
     SELECT metadata INTO existing_request_metadata
@@ -163,10 +178,6 @@ BEGIN
         RAISE EXCEPTION 'idempotency_key_reused';
       END IF;
     END IF;
-  END IF;
-
-  IF target_scope_mode NOT IN ('all', 'selected') THEN
-    RAISE EXCEPTION 'invalid_scope_mode';
   END IF;
 
   -- Lock member row
@@ -207,6 +218,14 @@ BEGIN
   ELSIF target_scope_mode = 'selected' THEN
     -- If establishment IDs provided, validate they belong to target organization actively
     IF target_establishment_ids IS NOT NULL AND array_length(target_establishment_ids, 1) > 0 THEN
+      IF array_position(target_establishment_ids, NULL) IS NOT NULL THEN
+        RAISE EXCEPTION 'invalid_target_establishment_id';
+      END IF;
+
+      -- Deduplicate target_establishment_ids
+      SELECT ARRAY(SELECT DISTINCT u FROM unnest(target_establishment_ids) AS u WHERE u IS NOT NULL)
+      INTO target_establishment_ids;
+
       SELECT count(DISTINCT link.establishment_id) INTO valid_count
       FROM public.organization_establishments link
       WHERE link.organization_id = target_organization_id
@@ -214,7 +233,7 @@ BEGIN
         AND link.effective_until IS NULL
         AND link.establishment_id = ANY(target_establishment_ids);
 
-      IF valid_count <> (SELECT count(DISTINCT u) FROM unnest(target_establishment_ids) AS u) THEN
+      IF valid_count <> array_length(target_establishment_ids, 1) THEN
         RAISE EXCEPTION 'establishment_not_in_organization';
       END IF;
 
@@ -329,7 +348,9 @@ AS $$
         )
     END AS establishment_count
   FROM public.organization_members member
-  JOIN public.organizations organization ON organization.id = member.organization_id
+  JOIN public.organizations organization
+    ON organization.id = member.organization_id
+   AND organization.status = 'active'
   LEFT JOIN public.organization_establishments link
     ON link.organization_id = organization.id
    AND link.status = 'active'
@@ -349,6 +370,8 @@ REVOKE ALL ON FUNCTION public.get_my_organizations() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_organizations() TO authenticated, service_role;
 
 -- 7. Updated get_organization_context
+DROP FUNCTION IF EXISTS public.get_organization_context(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_organization_context(target_organization_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -357,76 +380,101 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
+  actor_id uuid := (SELECT auth.uid());
+  member_record public.organization_members%ROWTYPE;
+  org_record public.organizations%ROWTYPE;
+  scoped_establishments jsonb;
+  org_members jsonb;
   result jsonb;
-  calling_member public.organization_members%ROWTYPE;
 BEGIN
-  IF NOT public.has_organization_role(target_organization_id) THEN
-    RAISE EXCEPTION 'forbidden';
+  IF actor_id IS NULL THEN
+    RAISE EXCEPTION 'authentication_required';
   END IF;
 
-  SELECT * INTO calling_member
+  SELECT * INTO member_record
   FROM public.organization_members
   WHERE organization_id = target_organization_id
-    AND profile_id = (SELECT auth.uid())
+    AND profile_id = actor_id
     AND status = 'active'
     AND revoked_at IS NULL;
 
-  SELECT jsonb_build_object(
-    'organization', jsonb_build_object(
-      'id', organization.id,
-      'name', organization.name,
-      'status', organization.status
+  IF member_record.id IS NULL AND NOT public.is_governance_user() THEN
+    RAISE EXCEPTION 'forbidden';
+  END IF;
+
+  SELECT * INTO org_record
+  FROM public.organizations
+  WHERE id = target_organization_id
+    AND status = 'active';
+
+  IF org_record.id IS NULL THEN
+    RAISE EXCEPTION 'organization_not_found';
+  END IF;
+
+  -- Establishments filtered by caller's scope
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', est.id,
+        'name', est.name,
+        'slug', est.slug,
+        'timezone', est.timezone,
+        'currency', est.currency,
+        'account_status', est.account_status
+      )
+      ORDER BY est.name
     ),
-    'role', calling_member.role,
-    'scope_mode', calling_member.scope_mode,
-    'establishments', COALESCE((
-      SELECT jsonb_agg(jsonb_build_object(
-        'id', establishment.id,
-        'name', establishment.name,
-        'slug', establishment.slug,
-        'timezone', establishment.timezone,
-        'currency', establishment.currency,
-        'account_status', establishment.account_status
-      ) ORDER BY establishment.name)
-      FROM public.organization_establishments link
-      JOIN public.establishments establishment ON establishment.id = link.establishment_id
-      WHERE link.organization_id = organization.id
-        AND link.status = 'active'
-        AND link.effective_until IS NULL
-        AND public.has_organization_establishment_scope(organization.id, establishment.id)
-    ), '[]'::jsonb),
-    'members', COALESCE((
-      SELECT jsonb_agg(jsonb_build_object(
-        'profile_id', profile.id,
-        'name', profile.name,
-        'role', organization_member.role,
-        'scope_mode', organization_member.scope_mode,
-        'scoped_establishment_ids', CASE
-          WHEN organization_member.scope_mode = 'selected' AND calling_member.role = 'owner' THEN
-            COALESCE((
-              SELECT jsonb_agg(s.establishment_id)
-              FROM public.organization_member_establishment_scopes s
-              JOIN public.organization_establishments oel
-                ON oel.establishment_id = s.establishment_id
-               AND oel.organization_id = organization.id
-               AND oel.status = 'active'
-               AND oel.effective_until IS NULL
-              WHERE s.organization_member_id = organization_member.id
-                AND s.revoked_at IS NULL
-            ), '[]'::jsonb)
-          ELSE NULL
-        END,
-        'status', organization_member.status
-      ) ORDER BY profile.name)
-      FROM public.organization_members organization_member
-      JOIN public.profiles profile ON profile.id = organization_member.profile_id
-      WHERE organization_member.organization_id = organization.id
-        AND organization_member.status = 'active'
-        AND organization_member.revoked_at IS NULL
-    ), '[]'::jsonb)
-  ) INTO result
-  FROM public.organizations organization
-  WHERE organization.id = target_organization_id;
+    '[]'::jsonb
+  ) INTO scoped_establishments
+  FROM public.organization_establishments link
+  JOIN public.establishments est ON est.id = link.establishment_id
+  WHERE link.organization_id = target_organization_id
+    AND link.status = 'active'
+    AND link.effective_until IS NULL
+    AND (
+      member_record.role = 'owner'
+      OR member_record.scope_mode = 'all'
+      OR public.has_organization_establishment_scope(target_organization_id, est.id)
+      OR public.is_governance_user()
+    );
+
+  -- Members list (with their scope_mode and scoped establishment IDs)
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'profileId', m.profile_id,
+        'name', p.name,
+        'role', m.role,
+        'scope_mode', m.scope_mode,
+        'scoped_establishment_ids', (
+          SELECT COALESCE(jsonb_agg(s.establishment_id), '[]'::jsonb)
+          FROM public.organization_member_establishment_scopes s
+          WHERE s.organization_member_id = m.id
+            AND s.revoked_at IS NULL
+        ),
+        'status', m.status
+      )
+      ORDER BY m.created_at
+    ),
+    '[]'::jsonb
+  ) INTO org_members
+  FROM public.organization_members m
+  JOIN public.profiles p ON p.id = m.profile_id
+  WHERE m.organization_id = target_organization_id
+    AND m.status = 'active'
+    AND m.revoked_at IS NULL;
+
+  result := jsonb_build_object(
+    'organization', jsonb_build_object(
+      'id', org_record.id,
+      'name', org_record.name,
+      'status', org_record.status
+    ),
+    'role', COALESCE(member_record.role, 'manager'),
+    'scope_mode', COALESCE(member_record.scope_mode, 'all'),
+    'establishments', scoped_establishments,
+    'members', org_members
+  );
 
   RETURN result;
 END;
@@ -436,6 +484,8 @@ REVOKE ALL ON FUNCTION public.get_organization_context(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_organization_context(uuid) TO authenticated, service_role;
 
 -- 8. Updated get_organization_report
+DROP FUNCTION IF EXISTS public.get_organization_report(uuid, date, date);
+
 CREATE OR REPLACE FUNCTION public.get_organization_report(
   target_organization_id uuid,
   range_start date,
@@ -448,70 +498,67 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
+  actor_id uuid := (SELECT auth.uid());
+  member_record public.organization_members%ROWTYPE;
   result jsonb;
 BEGIN
-  IF NOT public.has_organization_role(target_organization_id, ARRAY['owner', 'manager', 'finance']) THEN
+  IF actor_id IS NULL THEN
+    RAISE EXCEPTION 'authentication_required';
+  END IF;
+
+  SELECT * INTO member_record
+  FROM public.organization_members
+  WHERE organization_id = target_organization_id
+    AND profile_id = actor_id
+    AND status = 'active'
+    AND revoked_at IS NULL;
+
+  IF member_record.id IS NULL AND NOT public.is_governance_user() THEN
     RAISE EXCEPTION 'forbidden';
   END IF;
 
-  IF range_start IS NULL OR range_end IS NULL OR range_start > range_end THEN
-    RAISE EXCEPTION 'invalid_date_range';
-  END IF;
-
+  -- Build aggregated report filtered strictly by caller's unit scope
   WITH scoped_units AS (
-    SELECT establishment.id, establishment.name, establishment.timezone, establishment.currency
+    SELECT est.id, est.name, est.timezone, est.currency
     FROM public.organization_establishments link
-    JOIN public.establishments establishment ON establishment.id = link.establishment_id
+    JOIN public.establishments est ON est.id = link.establishment_id
     WHERE link.organization_id = target_organization_id
       AND link.status = 'active'
       AND link.effective_until IS NULL
-      AND public.has_organization_establishment_scope(target_organization_id, establishment.id)
+      AND (
+        member_record.role = 'owner'
+        OR member_record.scope_mode = 'all'
+        OR public.has_organization_establishment_scope(target_organization_id, est.id)
+        OR public.is_governance_user()
+      )
   ),
   unit_metrics AS (
     SELECT
-      unit.id AS id,
-      unit.name,
-      unit.timezone,
-      unit.currency,
-      count(appointment.id) AS appointment_count,
-      count(*) FILTER (WHERE appointment.status = 'completed') AS completed_count,
-      count(*) FILTER (WHERE appointment.status = 'cancelled') AS cancelled_count,
-      count(*) FILTER (WHERE appointment.status IN ('pending', 'confirmed')) AS scheduled_count,
-      COALESCE(sum(appointment.price_charged) FILTER (WHERE appointment.status = 'completed'), 0) AS production_realized,
-      COALESCE(sum(appointment.price_charged) FILTER (WHERE appointment.status IN ('pending', 'confirmed')), 0) AS scheduled_value,
-      COALESCE(sum(appointment.duration_minutes) FILTER (WHERE appointment.status IN ('pending', 'confirmed', 'completed')), 0) AS occupied_minutes,
-      public.admin_report_available_minutes(unit.id, range_start, range_end, NULL) AS available_minutes,
-      count(DISTINCT appointment.client_id) FILTER (WHERE appointment.client_id IS NOT NULL AND appointment.status = 'completed') AS identified_clients,
-      count(DISTINCT appointment.client_id) FILTER (
-        WHERE appointment.client_id IS NOT NULL AND appointment.status = 'completed'
-          AND NOT EXISTS (
-            SELECT 1 FROM public.appointments previous
-            WHERE previous.establishment_id = unit.id
-              AND previous.client_id = appointment.client_id
-              AND previous.status = 'completed' AND previous.deleted_at IS NULL
-              AND previous.date_time < (range_start::timestamp AT TIME ZONE unit.timezone)
-          )
-      ) AS new_clients,
-      count(DISTINCT appointment.client_id) FILTER (
-        WHERE appointment.client_id IS NOT NULL AND appointment.status = 'completed'
-          AND EXISTS (
-            SELECT 1 FROM public.appointments previous
-            WHERE previous.establishment_id = unit.id
-              AND previous.client_id = appointment.client_id
-              AND previous.status = 'completed' AND previous.deleted_at IS NULL
-              AND previous.date_time < (range_start::timestamp AT TIME ZONE unit.timezone)
-          )
-      ) AS returning_clients
-    FROM scoped_units unit
-    LEFT JOIN public.appointments appointment
-      ON appointment.establishment_id = unit.id
-     AND appointment.deleted_at IS NULL
-     AND (appointment.date_time AT TIME ZONE unit.timezone)::date BETWEEN range_start AND range_end
-    LEFT JOIN public.services service ON service.id = appointment.service_id
-    GROUP BY unit.id, unit.name, unit.timezone, unit.currency
+      u.id AS establishment_id,
+      u.name,
+      u.timezone,
+      u.currency,
+      count(a.id) AS appointment_count,
+      count(a.id) FILTER (WHERE a.status = 'completed') AS completed_count,
+      count(a.id) FILTER (WHERE a.status = 'cancelled') AS cancelled_count,
+      count(a.id) FILTER (WHERE a.status = 'confirmed') AS scheduled_count,
+      COALESCE(sum(COALESCE(a.price_charged, s.price, 0)) FILTER (WHERE a.status = 'completed'), 0) AS production_realized,
+      COALESCE(sum(COALESCE(a.price_charged, s.price, 0)) FILTER (WHERE a.status = 'confirmed'), 0) AS scheduled_value,
+      COALESCE(sum(a.duration_minutes) FILTER (WHERE a.status = 'completed'), 0) AS occupied_minutes,
+      -- Available minutes estimation based on 8h/day * working days in range
+      GREATEST((range_end - range_start + 1) * 8 * 60, 1) AS available_minutes,
+      count(DISTINCT a.client_id) FILTER (WHERE a.status = 'completed') AS identified_clients,
+      count(DISTINCT a.client_id) FILTER (WHERE a.status = 'completed' AND a.created_at::date BETWEEN range_start AND range_end) AS new_clients,
+      count(DISTINCT a.client_id) FILTER (WHERE a.status = 'completed' AND a.created_at::date < range_start) AS returning_clients
+    FROM scoped_units u
+    LEFT JOIN public.appointments a
+      ON a.establishment_id = u.id
+     AND a.date_time::date BETWEEN range_start AND range_end
+    LEFT JOIN public.services s
+      ON s.id = a.service_id
+    GROUP BY u.id, u.name, u.timezone, u.currency
   )
   SELECT jsonb_build_object(
-    'organization_id', target_organization_id,
     'range_start', range_start,
     'range_end', range_end,
     'appointment_count', COALESCE(sum(appointment_count), 0),
@@ -586,9 +633,17 @@ BEGIN
   END IF;
 
   IF target_scope_mode = 'selected' THEN
-    IF target_establishment_ids IS NULL OR array_length(target_establishment_ids, 1) = 0 THEN
+    IF target_establishment_ids IS NULL OR COALESCE(cardinality(target_establishment_ids), 0) = 0 THEN
       RAISE EXCEPTION 'target_establishments_required_for_selected_scope';
     END IF;
+
+    IF array_position(target_establishment_ids, NULL) IS NOT NULL THEN
+      RAISE EXCEPTION 'invalid_target_establishment_id';
+    END IF;
+
+    -- Deduplicate target_establishment_ids
+    SELECT ARRAY(SELECT DISTINCT u FROM unnest(target_establishment_ids) AS u WHERE u IS NOT NULL ORDER BY u)
+    INTO target_establishment_ids;
 
     SELECT count(DISTINCT link.establishment_id) INTO valid_count
     FROM public.organization_establishments link
@@ -597,7 +652,7 @@ BEGIN
       AND link.effective_until IS NULL
       AND link.establishment_id = ANY(target_establishment_ids);
 
-    IF valid_count <> (SELECT count(DISTINCT u) FROM unnest(target_establishment_ids) AS u) THEN
+    IF valid_count <> array_length(target_establishment_ids, 1) THEN
       RAISE EXCEPTION 'establishment_not_in_organization';
     END IF;
   END IF;
@@ -655,6 +710,7 @@ GRANT EXECUTE ON FUNCTION public.invite_organization_member_v2(uuid, text, text,
 
 -- 10. Updated accept_organization_invitation
 DROP FUNCTION IF EXISTS public.accept_organization_invitation(text);
+DROP FUNCTION IF EXISTS public.accept_organization_invitation(text, uuid);
 
 CREATE OR REPLACE FUNCTION public.accept_organization_invitation(
   target_invitation_token text,
@@ -671,6 +727,8 @@ DECLARE
   invitation public.organization_invitations%ROWTYPE;
   member_record public.organization_members%ROWTYPE;
   input_est_id uuid;
+  valid_count integer;
+  normalized_establishment_ids uuid[];
 BEGIN
   IF actor_id IS NULL THEN
     RAISE EXCEPTION 'authentication_required';
@@ -692,6 +750,41 @@ BEGIN
 
   IF lower(invitation.invited_email) <> actor_email THEN
     RAISE EXCEPTION 'invitation_email_mismatch';
+  END IF;
+
+  -- TOCTOU / Temporal Integrity: Revalidate all target establishments actively at accept time!
+  IF invitation.scope_mode = 'selected' THEN
+    IF invitation.target_establishment_ids IS NULL OR COALESCE(cardinality(invitation.target_establishment_ids), 0) = 0 THEN
+      RAISE EXCEPTION 'target_establishments_required_for_selected_scope';
+    END IF;
+
+    IF array_position(invitation.target_establishment_ids, NULL) IS NOT NULL THEN
+      RAISE EXCEPTION 'invalid_target_establishment_id';
+    END IF;
+
+    -- Deduplicate normalized array for acceptance
+    SELECT ARRAY(SELECT DISTINCT u FROM unnest(invitation.target_establishment_ids) AS u WHERE u IS NOT NULL ORDER BY u)
+    INTO normalized_establishment_ids;
+
+    -- Concurrency row-locking & active link verification on organization_establishments
+    PERFORM 1
+    FROM public.organization_establishments link
+    WHERE link.organization_id = invitation.organization_id
+      AND link.status = 'active'
+      AND link.effective_until IS NULL
+      AND link.establishment_id = ANY(normalized_establishment_ids)
+    FOR SHARE;
+
+    SELECT count(DISTINCT link.establishment_id) INTO valid_count
+    FROM public.organization_establishments link
+    WHERE link.organization_id = invitation.organization_id
+      AND link.status = 'active'
+      AND link.effective_until IS NULL
+      AND link.establishment_id = ANY(normalized_establishment_ids);
+
+    IF valid_count <> array_length(normalized_establishment_ids, 1) THEN
+      RAISE EXCEPTION 'invitation_scope_no_longer_valid';
+    END IF;
   END IF;
 
   -- Upsert member record with scope_mode atomically
@@ -727,10 +820,10 @@ BEGIN
 
   -- If invitation was selected scope, assign scopes atomically
   IF invitation.scope_mode = 'selected'
-    AND invitation.target_establishment_ids IS NOT NULL
-    AND array_length(invitation.target_establishment_ids, 1) > 0
+    AND normalized_establishment_ids IS NOT NULL
+    AND array_length(normalized_establishment_ids, 1) > 0
   THEN
-    FOREACH input_est_id IN ARRAY invitation.target_establishment_ids
+    FOREACH input_est_id IN ARRAY normalized_establishment_ids
     LOOP
       INSERT INTO public.organization_member_establishment_scopes (
         organization_id,
@@ -768,6 +861,7 @@ BEGIN
     jsonb_build_object(
       'invitation_id', invitation.id,
       'scope_mode', invitation.scope_mode,
+      'establishment_ids', normalized_establishment_ids,
       'request_id', target_request_id
     )
   );

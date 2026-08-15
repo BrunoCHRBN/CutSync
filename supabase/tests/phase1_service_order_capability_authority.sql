@@ -78,7 +78,7 @@ DECLARE
   approval_approve_id uuid := gen_random_uuid();
 
   service_a_id text := 'srv-a-' || substr(gen_random_uuid()::text, 1, 8);
-  local_day date := current_date;
+  local_day date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
 
   default_plan_id uuid := (SELECT id FROM public.billing_plans LIMIT 1);
 

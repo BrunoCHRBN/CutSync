@@ -69,6 +69,11 @@ DECLARE
   revoked_mgr_id uuid := gen_random_uuid();
   invited_user_id uuid := gen_random_uuid();
   dual_role_user_id uuid := gen_random_uuid();
+  toctou_user_id uuid := gen_random_uuid();
+  partial_user_id uuid := gen_random_uuid();
+  cross_user_id uuid := gen_random_uuid();
+  legacy_user_id uuid := gen_random_uuid();
+  dup_user_id uuid := gen_random_uuid();
 
   svc_a_id uuid := gen_random_uuid();
   svc_b_id uuid := gen_random_uuid();
@@ -78,6 +83,11 @@ DECLARE
 
   invite_record record;
   invite_record_2 record;
+  invite_toctou record;
+  invite_partial record;
+  invite_cross record;
+  invite_legacy record;
+  invite_dup record;
   context_result jsonb;
   report_result jsonb;
   org_list_count bigint;
@@ -97,6 +107,11 @@ BEGIN
     (revoked_mgr_id, 'revokedmgr@corpscope.test', now()),
     (invited_user_id, 'invited@corpscope.test', now()),
     (dual_role_user_id, 'dualrole@corpscope.test', now()),
+    (toctou_user_id, 'toctou@corpscope.test', now()),
+    (partial_user_id, 'partial@corpscope.test', now()),
+    (cross_user_id, 'cross@corpscope.test', now()),
+    (legacy_user_id, 'legacy@corpscope.test', now()),
+    (dup_user_id, 'dup@corpscope.test', now()),
     (client_id, 'client@corpscope.test', now());
 
   -- Update profiles with names
@@ -108,6 +123,11 @@ BEGIN
   UPDATE public.profiles SET name = 'Revoked Manager' WHERE id = revoked_mgr_id;
   UPDATE public.profiles SET name = 'Invited User' WHERE id = invited_user_id;
   UPDATE public.profiles SET name = 'Dual Role User' WHERE id = dual_role_user_id;
+  UPDATE public.profiles SET name = 'TOCTOU User' WHERE id = toctou_user_id;
+  UPDATE public.profiles SET name = 'Partial User' WHERE id = partial_user_id;
+  UPDATE public.profiles SET name = 'Cross User' WHERE id = cross_user_id;
+  UPDATE public.profiles SET name = 'Legacy User' WHERE id = legacy_user_id;
+  UPDATE public.profiles SET name = 'Dup User' WHERE id = dup_user_id;
   UPDATE public.profiles SET name = 'Client User' WHERE id = client_id;
 
   -- 2. SEED ORGANIZATIONS
@@ -166,6 +186,7 @@ BEGIN
   INSERT INTO public.organization_members (organization_id, profile_id, role, scope_mode, status)
   VALUES
     (org_a_id, owner_id, 'owner', 'all', 'active'),
+    (org_b_id, owner_id, 'owner', 'all', 'active'),
     (org_a_id, mgr_all_id, 'manager', 'all', 'active'),
     (org_a_id, mgr_sel_id, 'manager', 'selected', 'active'),
     (org_a_id, mgr_empty_id, 'manager', 'selected', 'active'),
@@ -774,28 +795,32 @@ BEGIN
     'Former owner (now manager) retains scope on all units'
   );
 
+  -- Transfer ownership back to owner_id for remaining test groups
+  PERFORM pg_temp.set_actor(mgr_sel_id);
+  PERFORM public.transfer_organization_ownership(org_a_id, owner_id);
+
   -- =========================================================================
   -- TEST GROUP 19: AUDIT LOG SCOPE & METADATA LEAK PROTECTION
   -- Manager Selected [A] querying organization_audit_log
   -- =========================================================================
   -- Seed distinct audit events under owner
-  PERFORM pg_temp.set_actor(mgr_sel_id); -- current owner
+  PERFORM pg_temp.set_actor(owner_id);
 
   -- Event on Unit A
   INSERT INTO public.organization_audit_log (organization_id, actor_id, action, establishment_id)
-  VALUES (org_a_id, mgr_sel_id, 'unit_a_event', unit_a_id);
+  VALUES (org_a_id, owner_id, 'unit_a_event', unit_a_id);
 
   -- Event on Unit C
   INSERT INTO public.organization_audit_log (organization_id, actor_id, action, establishment_id)
-  VALUES (org_a_id, mgr_sel_id, 'unit_c_event', unit_c_id);
+  VALUES (org_a_id, owner_id, 'unit_c_event', unit_c_id);
 
   -- Org event with metadata referencing Unit C
   INSERT INTO public.organization_audit_log (organization_id, actor_id, action, metadata)
-  VALUES (org_a_id, mgr_sel_id, 'org_metadata_c', jsonb_build_object('establishment_id', unit_c_id));
+  VALUES (org_a_id, owner_id, 'org_metadata_c', jsonb_build_object('establishment_id', unit_c_id));
 
   -- Org event without establishment references
   INSERT INTO public.organization_audit_log (organization_id, actor_id, action, metadata)
-  VALUES (org_a_id, mgr_sel_id, 'org_general_event', jsonb_build_object('key', 'val'));
+  VALUES (org_a_id, owner_id, 'org_general_event', jsonb_build_object('key', 'val'));
 
   -- Set actor to dual_role_user (Manager Selected on Unit A only)
   PERFORM pg_temp.set_actor(dual_role_user_id);
@@ -827,7 +852,210 @@ BEGIN
 
   RESET ROLE;
 
-  RAISE NOTICE 'ALL PS4-E3 / PS4-E3.1 CORPORATE UNIT SCOPE LIFECYCLE HARDENING TESTS PASSED CLEANLY!';
+  -- =========================================================================
+  -- TEST GROUP 20: TOCTOU — UNIT REMOVED BEFORE ACCEPT (FAIL CLOSED)
+  -- Invite for Unit D -> Owner removes Unit D -> User attempts accept -> FAILS
+  -- Prove remove -> accept -> re-add yields has_scope = false
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+  SELECT * INTO invite_toctou
+  FROM public.invite_organization_member_v2(
+    org_a_id,
+    'toctou@corpscope.test',
+    'manager',
+    'selected',
+    ARRAY[unit_d_id]
+  );
+
+  -- Owner removes Unit D before acceptance
+  PERFORM public.remove_organization_establishment(org_a_id, unit_d_id);
+
+  -- TOCTOU User attempts to accept invitation
+  PERFORM pg_temp.set_actor(toctou_user_id);
+  caught_error := false;
+  BEGIN
+    PERFORM public.accept_organization_invitation(invite_toctou.invitation_token);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'invitation_scope_no_longer_valid' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Accepting invitation with removed unit must fail with invitation_scope_no_longer_valid');
+
+  -- Verify membership was NOT created/activated
+  PERFORM pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.organization_members WHERE organization_id = org_a_id AND profile_id = toctou_user_id AND status = 'active'),
+    'TOCTOU user membership must NOT be active'
+  );
+
+  -- Owner re-adds Unit D to the organization
+  PERFORM pg_temp.set_actor(owner_id);
+  PERFORM public.add_organization_establishment(org_a_id, unit_d_id);
+
+  -- Prove that has_organization_establishment_scope remains FALSE
+  PERFORM pg_temp.set_actor(toctou_user_id);
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_d_id) = false,
+    'TOCTOU: has_organization_establishment_scope must remain false after re-adding Unit D'
+  );
+
+  -- =========================================================================
+  -- TEST GROUP 21: TOCTOU — PARTIALLY STALE SELECTION (ATOMIC FAIL CLOSED)
+  -- Invite for [Unit A, Unit D] -> Unit D removed -> User attempts accept -> FAILS CLOSED
+  -- Prove user does NOT gain Unit A partially
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+  SELECT * INTO invite_partial
+  FROM public.invite_organization_member_v2(
+    org_a_id,
+    'partial@corpscope.test',
+    'manager',
+    'selected',
+    ARRAY[unit_a_id, unit_d_id]
+  );
+
+  -- Owner removes Unit D
+  PERFORM public.remove_organization_establishment(org_a_id, unit_d_id);
+
+  -- Partial user attempts accept
+  PERFORM pg_temp.set_actor(partial_user_id);
+  caught_error := false;
+  BEGIN
+    PERFORM public.accept_organization_invitation(invite_partial.invitation_token);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'invitation_scope_no_longer_valid' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Accepting partially stale invite must fail with invitation_scope_no_longer_valid');
+
+  -- Verify partial user does NOT gain Unit A
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_a_id) = false,
+    'Partial user must NOT gain Unit A when set is partially stale'
+  );
+
+  -- Re-add Unit D for subsequent tests
+  PERFORM pg_temp.set_actor(owner_id);
+  PERFORM public.add_organization_establishment(org_a_id, unit_d_id);
+
+  -- =========================================================================
+  -- TEST GROUP 22: TOCTOU — UNIT MOVED TO ANOTHER ORGANIZATION
+  -- Unit D invited in Org A -> Unit D removed from Org A & added to Org B -> Accept fails
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+  SELECT * INTO invite_cross
+  FROM public.invite_organization_member_v2(
+    org_a_id,
+    'cross@corpscope.test',
+    'manager',
+    'selected',
+    ARRAY[unit_d_id]
+  );
+
+  -- Remove Unit D from Org A and add to Org B
+  PERFORM public.remove_organization_establishment(org_a_id, unit_d_id);
+  PERFORM pg_temp.set_actor(owner_id); -- owner of Org B
+  PERFORM public.add_organization_establishment(org_b_id, unit_d_id);
+
+  -- Cross user attempts to accept Org A invitation
+  PERFORM pg_temp.set_actor(cross_user_id);
+  caught_error := false;
+  BEGIN
+    PERFORM public.accept_organization_invitation(invite_cross.invitation_token);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'invitation_scope_no_longer_valid' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Accepting invite for unit moved to another org must fail with invitation_scope_no_longer_valid');
+
+  -- =========================================================================
+  -- TEST GROUP 23: ARRAY INTEGRITY (DUPLICATES, NULLS, EMPTY)
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+
+  -- 1. Duplicate IDs [Unit A, Unit A] -> deduplicated cleanly and accepted
+  SELECT * INTO invite_dup
+  FROM public.invite_organization_member_v2(
+    org_a_id,
+    'dup@corpscope.test',
+    'manager',
+    'selected',
+    ARRAY[unit_a_id, unit_a_id]
+  );
+  PERFORM pg_temp.set_actor(dup_user_id);
+  PERFORM public.accept_organization_invitation(invite_dup.invitation_token);
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_a_id) = true,
+    'Duplicate IDs invite must deduplicate cleanly and grant scope on Unit A'
+  );
+
+  -- 2. NULL element in array -> rejected at invite time
+  PERFORM pg_temp.set_actor(owner_id);
+  caught_error := false;
+  BEGIN
+    PERFORM public.invite_organization_member_v2(
+      org_a_id,
+      'nulltest@corpscope.test',
+      'manager',
+      'selected',
+      ARRAY[unit_a_id, NULL::uuid]
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'invalid_target_establishment_id' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Invite with NULL element in array must fail with invalid_target_establishment_id');
+
+  -- 3. Empty array with selected scope -> rejected at invite time
+  caught_error := false;
+  BEGIN
+    PERFORM public.invite_organization_member_v2(
+      org_a_id,
+      'emptytest@corpscope.test',
+      'manager',
+      'selected',
+      ARRAY[]::uuid[]
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'target_establishments_required_for_selected_scope' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Selected invite with empty array must fail with target_establishments_required_for_selected_scope');
+
+  -- =========================================================================
+  -- TEST GROUP 24: LEGACY INVITATION CONTRACT (V1)
+  -- invite_organization_member (v1) defaults to scope_mode = 'all'
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+  SELECT * INTO invite_legacy
+  FROM public.invite_organization_member(
+    org_a_id,
+    'legacy@corpscope.test',
+    'manager'
+  );
+
+  PERFORM pg_temp.set_actor(legacy_user_id);
+  PERFORM public.accept_organization_invitation(invite_legacy.invitation_token);
+
+  -- Legacy manager has scope_mode = 'all' and sees all active units in Org A
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_a_id) = true,
+    'Legacy invitee has scope on Unit A'
+  );
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_b_id) = true,
+    'Legacy invitee has scope on Unit B'
+  );
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_c_id) = true,
+    'Legacy invitee has scope on Unit C'
+  );
+
+  RAISE NOTICE 'ALL PS4-E3 / PS4-E3.1 / PS4-E3.2 CORPORATE UNIT SCOPE LIFECYCLE HARDENING TESTS PASSED CLEANLY!';
 END;
 $$;
 
