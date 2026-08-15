@@ -27,9 +27,9 @@ VALUES ('85000000-0000-0000-0000-000000000001', 'publication-owner@example.test'
 
 INSERT INTO public.establishments (id, name, slug, address, account_status)
 VALUES
-  ('85000000-0000-0000-0000-000000000010', 'Studio Publicável', 'studio-publicavel', 'Centro, São Paulo - SP', 'active'),
-  ('85000000-0000-0000-0000-000000000011', 'Shop 235831', 'shop-235831', 'Centro, São Paulo - SP', 'active'),
-  ('85000000-0000-0000-0000-000000000012', 'Studio Bloqueado', 'studio-bloqueado', 'Centro, São Paulo - SP', 'blocked');
+  ('85000000-0000-0000-0000-000000000010', 'Studio Publicavel', 'studio-publicavel', 'Centro, Sao Paulo - SP', 'active'),
+  ('85000000-0000-0000-0000-000000000011', 'Shop 235831', 'shop-235831', 'Centro, Sao Paulo - SP', 'active'),
+  ('85000000-0000-0000-0000-000000000012', 'Studio Bloqueado', 'studio-bloqueado', 'Centro, Sao Paulo - SP', 'blocked');
 
 INSERT INTO public.services (id, establishment_id, name, price, duration_minutes, is_active, sort_order)
 VALUES
@@ -37,26 +37,30 @@ VALUES
   ('85000000-0000-0000-0000-000000000021', '85000000-0000-0000-0000-000000000011', 'Corte', 35, 30, true, 1),
   ('85000000-0000-0000-0000-000000000022', '85000000-0000-0000-0000-000000000012', 'Corte', 35, 30, true, 1);
 
-INSERT INTO public.memberships (id, establishment_id, profile_id, role, status)
+INSERT INTO public.memberships (id, establishment_id, profile_id, role, role_template, status)
 VALUES
-  ('85000000-0000-0000-0000-000000000030', '85000000-0000-0000-0000-000000000010', '85000000-0000-0000-0000-000000000001', 'admin', 'active'),
-  ('85000000-0000-0000-0000-000000000031', '85000000-0000-0000-0000-000000000011', '85000000-0000-0000-0000-000000000001', 'admin', 'active');
+  ('85000000-0000-0000-0000-000000000030', '85000000-0000-0000-0000-000000000010', '85000000-0000-0000-0000-000000000001', 'admin', 'admin', 'active'),
+  ('85000000-0000-0000-0000-000000000031', '85000000-0000-0000-0000-000000000011', '85000000-0000-0000-0000-000000000001', 'admin', 'admin', 'active');
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.set_actor('85000000-0000-0000-0000-000000000001');
 
 SELECT * FROM public.publish_establishment_discovery('85000000-0000-0000-0000-000000000010');
 
+RESET ROLE;
 UPDATE public.establishments
-SET name = 'Studio Publicável Atualizado'
+SET name = 'Studio Publicavel Atualizado'
 WHERE id = '85000000-0000-0000-0000-000000000010';
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.set_actor('85000000-0000-0000-0000-000000000001');
 
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.list_public_discovery_establishments(50)
     WHERE slug = 'studio-publicavel'
-      AND name = 'Studio Publicável Atualizado'
+      AND name = 'Studio Publicavel Atualizado'
       AND jsonb_array_length(services) = 1
   ) THEN
     RAISE EXCEPTION 'FAIL: eligible published establishment update was not returned';

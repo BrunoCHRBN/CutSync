@@ -1,3 +1,4 @@
+// Gerado pelo Supabase CLI. Atualize com: yarn types:supabase
 export type Json =
   | string
   | number
@@ -8193,6 +8194,15 @@ export type Database = {
         Args: { opening_hours: string; target_establishment_id: string }
         Returns: undefined
       }
+      finalize_establishment_onboarding_v2: {
+        Args: {
+          opening_hours: string
+          target_establishment_id: string
+          target_expected_lifecycle_version?: number
+          target_request_id?: string
+        }
+        Returns: Json
+      }
       finalize_governance_kb_attachment: {
         Args: { target_attachment_id: string }
         Returns: undefined
@@ -10760,4 +10770,3 @@ export const Constants = {
     },
   },
 } as const
-

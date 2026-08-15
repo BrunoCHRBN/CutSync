@@ -279,9 +279,11 @@ export const RequestEstablishmentExperience = () => {
     });
 
     try {
-      const { error: estError } = await supabase.rpc('finalize_establishment_onboarding' as never, {
+      const { error: estError } = await supabase.rpc('finalize_establishment_onboarding_v2' as never, {
         target_establishment_id: createdEstablishmentId,
         opening_hours: JSON.stringify(scheduleArray),
+        target_expected_lifecycle_version: null,
+        target_request_id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined,
       } as never);
 
       if (estError) throw estError;
@@ -302,7 +304,7 @@ export const RequestEstablishmentExperience = () => {
         if (shiftError) console.warn('Erro ao inserir turnos de trabalho:', shiftError);
       }
 
-      setNotice({ tone: 'success', message: 'Cadastro finalizado com sucesso! Bem-vindo ao CutSync.' });
+      setNotice({ tone: 'success', message: 'Configuração concluída com sucesso! A unidade está pronta e aguarda validação de governança.' });
       await refreshProfile();
       await loadRequest();
     } catch (err: any) {

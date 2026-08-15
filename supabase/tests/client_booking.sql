@@ -35,7 +35,7 @@ SET name = 'Profissional Mobile',
 WHERE id = '85000000-0000-0000-0000-000000000002';
 
 INSERT INTO public.establishments (
-  id, name, slug, address, timezone, opening_hours, account_status, instant_booking_enabled
+  id, name, slug, address, timezone, opening_hours, account_status, lifecycle_status, instant_booking_enabled
 )
 VALUES (
   '85000000-0000-0000-0000-000000000010',
@@ -45,14 +45,16 @@ VALUES (
   'America/Sao_Paulo',
   '[{"day":0,"isOpen":true,"open":"09:00","close":"18:00"},{"day":1,"isOpen":true,"open":"09:00","close":"18:00"},{"day":2,"isOpen":true,"open":"09:00","close":"18:00"},{"day":3,"isOpen":true,"open":"09:00","close":"18:00"},{"day":4,"isOpen":true,"open":"09:00","close":"18:00"},{"day":5,"isOpen":true,"open":"09:00","close":"18:00"},{"day":6,"isOpen":true,"open":"09:00","close":"18:00"}]',
   'active',
+  'active',
   true
 );
 
-INSERT INTO public.memberships (id, profile_id, establishment_id, role, status)
+INSERT INTO public.memberships (id, profile_id, establishment_id, role, role_template, status)
 VALUES (
   '85000000-0000-0000-0000-000000000020',
   '85000000-0000-0000-0000-000000000002',
   '85000000-0000-0000-0000-000000000010',
+  'professional',
   'professional',
   'active'
 );
