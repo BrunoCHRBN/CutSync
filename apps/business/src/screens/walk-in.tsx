@@ -32,7 +32,7 @@ const messageFor = (error: unknown) => error instanceof BusinessFeatureError
 
 export function BusinessWalkInScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ date?: string }>();
+  const params = useLocalSearchParams<{ date?: string; time?: string; professionalId?: string }>();
   const { user } = useBusinessSession();
   const { activeContext, hasCapability } = useBusinessOperational();
   const timeZone = activeContext?.timezone ?? 'America/Sao_Paulo';
@@ -47,7 +47,7 @@ export function BusinessWalkInScreen() {
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [serviceId, setServiceId] = useState('');
-  const [professionalId, setProfessionalId] = useState(activeContext?.operationalRole === 'professional' ? user?.id ?? '' : '');
+  const [professionalId, setProfessionalId] = useState(activeContext?.operationalRole === 'professional' ? user?.id ?? '' : params.professionalId ?? '');
   const [localDate, setLocalDate] = useState(localDatePattern.test(params.date ?? '') && (params.date ?? '') >= today ? params.date! : today);
   const [startsAt, setStartsAt] = useState('');
   const [notes, setNotes] = useState('');
@@ -65,6 +65,12 @@ export function BusinessWalkInScreen() {
     enabled: Boolean(activeContext && professionalId && serviceId && localDatePattern.test(localDate)),
     queryFn: () => businessAppointmentsApi.getAvailableSlots({ establishmentId: activeContext!.establishmentId, professionalId, serviceId, localDate }),
   });
+
+  useEffect(() => {
+    if (startsAt || !/^([01]\d|2[0-3]):[0-5]\d$/.test(params.time ?? '')) return;
+    const preferred = slots.data?.slots.find((slot) => slot.localTime === params.time);
+    if (preferred) setStartsAt(preferred.startsAt);
+  }, [params.time, slots.data?.slots, startsAt]);
 
   const resetCommand = () => { requestId.current = null; create.reset(); };
   const create = useMutation({

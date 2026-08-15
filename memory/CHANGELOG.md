@@ -1,5 +1,21 @@
 # Changelog — CutSync Business
 
+## 15/08/2026 — F3 Agenda em timeline
+
+- Faixa semanal de segunda a domingo com navegação, botão Hoje e indicadores de ocupação vindos da agenda real.
+- Alternância entre Timeline e Lista sem perder data, escopo ou dados carregados.
+- Timeline de 07:00 a 21:00 com slots de 30 minutos e blocos proporcionais à duração.
+- Visão própria em uma coluna e visão da equipe com colunas horizontais por profissional.
+- Bloqueios reais integrados via `get_business_schedule_blocks`, incluindo períodos que cruzam dias e dias inteiros.
+- Linha de horário atual no dia de hoje e estados visuais por status de atendimento.
+- Slots vazios respeitam capabilities por profissional e abrem o agendamento com data, hora e profissional pré-preenchidos.
+- Cancelados e ausências foram removidos da timeline e agrupados em seção recolhida.
+
+### Validação F3
+- TypeScript, ESLint, Expo web export e smoke externo: aprovados.
+- Testing agent: 8/8 regressões F3 aprovadas; nenhum bug de UI reportado.
+- E2E autenticado pendente por ausência das variáveis públicas Supabase na prévia. Nenhuma API foi simulada.
+
 ## 15/08/2026 — F2 FAB e agendamento rápido
 
 - Adicionado FAB “Agendar” persistente em Hoje e Agenda, visível apenas com acesso total e capability de criação.

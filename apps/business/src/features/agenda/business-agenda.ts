@@ -23,6 +23,13 @@ export const shiftLocalDate = (localDate: string, days: number) => {
   ].join('-');
 };
 
+export const getLocalWeekStart = (localDate: string) => {
+  const [year, month, day] = localDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
+  const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+  return shiftLocalDate(localDate, -daysSinceMonday);
+};
+
 const localDateTimeParts = (value: Date, timeZone: string) => {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,

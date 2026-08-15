@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { BusinessAgendaScope } from '@cutsync/database';
 import { useEffect, useId } from 'react';
 
 import { useBusinessOperational } from '@/contexts/business-operational-context';
@@ -8,22 +9,27 @@ import { supabase } from '@/lib/supabase';
 
 import { businessSchedulesApi } from './business-schedules-api';
 
-export function useBusinessScheduleBlocks(rangeStart: string, rangeEnd: string) {
+export function useBusinessScheduleBlocks(
+  rangeStart: string,
+  rangeEnd: string,
+  scope: BusinessAgendaScope = 'team',
+) {
   const { user } = useBusinessSession();
   const { activeContext } = useBusinessOperational();
   const instanceId = useId().replace(/:/g, '');
-  const professionalId = activeContext?.operationalRole === 'professional' ? user?.id : null;
+  const professionalId = scope === 'own' ? user?.id : null;
   const key = createBusinessQueryKey(
     user?.id ?? 'signed-out',
     activeContext?.establishmentId ?? 'none',
     'schedule-blocks',
     rangeStart,
     rangeEnd,
+    scope,
     professionalId ?? 'team',
   );
   const query = useQuery({
     queryKey: key,
-    enabled: Boolean(user && activeContext),
+    enabled: Boolean(user && activeContext && rangeStart && rangeEnd),
     queryFn: () => businessSchedulesApi.list({
       establishmentId: activeContext!.establishmentId,
       rangeStart,
