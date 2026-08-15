@@ -20,6 +20,12 @@ DECLARE
   occupied_minutes bigint := 0;
   revenue_cents bigint := 0;
   closed_orders bigint := 0;
+  previous_day_start timestamptz;
+  previous_day_end timestamptz;
+  previous_available_minutes bigint := 0;
+  previous_occupied_minutes bigint := 0;
+  previous_revenue_cents bigint := 0;
+  previous_closed_orders bigint := 0;
 BEGIN
   IF actor_id IS NULL THEN RAISE EXCEPTION 'authentication_required'; END IF;
   IF target_local_date IS NULL THEN RAISE EXCEPTION 'local_date_required'; END IF;
@@ -38,10 +44,18 @@ BEGIN
 
   day_start := target_local_date::timestamp AT TIME ZONE target_timezone;
   day_end := (target_local_date + 1)::timestamp AT TIME ZONE target_timezone;
+  previous_day_start := (target_local_date - 7)::timestamp AT TIME ZONE target_timezone;
+  previous_day_end := (target_local_date - 6)::timestamp AT TIME ZONE target_timezone;
   available_minutes := COALESCE(public.admin_report_available_minutes(
     target_establishment_id,
     target_local_date,
     target_local_date,
+    NULL
+  ), 0);
+  previous_available_minutes := COALESCE(public.admin_report_available_minutes(
+    target_establishment_id,
+    target_local_date - 7,
+    target_local_date - 7,
     NULL
   ), 0);
 
@@ -54,6 +68,15 @@ BEGIN
     AND appointment.date_time < day_end
     AND appointment.status IN ('pending', 'confirmed', 'completed');
 
+  SELECT COALESCE(sum(appointment.duration_minutes), 0)
+  INTO previous_occupied_minutes
+  FROM public.appointments AS appointment
+  WHERE appointment.establishment_id = target_establishment_id
+    AND appointment.deleted_at IS NULL
+    AND appointment.date_time >= previous_day_start
+    AND appointment.date_time < previous_day_end
+    AND appointment.status IN ('pending', 'confirmed', 'completed');
+
   SELECT
     COALESCE(sum(service_order.total_cents), 0),
     count(*)
@@ -64,6 +87,14 @@ BEGIN
     AND service_order.closed_at >= day_start
     AND service_order.closed_at < day_end;
 
+  SELECT COALESCE(sum(service_order.total_cents), 0), count(*)
+  INTO previous_revenue_cents, previous_closed_orders
+  FROM public.service_orders AS service_order
+  WHERE service_order.establishment_id = target_establishment_id
+    AND service_order.status = 'closed'
+    AND service_order.closed_at >= previous_day_start
+    AND service_order.closed_at < previous_day_end;
+
   RETURN jsonb_build_object(
     'localDate', target_local_date,
     'currency', target_currency,
@@ -72,7 +103,10 @@ BEGIN
     'averageTicketCents', CASE WHEN closed_orders > 0 THEN round(revenue_cents::numeric / closed_orders)::bigint ELSE 0 END,
     'occupiedMinutes', occupied_minutes,
     'availableMinutes', available_minutes,
-    'occupancyRate', CASE WHEN available_minutes > 0 THEN LEAST(round(occupied_minutes * 100.0 / available_minutes, 1), 100) ELSE 0 END
+    'occupancyRate', CASE WHEN available_minutes > 0 THEN LEAST(round(occupied_minutes * 100.0 / available_minutes, 1), 100) ELSE 0 END,
+    'previousRevenueCents', previous_revenue_cents,
+    'previousAverageTicketCents', CASE WHEN previous_closed_orders > 0 THEN round(previous_revenue_cents::numeric / previous_closed_orders)::bigint ELSE 0 END,
+    'previousOccupancyRate', CASE WHEN previous_available_minutes > 0 THEN LEAST(round(previous_occupied_minutes * 100.0 / previous_available_minutes, 1), 100) ELSE 0 END
   );
 END;
 $$;

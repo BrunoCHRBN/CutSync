@@ -157,6 +157,9 @@ export interface BusinessDailyMetrics {
   occupiedMinutes: number;
   availableMinutes: number;
   occupancyRate: number;
+  previousRevenueCents: number;
+  previousAverageTicketCents: number;
+  previousOccupancyRate: number;
 }
 
 export interface BusinessOperationalContext {
@@ -861,6 +864,14 @@ export const mapBusinessDailyMetrics = (value: unknown): BusinessDailyMetrics | 
     && value.occupancyRate <= 100
       ? value.occupancyRate
       : null;
+  const previousRevenueCents = asMoneyCentsField(value.previousRevenueCents);
+  const previousAverageTicketCents = asMoneyCentsField(value.previousAverageTicketCents);
+  const previousOccupancyRate = typeof value.previousOccupancyRate === 'number'
+    && Number.isFinite(value.previousOccupancyRate)
+    && value.previousOccupancyRate >= 0
+    && value.previousOccupancyRate <= 100
+      ? value.previousOccupancyRate
+      : null;
   if (
     !localDate
     || !currency
@@ -870,6 +881,9 @@ export const mapBusinessDailyMetrics = (value: unknown): BusinessDailyMetrics | 
     || occupiedMinutes === null
     || availableMinutes === null
     || occupancyRate === null
+    || previousRevenueCents === null
+    || previousAverageTicketCents === null
+    || previousOccupancyRate === null
   ) return null;
   return {
     localDate,
@@ -880,5 +894,8 @@ export const mapBusinessDailyMetrics = (value: unknown): BusinessDailyMetrics | 
     occupiedMinutes,
     availableMinutes,
     occupancyRate,
+    previousRevenueCents,
+    previousAverageTicketCents,
+    previousOccupancyRate,
   };
 };

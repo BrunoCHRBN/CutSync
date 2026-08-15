@@ -23,6 +23,7 @@ const appointmentCard = read('apps/business/src/components/operations/appointmen
 const todayScreen = read('apps/business/src/screens/today.tsx');
 const agendaScreen = read('apps/business/src/screens/agenda.tsx');
 const operationScreen = read('apps/business/src/screens/appointment-detail.tsx');
+const checkoutScreen = read('apps/business/src/components/checkout/service-order-checkout.tsx');
 const operationHook = read(
   'apps/business/src/features/service-orders/use-appointment-service-order.ts',
 );
@@ -85,9 +86,10 @@ test('Business operation screen gates bridge and mutations by flag/capabilities'
   expect(operationHook).toContain('voidServiceOrder');
   expect(operationHook).toContain('reopenVoidedServiceOrder');
   expect(operationHook).toContain('pendingRetry');
-  expect(operationScreen).toContain('AWAITING_PAYMENT_NOTICE');
-  expect(operationScreen).not.toContain('Pago');
-  expect(operationScreen).not.toContain('Pagamento concluído');
+  expect(operationScreen).toContain('ServiceOrderCheckout');
+  expect(checkoutScreen).toContain('useBusinessCheckout');
+  expect(checkoutScreen).toContain('business-checkout-submit');
+  expect(checkoutScreen).not.toContain('Pagamento concluído');
   expect(businessApi).toContain('service_order_already_exists');
   expect(businessApi).toContain('service_order_version_conflict');
   expect(businessApi).toContain('appointment_has_service_order');

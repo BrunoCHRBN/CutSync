@@ -23,6 +23,7 @@ export type ServiceOrderApiErrorCode =
   | 'service_order_items_required'
   | 'appointment_completion_requires_service_order'
   | 'appointment_has_service_order'
+  | 'service_order_balance_unresolved'
   | 'service_order_unavailable';
 
 export class ServiceOrderApiError extends Error {
@@ -85,6 +86,9 @@ export const translateServiceOrderRpcError = (error: unknown): ServiceOrderApiEr
   if (text.includes('appointment_has_service_order')) {
     return new ServiceOrderApiError('appointment_has_service_order');
   }
+  if (text.includes('service_order_balance_unresolved')) {
+    return new ServiceOrderApiError('service_order_balance_unresolved');
+  }
   if (text.includes('network') || text.includes('fetch')) {
     return new ServiceOrderApiError('network_error');
   }
@@ -136,6 +140,12 @@ export interface ServiceOrderApi {
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
   finishServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
+  closeServiceOrder: (input: {
     establishmentId: string;
     serviceOrderId: string;
     expectedVersion: number;
@@ -238,6 +248,33 @@ export const createServiceOrderApi = (
     let result: RpcResult;
     try {
       result = await invokeRpc(client, 'finish_service_order', {
+        target_establishment_id: establishmentId,
+        target_service_order_id: serviceOrderId,
+        target_expected_version: expectedVersion,
+        target_request_id: requestId,
+      });
+    } catch (error) {
+      throw translateServiceOrderRpcError(error);
+    }
+    if (result.error) throw translateServiceOrderRpcError(result.error);
+    return mapReceiptOrThrow(result.data);
+  },
+
+  async closeServiceOrder({
+    establishmentId,
+    serviceOrderId,
+    expectedVersion,
+    requestId,
+  }) {
+    requireUuid(establishmentId, 'establishment_id');
+    requireUuid(serviceOrderId, 'service_order_id');
+    requireUuid(requestId, 'request_id');
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+      throw new ServiceOrderApiError('invalid_request');
+    }
+    let result: RpcResult;
+    try {
+      result = await invokeRpc(client, 'close_service_order', {
         target_establishment_id: establishmentId,
         target_service_order_id: serviceOrderId,
         target_expected_version: expectedVersion,

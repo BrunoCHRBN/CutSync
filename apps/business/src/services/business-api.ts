@@ -46,7 +46,8 @@ export type BusinessApiErrorCode =
   | 'service_order_invalid_transition'
   | 'service_order_items_required'
   | 'appointment_completion_requires_service_order'
-  | 'appointment_has_service_order';
+  | 'appointment_has_service_order'
+  | 'service_order_balance_unresolved';
 
 const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   client_unavailable: 'O aplicativo ainda não está conectado ao CutSync.',
@@ -76,6 +77,7 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
     'Para concluir este atendimento, abra e finalize a comanda.',
   appointment_has_service_order:
     'Este atendimento já possui comanda e não pode ser alterado por este caminho.',
+  service_order_balance_unresolved: 'Ainda existe saldo pendente nesta comanda.',
 };
 
 export class BusinessApiError extends Error {
@@ -115,6 +117,12 @@ export interface BusinessApi {
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
   finishServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
+  closeServiceOrder: (input: {
     establishmentId: string;
     serviceOrderId: string;
     expectedVersion: number;
@@ -406,6 +414,15 @@ export const createBusinessApi = (
     const client = requireClient(nullableClient);
     try {
       return await createServiceOrderApi(client).finishServiceOrder(input);
+    } catch (error) {
+      throw translateRpcError('service_order', error);
+    }
+  },
+
+  async closeServiceOrder(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createServiceOrderApi(client).closeServiceOrder(input);
     } catch (error) {
       throw translateRpcError('service_order', error);
     }

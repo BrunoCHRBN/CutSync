@@ -403,6 +403,24 @@ export interface BusinessRpcFunctions {
     };
     Returns: unknown;
   };
+  get_business_service_order_checkout: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+    };
+    Returns: unknown;
+  };
+  record_business_service_order_payment: {
+    Args: {
+      target_establishment_id: string;
+      target_service_order_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+      target_method: string;
+      target_amount_cents: number;
+    };
+    Returns: unknown;
+  };
 }
 
 export type BusinessRpcName = keyof BusinessRpcFunctions;
