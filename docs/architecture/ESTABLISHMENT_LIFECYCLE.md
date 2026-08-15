@@ -44,7 +44,7 @@ CutSync establishes strict boundaries between five operational and platform stat
 | **Platform Governance** | `establishments.account_status` | `pending_verification`, `active`, `delinquent`, `blocked` | Platform Governance Authority (backend-authorized governance roles, e.g. SaaS_Editor / SaaS_Owner / Superadmin). Business capabilities **NEVER** grant `account_status` mutation. |
 | **Financial Entitlement** | `public.billing_access_mode(establishment_id)` *(Derived Function)* | `full`, `read_only`, `blocked` | SaaS Subscription Entitlement Engine. Inputs: active subscription, trial, transition, courtesy, grace period. **Billing lifecycle ≠ establishment lifecycle**. |
 | **Identity Verification** | `establishments.kyc_status` | `unsubmitted`, `pending`, `approved`, `rejected` | SaaS Compliance / KYC Document Verification Review |
-| **Marketplace Discovery** | `establishments.discovery_status` | `draft`, `published`, `unpublished` | Editorial / Marketplace Operations (`publish_establishment_discovery`, `unpublish_establishment_discovery`) |
+| **Marketplace Discovery** | `establishments.discovery_status` | `draft`, `published` | Editorial Intent (`publish_establishment_discovery`, `unpublish_establishment_discovery`). Editorial publication intent is preserved across operational pauses; effective public visibility dynamically requires `discovery_status = 'published'`, `account_status = 'active'`, and `lifecycle_status = 'active'`. |
 
 ---
 
