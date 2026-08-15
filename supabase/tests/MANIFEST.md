@@ -22,6 +22,7 @@ The following suites represent the canonical, authoritative regression test suit
 16. `public_discovery_boundary_integrity.sql` - Validates editorial publication preservation during operational pause/resume and fail-closed public listings.
 17. `create_appointment_capability_guard.sql` - Validates capability-driven appointment creation, self-walk-in, team-walk-in, and superadmin break-glass.
 18. `finalize_onboarding_v2_semantics.sql` - Validates onboarding finalization idempotency, payload fingerprinting, original snapshot replay, and transaction integrity.
+19. `phase3_unit_closure_orchestration.sql` - Validates atomic unit closure orchestration, concurrency serialization lock, future appointment cancellation, cascading revocation, and idempotent receipts.
 
 ---
 

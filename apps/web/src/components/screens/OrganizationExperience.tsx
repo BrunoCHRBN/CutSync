@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Building2, CreditCard, Download, Plus, Trash2, UserPlus } from 'lucide-react-native';
+import { Building2, CreditCard, Download, Plus, PowerOff, Trash2, UserPlus } from 'lucide-react-native';
 import { OrganizationContext, OrganizationReport, OrganizationRole } from '@cutsync/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOperationalContext } from '../../contexts/operational-context';
@@ -11,6 +11,7 @@ import { AppButton } from '../ui/AppButton';
 import { AppCard } from '../ui/AppCard';
 import { AppInput } from '../ui/AppInput';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { CloseUnitDialog } from '../establishment/CloseUnitDialog';
 import { EmptyState } from '../ui/EmptyState';
 import { InlineNotice } from '../ui/InlineNotice';
 import { PageHeader } from '../ui/page-header';
@@ -62,6 +63,7 @@ export const OrganizationExperience = () => {
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger' | 'info'; message: string } | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
   const [unitToRemove, setUnitToRemove] = useState<string | null>(null);
+  const [unitToClose, setUnitToClose] = useState<string | null>(null);
 
   const isOwner = context?.role === 'owner';
 
@@ -383,7 +385,20 @@ export const OrganizationExperience = () => {
                 {context.establishments.map((unit) => (
                   <View key={unit.id} style={styles.listItem}>
                     <View style={styles.grow}><Text style={styles.itemTitle}>{unit.name}</Text><Text style={styles.muted}>{unit.account_status}</Text></View>
-                    {isOwner && context.establishments.length > 1 ? <AppButton label="Remover" variant="secondary" icon={<Trash2 size={17} />} onPress={() => { void removeUnit(unit.id); }} /> : null}
+                    <View style={styles.unitActions}>
+                      {isOwner && context.establishments.length > 1 ? (
+                        <AppButton label="Remover" variant="secondary" icon={<Trash2 size={17} />} onPress={() => { void removeUnit(unit.id); }} />
+                      ) : null}
+                      {isOwner ? (
+                        <AppButton
+                          label="Encerrar"
+                          variant="secondary"
+                          icon={<PowerOff size={17} color={colors.danger} />}
+                          onPress={() => setUnitToClose(unit.id)}
+                          testID={`close-unit-${unit.id}`}
+                        />
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -619,6 +634,18 @@ export const OrganizationExperience = () => {
         onConfirm={() => { void confirmRemoveUnit(); }}
         onCancel={() => setUnitToRemove(null)}
       />
+      <CloseUnitDialog
+        visible={Boolean(unitToClose)}
+        establishmentId={unitToClose}
+        onClose={() => setUnitToClose(null)}
+        onSuccess={(res) => {
+          setNotice({
+            tone: 'success',
+            message: `Unidade encerrada com sucesso (${res.cancelledAppointments} agendamento(s) cancelados, ${res.revokedMemberships} membro(s) revogados).`,
+          });
+          void load(selectedId ?? undefined);
+        }}
+      />
     </AdminShell>
   );
 };
@@ -634,6 +661,7 @@ const styles = StyleSheet.create({
   choiceText: { ...typeScale.bodyStrong, color: colors.text },
   list: { marginTop: 12 },
   listItem: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
+  unitActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   memberContainer: { borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingVertical: 6 },
   memberItem: { minHeight: 70, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   scopeEditor: { marginTop: 8, padding: 12, borderRadius: radii.md, backgroundColor: colors.canvasSoft, gap: 8 },

@@ -135,3 +135,46 @@ Following **PS4-E3**, corporate membership authority is strictly partitioned fro
   - Updates opening hours.
   - If configuration is ready, safely promotes `lifecycle_status` to `ready`.
   - **Does NOT write `account_status`** under any condition, preserving strict governance segregation.
+
+---
+
+## 7. Atomic Unit Closure Orchestration (PS3-E2)
+
+### 7.1 Closure Domain Distinctions
+
+Unit closure is a structural lifecycle event that permanently terminates the operational activity of an establishment unit. It must **NEVER** be confused with or conflated into other lifecycle dimensions:
+
+- **Pause $\neq$ Close**: `paused` is temporary operational suspension (e.g. holidays, maintenance); memberships, appointments, billing coverage, and org links remain active. `closed` is permanent operational termination with cascade revocation of operational dependencies.
+- **Close $\neq$ Governance Block**: `account_status` (`active`, `blocked`, `delinquent`) remains independent. A closed unit can retain `account_status = 'active'` for compliance and accounting history.
+- **Close $\neq$ Subscription / Stripe Cancellation**: Closure ends effective billing coverage for the specific unit on CutSync, but does NOT mutate Stripe subscriptions, calculate proration, or cancel the parent Organization's account.
+- **Close $\neq$ Archive**: `closed` terminates operational dependencies while preserving full audit and historical query access. `archived` is a separate lifecycle state dealing with data retention policies.
+
+### 7.2 Authority Model
+
+Closure is an owner-level structural action, not a daily operational task:
+- **Authorized**: Authenticated profile + `AAL2` verification + active `owner` role in the unit's parent Organization.
+- **Forbidden**: Corporate `manager`, corporate `finance`, operational `admin`, `manage_operational_settings` capability alone.
+- **Legacy Ungrouped Units**: Fail closed (`organization_owner_required`) unless linked to an active Organization.
+
+### 7.3 Blockers Matrix
+
+Closure will strictly abort (fail closed) if any of the following blockers exist:
+1. **`unresolved_past_appointments`**: Appointments scheduled in the past (`date_time <= now()`) that are still in `pending` or `confirmed` status. The establishment must complete, cancel, or mark no-show before closure.
+2. **`closure_financial_blockers`**: Service orders in non-terminal states (`open`, `in_service`, `awaiting_payment`) or payment entries in `pending`/`processing`.
+3. **`pending_billing_cutover`**: Active `billing_cutover_requests` in `scheduled` or `reconciling` status involving the establishment.
+4. **`invalid_lifecycle_status_for_closure`**: The unit is in `draft` or `configuring` status.
+
+### 7.4 Atomic Side-Effects Inventory
+
+When `close_establishment_unit()` executes:
+1. **Concurrency Lock**: Unit locked with `FOR UPDATE`; booking ingress acquires `FOR SHARE`, ensuring strict serialization.
+2. **Future Appointments**: Bulk-cancelled with `status = 'cancelled'`, `cancellation_reason_code = 'establishment_cancelled'`, `cancelled_by_role = 'admin'`, preserving all pricing and history.
+3. **Marketplace Discovery**: Reset to `discovery_status = 'draft'`, `published_at = NULL`.
+4. **Pending Invitations**: Revoked with `status = 'revoked'`, `revoked_at = now()`.
+5. **Operational Memberships**: Revoked with `status = 'revoked'`, `revoked_at = now()`. (Organization memberships remain untouched).
+6. **Active Contexts**: Deleted from `user_app_active_contexts` where pointing to the closed unit.
+7. **Legacy Profile Hint**: `profiles.establishment_id` cleared to `NULL` (role untouched).
+8. **Organization Link & Scopes**: Link marked `status = 'removed'`, `effective_until = CURRENT_DATE`; member unit scopes revoked (`revocation_reason = 'unit_closed'`).
+9. **Billing Coverage**: Active and scheduled `billing_coverage_assignments` ended (`status = 'ended'`, `effective_until = now()`, `reason = 'unit_closed'`).
+10. **Lifecycle & Receipts**: `lifecycle_status` set to `'closed'`, `lifecycle_version` incremented, `establishment_lifecycle_events` and append-only `establishment_closure_events` receipt recorded with exact idempotent replay support.
+

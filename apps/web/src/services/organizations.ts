@@ -49,6 +49,51 @@ export interface OrganizationBillingContext {
   } | null;
 }
 
+export interface EstablishmentClosurePreview {
+  establishmentId: string;
+  name: string;
+  lifecycleStatus: string;
+  lifecycleVersion: number;
+  organizationId: string;
+  futureAppointments: {
+    pending: number;
+    confirmed: number;
+    total: number;
+  };
+  unresolvedPastAppointments: number;
+  activeMemberships: number;
+  pendingInvitations: number;
+  activeContexts: number;
+  organizationScopesAffected: number;
+  billing: {
+    activeCoverage: number;
+    scheduledCoverage: number;
+    pendingCutover: boolean;
+  };
+  financialBlockers: {
+    serviceOrders: number;
+    cashSessions: number;
+    paymentEntries: number;
+  };
+  canClose: boolean;
+  blockers: string[];
+}
+
+export interface CloseEstablishmentUnitResult {
+  establishmentId: string;
+  organizationId: string;
+  previousStatus: string;
+  lifecycleStatus: string;
+  version: number;
+  cancelledAppointments: number;
+  revokedMemberships: number;
+  revokedInvitations: number;
+  invalidatedContexts: number;
+  endedBillingCoverage: number;
+  requestId: string;
+  replayed: boolean;
+}
+
 const rpc = async (name: string, args?: Record<string, unknown>): Promise<{
   data: unknown;
   error: { message: string } | null;
@@ -120,6 +165,26 @@ export const organizationService = {
     assertRpc(await rpc('remove_organization_establishment', {
       target_organization_id: organizationId,
       target_establishment_id: establishmentId,
+    }));
+  },
+
+  async getEstablishmentClosurePreview(establishmentId: string): Promise<EstablishmentClosurePreview> {
+    return assertRpc<EstablishmentClosurePreview>(await rpc('get_establishment_closure_preview', {
+      target_establishment_id: establishmentId,
+    }));
+  },
+
+  async closeEstablishmentUnit(
+    establishmentId: string,
+    expectedVersion: number,
+    reason: string,
+    requestId: string = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+  ): Promise<CloseEstablishmentUnitResult> {
+    return assertRpc<CloseEstablishmentUnitResult>(await rpc('close_establishment_unit', {
+      target_establishment_id: establishmentId,
+      target_expected_lifecycle_version: expectedVersion,
+      target_reason: reason,
+      target_request_id: requestId,
     }));
   },
 

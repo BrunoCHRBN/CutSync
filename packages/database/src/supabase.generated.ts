@@ -1,4 +1,3 @@
-// Gerado pelo Supabase CLI. Atualize com: yarn types:supabase
 export type Json =
   | string
   | number
@@ -8,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       appointment_assignment_events: {
@@ -2486,6 +2460,91 @@ export type Database = {
           },
         ]
       }
+      establishment_closure_events: {
+        Row: {
+          actor_id: string | null
+          cancelled_appointment_count: number
+          created_at: string
+          ended_coverage_count: number
+          establishment_id: string
+          expected_version: number
+          id: number
+          invalidated_context_count: number
+          metadata: Json
+          organization_id: string
+          previous_status: string
+          previous_version: number
+          reason: string
+          request_id: string
+          resulting_status: string
+          resulting_version: number
+          revoked_invitation_count: number
+          revoked_membership_count: number
+        }
+        Insert: {
+          actor_id?: string | null
+          cancelled_appointment_count?: number
+          created_at?: string
+          ended_coverage_count?: number
+          establishment_id: string
+          expected_version: number
+          id?: never
+          invalidated_context_count?: number
+          metadata?: Json
+          organization_id: string
+          previous_status: string
+          previous_version: number
+          reason: string
+          request_id: string
+          resulting_status?: string
+          resulting_version: number
+          revoked_invitation_count?: number
+          revoked_membership_count?: number
+        }
+        Update: {
+          actor_id?: string | null
+          cancelled_appointment_count?: number
+          created_at?: string
+          ended_coverage_count?: number
+          establishment_id?: string
+          expected_version?: number
+          id?: never
+          invalidated_context_count?: number
+          metadata?: Json
+          organization_id?: string
+          previous_status?: string
+          previous_version?: number
+          reason?: string
+          request_id?: string
+          resulting_status?: string
+          resulting_version?: number
+          revoked_invitation_count?: number
+          revoked_membership_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_closure_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_closure_events_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_closure_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishment_invites: {
         Row: {
           accepted_at: string | null
@@ -2562,6 +2621,7 @@ export type Database = {
           created_at: string
           establishment_id: string
           id: number
+          metadata: Json | null
           previous_status: string
           previous_version: number
           reason: string
@@ -2574,6 +2634,7 @@ export type Database = {
           created_at?: string
           establishment_id: string
           id?: never
+          metadata?: Json | null
           previous_status: string
           previous_version: number
           reason: string
@@ -2586,6 +2647,7 @@ export type Database = {
           created_at?: string
           establishment_id?: string
           id?: never
+          metadata?: Json | null
           previous_status?: string
           previous_version?: number
           reason?: string
@@ -7697,6 +7759,15 @@ export type Database = {
         }
         Returns: number
       }
+      close_establishment_unit: {
+        Args: {
+          target_establishment_id: string
+          target_expected_lifecycle_version: number
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
       close_service_order: {
         Args: {
           target_establishment_id: string
@@ -8697,6 +8768,10 @@ export type Database = {
           name: string
           phone: string
         }[]
+      }
+      get_establishment_closure_preview: {
+        Args: { target_establishment_id: string }
+        Returns: Json
       }
       get_establishment_discovery_publication: {
         Args: { target_establishment_id: string }
@@ -10760,9 +10835,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       governance_role_enum: ["SaaS_Viewer", "SaaS_Editor", "SaaS_Owner"],
@@ -10770,3 +10842,4 @@ export const Constants = {
     },
   },
 } as const
+
