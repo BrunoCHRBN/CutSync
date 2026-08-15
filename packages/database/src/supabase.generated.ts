@@ -4701,7 +4701,9 @@ export type Database = {
           invited_email: string
           organization_id: string
           role: string
+          scope_mode: string
           status: string
+          target_establishment_ids: string[] | null
           token_hash: string
         }
         Insert: {
@@ -4714,7 +4716,9 @@ export type Database = {
           invited_email: string
           organization_id: string
           role: string
+          scope_mode?: string
           status?: string
+          target_establishment_ids?: string[] | null
           token_hash: string
         }
         Update: {
@@ -4727,7 +4731,9 @@ export type Database = {
           invited_email?: string
           organization_id?: string
           role?: string
+          scope_mode?: string
           status?: string
+          target_establishment_ids?: string[] | null
           token_hash?: string
         }
         Relationships: [
@@ -4809,6 +4815,78 @@ export type Database = {
           },
         ]
       }
+      organization_member_establishment_scopes: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          organization_member_id: string
+          revocation_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          organization_member_id: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          organization_member_id?: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_member_establishment_s_organization_member_id_fkey"
+            columns: ["organization_member_id"]
+            isOneToOne: false
+            referencedRelation: "organization_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -4818,6 +4896,7 @@ export type Database = {
           profile_id: string
           revoked_at: string | null
           role: string
+          scope_mode: string
           status: string
           updated_at: string
         }
@@ -4829,6 +4908,7 @@ export type Database = {
           profile_id: string
           revoked_at?: string | null
           role: string
+          scope_mode?: string
           status?: string
           updated_at?: string
         }
@@ -4840,6 +4920,7 @@ export type Database = {
           profile_id?: string
           revoked_at?: string | null
           role?: string
+          scope_mode?: string
           status?: string
           updated_at?: string
         }
@@ -7247,7 +7328,7 @@ export type Database = {
         Returns: boolean
       }
       accept_organization_invitation: {
-        Args: { invitation_token: string }
+        Args: { target_invitation_token: string; target_request_id?: string }
         Returns: string
       }
       activate_control_subscription: {
@@ -8776,6 +8857,7 @@ export type Database = {
           organization_id: string
           organization_name: string
           organization_status: string
+          scope_mode: string
         }[]
       }
       get_my_professional_profile: {
@@ -8970,6 +9052,14 @@ export type Database = {
             }
             Returns: boolean
           }
+      has_organization_establishment_scope: {
+        Args: {
+          allowed_roles?: string[]
+          target_establishment_id: string
+          target_organization_id: string
+        }
+        Returns: boolean
+      }
       has_organization_role: {
         Args: { allowed_roles?: string[]; target_organization_id: string }
         Returns: boolean
@@ -9036,6 +9126,21 @@ export type Database = {
           invited_email: string
           target_organization_id: string
           target_role: string
+        }
+        Returns: {
+          expires_at: string
+          invitation_id: string
+          invitation_token: string
+        }[]
+      }
+      invite_organization_member_v2: {
+        Args: {
+          invited_email: string
+          target_establishment_ids?: string[]
+          target_organization_id: string
+          target_request_id?: string
+          target_role: string
+          target_scope_mode?: string
         }
         Returns: {
           expires_at: string
@@ -9999,7 +10104,12 @@ export type Database = {
         Returns: Json
       }
       revoke_organization_member: {
-        Args: { target_organization_id: string; target_profile_id: string }
+        Args: {
+          target_organization_id: string
+          target_profile_id: string
+          target_reason?: string
+          target_request_id?: string
+        }
         Returns: undefined
       }
       safe_jsonb_array: { Args: { target_value: string }; Returns: Json }
@@ -10144,6 +10254,16 @@ export type Database = {
         }
         Returns: Json
       }
+      set_organization_member_unit_scope: {
+        Args: {
+          target_establishment_ids?: string[]
+          target_organization_id: string
+          target_profile_id: string
+          target_request_id?: string
+          target_scope_mode: string
+        }
+        Returns: undefined
+      }
       start_service_order: {
         Args: {
           target_establishment_id: string
@@ -10262,7 +10382,11 @@ export type Database = {
         Returns: boolean
       }
       transfer_organization_ownership: {
-        Args: { target_organization_id: string; target_profile_id: string }
+        Args: {
+          target_organization_id: string
+          target_profile_id: string
+          target_request_id?: string
+        }
         Returns: undefined
       }
       transfer_professional_absence: {
@@ -10412,6 +10536,7 @@ export type Database = {
         Args: {
           target_organization_id: string
           target_profile_id: string
+          target_request_id?: string
           target_role: string
         }
         Returns: undefined

@@ -22,16 +22,21 @@ export interface Organization {
   status: 'active' | 'archived';
 }
 
+export type OrganizationScopeMode = 'all' | 'selected';
+
 export interface OrganizationMembership {
   profileId: string;
   name: string;
   role: OrganizationRole;
+  scope_mode?: OrganizationScopeMode;
+  scoped_establishment_ids?: string[] | null;
   status: 'active' | 'revoked';
 }
 
 export interface OrganizationContext {
   organization: Organization;
   role: OrganizationRole;
+  scope_mode?: OrganizationScopeMode;
   establishments: Array<{
     id: string;
     name: string;
