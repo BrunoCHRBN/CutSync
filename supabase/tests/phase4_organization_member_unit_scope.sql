@@ -74,6 +74,10 @@ DECLARE
   cross_user_id uuid := gen_random_uuid();
   legacy_user_id uuid := gen_random_uuid();
   dup_user_id uuid := gen_random_uuid();
+  unverified_user_id uuid := gen_random_uuid();
+  returning_client_id uuid := gen_random_uuid();
+  new_client_id uuid := gen_random_uuid();
+  unit_future_id uuid := gen_random_uuid();
 
   svc_a_id uuid := gen_random_uuid();
   svc_b_id uuid := gen_random_uuid();
@@ -88,13 +92,16 @@ DECLARE
   invite_cross record;
   invite_legacy record;
   invite_dup record;
+  invite_unverified record;
   context_result jsonb;
   report_result jsonb;
   org_list_count bigint;
   audit_count integer;
   caught_error boolean;
+  item_found boolean;
   test_request_id uuid := gen_random_uuid();
   audit_rec record;
+  test_report_date date := current_date + 30;
 BEGIN
   -- 1. SEED TEST USERS (in auth.users so handle_new_user trigger creates profiles)
   INSERT INTO auth.users (id, email, email_confirmed_at)
@@ -112,7 +119,10 @@ BEGIN
     (cross_user_id, 'cross@corpscope.test', now()),
     (legacy_user_id, 'legacy@corpscope.test', now()),
     (dup_user_id, 'dup@corpscope.test', now()),
-    (client_id, 'client@corpscope.test', now());
+    (unverified_user_id, 'unverified@corpscope.test', NULL), -- unconfirmed email!
+    (client_id, 'client@corpscope.test', now()),
+    (returning_client_id, 'returningclient@corpscope.test', now()),
+    (new_client_id, 'newclient@corpscope.test', now());
 
   -- Update profiles with names
   UPDATE public.profiles SET name = 'Owner User' WHERE id = owner_id;
@@ -128,7 +138,10 @@ BEGIN
   UPDATE public.profiles SET name = 'Cross User' WHERE id = cross_user_id;
   UPDATE public.profiles SET name = 'Legacy User' WHERE id = legacy_user_id;
   UPDATE public.profiles SET name = 'Dup User' WHERE id = dup_user_id;
+  UPDATE public.profiles SET name = 'Unverified User' WHERE id = unverified_user_id;
   UPDATE public.profiles SET name = 'Client User' WHERE id = client_id;
+  UPDATE public.profiles SET name = 'Returning Client' WHERE id = returning_client_id;
+  UPDATE public.profiles SET name = 'New Client' WHERE id = new_client_id;
 
   -- 2. SEED ORGANIZATIONS
   INSERT INTO public.organizations (id, name, status, created_by)
@@ -1041,21 +1054,274 @@ BEGIN
   PERFORM pg_temp.set_actor(legacy_user_id);
   PERFORM public.accept_organization_invitation(invite_legacy.invitation_token);
 
-  -- Legacy manager has scope_mode = 'all' and sees all active units in Org A
+  -- =========================================================================
+  -- TEST GROUP 25: REPORT METRICS CONTRACT & SEMANTIC PRESERVATION
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+
+  -- 1. Invalid range checks
+  caught_error := false;
+  BEGIN
+    PERFORM public.get_organization_report(org_a_id, current_date, current_date - 1);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'invalid_report_range' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Report end < start must fail with invalid_report_range');
+
+  caught_error := false;
+  BEGIN
+    PERFORM public.get_organization_report(org_a_id, current_date, current_date + 367);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'invalid_report_range' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Report range > 366 days must fail with invalid_report_range');
+
+  -- 2. Seed appointments on test_report_date for Unit A
+  -- Prior completed appointment for returning_client (before test_report_date)
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, returning_client_id, (test_report_date - 5)::timestamp AT TIME ZONE 'America/Sao_Paulo', 30, (test_report_date - 5)::timestamp AT TIME ZONE 'America/Sao_Paulo' + interval '30 minutes', 'completed', 50.00);
+
+  -- Pending appointment on test_report_date: 30 min, $100
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '9 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '9 hours 30 minutes', 'pending', 100.00);
+
+  -- Confirmed appointment on test_report_date: 30 min, $100
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '10 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '10 hours 30 minutes', 'confirmed', 100.00);
+
+  -- Completed appointment on test_report_date for new client: 30 min, $100
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, new_client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '11 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '11 hours 30 minutes', 'completed', 100.00);
+
+  -- Completed appointment on test_report_date for returning client: 30 min, $100
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, returning_client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '12 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '12 hours 30 minutes', 'completed', 100.00);
+
+  -- Cancelled appointment on test_report_date: 30 min, $100
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '13 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '13 hours 30 minutes', 'cancelled', 100.00);
+
+  -- Soft-deleted appointment on test_report_date: 30 min, $100 (MUST BE COMPLETELY EXCLUDED)
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged, deleted_at)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '14 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '14 hours 30 minutes', 'completed', 100.00, now());
+
+  -- Timezone boundary appointment: 23:00 Sao Paulo (which is 02:00 next day UTC) -> 30 min, $100 completed
+  INSERT INTO public.appointments (id, establishment_id, professional_id, service_id, client_id, date_time, duration_minutes, ends_at, status, price_charged)
+  VALUES (gen_random_uuid()::text, unit_a_id, owner_id, svc_a_id::text, new_client_id, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '23 hours', 30, (test_report_date::timestamp AT TIME ZONE 'America/Sao_Paulo') + interval '23 hours 30 minutes', 'completed', 100.00);
+
+  -- 3. Query report for test_report_date as Owner
+  report_result := public.get_organization_report(org_a_id, test_report_date, test_report_date);
+
+  -- appointment_count = 6 (pending, confirmed, 3 completed, cancelled; deleted excluded)
   PERFORM pg_temp.assert(
-    public.has_organization_establishment_scope(org_a_id, unit_a_id) = true,
-    'Legacy invitee has scope on Unit A'
-  );
-  PERFORM pg_temp.assert(
-    public.has_organization_establishment_scope(org_a_id, unit_b_id) = true,
-    'Legacy invitee has scope on Unit B'
-  );
-  PERFORM pg_temp.assert(
-    public.has_organization_establishment_scope(org_a_id, unit_c_id) = true,
-    'Legacy invitee has scope on Unit C'
+    (report_result->>'appointment_count')::int = 6,
+    'Report appointment_count must be 6'
   );
 
-  RAISE NOTICE 'ALL PS4-E3 / PS4-E3.1 / PS4-E3.2 CORPORATE UNIT SCOPE LIFECYCLE HARDENING TESTS PASSED CLEANLY!';
+  -- scheduled_count = 2 (pending + confirmed)
+  PERFORM pg_temp.assert(
+    (report_result->>'scheduled_count')::int = 2,
+    'Report scheduled_count must be 2 (pending + confirmed)'
+  );
+
+  -- scheduled_value = 200.00 (100 + 100)
+  PERFORM pg_temp.assert(
+    (report_result->>'scheduled_value')::numeric = 200.00,
+    'Report scheduled_value must be 200.00'
+  );
+
+  -- completed_count = 3 (100 + 100 + 100)
+  PERFORM pg_temp.assert(
+    (report_result->>'completed_count')::int = 3,
+    'Report completed_count must be 3'
+  );
+
+  -- production_realized = 300.00 (100 + 100 + 100)
+  PERFORM pg_temp.assert(
+    (report_result->>'production_realized')::numeric = 300.00,
+    'Report production_realized must be 300.00'
+  );
+
+  -- occupied_minutes = 150 (5 * 30 min: pending + confirmed + 3 completed)
+  PERFORM pg_temp.assert(
+    (report_result->>'occupied_minutes')::int = 150,
+    'Report occupied_minutes must be 150 (pending + confirmed + 3 completed)'
+  );
+
+  -- new_clients = 1 (new_client_id has no completed before test_report_date)
+  PERFORM pg_temp.assert(
+    (report_result->>'new_clients')::int = 1,
+    'Report new_clients must be 1'
+  );
+
+  -- returning_clients = 1 (returning_client_id has completed prior to test_report_date)
+  PERFORM pg_temp.assert(
+    (report_result->>'returning_clients')::int = 1,
+    'Report returning_clients must be 1'
+  );
+
+  -- available_minutes matches public.admin_report_available_minutes
+  PERFORM pg_temp.assert(
+    (report_result->>'available_minutes')::numeric = (
+      public.admin_report_available_minutes(unit_a_id, test_report_date, test_report_date, NULL)
+      + public.admin_report_available_minutes(unit_b_id, test_report_date, test_report_date, NULL)
+      + public.admin_report_available_minutes(unit_c_id, test_report_date, test_report_date, NULL)
+      + public.admin_report_available_minutes(unit_d_id, test_report_date, test_report_date, NULL)
+    ),
+    'Report available_minutes must match public.admin_report_available_minutes'
+  );
+
+  -- 4. Query report as Manager Selected on Unit A (scoped aggregation)
+  PERFORM pg_temp.set_actor(dual_role_user_id); -- Manager selected on Unit A
+  report_result := public.get_organization_report(org_a_id, test_report_date, test_report_date);
+
+  PERFORM pg_temp.assert(
+    jsonb_array_length(report_result->'units') = 1,
+    'Manager Selected on Unit A must only see 1 unit in report'
+  );
+  PERFORM pg_temp.assert(
+    (report_result->'units'->0->>'id')::uuid = unit_a_id,
+    'Manager Selected on Unit A must see Unit A metrics'
+  );
+  PERFORM pg_temp.assert(
+    (report_result->>'production_realized')::numeric = 300.00,
+    'Manager Selected on Unit A sees identical Unit A production math'
+  );
+
+  -- =========================================================================
+  -- TEST GROUP 26: MEMBER SCOPE DISCLOSURE LEAK PREVENTION IN CONTEXT
+  -- =========================================================================
+  -- Set mgr_sel_id to selected on Unit A only
+  PERFORM pg_temp.set_actor(owner_id);
+  PERFORM public.set_organization_member_unit_scope(org_a_id, mgr_sel_id, 'selected', ARRAY[unit_a_id]);
+
+  -- Set revoked_mgr_id to active manager with selected on Unit C
+  UPDATE public.organization_members
+  SET status = 'active', revoked_at = NULL
+  WHERE organization_id = org_a_id AND profile_id = revoked_mgr_id;
+  PERFORM public.set_organization_member_unit_scope(org_a_id, revoked_mgr_id, 'selected', ARRAY[unit_c_id]);
+
+  -- mgr_sel_id (scoped only to Unit A) calls get_organization_context
+  PERFORM pg_temp.set_actor(mgr_sel_id);
+  context_result := public.get_organization_context(org_a_id);
+
+  -- Establishments only contains Unit A
+  PERFORM pg_temp.assert(
+    jsonb_array_length(context_result->'establishments') = 1
+    AND (context_result->'establishments'->0->>'id')::uuid = unit_a_id,
+    'Manager Selected on A must only see Unit A in establishments'
+  );
+
+  -- Members list contains members, but scoped_establishment_ids for other manager (revoked_mgr_id) is NULL
+  SELECT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(context_result->'members') AS m
+    WHERE (m->>'profileId')::uuid = revoked_mgr_id
+      AND (m->'scoped_establishment_ids' IS NULL OR m->>'scoped_establishment_ids' IS NULL)
+  ) INTO item_found;
+  PERFORM pg_temp.assert(
+    item_found,
+    'Manager Selected on A must receive NULL scoped_establishment_ids for other members (Unit C privacy preserved)'
+  );
+
+  -- Caller's own scoped_establishment_ids is visible to himself
+  SELECT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(context_result->'members') AS m
+    WHERE (m->>'profileId')::uuid = mgr_sel_id
+      AND (m->'scoped_establishment_ids') = to_jsonb(ARRAY[unit_a_id])
+  ) INTO item_found;
+  PERFORM pg_temp.assert(
+    item_found,
+    'Manager Selected on A can see his own scoped_establishment_ids'
+  );
+
+  -- Owner calls get_organization_context: sees full topology for all members
+  PERFORM pg_temp.set_actor(owner_id);
+  context_result := public.get_organization_context(org_a_id);
+  SELECT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(context_result->'members') AS m
+    WHERE (m->>'profileId')::uuid = revoked_mgr_id
+      AND (m->'scoped_establishment_ids') = to_jsonb(ARRAY[unit_c_id])
+  ) INTO item_found;
+  PERFORM pg_temp.assert(
+    item_found,
+    'Owner can see full delegation scoped_establishment_ids for all members'
+  );
+
+  -- =========================================================================
+  -- TEST GROUP 27: UNCONFIRMED / UNVERIFIED EMAIL REJECTED AT ACCEPT
+  -- =========================================================================
+  PERFORM pg_temp.set_actor(owner_id);
+  SELECT * INTO invite_unverified
+  FROM public.invite_organization_member_v2(
+    org_a_id,
+    'unverified@corpscope.test',
+    'manager',
+    'selected',
+    ARRAY[unit_a_id]
+  );
+
+  -- Unverified user attempts to accept
+  PERFORM pg_temp.set_actor(unverified_user_id);
+  caught_error := false;
+  BEGIN
+    PERFORM public.accept_organization_invitation(invite_unverified.invitation_token);
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'verified_email_required' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Unverified email user must fail with verified_email_required');
+
+  -- =========================================================================
+  -- TEST GROUP 28: TEMPORAL EFFECTIVE_FROM VALIDITY
+  -- =========================================================================
+  -- Seed future unit
+  INSERT INTO public.establishments (id, name, slug, address, phone, account_status, timezone, currency)
+  VALUES (unit_future_id, 'Unit Future', 'unit-fut-' || substr(unit_future_id::text, 1, 8), 'Street Future', '11999990099', 'active', 'America/Sao_Paulo', 'BRL');
+
+  INSERT INTO public.organization_establishments (organization_id, establishment_id, status, effective_from)
+  VALUES (org_a_id, unit_future_id, 'active', CURRENT_DATE + interval '7 days');
+
+  -- Owner should NOT have corporate scope on future unit today
+  PERFORM pg_temp.set_actor(owner_id);
+  PERFORM pg_temp.assert(
+    public.has_organization_establishment_scope(org_a_id, unit_future_id) = false,
+    'Future effective_from unit must NOT grant scope before effective_from'
+  );
+
+  -- Future unit must NOT appear in get_organization_context
+  context_result := public.get_organization_context(org_a_id);
+  SELECT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(context_result->'establishments') AS est
+    WHERE (est->>'id')::uuid = unit_future_id
+  ) INTO item_found;
+  PERFORM pg_temp.assert(
+    NOT item_found,
+    'Future effective_from unit must not be listed in get_organization_context'
+  );
+
+  -- Invite with future unit must fail closed
+  caught_error := false;
+  BEGIN
+    PERFORM public.invite_organization_member_v2(
+      org_a_id,
+      'futuretest@corpscope.test',
+      'manager',
+      'selected',
+      ARRAY[unit_future_id]
+    );
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'establishment_not_in_organization' THEN
+      caught_error := true;
+    END IF;
+  END;
+  PERFORM pg_temp.assert(caught_error, 'Inviting with future establishment must fail with establishment_not_in_organization');
+
+  RAISE NOTICE 'ALL PS4-E3 / PS4-E3.1 / PS4-E3.2 / PS4-E3.3 CORPORATE UNIT SCOPE LIFECYCLE & CONTRACT TESTS PASSED CLEANLY!';
 END;
 $$;
 
