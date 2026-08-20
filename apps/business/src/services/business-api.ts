@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createServiceOrderApi,
   createManualPosApi,
+  createCashOperationsApi,
   mapActiveContextReceipt,
   mapAuthorizedContext,
   mapBusinessAgendaItem,
@@ -15,6 +16,7 @@ import {
   mapAppointmentReassignmentMutationReceipt,
   ServiceOrderApiError,
   ManualPosApiError,
+  CashOperationsApiError,
   type AppointmentServiceOrderContext,
   type ActiveContextReceipt,
   type AuthorizedContext,
@@ -37,6 +39,8 @@ import {
   type PaymentMethodCommandReceipt,
   type ServiceOrderPaymentSummary,
   type OrderPaymentCommandReceipt,
+  type CashRegisterSnapshot,
+  type CashCommandReceipt,
 } from '@cutsync/database';
 
 import { supabase } from '../lib/supabase';
@@ -80,7 +84,16 @@ export type BusinessApiErrorCode =
   | 'payment_entry_not_voidable'
   | 'payment_entry_already_voided'
   | 'service_order_balance_unresolved'
-  | 'aal2_required';
+  | 'aal2_required'
+  | 'cash_register_unavailable'
+  | 'cash_session_required'
+  | 'cash_session_already_open'
+  | 'cash_session_not_open'
+  | 'cash_session_not_closed'
+  | 'cash_session_not_latest'
+  | 'cash_session_version_conflict'
+  | 'cash_balance_negative'
+  | 'cash_operations_unavailable';
 
 const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   client_unavailable: 'O aplicativo ainda não está conectado ao CutSync.',
@@ -126,6 +139,15 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   payment_entry_already_voided: 'Este lançamento já possui estorno confirmado.',
   service_order_balance_unresolved: 'A comanda ainda possui saldo pendente.',
   aal2_required: 'Confirme sua autenticação em duas etapas para estornar este pagamento.',
+  cash_register_unavailable: 'O caixa principal desta unidade não está disponível.',
+  cash_session_required: 'Abra o caixa antes de receber ou estornar dinheiro.',
+  cash_session_already_open: 'Já existe um caixa aberto nesta unidade.',
+  cash_session_not_open: 'Este caixa não está mais aberto.',
+  cash_session_not_closed: 'Este fechamento não está disponível para reabertura.',
+  cash_session_not_latest: 'Somente o último fechamento pode ser reaberto.',
+  cash_session_version_conflict: 'O caixa mudou em outro dispositivo. Atualize os dados.',
+  cash_balance_negative: 'O movimento deixaria o saldo esperado do caixa negativo.',
+  cash_operations_unavailable: 'Não foi possível concluir a operação de caixa.',
 };
 
 export class BusinessApiError extends Error {
@@ -238,6 +260,34 @@ export interface BusinessApi {
     expectedVersion: number;
     requestId: string;
   }) => Promise<OrderPaymentCommandReceipt>;
+  getCashSnapshot: (establishmentId: string) => Promise<CashRegisterSnapshot>;
+  openCashSession: (input: {
+    establishmentId: string;
+    openingFloatCents: number;
+    requestId: string;
+  }) => Promise<CashCommandReceipt>;
+  recordCashMovement: (input: {
+    establishmentId: string;
+    cashSessionId: string;
+    movementType: 'cash_in' | 'cash_out';
+    amountCents: number;
+    reason: string;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<CashCommandReceipt>;
+  closeCashSession: (input: {
+    establishmentId: string;
+    cashSessionId: string;
+    declaredCountCents: number;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<CashCommandReceipt>;
+  reopenCashSession: (input: {
+    establishmentId: string;
+    closedCashSessionId: string;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<CashCommandReceipt>;
   inspectInvitation: (token: string) => Promise<BusinessInvitationDetails>;
   acceptInvitation: (token: string) => Promise<BusinessInvitationAcceptance>;
 }
@@ -287,6 +337,7 @@ type Operation =
   | 'decisions'
   | 'service_order'
   | 'manual_pos'
+  | 'cash_operations'
   | 'inspect_invitation'
   | 'accept_invitation';
 
@@ -330,6 +381,7 @@ const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'decisions') return 'decisions_unavailable';
   if (operation === 'service_order') return 'service_order_unavailable';
   if (operation === 'manual_pos') return 'service_order_unavailable';
+  if (operation === 'cash_operations') return 'cash_operations_unavailable';
   if (operation === 'inspect_invitation') return 'invitation_unavailable';
   return 'invitation_accept_failed';
 };
@@ -372,6 +424,21 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
       'payment_entry_not_voidable', 'payment_entry_already_voided',
       'service_order_version_conflict', 'service_order_invalid_transition',
       'service_order_balance_unresolved', 'aal2_required',
+      'cash_session_required', 'cash_balance_negative',
+    ]);
+    if (supported.has(error.code as BusinessApiErrorCode)) {
+      return new BusinessApiError(error.code as BusinessApiErrorCode);
+    }
+    return new BusinessApiError(genericCodeFor(operation));
+  }
+  if (error instanceof CashOperationsApiError) {
+    const supported = new Set<BusinessApiErrorCode>([
+      'invalid_request', 'network_error', 'unauthorized', 'forbidden',
+      'backend_unavailable', 'invalid_response', 'financial_ops_disabled',
+      'aal2_required', 'cash_register_unavailable', 'cash_session_required',
+      'cash_session_already_open', 'cash_session_not_open', 'cash_session_not_closed',
+      'cash_session_not_latest', 'cash_session_version_conflict', 'cash_balance_negative',
+      'cash_operations_unavailable',
     ]);
     if (supported.has(error.code as BusinessApiErrorCode)) {
       return new BusinessApiError(error.code as BusinessApiErrorCode);
@@ -868,6 +935,51 @@ export const createBusinessApi = (
       return await createManualPosApi(client).voidPayment(input);
     } catch (error) {
       throw translateRpcError('manual_pos', error);
+    }
+  },
+
+  async getCashSnapshot(establishmentId) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createCashOperationsApi(client).getSnapshot(establishmentId);
+    } catch (error) {
+      throw translateRpcError('cash_operations', error);
+    }
+  },
+
+  async openCashSession(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createCashOperationsApi(client).openSession(input);
+    } catch (error) {
+      throw translateRpcError('cash_operations', error);
+    }
+  },
+
+  async recordCashMovement(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createCashOperationsApi(client).recordMovement(input);
+    } catch (error) {
+      throw translateRpcError('cash_operations', error);
+    }
+  },
+
+  async closeCashSession(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createCashOperationsApi(client).closeSession(input);
+    } catch (error) {
+      throw translateRpcError('cash_operations', error);
+    }
+  },
+
+  async reopenCashSession(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createCashOperationsApi(client).reopenSession(input);
+    } catch (error) {
+      throw translateRpcError('cash_operations', error);
     }
   },
 
