@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import type { BusinessOperationalContext } from '../../packages/database/src/business';
 import {
+  hasBusinessDecisionsNavigation,
   hasBusinessManagementNavigation,
   getActiveEstablishmentStorageKey,
   resolveActiveEstablishmentId,
@@ -14,6 +15,13 @@ import {
   shiftLocalDate,
   summarizeBusinessAgenda,
 } from '../../apps/business/src/features/agenda/business-agenda';
+import {
+  canRequestAppointmentReassignment,
+  getAppointmentReassignmentAvailability,
+  getReassignmentDeadline,
+  resolveReassignmentResponsibility,
+} from '../../apps/business/src/features/decisions/appointment-reassignment-request';
+import { mapBusinessAppointmentDetail } from '../../packages/database/src/mobile-operations';
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -72,10 +80,55 @@ test('Gestão segue capabilities confirmadas pelo backend', () => {
   expect(management).toContain('<Redirect href="/today" />');
 });
 
+test('Decisões aparece por capability operacional e mantém proteção na tela', () => {
+  expect(hasBusinessDecisionsNavigation(['request_appointment_reassignment'])).toBe(true);
+  expect(hasBusinessDecisionsNavigation(['apply_appointment_reassignment'])).toBe(true);
+  expect(hasBusinessDecisionsNavigation(['view_team_agenda'])).toBe(false);
+  expect(hasBusinessDecisionsNavigation(undefined)).toBe(false);
+
+  const tabs = read('apps/business/src/app/(app)/(tabs)/_layout.tsx');
+  const decisions = read('apps/business/src/screens/decisions.tsx');
+  expect(tabs).toContain('hidden={!canViewDecisions}');
+  expect(decisions).toContain('hasBusinessDecisionsNavigation(activeContext?.capabilities)');
+  expect(decisions).toContain('<Redirect href="/today" />');
+});
+
+test('reatribuição informa por que a ação não está disponível em vez de desaparecer', () => {
+  const base = {
+    status: 'confirmed' as const,
+    startsAt: '2026-08-10T15:00:00.000Z',
+    accessMode: 'full' as const,
+    hasCapability: true,
+    responsibility: 'admin' as const,
+    nowMs: Date.parse('2026-08-10T12:00:00.000Z'),
+  };
+
+  expect(getAppointmentReassignmentAvailability(base)).toEqual({
+    available: true,
+    dueAt: '2026-08-10T14:00:00.000Z',
+    message: null,
+  });
+  expect(getAppointmentReassignmentAvailability({
+    ...base,
+    hasCapability: false,
+  })).toMatchObject({
+    available: false,
+    message: 'Seu acesso atual não inclui solicitar reatribuição.',
+  });
+  expect(getAppointmentReassignmentAvailability({
+    ...base,
+    startsAt: '2026-08-10T12:01:00.000Z',
+  })).toMatchObject({
+    available: false,
+    message: expect.stringContaining('próximo demais'),
+  });
+});
+
 test('Router protege contexto e operação sem tratar proteção client-side como autorização final', () => {
   const rootLayout = read('apps/business/src/app/_layout.tsx');
-  expect(rootLayout).toContain('<Stack.Protected guard={Boolean(session)}>');
-  expect(rootLayout).toContain('<Stack.Protected guard={hasOperationalAccess}>');
+  expect(rootLayout).toContain('<Stack.Protected guard={hasSessionOrIsRestoring}>');
+  expect(rootLayout).toContain('<Stack.Protected guard={canResolveOperationalRoute}>');
+  expect(rootLayout).toContain('isSessionLoading || isContextLoading || hasOperationalAccess');
   expect(rootLayout).toContain('activeContext.accessMode');
 });
 
@@ -153,7 +206,64 @@ test('falha de persistência local não bloqueia contexto operacional confirmado
   expect(provider).toContain('Persistence is best-effort');
   expect(provider).toContain('setError(getOperationalContextErrorMessage(refreshError))');
   expect(provider).toContain('BUS_CTX_');
-  expect(provider).toContain("throw new BusinessContextRefreshError('rpc', error)");
+  expect(provider).toContain("throw new BusinessContextRefreshError('authorized_rpc', error)");
+  expect(provider).toContain("throw new BusinessContextRefreshError('operational_rpc', error)");
+  expect(provider).toContain("throw new BusinessContextRefreshError('activate_rpc', error)");
   expect(provider).toContain("throw new BusinessContextRefreshError('storage_read', error)");
   expect(provider).toContain("throw new BusinessContextRefreshError('storage_write', error)");
+});
+
+test('solicitação de reatribuição respeita capability, acesso, estado e prazo', () => {
+  const nowMs = Date.parse('2026-08-10T12:00:00.000Z');
+  const startsAt = '2026-08-10T14:00:00.000Z';
+
+  expect(resolveReassignmentResponsibility('owner')).toBe('owner');
+  expect(resolveReassignmentResponsibility('professional')).toBe('professional');
+  expect(resolveReassignmentResponsibility('cashier')).toBeNull();
+  expect(getReassignmentDeadline(startsAt, nowMs)).toBe('2026-08-10T13:00:00.000Z');
+  expect(getReassignmentDeadline('2026-08-10T12:01:00.000Z', nowMs)).toBeNull();
+  expect(getReassignmentDeadline('2026-08-10T12:04:00.000Z', nowMs)).toBeNull();
+  expect(canRequestAppointmentReassignment({
+    status: 'confirmed',
+    startsAt,
+    accessMode: 'full',
+    hasCapability: true,
+    responsibility: 'owner',
+    nowMs,
+  })).toBe(true);
+  expect(canRequestAppointmentReassignment({
+    status: 'confirmed',
+    startsAt,
+    accessMode: 'read_only',
+    hasCapability: true,
+    responsibility: 'owner',
+    nowMs,
+  })).toBe(false);
+  expect(canRequestAppointmentReassignment({
+    status: 'completed',
+    startsAt,
+    accessMode: 'full',
+    hasCapability: true,
+    responsibility: 'owner',
+    nowMs,
+  })).toBe(false);
+});
+
+test('detalhe do atendimento exige e preserva a versão otimista do backend', () => {
+  const payload = {
+    appointmentId: 'appointment-1',
+    establishmentId: 'establishment-1',
+    status: 'confirmed',
+    startsAt: '2026-08-10T14:00:00.000Z',
+    endsAt: '2026-08-10T14:30:00.000Z',
+    updatedAt: '2026-08-10T12:00:00.000Z',
+    service: { id: 'service-1', name: 'Corte', listPrice: 5000 },
+    professional: { id: 'professional-1', name: 'Profissional' },
+    client: { displayName: 'Cliente' },
+    allowedActions: [],
+    history: [],
+  };
+
+  expect(mapBusinessAppointmentDetail(payload)?.updatedAt).toBe(payload.updatedAt);
+  expect(mapBusinessAppointmentDetail({ ...payload, updatedAt: undefined })).toBeNull();
 });

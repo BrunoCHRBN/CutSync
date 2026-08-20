@@ -1,9 +1,10 @@
 import type { EstablishmentClientConsentStatus } from '@cutsync/database';
-import { createMobileRequestId } from '@cutsync/domain';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { createMobileRequestId } from '@/lib/mobile-request-id';
 
 import {
   BusinessButton,

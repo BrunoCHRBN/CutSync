@@ -34,13 +34,17 @@ import { ProfessionalReschedule } from '../../professional/ProfessionalReschedul
 import { ProfessionalOnboarding } from '../../professional/ProfessionalOnboarding';
 import { CalendarAppointment, CalendarSlotSelection, OperationalCalendar } from '../../calendar/operational-calendar';
 import { AppointmentDetailSheet } from '../../calendar/appointment-detail-sheet';
+import { TransferProfessionalModal } from '../../calendar/transfer-professional-modal';
 import { SlotActionSheet } from '../../calendar/slot-action-sheet';
 import { ScheduleBlockDraft, ScheduleBlockModal } from '../../calendar/schedule-block-modal';
 import { CancelAppointmentModal } from '../../calendar/cancel-appointment-modal';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/toast-provider';
 import { AppCommand, useCommandPalette, useCommandRegistration } from '../../command/command-palette-provider';
-import { useAppointmentActions } from '../../../features/appointments/use-appointment-actions';
+import {
+  useAppointmentActions,
+  type WebReassignmentPreparation,
+} from '../../../features/appointments/use-appointment-actions';
 import { useAppointmentServiceOrder } from '../../../features/service-orders/use-appointment-service-order';
 import { AgendaHeader, AgendaLayoutView } from './AgendaHeader';
 import { NextAppointmentStrip } from './NextAppointmentStrip';
@@ -55,7 +59,7 @@ export const ProfessionalAgendaScreen = () => {
   const { open: openCommandPalette } = useCommandPalette();
   const { pushToast } = useToast();
   const { profile, refreshProfile, signOut } = useAuth();
-  const { activeContext, activeEstablishmentId } = useOperationalContext();
+  const { activeAuthorizedContext, activeContext, activeEstablishmentId } = useOperationalContext();
   const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
   const { services } = useServices(activeEstablishmentId, true);
   const { team } = useTeam(activeEstablishmentId, Boolean(activeEstablishmentId));
@@ -71,6 +75,8 @@ export const ProfessionalAgendaScreen = () => {
   const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [absenceOpen, setAbsenceOpen] = useState(false);
+  const [reassignmentTargetId, setReassignmentTargetId] = useState<string | null>(null);
+  const [reassignmentPreparation, setReassignmentPreparation] = useState<WebReassignmentPreparation | null>(null);
   const [professionalOnboardingProgress, setProfessionalOnboardingProgress] = useState<OnboardingProgress | null>(null);
 
   const [quickOpen, setQuickOpen] = useState(false);
@@ -197,6 +203,7 @@ export const ProfessionalAgendaScreen = () => {
       clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
       serviceName: item.service?.name || 'Serviço indisponível',
       startsAt: item.dateTime,
+      updatedAt: item.updatedAt,
       endsAt: new Date(item.dateTime.getTime() + (item.durationMinutes || item.service?.durationMinutes || 30) * 60_000),
       status: item.status,
       price: item.priceCharged || item.service?.price,
@@ -212,6 +219,7 @@ export const ProfessionalAgendaScreen = () => {
   );
 
   const selectedCalendarAppointment = calendarAppointments.find((item) => item.id === selectedAppointmentId) || null;
+  const reassignmentTarget = calendarAppointments.find((item) => item.id === reassignmentTargetId) || null;
   const cancelTarget = appointments.find((item) => item.id === cancelTargetId) || null;
 
   const primaryColor = barbershop?.primaryColor || colors.brand;
@@ -516,6 +524,10 @@ export const ProfessionalAgendaScreen = () => {
     && selectedCalendarAppointment.professionalId === profile?.id
     && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status),
   );
+  const canRequestSelectedReassignment = Boolean(
+    canActOnSelected
+    && activeAuthorizedContext?.capabilities.includes('request_appointment_reassignment')
+  );
   const canUseLegacyComplete = Boolean(
     selectedCalendarAppointment
     && canActOnSelected
@@ -627,7 +639,7 @@ export const ProfessionalAgendaScreen = () => {
         canCancel={canActOnSelected}
         canComplete={canUseLegacyComplete}
         canReschedule={canActOnSelected}
-        canTransfer={false}
+        canTransfer={canRequestSelectedReassignment}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
         onOrderAction={() => {
@@ -665,6 +677,11 @@ export const ProfessionalAgendaScreen = () => {
           setNewRescheduleDate(new Date(item.dateTime));
           setNewRescheduleTime(time(item.dateTime));
         }}
+        onTransfer={(appointment) => {
+          setSelectedAppointmentId(null);
+          setReassignmentPreparation(null);
+          setReassignmentTargetId(appointment.id);
+        }}
         onServiceOrderRetry={() => {
           if (financialOps.state === 'unknown') {
             void financialOps.refresh();
@@ -683,6 +700,49 @@ export const ProfessionalAgendaScreen = () => {
         serviceOrderError={financialOpsSyncMessage ?? appointmentOrder.error}
         serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
         visible={Boolean(selectedCalendarAppointment)}
+      />
+
+      <TransferProfessionalModal
+        appointment={reassignmentTarget}
+        loading={actions.reassignmentLoadingId === reassignmentTargetId}
+        onClose={() => {
+          if (!actions.reassignmentLoadingId) {
+            setReassignmentTargetId(null);
+            setReassignmentPreparation(null);
+          }
+        }}
+        onPrepare={() => {
+          if (!activeEstablishmentId || !reassignmentTarget?.updatedAt) return;
+          void actions.prepareReassignment({
+            establishmentId: activeEstablishmentId,
+            appointmentId: reassignmentTarget.id,
+            expectedUpdatedAt: reassignmentTarget.updatedAt,
+            startsAt: reassignmentTarget.startsAt,
+            responsibility: 'professional',
+            canPropose: Boolean(
+              activeAuthorizedContext?.capabilities.includes('apply_appointment_reassignment'),
+            ),
+          }).then((prepared) => {
+            if (prepared) setReassignmentPreparation(prepared);
+          });
+        }}
+        onPropose={(professionalId) => {
+          if (!reassignmentPreparation) return;
+          void actions.proposeReassignment({
+            preparation: reassignmentPreparation,
+            professionalId,
+          }).then((receipt) => {
+            if (receipt) setReassignmentPreparation((current) => current ? ({
+              ...current,
+              status: receipt.status,
+              version: receipt.version,
+              candidates: [],
+              proposalAllowed: current.proposalAllowed,
+            }) : null);
+          });
+        }}
+        preparation={reassignmentPreparation}
+        visible={Boolean(reassignmentTarget)}
       />
 
       <CancelAppointmentModal
@@ -714,10 +774,12 @@ export const ProfessionalAgendaScreen = () => {
         onConfirm={async (input) => {
           if (!profile?.id) return null;
           const report = await actions.runAbsenceMode({
+            establishmentId: activeEstablishmentId || '',
             professionalId: profile.id,
             rangeStart: input.rangeStart,
             rangeEnd: input.rangeEnd,
             transfers: input.transfers,
+            reassignmentAppointments: input.reassignmentAppointments,
           });
           await refreshScheduleBlocks();
           return report;

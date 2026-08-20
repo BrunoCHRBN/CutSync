@@ -4,6 +4,8 @@ export const CLIENT_APPOINTMENT_NOTIFICATION_EVENTS = [
   'appointment_rescheduled',
   'appointment_cancelled',
   'appointment_reminder',
+  'appointment_reassignment_decision_required',
+  'appointment_reassignment_updated',
 ] as const;
 
 export type ClientAppointmentNotificationEvent =

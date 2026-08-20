@@ -5,7 +5,7 @@ import { AppButton } from '../../ui/AppButton';
 import { CalendarAppointment } from '../../calendar/operational-calendar';
 import { AbsenceTransferAction, AbsenceBatchReport } from '../../../features/appointments/use-appointment-actions';
 
-type ItemDecision = 'cancel' | 'keep';
+type ItemDecision = 'request_reassignment' | 'cancel' | 'keep';
 
 type WizardItem = {
   appointment: CalendarAppointment;
@@ -15,13 +15,18 @@ type WizardItem = {
 interface AbsenceModeWizardProps {
   visible: boolean;
   professionalId: string;
-  appointments: Array<CalendarAppointment & { serviceId: string }>;
+  appointments: (CalendarAppointment & { serviceId: string })[];
   loading?: boolean;
   onClose: () => void;
   onConfirm: (input: {
     rangeStart: Date;
     rangeEnd: Date;
     transfers: AbsenceTransferAction[];
+    reassignmentAppointments: {
+      appointmentId: string;
+      expectedUpdatedAt: string;
+      startsAt: Date;
+    }[];
   }) => Promise<AbsenceBatchReport | null>;
 }
 
@@ -42,7 +47,7 @@ export const AbsenceModeWizard = ({
     const end = new Date();
     end.setHours(23, 59, 59, 999);
     return { start, end };
-  }, [visible]);
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps -- reopen resets the default range
 
   const affected = useMemo(
     () => appointments.filter((item) =>
@@ -69,14 +74,26 @@ export const AbsenceModeWizard = ({
 
   const submit = async () => {
     const transfers: AbsenceTransferAction[] = items.map((item) => {
-      if (item.decision === 'keep') return { appointment_id: item.appointment.id, action: 'keep' };
+      if (item.decision !== 'cancel') return { appointment_id: item.appointment.id, action: 'keep' };
       return {
         appointment_id: item.appointment.id,
         action: 'cancel',
         cancellation_note: 'Ausência do profissional',
       };
     });
-    const result = await onConfirm({ rangeStart: range.start, rangeEnd: range.end, transfers });
+    const reassignmentAppointments = items
+      .filter((item) => item.decision === 'request_reassignment' && item.appointment.updatedAt)
+      .map((item) => ({
+        appointmentId: item.appointment.id,
+        expectedUpdatedAt: item.appointment.updatedAt as string,
+        startsAt: item.appointment.startsAt,
+      }));
+    const result = await onConfirm({
+      rangeStart: range.start,
+      rangeEnd: range.end,
+      transfers,
+      reassignmentAppointments,
+    });
     setReport(result);
     setStep(3);
   };
@@ -98,7 +115,7 @@ export const AbsenceModeWizard = ({
           {step === 1 ? (
             <View style={styles.block}>
               <Text style={styles.description}>
-                Padrão: a partir de agora até o fim do dia. Por segurança, atendimentos ativos podem ser mantidos ou cancelados; a troca de profissional ficará disponível na futura Central de Decisões. Ao confirmar, um bloqueio de ausência será criado.
+                Padrão: a partir de agora até o fim do dia. Cada atendimento pode ser mantido, cancelado ou enviado à Central de Decisões. Solicitar reatribuição não troca o profissional. Ao confirmar, um bloqueio de ausência será criado.
               </Text>
               <Text style={styles.meta}>
                 {range.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -127,24 +144,32 @@ export const AbsenceModeWizard = ({
                       </Text>
                       <Text style={styles.description}>
                         {item.appointment.serviceName}
-                        {' · escolha segura: manter ou cancelar'}
+                        {' · nenhuma troca será aplicada nesta etapa'}
                       </Text>
                       <View style={styles.decisionRow}>
-                        {(['keep', 'cancel'] as ItemDecision[]).map((decision) => (
-                          <Pressable
-                            key={decision}
-                            onPress={() => setItems((current) => current.map((entry) =>
-                              entry.appointment.id === item.appointment.id
-                                ? { ...entry, decision }
-                                : entry))}
-                            style={[styles.chip, item.decision === decision && styles.chipSelected]}
-                            testID={`absence-decision-${item.appointment.id}-${decision}`}
-                          >
-                            <Text style={styles.chipText}>
-                              {decision === 'cancel' ? 'Cancelar' : 'Manter'}
-                            </Text>
-                          </Pressable>
-                        ))}
+                        {(['keep', 'request_reassignment', 'cancel'] as ItemDecision[])
+                          .filter((decision) => (
+                            decision !== 'request_reassignment' || Boolean(item.appointment.updatedAt)
+                          ))
+                          .map((decision) => (
+                            <Pressable
+                              key={decision}
+                              onPress={() => setItems((current) => current.map((entry) =>
+                                entry.appointment.id === item.appointment.id
+                                  ? { ...entry, decision }
+                                  : entry))}
+                              style={[styles.chip, item.decision === decision && styles.chipSelected]}
+                              testID={`absence-decision-${item.appointment.id}-${decision}`}
+                            >
+                              <Text style={styles.chipText}>
+                                {decision === 'cancel'
+                                  ? 'Cancelar'
+                                  : decision === 'request_reassignment'
+                                    ? 'Solicitar reatribuição'
+                                    : 'Manter'}
+                              </Text>
+                            </Pressable>
+                          ))}
                       </View>
                     </View>
                   ))}

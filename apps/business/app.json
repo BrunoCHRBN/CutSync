@@ -17,7 +17,17 @@
       "package": "com.cutsync.business",
       "softwareKeyboardLayoutMode": "resize"
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#EACD73",
+          "defaultChannel": "operations"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

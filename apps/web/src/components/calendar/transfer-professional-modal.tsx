@@ -1,184 +1,166 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import type { WebReassignmentPreparation } from '../../features/appointments/use-appointment-actions';
 import { colors, elevations, radii, spacing, typeScale } from '../../theme/tokens';
 import { AppButton } from '../ui/AppButton';
-import { CalendarAppointment } from './operational-calendar';
-import { supabase } from '../../services/supabase';
-
-export type TransferCandidateStatus = 'available' | 'conflict' | 'outside_hours' | 'service_disabled';
-
-export type TransferCandidate = {
-  id: string;
-  name: string;
-  status: TransferCandidateStatus;
-};
+import type { CalendarAppointment } from './operational-calendar';
 
 interface TransferProfessionalModalProps {
   visible: boolean;
   appointment: CalendarAppointment | null;
-  serviceId?: string | null;
-  establishmentId?: string | null;
-  candidates: Array<{ id: string; name: string }>;
+  preparation: WebReassignmentPreparation | null;
   loading?: boolean;
   onClose: () => void;
-  onTransferSameSlot: (professionalId: string) => void;
-  onPickOtherSlot: (professionalId: string) => void;
+  onPrepare: () => void;
+  onPropose: (professionalId: string) => void;
 }
 
-const statusLabel: Record<TransferCandidateStatus, string> = {
-  available: 'Disponível',
-  conflict: 'Conflito',
-  outside_hours: 'Fora da jornada',
-  service_disabled: 'Serviço não habilitado',
+const statusLabel: Record<WebReassignmentPreparation['status'], string> = {
+  requested: 'Solicitação criada',
+  validating: 'Validando',
+  awaiting_manager: 'Aguardando proposta',
+  awaiting_customer: 'Aguardando cliente',
+  ready_to_apply: 'Pronta para aplicação',
+  applied: 'Aplicada',
+  declined: 'Recusada',
+  withdrawn: 'Retirada',
+  expired: 'Expirada',
+  failed: 'Falhou',
+  manual_review: 'Revisão manual',
 };
+
+const money = (cents: number) => (cents / 100).toLocaleString('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
 export const TransferProfessionalModal = ({
   visible,
   appointment,
-  serviceId,
-  establishmentId,
-  candidates,
+  preparation,
   loading = false,
   onClose,
-  onTransferSameSlot,
-  onPickOtherSlot,
+  onPrepare,
+  onPropose,
 }: TransferProfessionalModalProps) => {
-  const [rows, setRows] = useState<TransferCandidate[]>([]);
-  const [checking, setChecking] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const eligible = useMemo(
-    () => candidates.filter((item) => item.id !== appointment?.professionalId),
-    [appointment?.professionalId, candidates],
+  const candidates = useMemo(() => preparation?.candidates ?? [], [preparation?.candidates]);
+  const selected = useMemo(
+    () => candidates.find((candidate) => candidate.profileId === selectedId) ?? null,
+    [candidates, selectedId],
   );
 
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!visible || !appointment || !establishmentId || !serviceId) {
-        setRows([]);
-        return;
-      }
-      setChecking(true);
+    if (!visible) {
       setSelectedId(null);
-      const next: TransferCandidate[] = [];
-      for (const candidate of eligible) {
-        const { data: serviceRows } = await supabase
-          .from('professional_services')
-          .select('is_active')
-          .eq('establishment_id', establishmentId)
-          .eq('professional_id', candidate.id)
-          .eq('service_id', serviceId)
-          .maybeSingle();
+      return;
+    }
+    if (candidates.length > 0 && !candidates.some((item) => item.profileId === selectedId)) {
+      setSelectedId(candidates[0]?.profileId ?? null);
+    }
+  }, [candidates, selectedId, visible]);
 
-        if (serviceRows && serviceRows.is_active === false) {
-          next.push({ id: candidate.id, name: candidate.name, status: 'service_disabled' });
-          continue;
-        }
-
-        const { data: slots, error } = await supabase.rpc('get_available_slots', {
-          target_establishment_id: establishmentId,
-          target_professional_id: candidate.id,
-          target_service_id: serviceId,
-          target_local_date: appointment.startsAt.toISOString().slice(0, 10),
-          target_appointment_id: appointment.id,
-        });
-
-        if (error || !Array.isArray(slots)) {
-          next.push({ id: candidate.id, name: candidate.name, status: 'outside_hours' });
-          continue;
-        }
-
-        const match = slots.find((slot: { starts_at: string; available: boolean; unavailable_reason?: string | null }) =>
-          new Date(slot.starts_at).getTime() === appointment.startsAt.getTime());
-
-        if (!match) {
-          next.push({ id: candidate.id, name: candidate.name, status: 'outside_hours' });
-        } else if (match.available) {
-          next.push({ id: candidate.id, name: candidate.name, status: 'available' });
-        } else {
-          next.push({
-            id: candidate.id,
-            name: candidate.name,
-            status: match.unavailable_reason === 'busy' ? 'conflict' : 'outside_hours',
-          });
-        }
-      }
-      if (!cancelled) {
-        setRows(next);
-        const firstAvailable = next.find((item) => item.status === 'available');
-        setSelectedId(firstAvailable?.id || next[0]?.id || null);
-        setChecking(false);
-      }
-    };
-    void run();
-    return () => { cancelled = true; };
-  }, [appointment, eligible, establishmentId, serviceId, visible]);
-
-  const selected = rows.find((item) => item.id === selectedId) || null;
+  const workflowAlreadyAdvanced = Boolean(
+    preparation && preparation.status !== 'awaiting_manager',
+  );
 
   return (
     <Modal animationType={Platform.OS === 'web' ? 'fade' : 'slide'} onRequestClose={onClose} transparent visible={visible}>
-      <Pressable accessibilityLabel="Fechar transferência" onPress={onClose} style={styles.backdrop}>
+      <Pressable accessibilityLabel="Fechar proposta" onPress={onClose} style={styles.backdrop}>
         <Pressable
           accessibilityViewIsModal
           onPress={(event) => event.stopPropagation()}
           style={styles.sheet}
           testID="transfer-professional-modal"
         >
-          <Text style={styles.eyebrow}>TRANSFERIR PROFISSIONAL</Text>
+          <Text style={styles.eyebrow}>PROPOSTA DE REATRIBUIÇÃO</Text>
           <Text style={styles.title}>{appointment?.clientName || 'Atendimento'}</Text>
           <Text style={styles.description}>
-            Escolha um colega para o mesmo horário. Em caso de conflito, você pode escolher outro horário na agenda dele.
+            A criação da proposta não troca o profissional. O backend validará o atendimento e registrará a decisão necessária do cliente.
           </Text>
-          {checking ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={colors.brandPrimary} />
-              <Text style={styles.description}>Consultando disponibilidade da equipe...</Text>
-            </View>
-          ) : (
+
+          <View style={styles.summary}>
+            <Text style={styles.summaryTitle}>Condição atual</Text>
+            <Text style={styles.description}>
+              {appointment?.serviceName} · {appointment?.startsAt.toLocaleString('pt-BR', {
+                dateStyle: 'short', timeStyle: 'short',
+              })}
+            </Text>
+            <Text style={styles.description}>
+              Preço: {typeof appointment?.price === 'number'
+                ? money(Math.round(appointment.price * 100)) : 'não informado'}
+            </Text>
+            <Text style={styles.description}>Sinal: nenhuma movimentação será realizada por esta proposta.</Text>
+          </View>
+
+          {preparation ? (
+            <Text style={styles.workflowStatus} testID="reassignment-workflow-status">
+              {statusLabel[preparation.status]} · versão {preparation.version}
+            </Text>
+          ) : null}
+
+          {preparation?.status === 'awaiting_manager' && preparation.proposalAllowed ? (
             <ScrollView style={styles.list}>
-              {rows.length === 0 ? (
-                <Text style={styles.description}>Nenhum colega disponível neste estabelecimento.</Text>
-              ) : rows.map((row) => {
-                const active = selectedId === row.id;
+              {candidates.length === 0 ? (
+                <Text style={styles.description}>Nenhum profissional qualificado está disponível no mesmo horário.</Text>
+              ) : candidates.map((candidate) => {
+                const active = selectedId === candidate.profileId;
                 return (
                   <Pressable
-                    key={row.id}
+                    key={candidate.profileId}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    onPress={() => setSelectedId(row.id)}
+                    onPress={() => setSelectedId(candidate.profileId)}
                     style={[styles.row, active && styles.rowSelected]}
-                    testID={`transfer-candidate-${row.id}`}
+                    testID={`transfer-candidate-${candidate.profileId}`}
                   >
-                    <View style={styles.rowCopy}>
-                      <Text style={styles.rowTitle}>{row.name}</Text>
-                      <Text style={styles.rowStatus}>{statusLabel[row.status]}</Text>
-                    </View>
+                    <Text style={styles.rowTitle}>{candidate.name}</Text>
+                    <Text style={styles.rowStatus}>
+                      {money(candidate.priceCents)}
+                      {candidate.monetaryImpact ? ' · preço diferente, exige decisão' : ' · mesmo preço'}
+                    </Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
-          )}
+          ) : null}
+
+          {preparation?.status === 'awaiting_manager' && !preparation.proposalAllowed ? (
+            <View style={styles.summary}>
+              <Text style={styles.summaryTitle}>Enviado para a gestão</Text>
+              <Text style={styles.description}>
+                A solicitação foi validada. Um gestor autorizado poderá escolher o substituto; o atendimento permanece com o profissional atual.
+              </Text>
+            </View>
+          ) : null}
+
+          {workflowAlreadyAdvanced ? (
+            <View style={styles.summary}>
+              <Text style={styles.summaryTitle}>Solicitação em andamento</Text>
+              <Text style={styles.description}>
+                Acompanhe a Central de Decisões. Nenhuma alteração será exibida como concluída antes da aplicação server-side.
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.actions}>
             <AppButton disabled={loading} label="Voltar" onPress={onClose} testID="transfer-professional-close" variant="secondary" />
-            {selected?.status === 'available' ? (
+            {!preparation ? (
               <AppButton
-                label="Transferir no mesmo horário"
+                label="Criar solicitação e validar"
                 loading={loading}
-                onPress={() => selectedId && onTransferSameSlot(selectedId)}
+                onPress={onPrepare}
+                testID="reassignment-prepare"
+              />
+            ) : preparation.status === 'awaiting_manager' && preparation.proposalAllowed && selected ? (
+              <AppButton
+                label="Enviar proposta ao cliente"
+                loading={loading}
+                onPress={() => onPropose(selected.profileId)}
                 testID="transfer-professional-confirm"
               />
-            ) : (
-              <AppButton
-                disabled={!selectedId || selected?.status === 'service_disabled'}
-                label="Escolher outro horário"
-                loading={loading}
-                onPress={() => selectedId && onPickOtherSlot(selectedId)}
-                testID="transfer-professional-other-slot"
-                variant="secondary"
-              />
-            )}
+            ) : null}
           </View>
         </Pressable>
       </Pressable>
@@ -188,16 +170,17 @@ export const TransferProfessionalModal = ({
 
 const styles = StyleSheet.create({
   backdrop: { backgroundColor: 'rgba(24,32,27,0.34)', flex: 1, justifyContent: 'center', padding: spacing.md },
-  sheet: { alignSelf: 'center', backgroundColor: colors.surface, borderRadius: radii.xl, gap: spacing.sm, maxHeight: '88%', maxWidth: 520, padding: spacing.xl, width: '100%', ...elevations.overlay },
+  sheet: { alignSelf: 'center', backgroundColor: colors.surface, borderRadius: radii.xl, gap: spacing.sm, maxHeight: '88%', maxWidth: 560, padding: spacing.xl, width: '100%', ...elevations.overlay },
   eyebrow: { ...typeScale.label, color: colors.brandPrimary, letterSpacing: 1.2 },
   title: { ...typeScale.cardTitle, color: colors.textPrimary },
   description: { ...typeScale.small, color: colors.textSecondary },
-  loadingBox: { alignItems: 'center', gap: spacing.sm, minHeight: 120, justifyContent: 'center' },
-  list: { maxHeight: 320 },
+  summary: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  summaryTitle: { ...typeScale.bodyStrong, color: colors.textPrimary },
+  workflowStatus: { ...typeScale.bodyStrong, color: colors.brandPrimary },
+  list: { maxHeight: 300 },
   row: { borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, marginBottom: spacing.sm, padding: spacing.md },
   rowSelected: { backgroundColor: colors.brandSecondarySoft, borderColor: colors.brandPrimary },
-  rowCopy: { gap: 2 },
   rowTitle: { ...typeScale.bodyStrong, color: colors.textPrimary },
-  rowStatus: { ...typeScale.small, color: colors.textSecondary },
+  rowStatus: { ...typeScale.small, color: colors.textSecondary, marginTop: 2 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'flex-end', marginTop: spacing.sm },
 });

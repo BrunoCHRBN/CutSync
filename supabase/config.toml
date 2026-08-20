@@ -448,6 +448,12 @@ verify_jwt = false
 import_map = "./functions/dispatch-client-notifications/deno.json"
 entrypoint = "./functions/dispatch-client-notifications/index.ts"
 
+[functions.dispatch-business-notifications]
+enabled = true
+verify_jwt = false
+import_map = "./functions/dispatch-business-notifications/deno.json"
+entrypoint = "./functions/dispatch-business-notifications/index.ts"
+
 [functions.execute-client-account-deletion]
 enabled = true
 verify_jwt = false

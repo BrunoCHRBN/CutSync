@@ -39,6 +39,7 @@ import { DashboardAppointment } from '../../types/dashboard';
 import { AppointmentRecord } from '@cutsync/database';
 import { OperationalCalendar, CalendarAppointment, CalendarSlotSelection } from '../calendar/operational-calendar';
 import { AppointmentDetailSheet } from '../calendar/appointment-detail-sheet';
+import { TransferProfessionalModal } from '../calendar/transfer-professional-modal';
 import { PageHeader } from '../ui/page-header';
 import { MetricStrip } from '../ui/metric-strip';
 import {
@@ -58,6 +59,10 @@ import {
   ScheduleWindow,
 } from '../../features/availability/get-available-slots';
 import { minutesOfDay } from '../calendar/calendar-math';
+import {
+  useAppointmentActions,
+  type WebReassignmentPreparation,
+} from '../../features/appointments/use-appointment-actions';
 
 const greetingForNow = () => {
   const hour = new Date().getHours();
@@ -107,7 +112,7 @@ export const AdminDashboardExperience = () => {
   const { open: openCommandPalette } = useCommandPalette();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
-  const { activeEstablishmentId } = useOperationalContext();
+  const { activeAuthorizedContext, activeEstablishmentId } = useOperationalContext();
   const { establishment: barbershop } = useEstablishment(activeEstablishmentId);
   const [appointments, setAppointments] = useState<RichAppointment[]>([]);
   const { team: barbers } = useTeam(activeEstablishmentId, true);
@@ -124,6 +129,8 @@ export const AdminDashboardExperience = () => {
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'danger' | 'warning'; message: string } | null>(null);
   const [cancelPromptId, setCancelPromptId] = useState<string | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
+  const [reassignmentTargetId, setReassignmentTargetId] = useState<string | null>(null);
+  const [reassignmentPreparation, setReassignmentPreparation] = useState<WebReassignmentPreparation | null>(null);
 
   useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
@@ -190,6 +197,7 @@ export const AdminDashboardExperience = () => {
   const refresh = useCallback(async () => {
     await Promise.all([refreshAgenda(), refreshNextAppointment()]);
   }, [refreshAgenda, refreshNextAppointment]);
+  const reassignmentActions = useAppointmentActions({ onChanged: refresh });
   const financialOps = useFinancialOps();
   const appointmentOrder = useAppointmentServiceOrder({
     establishmentId: activeEstablishmentId,
@@ -473,6 +481,7 @@ export const AdminDashboardExperience = () => {
       clientName: item.client?.name || item.clientName || 'Cliente sem cadastro',
       serviceName: item.service?.name || 'Serviço indisponível',
       startsAt: item.dateTime,
+      updatedAt: item.updatedAt,
       endsAt: new Date(item.dateTime.getTime() + (item.durationMinutes || item.service?.durationMinutes || 30) * 60_000),
       status: item.status,
       price: item.priceCharged ?? item.service?.price,
@@ -481,6 +490,7 @@ export const AdminDashboardExperience = () => {
   );
 
   const selectedCalendarAppointment = calendarAppointments.find((item) => item.id === selectedAppointmentId) || null;
+  const reassignmentTarget = calendarAppointments.find((item) => item.id === reassignmentTargetId) || null;
   const selectedServiceOrder = appointmentOrder.serviceOrder;
   const financialOpsVisible = financialOps.financialOpsEnabled || financialOps.state === 'unknown';
   const financialOpsSyncMessage = financialOps.state === 'unknown'
@@ -510,6 +520,10 @@ export const AdminDashboardExperience = () => {
     && !actionLoadingId
     && !appointmentOrder.mutation
     && !['completed', 'cancelled', 'no_show'].includes(selectedCalendarAppointment.status),
+  );
+  const canRequestSelectedReassignment = Boolean(
+    selectedAppointmentActionable
+    && activeAuthorizedContext?.capabilities.includes('request_appointment_reassignment')
   );
   const canUseLegacyComplete = Boolean(
     selectedCalendarAppointment
@@ -861,6 +875,7 @@ export const AdminDashboardExperience = () => {
         canCancel={selectedAppointmentActionable}
         canComplete={canUseLegacyComplete}
         canReschedule={selectedAppointmentActionable}
+        canTransfer={canRequestSelectedReassignment}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
         onCancel={(appointment) => {
@@ -896,6 +911,11 @@ export const AdminDashboardExperience = () => {
           setNewRescheduleDate(new Date(item.dateTime));
           setNewRescheduleTime(time(item.dateTime));
         }}
+        onTransfer={(appointment) => {
+          setSelectedAppointmentId(null);
+          setReassignmentPreparation(null);
+          setReassignmentTargetId(appointment.id);
+        }}
         onServiceOrderRetry={() => {
           if (financialOps.state === 'unknown') {
             void financialOps.refresh();
@@ -914,6 +934,49 @@ export const AdminDashboardExperience = () => {
         serviceOrderError={financialOpsSyncMessage ?? appointmentOrder.error}
         serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
         visible={Boolean(selectedCalendarAppointment)}
+      />
+
+      <TransferProfessionalModal
+        appointment={reassignmentTarget}
+        loading={reassignmentActions.reassignmentLoadingId === reassignmentTargetId}
+        onClose={() => {
+          if (!reassignmentActions.reassignmentLoadingId) {
+            setReassignmentTargetId(null);
+            setReassignmentPreparation(null);
+          }
+        }}
+        onPrepare={() => {
+          if (!activeEstablishmentId || !reassignmentTarget?.updatedAt) return;
+          void reassignmentActions.prepareReassignment({
+            establishmentId: activeEstablishmentId,
+            appointmentId: reassignmentTarget.id,
+            expectedUpdatedAt: reassignmentTarget.updatedAt,
+            startsAt: reassignmentTarget.startsAt,
+            responsibility: 'manager',
+            canPropose: Boolean(
+              activeAuthorizedContext?.capabilities.includes('apply_appointment_reassignment'),
+            ),
+          }).then((prepared) => {
+            if (prepared) setReassignmentPreparation(prepared);
+          });
+        }}
+        onPropose={(professionalId) => {
+          if (!reassignmentPreparation) return;
+          void reassignmentActions.proposeReassignment({
+            preparation: reassignmentPreparation,
+            professionalId,
+          }).then((receipt) => {
+            if (receipt) setReassignmentPreparation((current) => current ? ({
+              ...current,
+              status: receipt.status,
+              version: receipt.version,
+              candidates: [],
+              proposalAllowed: current.proposalAllowed,
+            }) : null);
+          });
+        }}
+        preparation={reassignmentPreparation}
+        visible={Boolean(reassignmentTarget)}
       />
 
       <AdminQuickBook

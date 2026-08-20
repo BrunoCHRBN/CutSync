@@ -2,7 +2,6 @@ import type {
   BusinessCapability,
   BusinessOperationalContext,
 } from '@cutsync/database';
-import { createMobileRequestId } from '@cutsync/domain';
 import {
   AppState,
 } from 'react-native';
@@ -20,7 +19,12 @@ import {
 import { useBusinessSession } from '@/contexts/business-session';
 import { resolveActiveEstablishmentId } from '@/features/access/business-access';
 import { activeEstablishmentStorage } from '@/lib/active-establishment-storage';
-import { businessApi, BusinessApiError } from '@/services/business-api';
+import { createMobileRequestId } from '@/lib/mobile-request-id';
+import {
+  businessApi,
+  BusinessApiError,
+  normalizeBusinessDiagnosticCode,
+} from '@/services/business-api';
 
 interface BusinessOperationalValue {
   contexts: BusinessOperationalContext[];
@@ -39,7 +43,9 @@ interface BusinessOperationalValue {
 const BusinessOperationalContextValue = createContext<BusinessOperationalValue | null>(null);
 
 type BusinessContextFailureStep =
-  | 'rpc'
+  | 'authorized_rpc'
+  | 'operational_rpc'
+  | 'activate_rpc'
   | 'storage_read'
   | 'storage_write'
   | 'unknown';
@@ -68,7 +74,11 @@ const getOperationalContextErrorMessage = (error: unknown): string => {
   const step = error instanceof BusinessContextRefreshError ? error.step : 'unknown';
 
   if (targetError instanceof BusinessApiError) {
-    return diagnosticMessage(targetError.message, `BUS_CTX_${targetError.code.toUpperCase()}`);
+    const diagnosticCode = targetError.diagnosticCode ?? targetError.code.toUpperCase();
+    const stepPrefix = targetError.code === 'contexts_unavailable'
+      ? `${step.toUpperCase()}_`
+      : '';
+    return diagnosticMessage(targetError.message, `BUS_CTX_${stepPrefix}${diagnosticCode}`);
   }
   if (
     targetError
@@ -77,9 +87,12 @@ const getOperationalContextErrorMessage = (error: unknown): string => {
     && typeof (targetError as { message?: unknown }).message === 'string'
   ) {
     const code = typeof (targetError as { code?: unknown }).code === 'string'
-      ? (targetError as { code: string }).code.toUpperCase()
-      : step.toUpperCase();
-    return diagnosticMessage((targetError as { message: string }).message, `BUS_CTX_${code}`);
+      ? normalizeBusinessDiagnosticCode((targetError as { code: string }).code)
+      : null;
+    return diagnosticMessage(
+      (targetError as { message: string }).message,
+      `BUS_CTX_${code ?? step.toUpperCase()}`,
+    );
   }
   if (error instanceof BusinessContextRefreshError) {
     return diagnosticMessage(
@@ -146,10 +159,18 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
       let next: BusinessOperationalContext[];
       let serverActiveEstablishmentId: string | null;
       try {
-        const [authorizedContexts, operationalContexts] = await Promise.all([
-          businessApi.getAuthorizedContexts(),
-          businessApi.getOperationalContexts(),
-        ]);
+        let authorizedContexts;
+        try {
+          authorizedContexts = await businessApi.getAuthorizedContexts();
+        } catch (error) {
+          throw new BusinessContextRefreshError('authorized_rpc', error);
+        }
+        let operationalContexts;
+        try {
+          operationalContexts = await businessApi.getOperationalContexts();
+        } catch (error) {
+          throw new BusinessContextRefreshError('operational_rpc', error);
+        }
         const authorizedEstablishmentIds = new Set(
           authorizedContexts.flatMap((context) => (
             context.contextKind === 'establishment' && context.establishmentId
@@ -164,7 +185,8 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
           context.contextKind === 'establishment' && context.active
         ))?.establishmentId ?? null;
       } catch (error) {
-        throw new BusinessContextRefreshError('rpc', error);
+        if (error instanceof BusinessContextRefreshError) throw error;
+        throw new BusinessContextRefreshError('operational_rpc', error);
       }
       if (version !== requestVersion.current) return next;
 
@@ -188,7 +210,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
             requestId: createMobileRequestId(),
           });
         } catch (error) {
-          throw new BusinessContextRefreshError('rpc', error);
+          throw new BusinessContextRefreshError('activate_rpc', error);
         }
       }
 
@@ -263,7 +285,7 @@ export function BusinessOperationalProvider({ children }: PropsWithChildren) {
     } catch (selectionError) {
       setConnectionError(true);
       setError(getOperationalContextErrorMessage(
-        new BusinessContextRefreshError('rpc', selectionError),
+        new BusinessContextRefreshError('activate_rpc', selectionError),
       ));
       return false;
     }

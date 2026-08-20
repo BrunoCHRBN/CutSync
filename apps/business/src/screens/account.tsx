@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -13,6 +13,12 @@ import {
 } from '@/components/ui/business-ui';
 import { useBusinessOperational } from '@/contexts/business-operational-context';
 import { useBusinessSession } from '@/contexts/business-session';
+import {
+  disableBusinessPushNotifications,
+  enableBusinessPushNotifications,
+  getBusinessPushStatus,
+  type BusinessPushStatus,
+} from '@/features/notifications/business-push-service';
 import { businessTheme } from '@/theme/business-theme';
 
 const roleLabel = {
@@ -32,6 +38,17 @@ export function BusinessAccountScreen() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [securityNotice, setSecurityNotice] = useState<string | null>(null);
   const [exitBusy, setExitBusy] = useState(false);
+  const [pushStatus, setPushStatus] = useState<BusinessPushStatus>('not_determined');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushNotice, setPushNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getBusinessPushStatus().then((status) => {
+      if (active) setPushStatus(status);
+    });
+    return () => { active = false; };
+  }, []);
 
   const displayName = typeof user?.user_metadata?.name === 'string'
     ? user.user_metadata.name
@@ -51,6 +68,26 @@ export function BusinessAccountScreen() {
     setExitBusy(true);
     await signOut();
     setExitBusy(false);
+  };
+
+  const enablePush = async () => {
+    setPushBusy(true);
+    const result = await enableBusinessPushNotifications();
+    setPushBusy(false);
+    setPushStatus(result.ok ? 'enabled' : result.status);
+    setPushNotice(result.ok
+      ? 'Notificações operacionais ativadas neste dispositivo.'
+      : result.message);
+  };
+
+  const disablePush = async () => {
+    setPushBusy(true);
+    const result = await disableBusinessPushNotifications();
+    setPushBusy(false);
+    if (result.ok) setPushStatus('not_determined');
+    setPushNotice(result.ok
+      ? 'Este dispositivo não receberá mais notificações do Business.'
+      : result.message);
   };
 
   return (
@@ -115,6 +152,32 @@ export function BusinessAccountScreen() {
             loading={securityBusy}
             disabled={!user?.email}
             onPress={() => void sendRecovery()}
+          />
+        </BusinessCard>
+      </View>
+
+      <View style={styles.section}>
+        <BusinessSectionTitle>Notificações operacionais</BusinessSectionTitle>
+        <BusinessCard>
+          <Text selectable style={styles.cardTitle}>
+            {pushStatus === 'enabled' ? 'Ativadas neste dispositivo' : 'Desativadas neste dispositivo'}
+          </Text>
+          <Text selectable style={styles.cardMeta}>
+            Receba alertas de agenda, conflitos e decisões de reatribuição mesmo fora do aplicativo.
+          </Text>
+          {pushNotice ? (
+            <BusinessNotice
+              testID="business-push-notice"
+              tone={pushStatus === 'enabled' ? 'success' : 'warning'}
+              message={pushNotice}
+            />
+          ) : null}
+          <BusinessButton
+            testID="business-push-toggle"
+            label={pushStatus === 'enabled' ? 'Desativar notificações' : 'Ativar notificações'}
+            variant="secondary"
+            loading={pushBusy}
+            onPress={() => void (pushStatus === 'enabled' ? disablePush() : enablePush())}
           />
         </BusinessCard>
       </View>

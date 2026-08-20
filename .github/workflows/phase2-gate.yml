@@ -1,0 +1,72 @@
+name: Phase 2 Gate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/phase2-gate.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "packages/database/**"
+      - "scripts/reset-supabase-reconciled.ps1"
+      - "scripts/validate-phase2-real-jwt.mjs"
+      - "supabase/migrations/**"
+      - "supabase/tests/phase2_*.sql"
+      - "tests/unit/appointment-reassignment-contracts.unit.spec.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g13-reassignment:
+    name: G13 RPC, JWT real, AAL2 e shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Reconstruir banco descartável reconciliado
+        shell: pwsh
+        run: ./scripts/reset-supabase-reconciled.ps1
+
+      - name: Executar cenários SQL da Fase 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_file in supabase/tests/phase2_*.sql; do
+            echo "RUN ${test_file}"
+            docker exec -i supabase_db_CutSync \
+              psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+              < "${test_file}"
+          done
+
+      - name: Validar schema do banco
+        run: supabase db lint --local --level error
+
+      - name: Validar contratos e apps consumidores
+        run: npm run typecheck:new-apps
+
+      - name: Testar contratos compartilhados
+        run: npx playwright test tests/unit/appointment-reassignment-contracts.unit.spec.ts
+
+      - name: Homologar G13 com JWTs reais e TOTP
+        run: npm run test:phase2:real-jwt
+
+      - name: Encerrar Supabase local
+        if: always()
+        run: supabase stop --no-backup

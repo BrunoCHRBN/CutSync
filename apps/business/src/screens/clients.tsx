@@ -1,8 +1,9 @@
-import { createMobileRequestId } from '@cutsync/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useDeferredValue, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+
+import { createMobileRequestId } from '@/lib/mobile-request-id';
 
 import {
   BusinessButton,
@@ -128,11 +129,16 @@ export function BusinessClientsScreen() {
       {creating ? (
         <BusinessCard style={styles.form}>
           <BusinessSectionTitle>Novo cadastro local</BusinessSectionTitle>
-          <TextInput value={name} onChangeText={updateField(setName)} placeholder="Nome *" placeholderTextColor={businessTheme.colors.textMuted} style={styles.input} />
-          <TextInput value={phone} onChangeText={updateField(setPhone)} placeholder="Telefone" placeholderTextColor={businessTheme.colors.textMuted} keyboardType="phone-pad" style={styles.input} />
-          <TextInput value={email} onChangeText={updateField(setEmail)} placeholder="E-mail" placeholderTextColor={businessTheme.colors.textMuted} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
-          <TextInput value={tags} onChangeText={updateField(setTags)} placeholder="Etiquetas separadas por vírgula" placeholderTextColor={businessTheme.colors.textMuted} style={styles.input} />
-          <TextInput value={notes} onChangeText={updateField(setNotes)} placeholder="Observações internas" placeholderTextColor={businessTheme.colors.textMuted} multiline style={[styles.input, styles.notes]} />
+          <Text style={styles.fieldLabel}>Nome *</Text>
+          <TextInput accessibilityLabel="Nome do cliente" value={name} onChangeText={updateField(setName)} placeholder="Nome completo" placeholderTextColor={businessTheme.colors.textMuted} style={styles.input} />
+          <Text style={styles.fieldLabel}>Telefone</Text>
+          <TextInput accessibilityLabel="Telefone do cliente" value={phone} onChangeText={updateField(setPhone)} placeholder="DDD e número" placeholderTextColor={businessTheme.colors.textMuted} keyboardType="phone-pad" style={styles.input} />
+          <Text style={styles.fieldLabel}>E-mail</Text>
+          <TextInput accessibilityLabel="E-mail do cliente" value={email} onChangeText={updateField(setEmail)} placeholder="nome@exemplo.com" placeholderTextColor={businessTheme.colors.textMuted} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+          <Text style={styles.fieldLabel}>Etiquetas</Text>
+          <TextInput accessibilityLabel="Etiquetas do cliente" value={tags} onChangeText={updateField(setTags)} placeholder="Ex.: recorrente, indicação" placeholderTextColor={businessTheme.colors.textMuted} style={styles.input} />
+          <Text style={styles.fieldLabel}>Observações internas</Text>
+          <TextInput accessibilityLabel="Observações internas do cliente" value={notes} onChangeText={updateField(setNotes)} placeholder="Informações visíveis apenas para a unidade" placeholderTextColor={businessTheme.colors.textMuted} multiline style={[styles.input, styles.notes]} />
           {createClient.error ? <BusinessNotice tone="danger" message={clientErrorMessage(createClient.error)} /> : null}
           <BusinessButton
             label={createClient.isError && requestId.current ? 'Tentar novamente com o mesmo comando' : 'Salvar cliente'}
@@ -196,6 +202,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   notes: { minHeight: 96, textAlignVertical: 'top' },
+  fieldLabel: { ...businessTheme.typography.caption, color: businessTheme.colors.textSoft },
   form: { gap: businessTheme.spacing.sm },
   list: { gap: businessTheme.spacing.sm },
   row: { flexDirection: 'row', gap: businessTheme.spacing.sm, alignItems: 'flex-start' },

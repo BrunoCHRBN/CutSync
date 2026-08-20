@@ -5,6 +5,10 @@ import {
   type EstablishmentClientConsentStatus,
   type EstablishmentClientDetail,
 } from '@cutsync/database';
+import {
+  type EstablishmentClientField,
+  validateEstablishmentClient,
+} from '@cutsync/validation';
 
 import {
   assertUuid,
@@ -21,6 +25,16 @@ export interface EstablishmentClientValues {
   tags?: string[];
   notes?: string | null;
   marketingConsentStatus?: EstablishmentClientConsentStatus;
+}
+
+export class BusinessClientValidationError extends Error {
+  readonly field: EstablishmentClientField;
+
+  constructor(field: EstablishmentClientField, message: string) {
+    super(message);
+    this.name = 'BusinessClientValidationError';
+    this.field = field;
+  }
 }
 
 const clean = (value?: string | null) => value?.trim() || null;
@@ -42,13 +56,19 @@ const requireName = (value: string) => {
   return name;
 };
 
-const valuesArgs = (values: EstablishmentClientValues) => ({
-  target_name: requireName(values.name),
-  target_phone: clean(values.phone),
-  target_email: clean(values.email)?.toLowerCase() ?? null,
-  target_tags: [...new Set((values.tags ?? []).map((tag) => tag.trim()).filter(Boolean))],
-  target_notes: clean(values.notes),
-});
+const valuesArgs = (values: EstablishmentClientValues) => {
+  const validation = validateEstablishmentClient(values);
+  if (!validation.ok) {
+    throw new BusinessClientValidationError(validation.field, validation.message);
+  }
+  return {
+    target_name: requireName(validation.value.name),
+    target_phone: validation.value.phone,
+    target_email: validation.value.email,
+    target_tags: validation.value.tags,
+    target_notes: validation.value.notes,
+  };
+};
 
 export const businessClientsApi = {
   async search(

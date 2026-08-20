@@ -1,0 +1,112 @@
+name: Phase 3 Gate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/phase3-gate.yml"
+      - "apps/business/**"
+      - "apps/client/**"
+      - "apps/web/**"
+      - "docs/architecture/GATE_G14_PREPARATION.md"
+      - "package.json"
+      - "package-lock.json"
+      - "packages/database/**"
+      - "packages/domain/**"
+      - "scripts/reset-supabase-reconciled.ps1"
+      - "scripts/validate-phase2-real-jwt.mjs"
+      - "supabase/migrations/**"
+      - "supabase/functions/_shared/expo-push.ts"
+      - "supabase/functions/dispatch-business-notifications/**"
+      - "supabase/tests/phase3_*.sql"
+      - "tests/unit/appointment-reassignment-contracts.unit.spec.ts"
+      - "tests/unit/business-notifications.unit.spec.ts"
+      - "tests/unit/client-notifications.unit.spec.ts"
+      - "tests/unit/phase3-g14.unit.spec.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g14-contracts:
+    name: G14 contratos, replay, deep links e isolamento
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Reconstruir banco descartável reconciliado
+        shell: pwsh
+        run: ./scripts/reset-supabase-reconciled.ps1
+
+      - name: Executar cenários SQL da Fase 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_file in supabase/tests/phase3_*.sql; do
+            echo "RUN ${test_file}"
+            docker exec -i supabase_db_CutSync \
+              psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+              < "${test_file}"
+          done
+
+      - name: Validar schema e privilégios
+        run: |
+          supabase db lint --local --schema public --level error --fail-on error
+          supabase db advisors --local --type security --level error --fail-on error
+          supabase db advisors --local --type performance --level error --fail-on error
+
+      - name: Validar contratos e consumidores
+        run: npm run typecheck:new-apps
+
+      - name: Testar G14, deep links e contratos compartilhados
+        run: >-
+          npx playwright test --project=unit
+          tests/unit/appointment-reassignment-contracts.unit.spec.ts
+          tests/unit/business-notifications.unit.spec.ts
+          tests/unit/client-notifications.unit.spec.ts
+          tests/unit/phase3-g14.unit.spec.ts
+
+      - name: Validar lint dos aplicativos móveis
+        run: |
+          npm run lint:client
+          npm run lint:business
+
+      - name: Validar rotas e bundles Client e Business
+        run: |
+          npm --workspace @cutsync/client run build:web
+          npm --workspace @cutsync/business run build:web
+
+      - name: Reproduzir baseline de papéis com JWT real e TOTP
+        run: npm run test:phase2:real-jwt
+
+      - name: Registrar classificação da evidência
+        shell: bash
+        run: |
+          {
+            echo "## Gate G14 - evidência automatizada"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Classificação: CI reproduzido"
+            echo "- Cobertura: SQL/RLS, idempotência, outbox, deep links, typecheck, lint e bundles"
+            echo "- Não comprova: push em dispositivo real, cold/background/foreground real ou aprovação produtiva"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Encerrar Supabase local
+        if: always()
+        run: supabase stop --no-backup

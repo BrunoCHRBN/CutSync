@@ -17,6 +17,7 @@ import {
 import { AppState, Platform } from 'react-native';
 
 import { BUSINESS_AUTH_MESSAGES } from '@/features/auth/business-auth-errors';
+import { disableBusinessPushNotifications } from '@/features/notifications/business-push-service';
 import {
   getBusinessAuthRedirectUrl,
   isValidBusinessInvitationToken,
@@ -225,6 +226,7 @@ export function BusinessSessionProvider({ children }: PropsWithChildren) {
     if (!supabase) return { ok: false, message: BUSINESS_AUTH_MESSAGES.notConfigured };
 
     try {
+      await disableBusinessPushNotifications();
       const { error } = await supabase.auth.signOut();
       if (error) return { ok: false, message: BUSINESS_AUTH_MESSAGES.signOut };
       setSession(null);

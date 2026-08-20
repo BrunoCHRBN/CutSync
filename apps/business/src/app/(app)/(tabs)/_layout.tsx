@@ -1,12 +1,16 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { useBusinessOperational } from '@/contexts/business-operational-context';
-import { hasBusinessManagementNavigation } from '@/features/access/business-access';
+import {
+  hasBusinessDecisionsNavigation,
+  hasBusinessManagementNavigation,
+} from '@/features/access/business-access';
 import { businessTheme } from '@/theme/business-theme';
 
 export default function BusinessTabsLayout() {
   const { activeContext } = useBusinessOperational();
   const canManage = hasBusinessManagementNavigation(activeContext?.capabilities);
+  const canViewDecisions = hasBusinessDecisionsNavigation(activeContext?.capabilities);
 
   return (
     <NativeTabs
@@ -47,6 +51,14 @@ export default function BusinessTabsLayout() {
           md="calendar_month"
         />
         <NativeTabs.Trigger.Label>Agenda</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="decisions" hidden={!canViewDecisions}>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'checklist', selected: 'checklist.checked' }}
+          md="rule"
+        />
+        <NativeTabs.Trigger.Label>Decisões</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="management" hidden={!canManage}>

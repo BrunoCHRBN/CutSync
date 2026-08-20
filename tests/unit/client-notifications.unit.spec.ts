@@ -95,6 +95,14 @@ test('aceita somente deep links de eventos conhecidos e IDs válidos', () => {
     params: { id: appointmentId },
   });
   expect(getClientAppointmentNotificationRoute({
+    appointmentId,
+    reassignmentRequestId: 'b8dc8bf6-29fa-47ed-8f57-4549cd2ca6f4',
+    eventType: 'appointment_reassignment_decision_required',
+  })).toEqual({
+    pathname: '/appointments/[id]',
+    params: { id: appointmentId },
+  });
+  expect(getClientAppointmentNotificationRoute({
     appointmentId: '../profile',
     eventType: 'appointment_confirmed',
   })).toBeNull();

@@ -19,10 +19,12 @@ import {
   ClientAppointmentCard,
   appointmentColors,
 } from '@/components/appointments/client-appointment-ui';
+import { ClientPendingDecisionBanner } from '@/components/appointments/client-reassignment-ui';
 import { ClientBrand } from '@/components/settings/client-settings-ui';
 import { ClientButton } from '@/components/ui/client-ui';
 import { useSession } from '@/contexts/session-context';
 import { useClientAppointments } from '@/features/appointments/use-client-appointments';
+import { useClientReassignmentDecisions } from '@/features/appointments/use-client-reassignment';
 import { performClientHaptic } from '@/features/experience/client-haptics';
 import { clientTheme } from '@/theme/client-theme';
 
@@ -33,6 +35,7 @@ export function ClientAppointmentsScreen() {
   const { user } = useSession();
   const [tab, setTab] = useState<AppointmentTab>('upcoming');
   const query = useClientAppointments(user?.id ?? null);
+  const decisionQuery = useClientReassignmentDecisions(user?.id ?? null);
   const groups = useMemo(() => partitionClientAppointments(query.appointments), [query.appointments]);
   const visible = tab === 'upcoming' ? groups.upcoming : groups.history;
   const selectTab = (nextTab: AppointmentTab) => {
@@ -48,8 +51,10 @@ export function ClientAppointmentsScreen() {
       contentContainerStyle={styles.content}
       refreshControl={(
         <RefreshControl
-          refreshing={query.isRefreshing}
-          onRefresh={() => { void query.refresh(true); }}
+          refreshing={query.isRefreshing || decisionQuery.isRefreshing}
+          onRefresh={() => {
+            void Promise.all([query.refresh(true), decisionQuery.refresh(true)]);
+          }}
           tintColor={sharedBrand.colors.forest}
         />
       )}
@@ -66,6 +71,28 @@ export function ClientAppointmentsScreen() {
         <Text style={styles.eyebrow}>SUA AGENDA</Text>
         <Text style={styles.title}>Seus horários</Text>
       </Animated.View>
+
+      {decisionQuery.decisions[0] && (
+        <Animated.View entering={FadeIn.duration(clientTheme.motion.standard)}>
+          <ClientPendingDecisionBanner
+            decision={decisionQuery.decisions[0]}
+            pendingCount={decisionQuery.decisions.length}
+            onPress={() => router.push({
+              pathname: '/appointments/[id]',
+              params: { id: decisionQuery.decisions[0].appointmentId },
+            })}
+          />
+        </Animated.View>
+      )}
+
+      {!!decisionQuery.error && (
+        <View testID="client-decisions-error" style={styles.errorNotice}>
+          <Text selectable style={styles.errorText}>{decisionQuery.error}</Text>
+          <Pressable accessibilityRole="button" onPress={() => { void decisionQuery.refresh(); }}>
+            <Text style={styles.retryText}>Atualizar decisões</Text>
+          </Pressable>
+        </View>
+      )}
 
       <Animated.View
         accessibilityRole="tablist"

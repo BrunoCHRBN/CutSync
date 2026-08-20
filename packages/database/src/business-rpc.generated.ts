@@ -11,6 +11,128 @@
  * CutSync Business.
  */
 export interface BusinessRpcFunctions {
+  list_business_decision_queue: {
+    Args: { target_establishment_id: string };
+    Returns: unknown;
+  };
+  get_business_reassignment_detail: {
+    Args: {
+      target_establishment_id: string;
+      target_reassignment_request_id: string;
+    };
+    Returns: unknown;
+  };
+  list_business_reassignment_candidates: {
+    Args: {
+      target_establishment_id: string;
+      target_reassignment_request_id: string;
+    };
+    Returns: unknown;
+  };
+  request_appointment_reassignment: {
+    Args: {
+      target_appointment_id: string;
+      target_reason_code: string;
+      target_responsibility: string;
+      target_due_at: string;
+      target_expected_appointment_updated_at: string;
+      target_request_id: string;
+      target_correlation_id: string;
+    };
+    Returns: unknown;
+  };
+  validate_appointment_reassignment: {
+    Args: {
+      target_reassignment_request_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  propose_appointment_reassignment: {
+    Args: {
+      target_reassignment_request_id: string;
+      target_proposed_professional_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  decide_appointment_reassignment: {
+    Args: {
+      target_reassignment_request_id: string;
+      target_decision: string;
+      target_chosen_professional_id: string | null;
+      target_channel: string;
+      target_reason: string | null;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  apply_appointment_reassignment: {
+    Args: {
+      target_reassignment_request_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  withdraw_appointment_reassignment: {
+    Args: {
+      target_reassignment_request_id: string;
+      target_expected_version: number;
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  expire_appointment_reassignment: {
+    Args: {
+      target_reassignment_request_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  request_appointment_assignment_correction_approval: {
+    Args: {
+      target_appointment_id: string;
+      target_proposed_professional_id: string;
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  decide_appointment_assignment_correction_approval: {
+    Args: {
+      target_approval_request_id: string;
+      target_expected_version: number;
+      target_decision: 'approved' | 'rejected';
+      target_reason: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  correct_appointment_assignment: {
+    Args: {
+      target_appointment_id: string;
+      target_proposed_professional_id: string;
+      target_approval_request_id: string;
+      target_expected_appointment_updated_at: string;
+      target_reason: string;
+      target_request_id: string;
+      target_correlation_id: string;
+    };
+    Returns: unknown;
+  };
+  reconcile_appointment_assignment_shadow: {
+    Args: {
+      target_establishment_id: string;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
   get_my_authorized_contexts: {
     Args: { target_app_id: string };
     Returns: unknown[];
