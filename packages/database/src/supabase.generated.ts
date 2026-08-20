@@ -732,20 +732,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barber_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_barbershop_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "appointments_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -757,6 +743,20 @@ export type Database = {
             columns: ["establishment_client_id"]
             isOneToOne: false
             referencedRelation: "establishment_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1008,6 +1008,7 @@ export type Database = {
           establishment_id: string
           fiscal_address: Json
           id: string
+          legal_entity_id: string | null
           municipal_registration: string | null
           operationally_activated_at: string | null
           owner_resolution_status: string
@@ -1027,6 +1028,7 @@ export type Database = {
           establishment_id: string
           fiscal_address?: Json
           id?: string
+          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -1046,6 +1048,7 @@ export type Database = {
           establishment_id?: string
           fiscal_address?: Json
           id?: string
+          legal_entity_id?: string | null
           municipal_registration?: string | null
           operationally_activated_at?: string | null
           owner_resolution_status?: string
@@ -1070,6 +1073,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: true
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_accounts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
@@ -1501,6 +1511,64 @@ export type Database = {
             columns: ["billing_account_id"]
             isOneToOne: false
             referencedRelation: "billing_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          establishment_id: string | null
+          id: number
+          metadata: Json
+          organization_id: string | null
+          request_id: string
+          version_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          establishment_id?: string | null
+          id?: never
+          metadata?: Json
+          organization_id?: string | null
+          request_id: string
+          version_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          establishment_id?: string | null
+          id?: never
+          metadata?: Json
+          organization_id?: string | null
+          request_id?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_audit_log_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_audit_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -2074,6 +2142,93 @@ export type Database = {
           },
         ]
       }
+      establishment_brand_versions: {
+        Row: {
+          base_organization_version_id: string | null
+          configuration: Json
+          created_at: string
+          created_by: string | null
+          establishment_id: string
+          id: string
+          override_fields: string[]
+          publish_request_id: string | null
+          published_at: string | null
+          published_by: string | null
+          restored_from_version_id: string | null
+          save_request_id: string | null
+          status: string
+          version_number: number
+        }
+        Insert: {
+          base_organization_version_id?: string | null
+          configuration: Json
+          created_at?: string
+          created_by?: string | null
+          establishment_id: string
+          id?: string
+          override_fields?: string[]
+          publish_request_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          restored_from_version_id?: string | null
+          save_request_id?: string | null
+          status: string
+          version_number: number
+        }
+        Update: {
+          base_organization_version_id?: string | null
+          configuration?: Json
+          created_at?: string
+          created_by?: string | null
+          establishment_id?: string
+          id?: string
+          override_fields?: string[]
+          publish_request_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          restored_from_version_id?: string | null
+          save_request_id?: string | null
+          status?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_brand_versions_base_organization_version_id_fkey"
+            columns: ["base_organization_version_id"]
+            isOneToOne: false
+            referencedRelation: "organization_brand_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_brand_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_brand_versions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_brand_versions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_brand_versions_restored_from_version_id_fkey"
+            columns: ["restored_from_version_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_brand_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishment_client_links: {
         Row: {
           confirmed_at: string | null
@@ -2435,6 +2590,70 @@ export type Database = {
           },
         ]
       }
+      establishment_payment_methods: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          display_name: string
+          establishment_id: string
+          id: string
+          method_type: string
+          requires_reference: boolean
+          updated_at: string
+          updated_by: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          display_name: string
+          establishment_id: string
+          id?: string
+          method_type: string
+          requires_reference?: boolean
+          updated_at?: string
+          updated_by: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          display_name?: string
+          establishment_id?: string
+          id?: string
+          method_type?: string
+          requires_reference?: boolean
+          updated_at?: string
+          updated_by?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_payment_methods_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_payment_methods_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_payment_methods_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishment_requests: {
         Row: {
           address: string | null
@@ -2628,7 +2847,7 @@ export type Database = {
           professional_pix_allowed: boolean
           published_at: string | null
           review_count: number
-          share_agendas: boolean | null
+          share_agendas: boolean
           slogan: string | null
           slug: string
           timezone: string
@@ -2674,7 +2893,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean | null
+          share_agendas?: boolean
           slogan?: string | null
           slug: string
           timezone?: string
@@ -2720,7 +2939,7 @@ export type Database = {
           professional_pix_allowed?: boolean
           published_at?: string | null
           review_count?: number
-          share_agendas?: boolean | null
+          share_agendas?: boolean
           slogan?: string | null
           slug?: string
           timezone?: string
@@ -3833,6 +4052,164 @@ export type Database = {
           },
         ]
       }
+      order_payment_entries: {
+        Row: {
+          amount_cents: number
+          correlation_id: string
+          created_at: string
+          currency: string
+          entry_type: string
+          establishment_id: string
+          external_reference: string | null
+          id: string
+          method_name_snapshot: string
+          method_type_snapshot: string
+          original_payment_entry_id: string | null
+          payment_method_id: string
+          reason: string | null
+          recorded_by: string
+          request_id: string
+          service_order_id: string
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          correlation_id: string
+          created_at?: string
+          currency?: string
+          entry_type: string
+          establishment_id: string
+          external_reference?: string | null
+          id?: string
+          method_name_snapshot: string
+          method_type_snapshot: string
+          original_payment_entry_id?: string | null
+          payment_method_id: string
+          reason?: string | null
+          recorded_by: string
+          request_id: string
+          service_order_id: string
+          status: string
+        }
+        Update: {
+          amount_cents?: number
+          correlation_id?: string
+          created_at?: string
+          currency?: string
+          entry_type?: string
+          establishment_id?: string
+          external_reference?: string | null
+          id?: string
+          method_name_snapshot?: string
+          method_type_snapshot?: string
+          original_payment_entry_id?: string | null
+          payment_method_id?: string
+          reason?: string | null
+          recorded_by?: string
+          request_id?: string
+          service_order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_entries_method_tenant_fk"
+            columns: ["payment_method_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishment_payment_methods"
+            referencedColumns: ["id", "establishment_id"]
+          },
+          {
+            foreignKeyName: "order_payment_entries_order_tenant_fk"
+            columns: ["service_order_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "establishment_id"]
+          },
+          {
+            foreignKeyName: "order_payment_entries_original_tenant_fk"
+            columns: [
+              "original_payment_entry_id",
+              "establishment_id",
+              "service_order_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "order_payment_entries"
+            referencedColumns: ["id", "establishment_id", "service_order_id"]
+          },
+          {
+            foreignKeyName: "order_payment_entries_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payment_events: {
+        Row: {
+          actor_id: string
+          correlation_id: string
+          created_at: string
+          establishment_id: string
+          event_type: string
+          id: number
+          metadata: Json
+          payment_entry_id: string
+          request_id: string
+          service_order_id: string
+        }
+        Insert: {
+          actor_id: string
+          correlation_id: string
+          created_at?: string
+          establishment_id: string
+          event_type: string
+          id?: never
+          metadata?: Json
+          payment_entry_id: string
+          request_id: string
+          service_order_id: string
+        }
+        Update: {
+          actor_id?: string
+          correlation_id?: string
+          created_at?: string
+          establishment_id?: string
+          event_type?: string
+          id?: never
+          metadata?: Json
+          payment_entry_id?: string
+          request_id?: string
+          service_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payment_events_entry_tenant_fk"
+            columns: [
+              "payment_entry_id",
+              "establishment_id",
+              "service_order_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "order_payment_entries"
+            referencedColumns: ["id", "establishment_id", "service_order_id"]
+          },
+          {
+            foreignKeyName: "order_payment_events_order_tenant_fk"
+            columns: ["service_order_id", "establishment_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "establishment_id"]
+          },
+        ]
+      }
       organization_audit_log: {
         Row: {
           action: string
@@ -4162,6 +4539,80 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_brand_versions: {
+        Row: {
+          configuration: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          publish_request_id: string | null
+          published_at: string | null
+          published_by: string | null
+          restored_from_version_id: string | null
+          save_request_id: string | null
+          status: string
+          version_number: number
+        }
+        Insert: {
+          configuration: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          publish_request_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          restored_from_version_id?: string | null
+          save_request_id?: string | null
+          status: string
+          version_number: number
+        }
+        Update: {
+          configuration?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          publish_request_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          restored_from_version_id?: string | null
+          save_request_id?: string | null
+          status?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_brand_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_brand_versions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_brand_versions_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_brand_versions_restored_from_version_id_fkey"
+            columns: ["restored_from_version_id"]
+            isOneToOne: false
+            referencedRelation: "organization_brand_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_establishments: {
         Row: {
           created_at: string
@@ -4231,7 +4682,9 @@ export type Database = {
           invited_email: string
           organization_id: string
           role: string
+          scope_mode: string
           status: string
+          target_establishment_ids: string[] | null
           token_hash: string
         }
         Insert: {
@@ -4244,7 +4697,9 @@ export type Database = {
           invited_email: string
           organization_id: string
           role: string
+          scope_mode?: string
           status?: string
+          target_establishment_ids?: string[] | null
           token_hash: string
         }
         Update: {
@@ -4257,7 +4712,9 @@ export type Database = {
           invited_email?: string
           organization_id?: string
           role?: string
+          scope_mode?: string
           status?: string
+          target_establishment_ids?: string[] | null
           token_hash?: string
         }
         Relationships: [
@@ -4339,6 +4796,78 @@ export type Database = {
           },
         ]
       }
+      organization_member_establishment_scopes: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          organization_member_id: string
+          revocation_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          organization_member_id: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          organization_member_id?: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_member_establishment_s_organization_member_id_fkey"
+            columns: ["organization_member_id"]
+            isOneToOne: false
+            referencedRelation: "organization_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_member_establishment_scopes_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -4348,6 +4877,7 @@ export type Database = {
           profile_id: string
           revoked_at: string | null
           role: string
+          scope_mode: string
           status: string
           updated_at: string
         }
@@ -4359,6 +4889,7 @@ export type Database = {
           profile_id: string
           revoked_at?: string | null
           role: string
+          scope_mode?: string
           status?: string
           updated_at?: string
         }
@@ -4370,6 +4901,7 @@ export type Database = {
           profile_id?: string
           revoked_at?: string | null
           role?: string
+          scope_mode?: string
           status?: string
           updated_at?: string
         }
@@ -4601,6 +5133,45 @@ export type Database = {
           },
         ]
       }
+      product_events: {
+        Row: {
+          actor_hash: string | null
+          actor_role: string
+          event_name: string
+          experience_version: string
+          id: number
+          identifiers: Json
+          occurred_at: string
+          request_id: string
+          route_template: string
+          surface: string
+        }
+        Insert: {
+          actor_hash?: string | null
+          actor_role: string
+          event_name: string
+          experience_version: string
+          id?: never
+          identifiers?: Json
+          occurred_at?: string
+          request_id: string
+          route_template: string
+          surface: string
+        }
+        Update: {
+          actor_hash?: string | null
+          actor_role?: string
+          event_name?: string
+          experience_version?: string
+          id?: never
+          identifiers?: Json
+          occurred_at?: string
+          request_id?: string
+          route_template?: string
+          surface?: string
+        }
+        Relationships: []
+      }
       professional_profiles: {
         Row: {
           bio: string | null
@@ -4684,21 +5255,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "barber_services_barber_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "barber_services_barbershop_id_fkey"
+            foreignKeyName: "professional_services_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "barber_services_service_id_fkey"
+            foreignKeyName: "professional_services_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_services_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
@@ -4730,14 +5301,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profile_barbershops_barbershop_id_fkey"
+            foreignKeyName: "profile_establishments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profile_barbershops_profile_id_fkey"
+            foreignKeyName: "profile_establishments_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -4803,7 +5374,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          commission_rate: number | null
+          commission_rate: number
           created_at: string
           deleted_at: string | null
           email: string
@@ -4826,7 +5397,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          commission_rate?: number | null
+          commission_rate?: number
           created_at?: string
           deleted_at?: string | null
           email: string
@@ -4849,7 +5420,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          commission_rate?: number | null
+          commission_rate?: number
           created_at?: string
           deleted_at?: string | null
           email?: string
@@ -4872,7 +5443,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_barbershop_id_fkey"
+            foreignKeyName: "profiles_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -5492,7 +6063,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "services_barbershop_id_fkey"
+            foreignKeyName: "services_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -6666,17 +7237,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barber_id_fkey"
-            columns: ["projected_professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_barbershop_id_fkey"
+            foreignKeyName: "appointments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["projected_professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -6694,7 +7265,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_barbershop_id_fkey"
+            foreignKeyName: "appointments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -6738,7 +7309,7 @@ export type Database = {
         Returns: boolean
       }
       accept_organization_invitation: {
-        Args: { invitation_token: string }
+        Args: { target_invitation_token: string; target_request_id?: string }
         Returns: string
       }
       activate_control_subscription: {
@@ -6900,6 +7471,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      assert_service_order_payment_read_access: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+        }
+        Returns: undefined
+      }
       assert_service_order_read_access: {
         Args: {
           target_establishment_id: string
@@ -6936,6 +7514,10 @@ export type Database = {
         Returns: string
       }
       bootstrap_superadmins_from_config: { Args: never; Returns: number }
+      brand_configuration_is_valid: {
+        Args: { configuration: Json }
+        Returns: boolean
+      }
       build_service_order_mutation_response: {
         Args: {
           target_item_id?: string
@@ -6944,6 +7526,20 @@ export type Database = {
           target_version: number
         }
         Returns: Json
+      }
+      calculate_service_order_payment_summary: {
+        Args: {
+          target_establishment_id: string
+          target_service_order_id: string
+        }
+        Returns: {
+          balance_cents: number
+          currency: string
+          last_entry_at: string
+          paid_cents: number
+          payment_status: string
+          total_cents: number
+        }[]
       }
       can_manage_business_invitation: {
         Args: { target_establishment_id: string; target_role: string }
@@ -7230,6 +7826,18 @@ export type Database = {
           target_plan_code: string
         }
         Returns: string
+      }
+      configure_establishment_payment_method: {
+        Args: {
+          target_active: boolean
+          target_display_name: string
+          target_establishment_id: string
+          target_expected_version: number
+          target_method_type: string
+          target_request_id: string
+          target_requires_reference: boolean
+        }
+        Returns: Json
       }
       configure_support_team_member: {
         Args: {
@@ -7658,6 +8266,23 @@ export type Database = {
         }
         Returns: Json
       }
+      get_admin_report_drilldown: {
+        Args: {
+          target_cursor?: string
+          target_day?: string
+          target_day_of_week?: number
+          target_dimension: string
+          target_establishment_id: string
+          target_hour?: number
+          target_limit?: number
+          target_professional_id?: string
+          target_range_end: string
+          target_range_start: string
+          target_service_id?: string
+          target_status?: string
+        }
+        Returns: Json
+      }
       get_admin_report_v2: {
         Args: {
           target_establishment_id: string
@@ -7720,6 +8345,33 @@ export type Database = {
           unavailable_reason: string
         }[]
       }
+      get_booking_availability_recovery: {
+        Args: {
+          search_days?: number
+          target_appointment_id?: string
+          target_establishment_id: string
+          target_local_date: string
+          target_professional_ids: string[]
+          target_service_id: string
+        }
+        Returns: {
+          duration_minutes: number
+          local_date: string
+          local_time: string
+          professional_id: string
+          recovery_rank: number
+          requested_date: string
+          starts_at: string
+        }[]
+      }
+      get_brand_authority: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
+      get_brand_editor_context: {
+        Args: { target_establishment_id: string }
+        Returns: Json
+      }
       get_business_agenda_day: {
         Args: {
           target_establishment_id: string
@@ -7741,6 +8393,10 @@ export type Database = {
       }
       get_business_appointment_detail: {
         Args: { target_appointment_id: string; target_establishment_id: string }
+        Returns: Json
+      }
+      get_business_command_center: {
+        Args: { target_establishment_id: string; target_local_date?: string }
         Returns: Json
       }
       get_business_reassignment_detail: {
@@ -8195,6 +8851,7 @@ export type Database = {
           organization_id: string
           organization_name: string
           organization_status: string
+          scope_mode: string
         }[]
       }
       get_my_professional_profile: {
@@ -8251,6 +8908,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_professional_daily_focus: {
+        Args: { target_establishment_id: string; target_local_date?: string }
+        Returns: Json
+      }
       get_public_busy_slots: {
         Args: {
           range_end: string
@@ -8261,6 +8922,10 @@ export type Database = {
           date_time: string
           duration_minutes: number
         }[]
+      }
+      get_public_establishment_experience: {
+        Args: { target_slug: string }
+        Returns: Json
       }
       get_public_professional_profile: {
         Args: { profile_slug: string }
@@ -8287,6 +8952,10 @@ export type Database = {
           specialties: string
           titulo_profissional: string
         }[]
+      }
+      get_publication_readiness: {
+        Args: { target_establishment_id: string }
+        Returns: Json
       }
       get_reassignment_operational_condition: {
         Args: { target_establishment_id: string }
@@ -8321,6 +8990,13 @@ export type Database = {
       }
       get_service_order_for_appointment: {
         Args: { target_appointment_id: string; target_establishment_id: string }
+        Returns: Json
+      }
+      get_service_order_payment_summary: {
+        Args: {
+          target_establishment_id: string
+          target_service_order_id: string
+        }
         Returns: Json
       }
       get_subscription_entitlement_for_establishment: {
@@ -8370,6 +9046,14 @@ export type Database = {
             }
             Returns: boolean
           }
+      has_organization_establishment_scope: {
+        Args: {
+          allowed_roles?: string[]
+          target_establishment_id: string
+          target_organization_id: string
+        }
+        Returns: boolean
+      }
       has_organization_role: {
         Args: { allowed_roles?: string[]; target_organization_id: string }
         Returns: boolean
@@ -8436,6 +9120,21 @@ export type Database = {
           invited_email: string
           target_organization_id: string
           target_role: string
+        }
+        Returns: {
+          expires_at: string
+          invitation_id: string
+          invitation_token: string
+        }[]
+      }
+      invite_organization_member_v2: {
+        Args: {
+          invited_email: string
+          target_establishment_ids?: string[]
+          target_organization_id: string
+          target_request_id?: string
+          target_role: string
+          target_scope_mode?: string
         }
         Returns: {
           expires_at: string
@@ -8628,6 +9327,10 @@ export type Database = {
           status: string
           target_contact: string
         }[]
+      }
+      list_establishment_payment_methods: {
+        Args: { target_establishment_id: string }
+        Returns: Json
       }
       list_establishment_service_prices: {
         Args: { target_establishment_id: string; target_local_date?: string }
@@ -8936,12 +9639,29 @@ export type Database = {
         }
         Returns: Json
       }
+      project_legacy_role_from_template: {
+        Args: { target_role_template: string }
+        Returns: string
+      }
+      project_published_brand: {
+        Args: { target_establishment_id: string }
+        Returns: undefined
+      }
       propose_appointment_reassignment: {
         Args: {
           target_expected_version: number
           target_proposed_professional_id: string
           target_reassignment_request_id: string
           target_request_id: string
+        }
+        Returns: Json
+      }
+      publish_brand_version: {
+        Args: {
+          target_establishment_id: string
+          target_request_id: string
+          target_scope: string
+          target_version_id: string
         }
         Returns: Json
       }
@@ -8993,6 +9713,30 @@ export type Database = {
       reconcile_appointment_assignment_shadow: {
         Args: { target_establishment_id: string; target_request_id: string }
         Returns: Json
+      }
+      record_order_payment: {
+        Args: {
+          target_amount_cents: number
+          target_establishment_id: string
+          target_expected_version: number
+          target_external_reference: string
+          target_payment_method_id: string
+          target_request_id: string
+          target_service_order_id: string
+        }
+        Returns: Json
+      }
+      record_product_event: {
+        Args: {
+          target_actor_role: string
+          target_event_name: string
+          target_experience_version: string
+          target_identifiers?: Json
+          target_request_id: string
+          target_route_template: string
+          target_surface: string
+        }
+        Returns: number
       }
       refresh_appointment_decision_queue_item: {
         Args: { target_reassignment_request_id: string }
@@ -9218,6 +9962,14 @@ export type Database = {
           storage_path: string
         }[]
       }
+      resolve_brand_configuration: {
+        Args: {
+          establishment_configuration: Json
+          organization_configuration: Json
+          override_fields: string[]
+        }
+        Returns: Json
+      }
       resolve_business_billing_context: {
         Args: { target_establishment_id: string }
         Returns: {
@@ -9282,6 +10034,23 @@ export type Database = {
         Args: { left_status: string; right_status: string }
         Returns: string
       }
+      resolve_reassignment_candidate_price: {
+        Args: {
+          target_establishment_id: string
+          target_professional_id: string
+          target_service_id: string
+        }
+        Returns: number
+      }
+      restore_brand_version: {
+        Args: {
+          target_establishment_id: string
+          target_request_id: string
+          target_scope: string
+          target_version_id: string
+        }
+        Returns: Json
+      }
       restore_establishment_client: {
         Args: {
           target_establishment_client_id: string
@@ -9339,8 +10108,24 @@ export type Database = {
         Returns: Json
       }
       revoke_organization_member: {
-        Args: { target_organization_id: string; target_profile_id: string }
+        Args: {
+          target_organization_id: string
+          target_profile_id: string
+          target_reason?: string
+          target_request_id?: string
+        }
         Returns: undefined
+      }
+      safe_jsonb_array: { Args: { target_value: string }; Returns: Json }
+      save_brand_draft: {
+        Args: {
+          target_configuration: Json
+          target_establishment_id: string
+          target_override_fields: string[]
+          target_request_id: string
+          target_scope: string
+        }
+        Returns: Json
       }
       schedule_organization_billing_cutover: {
         Args: {
@@ -9473,6 +10258,16 @@ export type Database = {
         }
         Returns: Json
       }
+      set_organization_member_unit_scope: {
+        Args: {
+          target_establishment_ids?: string[]
+          target_organization_id: string
+          target_profile_id: string
+          target_request_id?: string
+          target_scope_mode: string
+        }
+        Returns: undefined
+      }
       start_service_order: {
         Args: {
           target_establishment_id: string
@@ -9591,7 +10386,11 @@ export type Database = {
         Returns: boolean
       }
       transfer_organization_ownership: {
-        Args: { target_organization_id: string; target_profile_id: string }
+        Args: {
+          target_organization_id: string
+          target_profile_id: string
+          target_request_id?: string
+        }
         Returns: undefined
       }
       transfer_professional_absence: {
@@ -9741,6 +10540,7 @@ export type Database = {
         Args: {
           target_organization_id: string
           target_profile_id: string
+          target_request_id?: string
           target_role: string
         }
         Returns: undefined
@@ -9792,6 +10592,17 @@ export type Database = {
           target_expected_version: number
           target_reassignment_request_id: string
           target_request_id: string
+        }
+        Returns: Json
+      }
+      void_order_payment: {
+        Args: {
+          target_establishment_id: string
+          target_expected_version: number
+          target_payment_entry_id: string
+          target_reason: string
+          target_request_id: string
+          target_service_order_id: string
         }
         Returns: Json
       }
