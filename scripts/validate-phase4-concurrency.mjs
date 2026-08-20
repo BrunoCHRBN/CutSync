@@ -10,6 +10,7 @@ const ids = {
   method: randomUUID(),
   requestA: randomUUID(),
   requestB: randomUUID(),
+  cashOpenRequest: randomUUID(),
 };
 
 const psqlArgs = [
@@ -96,6 +97,11 @@ INSERT INTO public.establishment_payment_methods(
 ) VALUES (
   '${ids.method}', '${ids.establishment}', 'cash', 'Dinheiro', true, false,
   '${ids.owner}', '${ids.owner}'
+);
+
+${jwtSetup}
+SELECT public.open_cash_session(
+  '${ids.establishment}', 0, '${ids.cashOpenRequest}'
 );
 `;
 

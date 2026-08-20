@@ -24,4 +24,6 @@
 - `tests/unit/phase5-cash-operations.unit.spec.ts`: mappers fail-closed, binding RPC e fronteiras de UI/migração.
 - `.github/workflows/phase5-gate.yml`: reset descartável, SQL, lint/advisors, typecheck, testes e bundles.
 
+O typecheck Web global mantém um baseline anterior de `Pressable.hovered`; o gate desta fase usa typecheck Shared/Business, lint Web e o bundle Web para não mascarar regressões novas com esse baseline.
+
 Evidência local/CI não equivale à homologação com papéis reais, Android físico ou banco remoto.

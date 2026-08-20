@@ -77,7 +77,7 @@ $$;
 
 CREATE TABLE public.cash_registers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  establishment_id uuid NOT NULL UNIQUE REFERENCES public.establishments(id) ON DELETE RESTRICT,
+  establishment_id uuid NOT NULL UNIQUE REFERENCES public.establishments(id) ON DELETE CASCADE,
   name text NOT NULL DEFAULT 'Caixa principal' CHECK (char_length(btrim(name)) BETWEEN 1 AND 80),
   active boolean NOT NULL DEFAULT true,
   version bigint NOT NULL DEFAULT 1 CHECK (version >= 1),

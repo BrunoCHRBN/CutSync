@@ -94,6 +94,8 @@ test('cash migration preserves RLS, append-only ledger and POS integration bound
   const migration = readFileSync('supabase/migrations/20260825000000_phase5_cash_operations.sql', 'utf8');
   expect(migration).toContain('CREATE TABLE public.cash_registers');
   expect(migration).toContain('CREATE UNIQUE INDEX cash_sessions_one_open_per_register_idx');
+  expect(migration).toContain('REFERENCES public.establishments(id) ON DELETE CASCADE');
+  expect(migration).toContain('REFERENCES public.cash_registers(id, establishment_id) ON DELETE RESTRICT');
   expect(migration).toContain('record_cash_movement_for_payment');
   expect(migration).toContain("NEW.method_type_snapshot <> 'cash'");
   expect(migration).toContain('cash_ledger_append_only');
