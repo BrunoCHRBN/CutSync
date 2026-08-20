@@ -3,15 +3,22 @@ BEGIN;
 SET LOCAL search_path = pg_catalog, public, extensions;
 
 ALTER TABLE public.approval_requests
-  ADD COLUMN subject_appointment_id text
-    REFERENCES public.appointments(id) ON DELETE RESTRICT,
-  ADD COLUMN proposed_professional_id uuid
-    REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  ADD COLUMN subject_appointment_id text,
+  ADD COLUMN proposed_professional_id uuid,
   ADD COLUMN correction_payload jsonb,
   ADD COLUMN consumed_at timestamptz,
-  ADD COLUMN consumed_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL;
+  ADD COLUMN consumed_by uuid;
 
 ALTER TABLE public.approval_requests
+  ADD CONSTRAINT approval_requests_subject_appointment_id_fkey
+    FOREIGN KEY (subject_appointment_id)
+    REFERENCES public.appointments(id) ON DELETE RESTRICT NOT VALID,
+  ADD CONSTRAINT approval_requests_proposed_professional_id_fkey
+    FOREIGN KEY (proposed_professional_id)
+    REFERENCES public.profiles(id) ON DELETE RESTRICT NOT VALID,
+  ADD CONSTRAINT approval_requests_consumed_by_fkey
+    FOREIGN KEY (consumed_by)
+    REFERENCES public.profiles(id) ON DELETE SET NULL NOT VALID,
   ADD CONSTRAINT executor_correction_approval_payload_check CHECK (
     request_type <> 'executor_correction'
     OR (
@@ -21,7 +28,7 @@ ALTER TABLE public.approval_requests
       AND correction_payload IS NOT NULL
       AND jsonb_typeof(correction_payload) = 'object'
     )
-  );
+  ) NOT VALID;
 
 CREATE OR REPLACE FUNCTION public.request_appointment_assignment_correction_approval(
   target_appointment_id text,

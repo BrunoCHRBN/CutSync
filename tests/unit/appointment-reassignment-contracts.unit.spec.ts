@@ -28,6 +28,10 @@ const correctionMigration = fs.readFileSync(path.join(
   process.cwd(),
   'supabase/migrations/20260822003000_phase2_assignment_correction_approval.sql',
 ), 'utf8');
+const correctionValidationMigration = fs.readFileSync(path.join(
+  process.cwd(),
+  'supabase/migrations/20260823005000_phase3_validate_reassignment_constraints.sql',
+), 'utf8');
 const g13Migration = fs.readFileSync(path.join(
   process.cwd(),
   'supabase/migrations/20260822004000_phase2_g13_policy_shadow_validation.sql',
@@ -87,6 +91,7 @@ test('request, validate e propose são server-side sem aplicar a troca', () => {
   expect(rpcMigration).toContain('appointment_reassignment_after_order_open');
   expect(rpcMigration).toContain('replacement_professional_not_qualified');
   expect(rpcMigration).toContain('replacement_professional_unavailable');
+  expect(rpcMigration).toContain('COALESCE(appointment.price_charged, 0)');
   expect(rpcMigration).not.toContain('SET professional_id = target_proposed_professional_id');
 });
 
@@ -113,6 +118,8 @@ test('correção factual exige serviço encerrado, AAL2 e aprovação separada',
   expect(correctionMigration).toContain("status = 'corrected'");
   expect(correctionMigration).toContain("target_proposed_professional_id, 'active', 'correction'");
   expect(correctionMigration).toContain('consumed_at = now()');
+  expect(correctionMigration.match(/NOT VALID/g)?.length).toBeGreaterThanOrEqual(4);
+  expect(correctionValidationMigration.match(/VALIDATE CONSTRAINT/g)?.length).toBe(4);
 });
 
 test('any_available só dispensa decisão com política aceita e condição equivalente', () => {
@@ -328,6 +335,10 @@ test('Business envia comandos versionados sem conclusão otimista', () => {
   expect(api).toContain("'withdraw_appointment_reassignment'");
   expect(api).toContain('target_expected_version: input.expectedVersion');
   expect(api).toContain('target_request_id: input.requestId');
+  expect(api).toContain("if (operation === 'decisions')");
+  expect(api.indexOf("if (operation === 'decisions')")).toBeLessThan(
+    api.indexOf("text.includes('idempotency_key_reused')"),
+  );
   expect(hook).toContain('useMutation({');
   expect(hook).not.toContain('onMutate:');
   expect(hook).toContain('enqueueBusinessDecisionCommand({');
@@ -377,6 +388,10 @@ test('Client decide por RPC versionada e nunca apresenta troca antes da confirma
   expect(api).toContain("target_channel: 'client_app'");
   expect(api).toContain('target_expected_version: input.expectedVersion');
   expect(api).toContain('target_request_id: input.requestId');
+  expect(api).toContain("text.includes('pgrst301')");
+  expect(api.indexOf("text.includes('pgrst301')")).toBeLessThan(
+    api.indexOf("text.includes('not_awaiting_decision')"),
+  );
   expect(api).not.toContain(".from('appointment_reassignment_requests')");
   expect(hook).toContain("setSyncStatus('syncing')");
   expect(hook).toContain("setSyncStatus(receipt.status === 'manual_review'");

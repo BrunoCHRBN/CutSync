@@ -1,7 +1,7 @@
 SET search_path = pg_catalog, public, extensions;
 
 CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 CREATE OR REPLACE FUNCTION public.is_safe_business_push_payload(value jsonb)
 RETURNS boolean

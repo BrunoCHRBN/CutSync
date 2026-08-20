@@ -91,7 +91,10 @@ const registerToken = async (token: string) => {
 
 export const getBusinessPushStatus = async (): Promise<BusinessPushStatus> => {
   try {
-    return await getPermissionStatus();
+    const permissionStatus = await getPermissionStatus();
+    if (permissionStatus !== 'enabled') return permissionStatus;
+    const storedToken = await SecureStore.getItemAsync(BUSINESS_PUSH_TOKEN_KEY);
+    return storedToken ? 'enabled' : 'not_determined';
   } catch {
     return 'unsupported';
   }
@@ -142,10 +145,11 @@ export const syncBusinessPushNotifications = async () => {
   if (Platform.OS === 'web') return;
   await ensureAndroidChannels();
   if (await getPermissionStatus() !== 'enabled') return;
+  const storedToken = await SecureStore.getItemAsync(BUSINESS_PUSH_TOKEN_KEY);
+  if (!storedToken) return;
   const projectId = getProjectId();
   if (!projectId) return;
   const currentToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-  const storedToken = await SecureStore.getItemAsync(BUSINESS_PUSH_TOKEN_KEY);
   await registerToken(currentToken);
   if (storedToken && storedToken !== currentToken && supabase) {
     await supabase.rpc('unregister_push_device', {
