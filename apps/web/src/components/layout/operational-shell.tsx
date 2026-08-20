@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   mobileSignOut: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSubtle },
   bottomNav: { position: 'absolute', left: 10, right: 10, bottom: 8, minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingTop: 7, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radii.xl, backgroundColor: 'rgba(255,255,255,0.97)', boxShadow: '0 12px 32px rgba(24,32,27,0.12)' },
   bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  bottomLabel: { ...typeScale.label, color: colors.textMuted, fontSize: 11 },
+  bottomLabel: { ...typeScale.label, color: colors.textMuted, fontSize: 12 },
   bottomLabelActive: { color: colors.brandPrimary },
   pressed: { opacity: 0.74, transform: [{ scale: 0.98 }] },
   loadingOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: 'rgba(245,245,242,0.86)' },

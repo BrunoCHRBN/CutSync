@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.textMuted,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.8,
   },
   servicesList: {

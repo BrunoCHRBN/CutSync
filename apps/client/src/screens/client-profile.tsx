@@ -171,6 +171,6 @@ export function ClientProfileScreen() {
 const styles = StyleSheet.create({
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   avatarActions: { flex: 1, gap: 10 },
-  photoHelper: { color: '#817A6C', fontSize: 11, lineHeight: 17 },
-  securityNote: { color: '#817A6C', fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  photoHelper: { color: '#817A6C', fontSize: 12, lineHeight: 17 },
+  securityNote: { color: '#817A6C', fontSize: 12, lineHeight: 17, textAlign: 'center' },
 });

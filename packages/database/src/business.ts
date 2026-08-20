@@ -20,6 +20,7 @@ export const BUSINESS_CAPABILITIES = [
   'apply_appointment_reassignment',
   'correct_appointment_assignment',
   'view_orders',
+  'view_team_orders',
   'manage_own_orders',
   'manage_team_orders',
   'apply_order_discounts',
@@ -67,12 +68,6 @@ export const FINANCIAL_OPS_CAPABILITIES = [
   'record_commission_payout',
   'view_reconciliation',
   'manage_reconciliation',
-  'view_financial_reports',
-  'view_fiscal',
-  'manage_fiscal',
-  'view_payment_provider',
-  'manage_payment_provider',
-  'approve_sensitive_actions',
 ] as const;
 
 export type BusinessOperationalRole =
@@ -238,6 +233,7 @@ const READ_ONLY_CAPABILITIES = new Set<BusinessCapability>([
   'view_unit_reports',
   'view_financial_reports',
   'view_orders',
+  'view_team_orders',
   'view_payments',
   'view_cash',
   'view_team_commission',

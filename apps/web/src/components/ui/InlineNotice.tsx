@@ -44,6 +44,6 @@ const styles = StyleSheet.create({
     padding: 13,
   },
   copy: { flex: 1 },
-  title: { fontFamily: typography.bodyStrong, fontSize: 11, marginBottom: 3 },
+  title: { fontFamily: typography.bodyStrong, fontSize: 12, marginBottom: 3 },
   message: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
 });

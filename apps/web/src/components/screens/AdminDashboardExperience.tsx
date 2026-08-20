@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Banknote,
@@ -45,6 +45,7 @@ import { MetricStrip } from '../ui/metric-strip';
 import {
   appointmentIsLockedByServiceOrder,
   getAppointmentOrderActionLabel,
+  getAppointmentOrderUnavailableMessage,
   parseSchedule,
   resolveAppointmentOrderPrimaryAction,
 } from '@cutsync/domain';
@@ -63,6 +64,11 @@ import {
   useAppointmentActions,
   type WebReassignmentPreparation,
 } from '../../features/appointments/use-appointment-actions';
+import { useBusinessAttentionQueue } from '../../features/appointments/use-business-attention-queue';
+import { recordWebProductEvent } from '../../services/product-events';
+import { useBusinessCommandCenter } from '../../features/attention/use-business-command-center';
+import { webExperienceFlags } from '../../config/experience-flags';
+import type { AttentionItem } from '@cutsync/domain';
 
 const greetingForNow = () => {
   const hour = new Date().getHours();
@@ -198,6 +204,39 @@ export const AdminDashboardExperience = () => {
     await Promise.all([refreshAgenda(), refreshNextAppointment()]);
   }, [refreshAgenda, refreshNextAppointment]);
   const reassignmentActions = useAppointmentActions({ onChanged: refresh });
+  const canViewDecisionQueue = Boolean(
+    activeAuthorizedContext?.capabilities.includes('request_appointment_reassignment')
+    || activeAuthorizedContext?.capabilities.includes('apply_appointment_reassignment'),
+  );
+  const attentionQueue = useBusinessAttentionQueue(activeEstablishmentId, canViewDecisionQueue);
+  const canViewAttention = Boolean(activeAuthorizedContext?.capabilities.includes('view_team_agenda'));
+  const commandCenter = useBusinessCommandCenter({
+    establishmentId: activeEstablishmentId,
+    localDate: toDateKey(selectedDate),
+    enabled: canViewAttention && webExperienceFlags.business_command_center_v2,
+  });
+  const attentionItems = useMemo<AttentionItem[]>(() => [
+    ...commandCenter.items,
+    ...attentionQueue.items.map((item) => ({
+      id: item.appointmentId,
+      type: 'appointment_reassignment',
+      priority: item.urgency === 'overdue' ? 'critical' as const : item.urgency === 'urgent' ? 'high' as const : 'normal' as const,
+      title: 'Mudança de profissional',
+      description: `${item.clientDisplayName} · ${item.serviceName}`,
+      dueAt: item.dueAt,
+      destination: `/(admin)?appointmentId=${item.appointmentId}`,
+      allowedActions: item.allowedActions,
+    })),
+  ].sort((a, b) => {
+    const order = { critical: 0, high: 1, normal: 2, low: 3 };
+    return order[a.priority] - order[b.priority];
+  }), [attentionQueue.items, commandCenter.items]);
+  const attentionViewRecorded = React.useRef(false);
+  useEffect(() => {
+    if (!attentionItems.length || attentionViewRecorded.current) return;
+    attentionViewRecorded.current = true;
+    recordWebProductEvent({ name: 'attention_viewed', surface: 'web_business', role: 'admin', route: '/admin' });
+  }, [attentionItems.length]);
   const financialOps = useFinancialOps();
   const appointmentOrder = useAppointmentServiceOrder({
     establishmentId: activeEstablishmentId,
@@ -507,10 +546,23 @@ export const AdminDashboardExperience = () => {
     canManageOrder: canManageSelectedOrder,
     appointmentStatus: selectedCalendarAppointment?.status,
     serviceOrderStatus: selectedServiceOrder?.status,
+    appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+    timeZone: barbershop?.timezone,
   });
   const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
     ? null
     : getAppointmentOrderActionLabel(selectedOrderAction);
+  const selectedOrderUnavailableMessage = appointmentOrder.loading || appointmentOrder.error
+    ? null
+    : getAppointmentOrderUnavailableMessage({
+      financialOpsEnabled: financialOps.financialOpsEnabled,
+      accessMode: financialOps.accessMode ?? 'blocked',
+      canManageOrder: canManageSelectedOrder,
+      appointmentStatus: selectedCalendarAppointment?.status,
+      serviceOrderStatus: selectedServiceOrder?.status,
+      appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+      timeZone: barbershop?.timezone,
+    });
   const selectedAppointmentLockedByOrder = appointmentIsLockedByServiceOrder({
     financialOpsEnabled: financialOps.financialOpsEnabled,
     serviceOrderStatus: selectedServiceOrder?.status,
@@ -604,12 +656,13 @@ export const AdminDashboardExperience = () => {
   }, [barbers, barbershop?.openingHours, barbershop?.timezone, calendarAppointments, calendarResources, scheduleBlocks, selectedDate, services]);
 
   const setupItems = [
-    { label: 'Configurar horários da unidade', complete: Boolean(parseSchedule(barbershop?.openingHours).length), route: '/(admin)/settings' },
-    { label: 'Cadastrar serviços', complete: services.length > 0, route: '/(admin)/services' },
-    { label: 'Vincular profissionais', complete: barbers.length > 0, route: '/(admin)/team' },
-    { label: 'Publicar a vitrine', complete: Boolean(barbershop?.slug && services.some((service) => service.isActive) && barbers.length > 0), route: barbershop?.slug ? `/salon/${barbershop.slug}` : '/(admin)/settings' },
+    { label: 'Cadastrar serviços', complete: services.some((service) => service.isActive), route: '/(admin)/services', required: true },
+    { label: 'Vincular profissionais', complete: barbers.length > 0, route: '/(admin)/team', required: false },
+    { label: 'Configurar a agenda', complete: Boolean(parseSchedule(barbershop?.openingHours).length), route: '/(admin)/settings', required: false },
+    { label: 'Revisar identidade e marca', complete: Boolean(barbershop?.description || barbershop?.logoUrl), route: '/(admin)/settings', required: false },
+    { label: 'Publicar a vitrine', complete: barbershop?.discoveryStatus === 'published', route: '/(admin)/settings', required: true },
   ];
-  const showSetupGuide = setupItems.some((item) => !item.complete);
+  const showSetupGuide = barbershop?.discoveryStatus !== 'published';
 
   const openQuickBookFromSlot = useCallback((professionalId: string, startsAt: Date) => {
     setQuickOpen(true);
@@ -737,13 +790,14 @@ export const AdminDashboardExperience = () => {
       {showSetupGuide ? (
         <AppCard testID="admin-setup-guide" style={styles.setupGuide}>
           <View style={styles.setupHeader}>
-            <View style={styles.setupCopy}><Text style={styles.panelTitle}>Prepare sua operação</Text><Text style={styles.panelSubtitle}>Complete os itens essenciais para receber agendamentos.</Text></View>
+            <View style={styles.setupCopy}><Text style={styles.panelTitle}>Prepare sua operação</Text><Text style={styles.panelSubtitle}>Itens essenciais liberam a publicação; recomendações melhoram a experiência sem bloquear pequenos estabelecimentos.</Text></View>
             <StatusBadge testID="admin-setup-progress" label={`${setupItems.filter((item) => item.complete).length}/${setupItems.length} concluídos`} tone="warning" />
           </View>
           <View style={styles.setupList}>{setupItems.map((item) => (
             <View key={item.label} style={styles.setupItem}>
               <View style={[styles.setupIcon, item.complete && styles.setupIconComplete]}>{item.complete ? <Check color={colors.white} size={14} /> : <ChevronRight color={colors.textMuted} size={14} />}</View>
               <Text style={[styles.setupLabel, item.complete && styles.setupLabelComplete]}>{item.label}</Text>
+              {!item.complete ? <StatusBadge label={item.required ? 'Essencial' : 'Recomendado'} tone={item.required ? 'warning' : 'info'} /> : null}
               {!item.complete ? <AppButton label="Configurar" testID={`admin-setup-${item.label.toLowerCase().replace(/[^a-z]+/g, '-')}`} variant="ghost" size="sm" onPress={() => router.push(item.route as never)} /> : null}
             </View>
           ))}</View>
@@ -878,6 +932,12 @@ export const AdminDashboardExperience = () => {
         canTransfer={canRequestSelectedReassignment}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
+        establishmentId={activeEstablishmentId}
+        canViewPayments={financialOps.hasCapability('view_payments')}
+        canTakePayments={financialOps.hasCapability('take_payments') && financialOps.accessMode === 'full'}
+        canVoidPayments={financialOps.hasCapability('void_payments') && financialOps.accessMode === 'full'}
+        onPaymentChanged={async () => { await appointmentOrder.refresh(); await refresh(); }}
+        onClosePaidOrder={canManageSelectedOrder ? async () => appointmentOrder.close() : undefined}
         onCancel={(appointment) => {
           setSelectedAppointmentId(null);
           void updateStatus(appointment.id, 'cancelled');
@@ -928,6 +988,7 @@ export const AdminDashboardExperience = () => {
           void appointmentOrder.refresh();
         }}
         orderActionLabel={selectedOrderActionLabel}
+        orderActionUnavailableMessage={selectedOrderUnavailableMessage}
         orderActionLoading={Boolean(appointmentOrder.mutation)}
         professionalName={selectedCalendarAppointment ? barberName(selectedCalendarAppointment.professionalId) : undefined}
         serviceOrder={selectedServiceOrder}
@@ -935,6 +996,60 @@ export const AdminDashboardExperience = () => {
         serviceOrderLoading={appointmentOrder.loading || (financialOps.loading && financialOps.state === 'unknown')}
         visible={Boolean(selectedCalendarAppointment)}
       />
+
+      {canViewAttention ? (
+        <AppCard testID="admin-attention-center" style={styles.attentionCenter}>
+          <View style={styles.attentionHeader}>
+            <View style={styles.attentionHeadingCopy}>
+              <Text style={styles.panelTitle}>Precisa da sua atenção</Text>
+              <Text style={styles.panelSubtitle}>Exceções ordenadas por prazo e com ações confirmadas pelo servidor.</Text>
+            </View>
+            <StatusBadge
+              testID="admin-attention-total"
+              label={commandCenter.loading || attentionQueue.loading ? 'Atualizando' : `${attentionItems.length} pendência${attentionItems.length === 1 ? '' : 's'}`}
+              tone={attentionItems.length ? 'warning' : 'success'}
+            />
+          </View>
+          {commandCenter.error && !attentionItems.length ? (
+            <InlineNotice
+              testID="admin-attention-error"
+              tone="warning"
+              message="Não foi possível atualizar as pendências. A agenda continua disponível."
+            />
+          ) : null}
+          {!commandCenter.loading && !attentionQueue.loading && !commandCenter.error && !attentionItems.length ? (
+            <Text style={styles.attentionEmpty}>Nenhuma decisão operacional aguarda ação.</Text>
+          ) : null}
+          {attentionItems.slice(0, 5).map((item) => (
+            <Pressable
+              accessibilityRole="button"
+              key={`${item.type}:${item.id}`}
+              onPress={() => {
+                recordWebProductEvent({ name: 'attention_action_started', surface: 'web_business', role: 'admin', route: '/admin' });
+                setSelectedAppointmentId(item.id);
+              }}
+              style={({ hovered, pressed }) => [
+                styles.attentionItem,
+                (hovered || pressed) && styles.attentionItemActive,
+              ]}
+              testID={`admin-attention-${item.id}`}
+            >
+              <View style={styles.attentionItemCopy}>
+                <Text style={styles.attentionItemTitle}>{item.title}</Text>
+                <Text style={styles.attentionItemMeta}>
+                  {item.dueAt ? new Date(item.dueAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Sem prazo'}
+                  {' · '}{item.description}
+                </Text>
+              </View>
+              <StatusBadge
+                label={item.priority === 'critical' ? 'Atrasada' : item.priority === 'high' ? 'Urgente' : item.priority === 'normal' ? 'Atenção' : 'No prazo'}
+                tone={item.priority === 'low' ? 'info' : 'warning'}
+              />
+              <Text style={styles.attentionAction}>{item.allowedActions.length ? 'Resolver' : 'Acompanhar'} →</Text>
+            </Pressable>
+          ))}
+        </AppCard>
+      ) : null}
 
       <TransferProfessionalModal
         appointment={reassignmentTarget}
@@ -1067,18 +1182,18 @@ const styles = StyleSheet.create({
   metricsMobile: { flexDirection: 'column' },
   metricCard: { flex: 1, minWidth: 190 },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  metricLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  metricLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   metricAction: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 34, paddingHorizontal: 9, borderRadius: radii.sm, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.hairline },
   metricActionDisabled: { opacity: 0.35 },
   metricValue: { color: colors.text, fontFamily: typography.display, fontSize: 27, letterSpacing: -1, marginTop: 18 },
-  metricNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 5 },
+  metricNote: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 5 },
   dateHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 42 },
   dateSelector: { flexDirection: 'row', gap: 8, marginTop: 18, overflow: 'hidden' },
   dateSelectorWide: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 8, marginTop: 18 },
   dateItem: { flex: 1, minWidth: 48, maxWidth: 76, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   dateItemWide: { flex: 1, maxWidth: 120 },
   dateItemSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
-  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, textTransform: 'uppercase' },
+  dateWeek: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase' },
   dateDay: { color: colors.text, fontFamily: typography.display, fontSize: 17, marginTop: 3 },
   dateTextSelected: { color: colors.white },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
@@ -1092,17 +1207,27 @@ const styles = StyleSheet.create({
   insightSection: { gap: 8, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   insightTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   insightTitle: { flex: 1, color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
-  insightLine: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
-  insightEmpty: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, lineHeight: 16 },
+  insightLine: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, lineHeight: 16 },
+  insightEmpty: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, lineHeight: 16 },
   schedulePanel: { flex: 1.7, padding: 0, overflow: 'hidden' },
   performancePanel: { flex: 1, minWidth: 300 },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
   panelTitle: { color: colors.text, fontFamily: typography.display, fontSize: 17, letterSpacing: -0.4 },
-  panelSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 4 },
+  panelSubtitle: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 4 },
+  attentionCenter: { gap: 12, padding: 18 },
+  attentionHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  attentionHeadingCopy: { flex: 1, minWidth: 240 },
+  attentionItem: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 12, minHeight: 58, padding: 12 },
+  attentionItemActive: { backgroundColor: colors.surfacePressed, borderColor: colors.border },
+  attentionItemCopy: { flex: 1, minWidth: 220 },
+  attentionItemTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
+  attentionItemMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
+  attentionAction: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  attentionEmpty: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12 },
   loader: { margin: 40 },
   empty: { alignItems: 'center', padding: 42 },
   emptyTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, marginTop: 12 },
-  emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 5, textAlign: 'center' },
+  emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 5, textAlign: 'center' },
   appointmentRow: { flexDirection: 'row', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
   appointmentRowFinished: { opacity: 0.65 },
   timeColumn: { width: 70, alignItems: 'flex-start' },
@@ -1113,9 +1238,9 @@ const styles = StyleSheet.create({
   appointmentCopy: { flex: 1 },
   appointmentTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   clientName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14 },
-  serviceName: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11, marginTop: 5 },
+  serviceName: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 12, marginTop: 5 },
   professionalRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  professionalName: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  professionalName: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   rowActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   compactButton: { minHeight: 36, paddingVertical: 7, paddingHorizontal: 12 },
   teamList: { marginTop: 20 },
@@ -1123,29 +1248,29 @@ const styles = StyleSheet.create({
   avatar: { width: 35, height: 35, borderRadius: radii.md, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: colors.text, fontFamily: typography.display, fontSize: 13, letterSpacing: -0.3 },
   teamCopy: { flex: 1 },
-  teamName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 11 },
-  teamMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  teamName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 12 },
+  teamMeta: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   teamValue: { alignItems: 'flex-end' },
-  teamGross: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
-  teamCommission: { color: colors.success, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  teamGross: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
+  teamCommission: { color: colors.success, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   // Modal de Encaixe Estilos
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 15, 18, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 520, maxHeight: '90%', padding: 0 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' },
+  modalEyebrow: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase' },
   modalTitle: { color: colors.text, fontFamily: typography.display, fontSize: 18, marginTop: 4 },
   closeButton: { padding: 4, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   modalContent: { padding: 20, gap: 16 },
-  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11, marginTop: 4 },
+  fieldLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 4 },
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choiceCard: { flex: 1, minWidth: 140 },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   timeSlot: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   timeSlotSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
-  timeSlotText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  timeSlotText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   selectedInk: { color: colors.ink },
   performanceCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexWrap: 'wrap', gap: 12 },
-  cancellationReasonText: { color: colors.danger, fontSize: 11, marginTop: 4, fontFamily: typography.bodyStrong },
+  cancellationReasonText: { color: colors.danger, fontSize: 12, marginTop: 4, fontFamily: typography.bodyStrong },
   timeSlotOccupied: {
     backgroundColor: '#ff444408',
     borderColor: '#ff444422',
@@ -1184,7 +1309,7 @@ const styles = StyleSheet.create({
   todayBtnText: {
     color: colors.white,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     textTransform: 'uppercase',
   },
   statusInfoCard: {

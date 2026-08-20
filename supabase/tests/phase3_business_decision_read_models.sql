@@ -122,7 +122,7 @@ BEGIN
     (professional_id, unit_id, 'professional', 'professional', 'active', manager_id),
     (replacement_id, unit_id, 'professional', 'professional', 'active', manager_id),
     (alternative_id, unit_id, 'professional', 'professional', 'active', manager_id),
-    (manager_id, unit_id, 'professional', 'manager', 'active', manager_id),
+    (manager_id, unit_id, 'admin', 'admin', 'active', manager_id),
     (outsider_id, other_unit_id, 'professional', 'manager', 'active', outsider_id);
 
   INSERT INTO public.services(id, establishment_id, name, price, duration_minutes, is_active)
@@ -194,7 +194,7 @@ BEGIN
     RAISE EXCEPTION 'Client reassignment analysis push invalid: %', queue;
   END IF;
   queue := public.list_business_reassignment_candidates(unit_id, workflow_id);
-  IF jsonb_array_length(queue) <> 2
+  IF jsonb_array_length(queue) <> 3
     OR NOT EXISTS (
       SELECT 1
       FROM jsonb_array_elements(queue) AS candidate
@@ -204,6 +204,18 @@ BEGIN
     )
   THEN
     RAISE EXCEPTION 'candidate read model invalid: %', queue;
+  END IF;
+
+  -- Admin/owner operators are eligible at catalog price even when no
+  -- professional_services override exists for them.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(queue) AS candidate
+    WHERE candidate->>'profileId' = manager_id::text
+      AND (candidate->>'priceCents')::integer = 5000
+      AND candidate->>'monetaryImpact' = 'false'
+  ) THEN
+    RAISE EXCEPTION 'admin candidate without override was omitted: %', queue;
   END IF;
 
   response := public.propose_appointment_reassignment(

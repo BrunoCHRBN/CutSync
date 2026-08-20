@@ -8,7 +8,7 @@ import {
 import { createMobileRequestId } from '@cutsync/domain';
 import { supabase } from '../../services/supabase';
 
-type ServiceOrderCommand = 'open' | 'start' | 'finish';
+type ServiceOrderCommand = 'open' | 'start' | 'finish' | 'close';
 
 interface UseAppointmentServiceOrderOptions {
   establishmentId?: string | null;
@@ -22,6 +22,8 @@ const COMMAND_ERROR_MESSAGES: Record<string, string> = {
   service_order_already_exists: 'A comanda já foi aberta. Atualizando o atendimento.',
   service_order_version_conflict: 'A comanda foi atualizada em outro dispositivo. Revise e tente novamente.',
   service_order_invalid_transition: 'O estado desta comanda mudou. Atualizando os dados.',
+  service_order_appointment_not_operational_today:
+    'Check-in, início e finalização ficam disponíveis somente no dia do atendimento.',
   service_order_items_required: 'Adicione ao menos um item antes de finalizar.',
   network_error: 'Não foi possível conectar. Verifique sua internet e tente novamente.',
   unauthorized: 'Sua sessão expirou. Entre novamente para continuar.',
@@ -107,7 +109,7 @@ export function useAppointmentServiceOrder({
 
   const runCommand = useCallback(async (command: ServiceOrderCommand) => {
     if (!enabled || !establishmentId || !appointmentId || inFlightRef.current) return false;
-    if ((command === 'start' || command === 'finish') && !serviceOrder) return false;
+    if ((command === 'start' || command === 'finish' || command === 'close') && !serviceOrder) return false;
 
     inFlightRef.current = true;
     setMutation(command);
@@ -140,6 +142,13 @@ export function useAppointmentServiceOrder({
         });
       } else if (command === 'finish' && serviceOrder) {
         await api.finishServiceOrder({
+          establishmentId,
+          serviceOrderId: serviceOrder.id,
+          expectedVersion: serviceOrder.version,
+          requestId,
+        });
+      } else if (command === 'close' && serviceOrder) {
+        await api.closeServiceOrder({
           establishmentId,
           serviceOrderId: serviceOrder.id,
           expectedVersion: serviceOrder.version,
@@ -206,6 +215,7 @@ export function useAppointmentServiceOrder({
     open: () => runCommand('open'),
     start: () => runCommand('start'),
     finish: () => runCommand('finish'),
+    close: () => runCommand('close'),
     retry,
     clearError,
   };

@@ -61,8 +61,8 @@ export const ProfessionalPerformanceExperience = () => {
 
   const completed = appointments.filter((item) => item.status === 'completed');
   const cancelled = appointments.filter((item) => item.status === 'cancelled');
-  const revenue = completed.reduce((sum, item) => sum + (item.priceCharged || item.service?.price || 0), 0);
-  const commission = revenue * (profile?.commission_rate ?? 0.5);
+  const productionRealized = completed.reduce((sum, item) => sum + (item.priceCharged || item.service?.price || 0), 0);
+  const projectedCommission = productionRealized * (profile?.commission_rate ?? 0.5);
   const cancelRate = appointments.length
     ? Math.round((cancelled.length / appointments.length) * 100)
     : 0;
@@ -111,9 +111,9 @@ export const ProfessionalPerformanceExperience = () => {
             {
               key: 'commission',
               testID: 'performance-commission',
-              label: 'Meu ganho',
-              value: currency(commission),
-              note: `${currency(revenue)} produzidos · ${Math.round((profile?.commission_rate ?? 0.5) * 100)}% comissão`,
+              label: 'Repasse projetado',
+              value: currency(projectedCommission),
+              note: `${currency(productionRealized)} de produção realizada · não representa valor recebido`,
               icon: <WalletCards color={colors.info} size={18} />,
             },
             {

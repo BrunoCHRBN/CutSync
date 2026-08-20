@@ -1,0 +1,28 @@
+name: Gate G7 Android Preview
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_android_preview:
+    name: Build Business Android Preview
+    type: build
+    environment: preview
+    params:
+      platform: android
+      profile: preview
+      message: Gate G7 manual POS physical-device validation
+
+  validation_handoff:
+    name: Physical validation handoff
+    needs: [build_android_preview]
+    type: doc
+    params:
+      md: |
+        ## Gate G7 Android Preview pronta
+
+        Build: `${{ needs.build_android_preview.outputs.build_id }}`
+
+        Validar em dispositivo físico os papéis owner/admin, cashier, finance,
+        professional e usuário sem vínculo, além do replay após desligar a rede
+        e reiniciar o aplicativo. Esta execução não aprova o Gate G7 sozinha.

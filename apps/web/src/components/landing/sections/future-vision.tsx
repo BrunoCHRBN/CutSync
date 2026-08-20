@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     borderRadius: landingRadii.xl,
     backgroundColor: landingColors.brandStrong,
   },
-  eyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 11, letterSpacing: 1.8 },
+  eyebrow: { color: landingColors.onBrandMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 12, letterSpacing: 1.8 },
   title: { maxWidth: 760, color: landingColors.white, fontFamily: landingTypography.displaySemiBold, fontSize: 40, lineHeight: 47, letterSpacing: -1.7 },
   paragraph: { maxWidth: 660, color: landingColors.onBrand, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 25 },
   disclaimer: { color: landingColors.onBrandSubtle, fontFamily: landingTypography.body, fontSize: 12, lineHeight: 18 },

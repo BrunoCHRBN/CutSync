@@ -1,5 +1,5 @@
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createMobileRequestId } from '@/lib/mobile-request-id';
@@ -24,6 +24,7 @@ import {
 } from '@/features/decisions/use-business-decisions';
 import { BusinessApiError } from '@/services/business-api';
 import { businessTheme } from '@/theme/business-theme';
+import { recordBusinessProductEvent } from '@/features/analytics/business-product-events';
 
 const actionLabels: Record<string, string> = {
   validate: 'Validar disponibilidade',
@@ -62,6 +63,9 @@ export function BusinessDecisionDetailScreen() {
   } | null>(null);
   const canPropose = detail.data?.allowedActions.includes('propose') ?? false;
   const candidates = useBusinessReassignmentCandidates(requestId, canPropose);
+  useFocusEffect(useCallback(() => {
+    if (canPropose) void candidates.refetch();
+  }, [canPropose, candidates.refetch]));
   const commandBlocked = command.isPending
     || command.syncStatus === 'syncing'
     || command.syncStatus === 'offline_pending'
@@ -95,6 +99,7 @@ export function BusinessDecisionDetailScreen() {
     input: BusinessDecisionCommandIntent,
   ) => {
     setCommandNotice(null);
+    recordBusinessProductEvent({ name: 'attention_action_started', route: '/decisions/[requestId]' });
     try {
       const receipt = await command.mutateAsync({
         ...input,
@@ -109,6 +114,7 @@ export function BusinessDecisionDetailScreen() {
           ? 'O servidor confirmou novamente o comando já processado.'
           : 'A ação foi confirmada pelo servidor.',
       });
+      recordBusinessProductEvent({ name: 'attention_action_succeeded', route: '/decisions/[requestId]' });
     } catch (error) {
       const isNetworkFailure = error instanceof BusinessApiError && error.code === 'network_error';
       if (error instanceof BusinessApiError && error.code === 'decision_conflict') {
@@ -120,6 +126,7 @@ export function BusinessDecisionDetailScreen() {
           ? 'A ação foi salva neste aparelho e será reenviada com o mesmo identificador.'
           : error instanceof Error ? error.message : 'Não foi possível confirmar a ação.',
       });
+      recordBusinessProductEvent({ name: 'attention_action_failed', route: '/decisions/[requestId]' });
     }
   };
 
@@ -245,9 +252,16 @@ export function BusinessDecisionDetailScreen() {
               {candidates.data?.length === 0 ? (
                 <View style={styles.actionGroup} testID="business-reassignment-candidates-empty">
                   <Text style={styles.body}>
-                    Nenhum profissional com serviço ativo e horário de trabalho compatível está
-                    livre neste horário.
+                    Nenhum substituto elegível foi encontrado. Para aparecer aqui, o perfil precisa
+                    ter vínculo ativo nesta unidade, oferecer este mesmo serviço, possuir agenda de
+                    trabalho compatível, estar livre exatamente no horário e ser diferente do
+                    profissional atual.
                   </Text>
+                  <BusinessNotice
+                    testID="business-reassignment-candidates-guidance"
+                    tone="warning"
+                    message="Confirme o serviço ativo e a agenda de cada profissional nas configurações da unidade. Depois, atualize os candidatos."
+                  />
                   <BusinessButton
                     testID="business-refresh-reassignment-candidates"
                     label="Atualizar candidatos"

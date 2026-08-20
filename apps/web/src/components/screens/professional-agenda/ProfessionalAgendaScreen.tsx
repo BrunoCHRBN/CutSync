@@ -5,6 +5,7 @@ import {
   appointmentFeedbackMessages,
   appointmentIsLockedByServiceOrder,
   getAppointmentOrderActionLabel,
+  getAppointmentOrderUnavailableMessage,
   getTodayInTimeZone,
   resolveAppointmentOrderPrimaryAction,
   translateAppointmentError,
@@ -115,7 +116,7 @@ export const ProfessionalAgendaScreen = () => {
   });
 
   const {
-    appointment: nextAppointment,
+    appointments: nextAppointments,
     loading: nextAppointmentLoading,
     error: nextAppointmentError,
     refresh: refreshNextAppointment,
@@ -510,10 +511,23 @@ export const ProfessionalAgendaScreen = () => {
     canManageOrder: canManageSelectedOrder,
     appointmentStatus: selectedCalendarAppointment?.status,
     serviceOrderStatus: selectedServiceOrder?.status,
+    appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+    timeZone: barbershop?.timezone,
   });
   const selectedOrderActionLabel = appointmentOrder.loading || appointmentOrder.error
     ? null
     : getAppointmentOrderActionLabel(selectedOrderAction);
+  const selectedOrderUnavailableMessage = appointmentOrder.loading || appointmentOrder.error
+    ? null
+    : getAppointmentOrderUnavailableMessage({
+      financialOpsEnabled: financialOps.financialOpsEnabled,
+      accessMode: financialOps.accessMode ?? 'blocked',
+      canManageOrder: canManageSelectedOrder,
+      appointmentStatus: selectedCalendarAppointment?.status,
+      serviceOrderStatus: selectedServiceOrder?.status,
+      appointmentStartsAt: selectedCalendarAppointment?.startsAt,
+      timeZone: barbershop?.timezone,
+    });
   const selectedAppointmentLockedByOrder = appointmentIsLockedByServiceOrder({
     financialOpsEnabled: financialOps.financialOpsEnabled,
     serviceOrderStatus: selectedServiceOrder?.status,
@@ -558,10 +572,10 @@ export const ProfessionalAgendaScreen = () => {
         />
 
         <NextAppointmentStrip
-          appointment={nextAppointment}
+          appointments={nextAppointments}
           loading={nextAppointmentLoading}
-          onConfirm={nextAppointment ? () => { void actions.updateStatus(nextAppointment.id, 'confirmed'); } : undefined}
-          onDetails={nextAppointment ? () => setSelectedAppointmentId(nextAppointment.id) : undefined}
+          onConfirm={(appointment) => { void actions.updateStatus(appointment.id, 'confirmed'); }}
+          onDetails={(appointment) => setSelectedAppointmentId(appointment.id)}
         />
 
         <OperationalCalendar
@@ -642,6 +656,12 @@ export const ProfessionalAgendaScreen = () => {
         canTransfer={canRequestSelectedReassignment}
         completeLabel={selectedCalendarAppointment?.status === 'pending' ? 'Confirmar' : 'Concluir'}
         financialOpsEnabled={financialOpsVisible}
+        establishmentId={activeEstablishmentId}
+        canViewPayments={financialOps.hasCapability('view_payments')}
+        canTakePayments={financialOps.hasCapability('take_payments') && financialOps.accessMode === 'full'}
+        canVoidPayments={financialOps.hasCapability('void_payments') && financialOps.accessMode === 'full'}
+        onPaymentChanged={async () => { await appointmentOrder.refresh(); await refresh(); }}
+        onClosePaidOrder={canManageSelectedOrder ? async () => appointmentOrder.close() : undefined}
         onOrderAction={() => {
           if (selectedOrderAction === 'open_order') void appointmentOrder.open();
           if (selectedOrderAction === 'start_order') void appointmentOrder.start();
@@ -694,6 +714,7 @@ export const ProfessionalAgendaScreen = () => {
           void appointmentOrder.refresh();
         }}
         orderActionLabel={selectedOrderActionLabel}
+        orderActionUnavailableMessage={selectedOrderUnavailableMessage}
         orderActionLoading={Boolean(appointmentOrder.mutation)}
         professionalName={appointments.find((item) => item.id === selectedCalendarAppointment?.id)?.barberName}
         serviceOrder={selectedServiceOrder}

@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
     gap: clientTheme.spacing.md,
   },
   progressCopy: { flex: 1, gap: clientTheme.spacing.xs },
-  progressLabel: { color: supportColors.secondary, fontSize: 11, fontWeight: '800' },
+  progressLabel: { color: supportColors.secondary, fontSize: 12, fontWeight: '800' },
   progressTrack: {
     height: 5,
     overflow: 'hidden',
@@ -535,11 +535,11 @@ const styles = StyleSheet.create({
     gap: clientTheme.spacing.sm,
   },
   draftActions: { gap: clientTheme.spacing.sm },
-  helper: { color: supportColors.muted, fontSize: 11, lineHeight: 16 },
-  errorText: { color: supportColors.danger, fontSize: 11, lineHeight: 16 },
+  helper: { color: supportColors.muted, fontSize: 12, lineHeight: 16 },
+  errorText: { color: supportColors.danger, fontSize: 12, lineHeight: 16 },
   reviewLabel: {
     color: supportColors.muted,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },

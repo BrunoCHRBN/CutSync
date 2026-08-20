@@ -41,7 +41,9 @@ test('aplica tipografia e Instagram no Client web explore/detalhe', () => {
   expect(explore).toContain('formatEstablishmentDisplayName');
   expect(detail).toContain('normalizeInstagramHandle');
   expect(detail).toContain('Ver perfil →');
-  expect(detail).toContain('/profile/${professional.profileSlug}');
+  expect(detail).toContain('ProfessionalProfileSheet');
+  expect(detail).toContain('professional_slug: member.profileSlug');
+  expect(detail).toContain("pathname: '/(client)/establishment'");
   expect(models).toContain('professional_profile_slug');
   expect(models).toContain('profileSlug');
 });
@@ -136,6 +138,14 @@ test('expõe descoberta e detalhe em rotas próprias do Client', () => {
   expect(discovery).toContain('RefreshControl');
   expect(detail).toContain('client-establishment-services');
   expect(detail).toContain('client-establishment-professionals');
+});
+
+test('não apresenta avaliações como volume de reservas', () => {
+  const discovery = readSource('apps/client/src/screens/client-discovery.tsx');
+
+  expect(discovery).not.toContain('Mais reservados');
+  expect(discovery).toContain('Com mais avaliações');
+  expect(discovery).toContain('mostReviewed');
 });
 
 test('prioriza busca e agendamento direto na descoberta do Client', () => {

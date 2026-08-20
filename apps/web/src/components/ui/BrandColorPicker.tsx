@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   label: {
     color: colors.textSecondary,
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   contrastHint: {
     color: colors.success,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
   contrastHintWarning: {

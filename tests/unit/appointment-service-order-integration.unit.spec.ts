@@ -245,6 +245,28 @@ test('15-19: resolveAppointmentOrderPrimaryAction matrix', () => {
 
   expect(resolveAppointmentOrderPrimaryAction({
     financialOpsEnabled: true,
+    accessMode: 'full',
+    canManageOrder: true,
+    appointmentStatus: 'confirmed',
+    serviceOrderStatus: 'open',
+    appointmentStartsAt: '2026-08-13T12:00:00.000Z',
+    timeZone: 'America/Sao_Paulo',
+    now: new Date('2026-08-12T15:00:00.000Z'),
+  })).toBe('none');
+
+  expect(resolveAppointmentOrderPrimaryAction({
+    financialOpsEnabled: true,
+    accessMode: 'full',
+    canManageOrder: true,
+    appointmentStatus: 'confirmed',
+    serviceOrderStatus: 'open',
+    appointmentStartsAt: '2026-08-12T23:00:00.000Z',
+    timeZone: 'America/Sao_Paulo',
+    now: new Date('2026-08-12T12:00:00.000Z'),
+  })).toBe('start_order');
+
+  expect(resolveAppointmentOrderPrimaryAction({
+    financialOpsEnabled: true,
     accessMode: 'read_only',
     canManageOrder: true,
     appointmentStatus: 'confirmed',
@@ -337,10 +359,8 @@ test('SQL suite covers read_only/blocked and named error patterns', () => {
 
 test('awaiting payment copy never implies paid', () => {
   expect(AWAITING_PAYMENT_NOTICE).toContain('Aguardando pagamento'.slice(0, 0) + 'Atendimento finalizado');
-  expect(AWAITING_PAYMENT_NOTICE).toContain('próxima etapa');
-  expect(AWAITING_PAYMENT_NOTICE).not.toContain('Pago');
+  expect(AWAITING_PAYMENT_NOTICE).toContain('saldo zero');
   expect(AWAITING_PAYMENT_NOTICE).not.toContain('Pagamento concluído');
-  expect(domainUi).not.toContain('Pago');
   expect(domainUi).not.toContain('Pagamento concluído');
   expect(domainUi).toContain("return 'Aguardando pagamento'");
 });

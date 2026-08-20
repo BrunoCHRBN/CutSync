@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   caption: {
     color: landingColors.white,
     fontFamily: landingTypography.bodyMedium,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
     textShadowColor: 'rgba(20,33,25,0.55)',

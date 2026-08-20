@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createServiceOrderApi,
+  createManualPosApi,
   mapActiveContextReceipt,
   mapAuthorizedContext,
   mapBusinessAgendaItem,
@@ -13,6 +14,7 @@ import {
   mapDecisionQueueItem,
   mapAppointmentReassignmentMutationReceipt,
   ServiceOrderApiError,
+  ManualPosApiError,
   type AppointmentServiceOrderContext,
   type ActiveContextReceipt,
   type AuthorizedContext,
@@ -30,6 +32,11 @@ import {
   type BusinessRpcName,
   type Database,
   type ServiceOrderCommandReceipt,
+  type EstablishmentPaymentMethodsReadModel,
+  type EstablishmentPaymentMethodType,
+  type PaymentMethodCommandReceipt,
+  type ServiceOrderPaymentSummary,
+  type OrderPaymentCommandReceipt,
 } from '@cutsync/database';
 
 import { supabase } from '../lib/supabase';
@@ -62,9 +69,18 @@ export type BusinessApiErrorCode =
   | 'service_order_already_exists'
   | 'service_order_version_conflict'
   | 'service_order_invalid_transition'
+  | 'service_order_appointment_not_operational_today'
   | 'service_order_items_required'
   | 'appointment_completion_requires_service_order'
-  | 'appointment_has_service_order';
+  | 'appointment_has_service_order'
+  | 'payment_method_unavailable'
+  | 'payment_method_version_conflict'
+  | 'payment_reference_required'
+  | 'payment_exceeds_order_balance'
+  | 'payment_entry_not_voidable'
+  | 'payment_entry_already_voided'
+  | 'service_order_balance_unresolved'
+  | 'aal2_required';
 
 const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   client_unavailable: 'O aplicativo ainda não está conectado ao CutSync.',
@@ -95,11 +111,21 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   service_order_version_conflict:
     'A comanda foi atualizada em outro dispositivo. Recarregue e tente novamente.',
   service_order_invalid_transition: 'O estado deste atendimento mudou. Atualize os dados.',
+  service_order_appointment_not_operational_today:
+    'Check-in, início e finalização ficam disponíveis somente no dia do atendimento.',
   service_order_items_required: 'Adicione ao menos um item antes de finalizar.',
   appointment_completion_requires_service_order:
     'Para concluir este atendimento, abra e finalize a comanda.',
   appointment_has_service_order:
     'Este atendimento já possui comanda e não pode ser alterado por este caminho.',
+  payment_method_unavailable: 'Este meio de pagamento não está mais disponível.',
+  payment_method_version_conflict: 'A configuração deste meio de pagamento mudou. Atualize os dados.',
+  payment_reference_required: 'Informe a referência desta operação para continuar.',
+  payment_exceeds_order_balance: 'O valor informado excede o saldo da comanda.',
+  payment_entry_not_voidable: 'Este lançamento não pode mais ser estornado.',
+  payment_entry_already_voided: 'Este lançamento já possui estorno confirmado.',
+  service_order_balance_unresolved: 'A comanda ainda possui saldo pendente.',
+  aal2_required: 'Confirme sua autenticação em duas etapas para estornar este pagamento.',
 };
 
 export class BusinessApiError extends Error {
@@ -175,6 +201,43 @@ export interface BusinessApi {
     expectedVersion: number;
     requestId: string;
   }) => Promise<ServiceOrderCommandReceipt>;
+  closeServiceOrder: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<ServiceOrderCommandReceipt>;
+  listPaymentMethods: (establishmentId: string) => Promise<EstablishmentPaymentMethodsReadModel>;
+  configurePaymentMethod: (input: {
+    establishmentId: string;
+    methodType: EstablishmentPaymentMethodType;
+    displayName: string;
+    active: boolean;
+    requiresReference: boolean;
+    expectedVersion: number | null;
+    requestId: string;
+  }) => Promise<PaymentMethodCommandReceipt>;
+  getPaymentSummary: (
+    establishmentId: string,
+    serviceOrderId: string,
+  ) => Promise<ServiceOrderPaymentSummary>;
+  recordPayment: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    paymentMethodId: string;
+    amountCents: number;
+    externalReference?: string | null;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<OrderPaymentCommandReceipt>;
+  voidPayment: (input: {
+    establishmentId: string;
+    serviceOrderId: string;
+    paymentEntryId: string;
+    reason: string;
+    expectedVersion: number;
+    requestId: string;
+  }) => Promise<OrderPaymentCommandReceipt>;
   inspectInvitation: (token: string) => Promise<BusinessInvitationDetails>;
   acceptInvitation: (token: string) => Promise<BusinessInvitationAcceptance>;
 }
@@ -223,6 +286,7 @@ type Operation =
   | 'appointment'
   | 'decisions'
   | 'service_order'
+  | 'manual_pos'
   | 'inspect_invitation'
   | 'accept_invitation';
 
@@ -255,27 +319,9 @@ const remoteErrorCode = (error: unknown): string | null => {
   const code = (error as Record<string, unknown>).code;
   if (typeof code !== 'string') return null;
   const normalized = normalizeBusinessDiagnosticCode(code);
-  return normalized && normalized.length <= 24 ? normalized : null;
+  return normalized && normalized.length <= 48 ? normalized : null;
 };
 
-const logSanitizedRpcError = (operation: Operation, error: unknown) => {
-  if (!__DEV__) return;
-  const record = error && typeof error === 'object'
-    ? error as Record<string, unknown>
-    : null;
-  const name = typeof record?.name === 'string'
-    ? normalizeBusinessDiagnosticCode(record.name)
-    : null;
-  const status = typeof record?.status === 'number' && Number.isInteger(record.status)
-    ? record.status
-    : null;
-  console.warn('BUSINESS_RPC_FAILURE', {
-    operation,
-    code: remoteErrorCode(error),
-    name,
-    status,
-  });
-};
 
 const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'contexts') return 'contexts_unavailable';
@@ -283,6 +329,7 @@ const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'appointment') return 'appointment_unavailable';
   if (operation === 'decisions') return 'decisions_unavailable';
   if (operation === 'service_order') return 'service_order_unavailable';
+  if (operation === 'manual_pos') return 'service_order_unavailable';
   if (operation === 'inspect_invitation') return 'invitation_unavailable';
   return 'invitation_accept_failed';
 };
@@ -294,6 +341,7 @@ const translateServiceOrderCode = (code: string): BusinessApiErrorCode | null =>
     case 'service_order_version_conflict':
     case 'service_order_invalid_transition':
     case 'service_order_items_required':
+    case 'service_order_balance_unresolved':
     case 'appointment_completion_requires_service_order':
     case 'appointment_has_service_order':
     case 'network_error':
@@ -309,13 +357,27 @@ const translateServiceOrderCode = (code: string): BusinessApiErrorCode | null =>
 };
 
 const translateRpcError = (operation: Operation, error: unknown): BusinessApiError => {
-  logSanitizedRpcError(operation, error);
   if (error instanceof ServiceOrderApiError) {
     const mapped = translateServiceOrderCode(error.code);
     if (mapped) return new BusinessApiError(mapped);
     return new BusinessApiError(genericCodeFor(operation));
   }
 
+  if (error instanceof ManualPosApiError) {
+    const supported = new Set<BusinessApiErrorCode>([
+      'invalid_request', 'network_error', 'unauthorized', 'forbidden',
+      'backend_unavailable', 'invalid_response', 'financial_ops_disabled',
+      'payment_method_unavailable', 'payment_method_version_conflict',
+      'payment_reference_required', 'payment_exceeds_order_balance',
+      'payment_entry_not_voidable', 'payment_entry_already_voided',
+      'service_order_version_conflict', 'service_order_invalid_transition',
+      'service_order_balance_unresolved', 'aal2_required',
+    ]);
+    if (supported.has(error.code as BusinessApiErrorCode)) {
+      return new BusinessApiError(error.code as BusinessApiErrorCode);
+    }
+    return new BusinessApiError(genericCodeFor(operation));
+  }
   const text = remoteErrorText(error);
 
   if (operation === 'decisions') {
@@ -357,6 +419,9 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
   }
   if (text.includes('service_order_version_conflict')) {
     return new BusinessApiError('service_order_version_conflict');
+  }
+  if (text.includes('service_order_appointment_not_operational_today')) {
+    return new BusinessApiError('service_order_appointment_not_operational_today');
   }
   if (text.includes('service_order_invalid_transition')) {
     return new BusinessApiError('service_order_invalid_transition');
@@ -749,6 +814,60 @@ export const createBusinessApi = (
       return await createServiceOrderApi(client).finishServiceOrder(input);
     } catch (error) {
       throw translateRpcError('service_order', error);
+    }
+  },
+
+  async closeServiceOrder(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createServiceOrderApi(client).closeServiceOrder(input);
+    } catch (error) {
+      throw translateRpcError('service_order', error);
+    }
+  },
+
+  async listPaymentMethods(establishmentId) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createManualPosApi(client).listPaymentMethods(establishmentId);
+    } catch (error) {
+      throw translateRpcError('manual_pos', error);
+    }
+  },
+
+  async configurePaymentMethod(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createManualPosApi(client).configurePaymentMethod(input);
+    } catch (error) {
+      throw translateRpcError('manual_pos', error);
+    }
+  },
+
+  async getPaymentSummary(establishmentId, serviceOrderId) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createManualPosApi(client).getPaymentSummary(establishmentId, serviceOrderId);
+    } catch (error) {
+      throw translateRpcError('manual_pos', error);
+    }
+  },
+
+  async recordPayment(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createManualPosApi(client).recordPayment(input);
+    } catch (error) {
+      throw translateRpcError('manual_pos', error);
+    }
+  },
+
+  async voidPayment(input) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createManualPosApi(client).voidPayment(input);
+    } catch (error) {
+      throw translateRpcError('manual_pos', error);
     }
   },
 

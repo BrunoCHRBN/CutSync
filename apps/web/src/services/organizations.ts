@@ -6,6 +6,7 @@ export interface MyOrganization {
   organizationName: string;
   organizationStatus: string;
   memberRole: OrganizationRole;
+  scopeMode?: string;
   establishmentCount: number;
 }
 
@@ -69,6 +70,7 @@ export const organizationService = {
       organizationName: String(row.organization_name),
       organizationStatus: String(row.organization_status),
       memberRole: row.member_role as OrganizationRole,
+      scopeMode: row.scope_mode ? String(row.scope_mode) : undefined,
       establishmentCount: Number(row.establishment_count ?? 0),
     }));
   },
@@ -132,11 +134,44 @@ export const organizationService = {
     return rows[0];
   },
 
+  async inviteMemberV2(
+    organizationId: string,
+    email: string,
+    role: Exclude<OrganizationRole, 'owner'>,
+    scopeMode: 'all' | 'selected' = 'all',
+    establishmentIds?: string[],
+  ) {
+    const rows = assertRpc<{ invitation_id: string; invitation_token: string; expires_at: string }[]>(
+      await rpc('invite_organization_member_v2', {
+        target_organization_id: organizationId,
+        invited_email: email,
+        target_role: role,
+        target_scope_mode: scopeMode,
+        target_establishment_ids: establishmentIds,
+      }),
+    );
+    return rows[0];
+  },
+
   async updateMemberRole(organizationId: string, profileId: string, role: Exclude<OrganizationRole, 'owner'>) {
     assertRpc(await rpc('update_organization_member_role', {
       target_organization_id: organizationId,
       target_profile_id: profileId,
       target_role: role,
+    }));
+  },
+
+  async setMemberUnitScope(
+    organizationId: string,
+    profileId: string,
+    scopeMode: 'all' | 'selected',
+    establishmentIds?: string[],
+  ): Promise<void> {
+    assertRpc(await rpc('set_organization_member_unit_scope', {
+      target_organization_id: organizationId,
+      target_profile_id: profileId,
+      target_scope_mode: scopeMode,
+      target_establishment_ids: establishmentIds ?? [],
     }));
   },
 

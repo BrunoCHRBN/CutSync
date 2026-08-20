@@ -51,12 +51,27 @@ export const OrganizationExperience = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Exclude<OrganizationRole, 'owner'>>('manager');
+  const [inviteScopeMode, setInviteScopeMode] = useState<'all' | 'selected'>('all');
+  const [inviteEstablishments, setInviteEstablishments] = useState<string[]>([]);
+  const [editingScopeProfileId, setEditingScopeProfileId] = useState<string | null>(null);
+  const [editScopeMode, setEditScopeMode] = useState<'all' | 'selected'>('all');
+  const [editScopeEstablishments, setEditScopeEstablishments] = useState<string[]>([]);
   const [inviteLink, setInviteLink] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger' | 'info'; message: string } | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
   const [unitToRemove, setUnitToRemove] = useState<string | null>(null);
+
+  const isOwner = context?.role === 'owner';
+
+  const currency = useMemo(() => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }), []);
+
+  const availableToAdd = useMemo(() => {
+    if (!context) return [];
+    const linked = new Set(context.establishments.map((item) => item.id));
+    return contexts.filter((item) => item.membershipRole === 'admin' && !linked.has(item.establishmentId));
+  }, [context, contexts]);
 
   const load = useCallback(async (preferredId?: string) => {
     setLoading(true);
@@ -119,13 +134,15 @@ export const OrganizationExperience = () => {
           setCheckoutNotice('Meio de pagamento confirmado. A mudança de cobertura ocorrerá somente na data agendada.');
           return;
         }
+        if (Date.now() < deadline) {
+          timer = setTimeout(() => { void verify(); }, 3000);
+        } else {
+          setCheckoutNotice('Sessão registrada. O processador pode levar alguns minutos para concluir a autorização.');
+        }
       } catch {
-        // A return URL is never a source of billing rights.
-      }
-      if (!cancelled && Date.now() < deadline) {
-        timer = setTimeout(() => { void verify(); }, 2_000);
-      } else if (!cancelled) {
-        setCheckoutNotice('A confirmação ainda está sendo processada. Use “Verificar novamente” antes de tentar outra assinatura.');
+        if (Date.now() < deadline) {
+          timer = setTimeout(() => { void verify(); }, 3000);
+        }
       }
     };
 
@@ -135,26 +152,6 @@ export const OrganizationExperience = () => {
       if (timer) clearTimeout(timer);
     };
   }, []);
-
-  const availableToAdd = useMemo(
-    () => contexts.filter((item) => !context?.establishments.some((unit) => unit.id === item.establishmentId)),
-    [context, contexts],
-  );
-  const isOwner = context?.role === 'owner';
-  const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: report?.units[0]?.currency ?? 'BRL' });
-  const billingCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-  const selectedBillingTotal = billingSelection.reduce((total, _id, index) => {
-    const position = index + 1;
-    const tier = [...(billing?.tiers ?? [])]
-      .reverse()
-      .find((item) => position >= item.unit_from && (item.unit_to == null || position <= item.unit_to));
-    return total + (tier?.unit_price_cents ?? 4990);
-  }, 0);
-  const requiresNetworkPlan = billingSelection.length >= 5
-    && billing?.subscription?.plan_code !== 'network';
-  const hasActiveConsolidatedCoverage = billing?.establishments.some(
-    (unit) => unit.coverage_scope === 'organization' && unit.coverage_status === 'active',
-  ) ?? false;
 
   const createOrganization = async () => {
     if (!activeEstablishmentId || name.trim().length < 2) {
@@ -212,13 +209,47 @@ export const OrganizationExperience = () => {
     if (!selectedId || !email.trim()) return;
     setSubmitting(true);
     try {
-      const invitation = await organizationService.inviteMember(selectedId, email.trim().toLowerCase(), inviteRole);
+      const invitation = await organizationService.inviteMemberV2(
+        selectedId,
+        email.trim().toLowerCase(),
+        inviteRole,
+        inviteRole === 'finance' ? 'all' : inviteScopeMode,
+        inviteRole === 'manager' && inviteScopeMode === 'selected' ? inviteEstablishments : undefined,
+      );
       const link = `${window.location.origin}/organization-invite/${invitation.invitation_token}`;
       setInviteLink(link);
       setEmail('');
+      setInviteEstablishments([]);
+      setInviteScopeMode('all');
       setNotice({ tone: 'success', message: 'Convite criado. O link expira em sete dias.' });
     } catch (cause) {
       setNotice({ tone: 'danger', message: cause instanceof Error ? cause.message : 'Não foi possível criar o convite.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startEditScope = (member: { profileId: string; scope_mode?: 'all' | 'selected'; scoped_establishment_ids?: string[] | null }) => {
+    setEditingScopeProfileId(member.profileId);
+    setEditScopeMode(member.scope_mode ?? 'all');
+    setEditScopeEstablishments(member.scoped_establishment_ids ?? []);
+  };
+
+  const saveMemberScope = async (profileId: string) => {
+    if (!selectedId) return;
+    setSubmitting(true);
+    try {
+      await organizationService.setMemberUnitScope(
+        selectedId,
+        profileId,
+        editScopeMode,
+        editScopeMode === 'selected' ? editScopeEstablishments : undefined,
+      );
+      setEditingScopeProfileId(null);
+      await load(selectedId);
+      setNotice({ tone: 'success', message: 'Escopo de unidades do membro atualizado e auditado.' });
+    } catch (cause) {
+      setNotice({ tone: 'danger', message: cause instanceof Error ? cause.message : 'Não foi possível alterar o escopo do membro.' });
     } finally {
       setSubmitting(false);
     }
@@ -282,6 +313,36 @@ export const OrganizationExperience = () => {
       return;
     }
     window.location.assign(target);
+  };
+
+  const billingCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const selectedBillingTotal = billingSelection.reduce((total, _id, index) => {
+    const position = index + 1;
+    const tier = [...(billing?.tiers ?? [])]
+      .reverse()
+      .find((item) => position >= item.unit_from && (item.unit_to == null || position <= item.unit_to));
+    return total + (tier?.unit_price_cents ?? 4990);
+  }, 0);
+  const requiresNetworkPlan = billingSelection.length >= 5
+    && billing?.subscription?.plan_code !== 'network';
+  const hasActiveConsolidatedCoverage = billing?.establishments.some(
+    (unit) => unit.coverage_scope === 'organization' && unit.coverage_status === 'active',
+  ) ?? false;
+
+  const toggleInviteEstablishment = (establishmentId: string) => {
+    setInviteEstablishments((prev) => (
+      prev.includes(establishmentId)
+        ? prev.filter((id) => id !== establishmentId)
+        : [...prev, establishmentId]
+    ));
+  };
+
+  const toggleEditEstablishment = (establishmentId: string) => {
+    setEditScopeEstablishments((prev) => (
+      prev.includes(establishmentId)
+        ? prev.filter((id) => id !== establishmentId)
+        : [...prev, establishmentId]
+    ));
   };
 
   return (
@@ -423,7 +484,7 @@ export const OrganizationExperience = () => {
 
             {report ? (
               <AppCard>
-                <View style={styles.headingRow}><View><Text style={styles.cardTitle}>Todas as unidades</Text><Text style={styles.muted}>Últimos 30 dias · produção de catálogo, não receita recebida</Text></View><AppButton label="Exportar CSV" variant="secondary" icon={<Download size={17} />} onPress={() => downloadCsv(report)} /></View>
+                <View style={styles.headingRow}><View><Text style={styles.cardTitle}>Visão consolidada</Text><Text style={styles.muted}>Últimos 30 dias · produção de catálogo, não receita recebida</Text></View><AppButton label="Exportar CSV" variant="secondary" icon={<Download size={17} />} onPress={() => downloadCsv(report)} /></View>
                 <View style={styles.metrics}>
                   <View style={styles.metric}><Text style={styles.metricValue}>{currency.format(report.production_realized)}</Text><Text style={styles.muted}>produção realizada</Text></View>
                   <View style={styles.metric}><Text style={styles.metricValue}>{currency.format(report.scheduled_value)}</Text><Text style={styles.muted}>valor agendado</Text></View>
@@ -438,25 +499,109 @@ export const OrganizationExperience = () => {
                 <Text style={styles.cardTitle}>Delegar gestão do grupo</Text>
                 <AppInput label="E-mail confirmado no CutSync" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
                 <View style={styles.rowWrap}>
-                  {(['manager', 'finance'] as const).map((role) => <Pressable key={role} onPress={() => setInviteRole(role)} style={[styles.choice, inviteRole === role && styles.choiceActive]}><Text style={styles.choiceText}>{role === 'manager' ? 'Gestor' : 'Financeiro'}</Text></Pressable>)}
+                  {(['manager', 'finance'] as const).map((role) => (
+                    <Pressable key={role} onPress={() => setInviteRole(role)} style={[styles.choice, inviteRole === role && styles.choiceActive]}>
+                      <Text style={styles.choiceText}>{role === 'manager' ? 'Gestor' : 'Financeiro'}</Text>
+                    </Pressable>
+                  ))}
                 </View>
+                {inviteRole === 'manager' ? (
+                  <View style={styles.section}>
+                    <Text style={styles.itemTitle}>Escopo de unidades</Text>
+                    <View style={styles.rowWrap}>
+                      <Pressable onPress={() => setInviteScopeMode('all')} style={[styles.choice, inviteScopeMode === 'all' && styles.choiceActive]}>
+                        <Text style={styles.choiceText}>Todas as unidades</Text>
+                      </Pressable>
+                      <Pressable onPress={() => setInviteScopeMode('selected')} style={[styles.choice, inviteScopeMode === 'selected' && styles.choiceActive]}>
+                        <Text style={styles.choiceText}>Unidades selecionadas</Text>
+                      </Pressable>
+                    </View>
+                    {inviteScopeMode === 'selected' ? (
+                      <View style={styles.rowWrap}>
+                        {context.establishments.map((est) => {
+                          const isSel = inviteEstablishments.includes(est.id);
+                          return (
+                            <Pressable key={est.id} onPress={() => toggleInviteEstablishment(est.id)} style={[styles.choice, isSel && styles.choiceActive]}>
+                              <Text style={styles.choiceText}>{isSel ? `✓ ${est.name}` : est.name}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
                 <AppButton label="Gerar convite" icon={<UserPlus size={17} />} onPress={() => { void invite(); }} loading={submitting} />
                 {inviteLink ? <AppInput label="Link do convite" value={inviteLink} editable={false} /> : null}
+
                 <View style={styles.section}>
                   <Text style={styles.itemTitle}>Membros corporativos</Text>
-                  {context.members.map((member) => (
-                    <View key={member.profileId} style={styles.memberItem}>
-                      <View style={styles.grow}><Text style={styles.itemTitle}>{member.name}</Text><Text style={styles.muted}>{member.role}</Text></View>
-                      {member.role !== 'owner' ? (
-                        <View style={styles.rowWrap}>
-                          <AppButton label="Gestor" size="sm" variant="secondary" onPress={() => { void changeMember(member.profileId, 'manager'); }} />
-                          <AppButton label="Financeiro" size="sm" variant="secondary" onPress={() => { void changeMember(member.profileId, 'finance'); }} />
-                          <AppButton label="Transferir propriedade" size="sm" variant="secondary" onPress={() => { void changeMember(member.profileId, 'owner'); }} />
-                          <AppButton label="Revogar" size="sm" variant="danger" onPress={() => { void changeMember(member.profileId, 'revoke'); }} />
+                  {context.members.map((member) => {
+                    const isEditingScope = editingScopeProfileId === member.profileId;
+                    const scopeLabel = member.role === 'owner'
+                      ? 'Proprietário · Todas as unidades'
+                      : member.role === 'finance'
+                        ? 'Financeiro · Todas as unidades'
+                        : member.scope_mode === 'selected'
+                          ? `Gestor · ${member.scoped_establishment_ids?.length ?? 0} unidade(s) selecionada(s)`
+                          : 'Gestor · Todas as unidades';
+
+                    return (
+                      <View key={member.profileId} style={styles.memberContainer}>
+                        <View style={styles.memberItem}>
+                          <View style={styles.grow}>
+                            <Text style={styles.itemTitle}>{member.name}</Text>
+                            <Text style={styles.muted}>{scopeLabel}</Text>
+                          </View>
+                          {member.role !== 'owner' ? (
+                            <View style={styles.rowWrap}>
+                              {member.role === 'manager' ? (
+                                <AppButton
+                                  label={isEditingScope ? 'Fechar' : 'Ajustar unidades'}
+                                  size="sm"
+                                  variant="secondary"
+                                  onPress={() => (isEditingScope ? setEditingScopeProfileId(null) : startEditScope(member))}
+                                />
+                              ) : null}
+                              <AppButton label="Gestor" size="sm" variant="secondary" onPress={() => { void changeMember(member.profileId, 'manager'); }} />
+                              <AppButton label="Financeiro" size="sm" variant="secondary" onPress={() => { void changeMember(member.profileId, 'finance'); }} />
+                              <AppButton label="Transferir propriedade" size="sm" variant="secondary" onPress={() => { void changeMember(member.profileId, 'owner'); }} />
+                              <AppButton label="Revogar" size="sm" variant="danger" onPress={() => { void changeMember(member.profileId, 'revoke'); }} />
+                            </View>
+                          ) : null}
                         </View>
-                      ) : null}
-                    </View>
-                  ))}
+
+                        {isEditingScope ? (
+                          <View style={styles.scopeEditor}>
+                            <Text style={styles.itemTitle}>Definir unidades visíveis para {member.name}</Text>
+                            <View style={styles.rowWrap}>
+                              <Pressable onPress={() => setEditScopeMode('all')} style={[styles.choice, editScopeMode === 'all' && styles.choiceActive]}>
+                                <Text style={styles.choiceText}>Todas as unidades</Text>
+                              </Pressable>
+                              <Pressable onPress={() => setEditScopeMode('selected')} style={[styles.choice, editScopeMode === 'selected' && styles.choiceActive]}>
+                                <Text style={styles.choiceText}>Unidades selecionadas</Text>
+                              </Pressable>
+                            </View>
+                            {editScopeMode === 'selected' ? (
+                              <View style={styles.rowWrap}>
+                                {context.establishments.map((est) => {
+                                  const isSel = editScopeEstablishments.includes(est.id);
+                                  return (
+                                    <Pressable key={est.id} onPress={() => toggleEditEstablishment(est.id)} style={[styles.choice, isSel && styles.choiceActive]}>
+                                      <Text style={styles.choiceText}>{isSel ? `✓ ${est.name}` : est.name}</Text>
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            ) : null}
+                            <View style={styles.rowWrap}>
+                              <AppButton label="Salvar escopo" size="sm" onPress={() => { void saveMemberScope(member.profileId); }} loading={submitting} />
+                              <AppButton label="Cancelar" size="sm" variant="secondary" onPress={() => setEditingScopeProfileId(null)} />
+                            </View>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
                 </View>
               </AppCard>
             ) : null}
@@ -489,7 +634,9 @@ const styles = StyleSheet.create({
   choiceText: { ...typeScale.bodyStrong, color: colors.text },
   list: { marginTop: 12 },
   listItem: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
-  memberItem: { minHeight: 70, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
+  memberContainer: { borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingVertical: 6 },
+  memberItem: { minHeight: 70, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+  scopeEditor: { marginTop: 8, padding: 12, borderRadius: radii.md, backgroundColor: colors.canvasSoft, gap: 8 },
   grow: { flex: 1 },
   section: { gap: 8, paddingTop: 16 },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },

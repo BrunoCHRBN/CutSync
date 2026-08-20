@@ -6,6 +6,7 @@ import type {
 import {
   appointmentIsLockedByServiceOrder,
   getAppointmentOrderActionLabel,
+  getAppointmentOrderUnavailableMessage,
   resolveAppointmentOrderPrimaryAction,
   type AppointmentOrderPrimaryAction,
 } from '@cutsync/domain';
@@ -37,12 +38,14 @@ export const resolveBusinessAppointmentOrderAction = ({
   serviceOrderStatus,
   appointmentProfessionalId,
   actorUserId,
+  appointmentStartsAt,
 }: {
   context: BusinessOperationalContext | null | undefined;
   appointmentStatus: string | null | undefined;
   serviceOrderStatus: ServiceOrderStatus | null | undefined;
   appointmentProfessionalId: string | null | undefined;
   actorUserId: string | null | undefined;
+  appointmentStartsAt?: string | null;
 }): AppointmentOrderPrimaryAction => resolveAppointmentOrderPrimaryAction({
   financialOpsEnabled: Boolean(context?.financialOpsEnabled),
   accessMode: context?.accessMode ?? 'blocked',
@@ -53,9 +56,39 @@ export const resolveBusinessAppointmentOrderAction = ({
   }),
   appointmentStatus,
   serviceOrderStatus,
+  appointmentStartsAt,
+  timeZone: context?.timezone,
 });
 
 export const getBusinessOrderActionLabel = getAppointmentOrderActionLabel;
+
+export const getBusinessOrderUnavailableMessage = ({
+  context,
+  appointmentStatus,
+  serviceOrderStatus,
+  appointmentProfessionalId,
+  actorUserId,
+  appointmentStartsAt,
+}: {
+  context: BusinessOperationalContext | null | undefined;
+  appointmentStatus: string | null | undefined;
+  serviceOrderStatus: ServiceOrderStatus | null | undefined;
+  appointmentProfessionalId: string | null | undefined;
+  actorUserId: string | null | undefined;
+  appointmentStartsAt?: string | null;
+}): string | null => getAppointmentOrderUnavailableMessage({
+  financialOpsEnabled: Boolean(context?.financialOpsEnabled),
+  accessMode: context?.accessMode ?? 'blocked',
+  canManageOrder: canManageAppointmentOrder({
+    context,
+    appointmentProfessionalId,
+    actorUserId,
+  }),
+  appointmentStatus,
+  serviceOrderStatus,
+  appointmentStartsAt,
+  timeZone: context?.timezone,
+});
 
 export const isAppointmentLockedByOrder = ({
   financialOpsEnabled,

@@ -1,5 +1,11 @@
 import { sharedBrand } from '@cutsync/brand';
-import { formatBookingDateLong, formatDisplayName, getBookingDateOptions } from '@cutsync/domain';
+import {
+  UX_COPY,
+  formatBookingDateLong,
+  formatDisplayName,
+  formatLocalDate,
+  getBookingDateOptions,
+} from '@cutsync/domain';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -35,6 +41,7 @@ import {
 import { ClientStickyFooter } from '@/components/ui/client-ui';
 import { performClientHaptic } from '@/features/experience/client-haptics';
 import { clientTheme } from '@/theme/client-theme';
+import { recordClientProductEvent } from '@/features/analytics/client-product-events';
 
 type BookingStep = 1 | 2 | 3 | 4;
 
@@ -71,6 +78,8 @@ export function ClientBookingScreen() {
   const isRescheduling = Boolean(appointmentId);
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
+  const bookingStartedRecorded = useRef(false);
+  const availabilityEmptyRecorded = useRef<string | null>(null);
   const [options, setOptions] = useState<ClientBookingOptions | null>(null);
   const [step, setStep] = useState<BookingStep>(1);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -206,6 +215,24 @@ export function ClientBookingScreen() {
     appointmentId: appointmentId ?? null,
   });
 
+  useEffect(() => {
+    if (!options || bookingStartedRecorded.current) return;
+    bookingStartedRecorded.current = true;
+    recordClientProductEvent({ name: 'booking_started', route: '/booking' });
+  }, [options]);
+
+  useEffect(() => {
+    if (availability.isLoading || availability.error || !selectedLocalDate || !selectedServiceId) return;
+    if (availability.slots.length > 0) {
+      availabilityEmptyRecorded.current = null;
+      return;
+    }
+    const key = `${selectedServiceId}:${selectedLocalDate}:${selectedProfessionalId || ''}`;
+    if (availabilityEmptyRecorded.current === key) return;
+    availabilityEmptyRecorded.current = key;
+    recordClientProductEvent({ name: 'availability_empty', route: '/booking' });
+  }, [availability.error, availability.isLoading, availability.slots.length, selectedLocalDate, selectedProfessionalId, selectedServiceId]);
+
   const moveTo = (nextStep: BookingStep) => {
     void performClientHaptic('selection');
     setStep(nextStep);
@@ -288,8 +315,10 @@ export function ClientBookingScreen() {
             startsAt: freshSlot.startsAt,
           });
       setBookingResult(result);
+      recordClientProductEvent({ name: 'booking_confirmed', route: '/booking' });
       void performClientHaptic('success');
     } catch (error) {
+      recordClientProductEvent({ name: 'booking_failed', route: '/booking' });
       void performClientHaptic('error');
       setBookingError(error instanceof Error ? error.message : 'Não foi possível concluir o agendamento.');
     } finally {
@@ -600,7 +629,69 @@ export function ClientBookingScreen() {
                   onAction={() => { void availability.refresh(); }}
                 />
               ) : availability.slots.length === 0 ? (
-                <Text testID="client-booking-availability-empty" style={styles.helperText}>{availability.emptyMessage}</Text>
+                <View testID="client-booking-availability-empty" style={styles.recoveryState}>
+                  <Text accessibilityRole="header" style={styles.recoveryTitle}>{UX_COPY.unavailableTitle}</Text>
+                  <Text accessibilityLiveRegion="polite" style={styles.recoveryDescription}>
+                    {availability.emptyMessage || UX_COPY.unavailableDescription}
+                  </Text>
+                  {availability.isRecoveryLoading ? (
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator color={sharedBrand.colors.forest} />
+                      <Text style={styles.recoveryDescription}>Buscando as próximas opções…</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.recoveryActions}>
+                      {availability.recovery?.nearbyDates.slice(0, 3).map((localDate, index) => (
+                        <Pressable
+                          key={localDate}
+                          testID={'client-booking-recovery-date-' + localDate}
+                          accessibilityRole="button"
+                          onPress={() => {
+                            recordClientProductEvent({ name: 'availability_recovery_selected', route: '/booking', properties: { recoveryStrategy: 'next_date' } });
+                            selectDate(localDate);
+                          }}
+                          style={({ pressed }) => [styles.recoveryPrimaryAction, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.recoveryPrimaryActionText}>
+                            {index === 0 ? 'Próximo horário · ' : ''}{formatLocalDate(localDate)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      {!isAnyProfessional && eligibleProfessionals.length > 1 && (
+                        <Pressable
+                          testID="client-booking-recovery-any-professional"
+                          accessibilityRole="button"
+                          onPress={() => {
+                            recordClientProductEvent({ name: 'availability_recovery_selected', route: '/booking', properties: { recoveryStrategy: 'any_professional' } });
+                            selectProfessional(ANY_PROFESSIONAL);
+                          }}
+                          style={({ pressed }) => [styles.recoverySecondaryAction, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.recoverySecondaryActionText}>Ver qualquer profissional nesta data</Text>
+                        </Pressable>
+                      )}
+                      <Pressable
+                        testID="client-booking-recovery-change-service"
+                        accessibilityRole="button"
+                        onPress={() => {
+                          recordClientProductEvent({ name: 'availability_recovery_selected', route: '/booking', properties: { recoveryStrategy: 'change_service' } });
+                          moveTo(1);
+                        }}
+                        style={({ pressed }) => [styles.recoverySecondaryAction, pressed && styles.pressed]}
+                      >
+                        <Text style={styles.recoverySecondaryActionText}>Escolher outro serviço</Text>
+                      </Pressable>
+                      <Pressable
+                        testID="client-booking-recovery-profile"
+                        accessibilityRole="button"
+                        onPress={() => router.back()}
+                        style={({ pressed }) => [styles.recoveryTertiaryAction, pressed && styles.pressed]}
+                      >
+                        <Text style={styles.recoveryTertiaryActionText}>Voltar ao perfil</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
               ) : (
                 <SlotGroups slots={availability.slots} selectedStartsAt={selectedSlot?.startsAt ?? null} onSelect={selectTime} />
               )}
@@ -770,7 +861,7 @@ const styles = StyleSheet.create({
   centeredContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28, gap: 22 },
   hero: { gap: 8 },
-  eyebrow: { color: sharedBrand.colors.forest, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  eyebrow: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { color: discoveryColors.text, fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 },
   description: { color: discoveryColors.secondary, fontSize: 13, lineHeight: 20 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -787,26 +878,36 @@ const styles = StyleSheet.create({
   choiceCardSelected: { borderColor: sharedBrand.colors.forest, backgroundColor: sharedBrand.colors.forestSoft },
   choiceCopy: { flex: 1, gap: 5 },
   choiceTitle: { color: discoveryColors.text, fontSize: 15, fontWeight: '700' },
-  choiceSubtitle: { color: discoveryColors.secondary, fontSize: 11, lineHeight: 16 },
+  choiceSubtitle: { color: discoveryColors.secondary, fontSize: 12, lineHeight: 16 },
   choiceValue: { color: sharedBrand.colors.forest, fontSize: 14, fontWeight: '900', fontVariant: ['tabular-nums'] },
   avatar: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#E7E1CE' },
   avatarFallback: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: sharedBrand.colors.forest },
   avatarInitials: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   offerMeta: { alignItems: 'flex-end', gap: 4 },
-  offerDuration: { color: discoveryColors.muted, fontSize: 10 },
+  offerDuration: { color: discoveryColors.muted, fontSize: 12 },
   dateList: { gap: 10, paddingRight: 8 },
   dateCard: { minWidth: 72, alignItems: 'center', gap: 3, borderWidth: 1, borderColor: discoveryColors.border, borderRadius: 20, borderCurve: 'continuous', backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 13 },
   dateCardSelected: { borderColor: sharedBrand.colors.forest, backgroundColor: sharedBrand.colors.forest },
-  dateWeekday: { color: discoveryColors.secondary, fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
+  dateWeekday: { color: discoveryColors.secondary, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
   dateDay: { color: discoveryColors.text, fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  dateMonth: { color: discoveryColors.muted, fontSize: 10, textTransform: 'capitalize' },
+  dateMonth: { color: discoveryColors.muted, fontSize: 12, textTransform: 'capitalize' },
   dateTextSelected: { color: '#FFFFFF' },
   availabilityCard: { minHeight: 110, gap: 16, backgroundColor: '#FFFFFF', borderRadius: 24, borderCurve: 'continuous', padding: 20, boxShadow: '0 8px 22px rgba(20, 27, 23, 0.05)' },
   loadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
   helperText: { color: discoveryColors.secondary, fontSize: 12, lineHeight: 19, textAlign: 'center', paddingVertical: 12 },
+  recoveryState: { gap: 10, alignItems: 'stretch' },
+  recoveryTitle: { color: discoveryColors.text, fontSize: 18, lineHeight: 24, fontWeight: '800', textAlign: 'center' },
+  recoveryDescription: { color: discoveryColors.secondary, fontSize: 13, lineHeight: 20, textAlign: 'center' },
+  recoveryActions: { gap: 9, paddingTop: 4 },
+  recoveryPrimaryAction: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: sharedBrand.colors.forest, paddingHorizontal: 18 },
+  recoveryPrimaryActionText: { color: '#FFFFFF', fontSize: 13, lineHeight: 18, fontWeight: '800', textAlign: 'center' },
+  recoverySecondaryAction: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CBDCC6', borderRadius: 999, backgroundColor: sharedBrand.colors.forestSoft, paddingHorizontal: 18 },
+  recoverySecondaryActionText: { color: sharedBrand.colors.forest, fontSize: 13, lineHeight: 18, fontWeight: '800', textAlign: 'center' },
+  recoveryTertiaryAction: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingHorizontal: 18 },
+  recoveryTertiaryActionText: { color: discoveryColors.secondary, fontSize: 13, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
   slotGroups: { gap: 20 },
   slotGroup: { gap: 10 },
-  slotGroupLabel: { color: discoveryColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  slotGroupLabel: { color: discoveryColors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   slotButton: { minWidth: 76, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CBDCC6', borderRadius: 999, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forestSoft, paddingHorizontal: 14 },
   slotButtonSelected: { borderColor: sharedBrand.colors.forest, backgroundColor: sharedBrand.colors.forest },
@@ -815,10 +916,10 @@ const styles = StyleSheet.create({
   summaryCard: { gap: 0, backgroundColor: '#FFFFFF', borderRadius: 26, borderCurve: 'continuous', paddingHorizontal: 20, boxShadow: '0 10px 26px rgba(20, 27, 23, 0.05)' },
   summaryRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13 },
   summaryCopy: { flex: 1, gap: 4 },
-  summaryLabel: { color: discoveryColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  summaryLabel: { color: discoveryColors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   summaryValue: { color: discoveryColors.text, fontSize: 13, lineHeight: 19 },
   summaryValueStrong: { color: sharedBrand.colors.forest, fontSize: 17, fontWeight: '900' },
-  summaryAction: { color: sharedBrand.colors.forest, fontSize: 11, fontWeight: '900' },
+  summaryAction: { color: sharedBrand.colors.forest, fontSize: 12, fontWeight: '900' },
   divider: { height: 1, backgroundColor: discoveryColors.border },
   statusNotice: { gap: 5, borderWidth: 1, borderColor: '#CBDCC6', borderRadius: 20, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forestSoft, padding: 16 },
   statusNoticeTitle: { color: sharedBrand.colors.forest, fontSize: 13, fontWeight: '900' },
@@ -826,7 +927,7 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderCurve: 'continuous', backgroundColor: sharedBrand.colors.forest, paddingHorizontal: 20 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.3 },
   errorText: { color: '#9A3D34', fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  safetyText: { color: discoveryColors.muted, fontSize: 10, lineHeight: 16, textAlign: 'center' },
+  safetyText: { color: discoveryColors.muted, fontSize: 12, lineHeight: 16, textAlign: 'center' },
   footerSummary: { color: discoveryColors.secondary, fontSize: 12, fontWeight: '700' },
   disabled: { opacity: 0.48 },
   pressed: { opacity: 0.65 },
@@ -835,5 +936,5 @@ const styles = StyleSheet.create({
   successMarkText: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', letterSpacing: 1 },
   successCopy: { gap: 10 },
   successTitle: { color: discoveryColors.text, fontSize: 36, lineHeight: 42, fontWeight: '800', letterSpacing: -1 },
-  protocol: { color: discoveryColors.muted, fontSize: 10, lineHeight: 16, textAlign: 'center' },
+  protocol: { color: discoveryColors.muted, fontSize: 12, lineHeight: 16, textAlign: 'center' },
 });

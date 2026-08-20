@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   brandCaption: {
     color: '#829087',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.1,
     marginTop: 2,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: '#C7E36F',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.4,
   },

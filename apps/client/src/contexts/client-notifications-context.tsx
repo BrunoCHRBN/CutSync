@@ -10,6 +10,7 @@ import {
   registerRotatedClientPushToken,
   syncClientPushNotifications,
 } from '@/features/notifications/client-push-service';
+import { recordClientProductEvent } from '@/features/analytics/client-product-events';
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -39,6 +40,7 @@ export function ClientNotificationsProvider({ children }: PropsWithChildren) {
     if (!route) return;
 
     handledResponseId.current = notificationId;
+    recordClientProductEvent({ name: 'notification_opened', route: route.pathname });
     Notifications.clearLastNotificationResponse();
     router.push(route as unknown as Href);
   }, [router]);

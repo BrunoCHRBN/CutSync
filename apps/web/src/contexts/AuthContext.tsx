@@ -6,8 +6,18 @@ import { supabase } from '../services/supabase';
 
 interface Profile {
   id: string;
+  /**
+   * @deprecated Legacy last-visited establishment hint only.
+   * Authority for operational context is user_app_active_contexts and memberships.
+   */
   establishment_id: string | null;
   name: string;
+  /**
+   * @deprecated Legacy compatibility projection only.
+   * NEVER use for authorization, routing, surfaces, or capability checks.
+   * Authority for operational role is memberships.role_template.
+   * Authority for surface and permissions is business capabilities (via resolveWebOperationalSurface / hasCapability).
+   */
   role: 'client' | 'professional' | 'admin';
   email: string;
   phone: string | null;

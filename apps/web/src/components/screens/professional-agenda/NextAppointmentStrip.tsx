@@ -5,14 +5,14 @@ import { AppButton } from '../../ui/AppButton';
 import { AppointmentRecord } from '@cutsync/database';
 
 interface NextAppointmentStripProps {
-  appointment: AppointmentRecord | null;
+  appointments: AppointmentRecord[];
   loading?: boolean;
-  onConfirm?: () => void;
-  onDetails?: () => void;
+  onConfirm?: (appointment: AppointmentRecord) => void;
+  onDetails?: (appointment: AppointmentRecord) => void;
 }
 
 export const NextAppointmentStrip = ({
-  appointment,
+  appointments,
   loading = false,
   onConfirm,
   onDetails,
@@ -25,7 +25,7 @@ export const NextAppointmentStrip = ({
     );
   }
 
-  if (!appointment) {
+  if (!appointments.length) {
     return (
       <View style={styles.strip} testID="next-appointment-strip-empty">
         <Text style={styles.muted}>Nenhum próximo atendimento na fila.</Text>
@@ -33,31 +33,48 @@ export const NextAppointmentStrip = ({
     );
   }
 
-  const time = appointment.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const client = appointment.client?.name || appointment.clientName || 'Cliente';
-  const service = appointment.service?.name || 'Serviço';
-
   return (
-    <View style={styles.strip} testID="next-appointment-strip">
-      <View style={styles.copy}>
-        <Text style={styles.label}>PRÓXIMO</Text>
-        <Text style={styles.title} numberOfLines={1}>
-          {time} · {client} · {service}
-        </Text>
-      </View>
-      <View style={styles.actions}>
-        {appointment.status === 'pending' && onConfirm ? (
-          <AppButton label="Confirmar" onPress={onConfirm} testID="next-appointment-confirm" />
-        ) : null}
-        {onDetails ? (
-          <AppButton label="Detalhes" onPress={onDetails} testID="next-appointment-details" variant="secondary" />
-        ) : null}
-      </View>
+    <View style={styles.group} testID="next-appointment-strip">
+      <Text style={styles.groupLabel}>PRÓXIMOS ATENDIMENTOS</Text>
+      {appointments.slice(0, 2).map((appointment, index) => {
+        const time = appointment.dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const client = appointment.client?.name || appointment.clientName || 'Cliente';
+        const service = appointment.service?.name || 'Serviço';
+        return (
+          <View key={appointment.id} style={styles.strip} testID={`next-appointment-${index + 1}`}>
+            <View style={styles.copy}>
+              <Text style={styles.label}>{index === 0 ? 'AGORA' : 'DEPOIS'}</Text>
+              <Text style={styles.title} numberOfLines={1}>
+                {time} · {client} · {service}
+              </Text>
+            </View>
+            <View style={styles.actions}>
+              {appointment.allowedActions?.includes('confirm') && onConfirm ? (
+                <AppButton
+                  label="Confirmar"
+                  onPress={() => onConfirm(appointment)}
+                  testID={`next-appointment-${index + 1}-confirm`}
+                />
+              ) : null}
+              {onDetails ? (
+                <AppButton
+                  label="Detalhes"
+                  onPress={() => onDetails(appointment)}
+                  testID={`next-appointment-${index + 1}-details`}
+                  variant="secondary"
+                />
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  group: { gap: spacing.xs, marginBottom: spacing.md },
+  groupLabel: { ...typeScale.label, color: colors.textSecondary, letterSpacing: 1.1 },
   strip: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -68,7 +85,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...elevations.panel,

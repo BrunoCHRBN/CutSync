@@ -11,6 +11,7 @@ import {
 import { useBusinessOperational } from '@/contexts/business-operational-context';
 import { hasBusinessManagementNavigation } from '@/features/access/business-access';
 import { businessTheme } from '@/theme/business-theme';
+import { businessExperienceFlags } from '@/config/experience-flags';
 
 export function BusinessManagementScreen() {
   const router = useRouter();
@@ -46,10 +47,18 @@ export function BusinessManagementScreen() {
       enabled: false,
     },
     {
-      name: 'Configurações',
-      description: 'Preferências essenciais da unidade ativa.',
-      route: null,
-      enabled: false,
+      name: 'Identidade da unidade',
+      description: 'Marca, herança da organização, prévia, rascunho e publicação controlada.',
+      route: '/(app)/brand-studio' as const,
+      enabled: businessExperienceFlags.brand_studio_v2
+        && hasCapability('manage_operational_settings')
+        && !readOnly,
+    },
+    {
+      name: 'Meios de pagamento',
+      description: 'Dinheiro, PIX externo e maquininha usados na comanda.',
+      route: '/(app)/payment-methods' as const,
+      enabled: hasCapability('view_payments'),
     },
   ] as const;
 

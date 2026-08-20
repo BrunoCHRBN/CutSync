@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.brandPrimary,
     fontFamily: typography.bodyStrong,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.5,
   },
   title: {
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   badgeWarning: { backgroundColor: colors.warningSoft },
   badgeSuccess: { backgroundColor: colors.successSoft },
   badgeDanger: { backgroundColor: colors.dangerSoft },
-  badgeText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 10 },
+  badgeText: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   ticket: {
     minHeight: 104,
     flexDirection: 'row',
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   ticketHovered: { borderColor: colors.brandSecondary },
   ticketMain: { flex: 1, minWidth: 0 },
   ticketMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  protocol: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  protocol: { color: colors.brandPrimary, fontFamily: typography.bodyStrong, fontSize: 12 },
   ticketSubject: {
     color: colors.text,
     fontFamily: typography.bodyStrong,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   ticketMeta: {
     color: colors.textMuted,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 6,
   },
   choice: {
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   choiceDescription: {
     color: colors.textMuted,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
   },

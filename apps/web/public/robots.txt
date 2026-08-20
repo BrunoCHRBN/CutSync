@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /appointments
+Disallow: /booking
+Disallow: /governance
+Disallow: /invite
+Disallow: /organization-invite
+Disallow: /professional
+Disallow: /restricted
+Disallow: /security
+Disallow: /superadmin
+
+Sitemap: https://cutsync.io/sitemap.xml

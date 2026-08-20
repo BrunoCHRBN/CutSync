@@ -174,11 +174,11 @@ const styles = StyleSheet.create({
   navItemActive: { backgroundColor: clientTheme.navPillActive },
   navLabel: { color: 'rgba(255,255,255,0.78)', fontFamily: typography.bodyStrong, fontSize: 12 },
   navLabelActive: { color: clientTheme.navTextActive },
-  shortcutHint: { color: 'rgba(255,255,255,0.42)', fontSize: 11, fontFamily: typography.body },
-  shortcutHintActive: { color: 'rgba(44,67,52,0.55)', fontSize: 11, fontFamily: typography.bodyStrong },
+  shortcutHint: { color: 'rgba(255,255,255,0.42)', fontSize: 12, fontFamily: typography.body },
+  shortcutHintActive: { color: 'rgba(44,67,52,0.55)', fontSize: 12, fontFamily: typography.bodyStrong },
   headerSpacer: { flex: 1 },
   identity: { flex: 1, alignItems: 'flex-end', minWidth: 0 },
-  identityLabel: { color: 'rgba(255,255,255,0.5)', fontFamily: typography.bodyStrong, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.2 },
+  identityLabel: { color: 'rgba(255,255,255,0.5)', fontFamily: typography.bodyStrong, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 },
   identityName: { color: '#FFFFFF', fontFamily: typography.bodyStrong, fontSize: 12, marginTop: 2 },
   iconButton: {
     width: 42,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   bottomItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, minHeight: 52 },
   bottomIconPill: { width: 48, height: 28, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
   bottomIconPillActive: { backgroundColor: clientTheme.accentSoft },
-  bottomLabel: { color: '#8A8A85', fontFamily: typography.bodyStrong, fontSize: 10.5, letterSpacing: 0.2 },
+  bottomLabel: { color: '#8A8A85', fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 0.2 },
   bottomLabelActive: { color: clientTheme.accent },
   pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
 });

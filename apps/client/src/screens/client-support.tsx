@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   listCount: {
     minWidth: 25,
     color: clientTheme.colors.white,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
     textAlign: 'center',

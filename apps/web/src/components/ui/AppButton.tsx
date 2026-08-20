@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     backgroundColor: 'rgba(255,255,255,0.14)',
     fontFamily: typography.bodyStrong,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: 'center',
     opacity: 0.82,
   },

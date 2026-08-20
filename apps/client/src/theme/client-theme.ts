@@ -1,4 +1,4 @@
-import { sharedBrand } from '@cutsync/brand';
+import { designSystem, sharedBrand } from '@cutsync/brand';
 
 export type ClientThemeTokens = typeof clientTheme;
 export type ClientMotionPreference = 'full' | 'reduced';
@@ -26,15 +26,7 @@ export const clientTheme = {
     white: '#FFFFFF',
   },
   spacing: {
-    xxs: 4,
-    xs: 8,
-    sm: 12,
-    md: 16,
-    lg: 20,
-    xl: 24,
-    xxl: 32,
-    hero: 40,
-    page: 48,
+    ...designSystem.spacing,
   },
   radii: {
     sm: 12,
@@ -79,8 +71,8 @@ export const clientTheme = {
       fontWeight: '500' as const,
     },
     eyebrow: {
-      fontSize: 10,
-      lineHeight: 14,
+      fontSize: designSystem.typography.minimumFunctionalSize,
+      lineHeight: designSystem.typography.caption.lineHeight,
       fontWeight: '900' as const,
       letterSpacing: 1.5,
       textTransform: 'uppercase' as const,
@@ -92,19 +84,17 @@ export const clientTheme = {
     floating: '0 12px 34px rgba(20, 27, 23, 0.16)',
   },
   motion: {
-    fast: 180,
-    standard: 240,
-    emphasized: 300,
+    fast: designSystem.motion.fast,
+    standard: designSystem.motion.standard,
+    emphasized: designSystem.motion.emphasized,
     stagger: 48,
   },
   opacity: {
-    pressed: 0.72,
-    disabled: 0.45,
-    loading: 0.62,
+    ...designSystem.opacity,
   },
   sizing: {
     control: 54,
-    touchTarget: 48,
+    touchTarget: designSystem.sizing.minimumTouchTarget,
     contentMaxWidth: 620,
   },
 } as const;

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   description: {
     color: colors.textMuted,
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 17,
     textAlign: 'center',
     maxWidth: 390,

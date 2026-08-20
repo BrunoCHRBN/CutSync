@@ -135,31 +135,48 @@ BEGIN
         END IF;
       WHEN 'admin' THEN
         IF NOT ('manage_team' = ANY(capabilities))
+          OR NOT ('approve_sensitive_actions' = ANY(capabilities))
+          OR NOT ('view_team_orders' = ANY(capabilities))
+          OR NOT ('void_orders' = ANY(capabilities))
           OR 'manage_admins' = ANY(capabilities)
         THEN RAISE EXCEPTION 'admin capabilities invalid: %', capabilities;
         END IF;
       WHEN 'professional' THEN
         IF NOT ('view_own_agenda' = ANY(capabilities))
+          OR NOT ('view_orders' = ANY(capabilities))
           OR 'view_team_agenda' = ANY(capabilities)
+          OR 'view_team_orders' = ANY(capabilities)
         THEN RAISE EXCEPTION 'professional capabilities invalid: %', capabilities;
         END IF;
       WHEN 'reception' THEN
         IF NOT ('manage_clients' = ANY(capabilities))
+          OR NOT ('view_team_orders' = ANY(capabilities))
+          OR 'void_orders' = ANY(capabilities)
           OR 'take_payments' = ANY(capabilities)
         THEN RAISE EXCEPTION 'reception capabilities invalid: %', capabilities;
         END IF;
       WHEN 'cashier' THEN
         IF NOT ('take_payments' = ANY(capabilities))
+          OR NOT ('view_team_orders' = ANY(capabilities))
+          OR 'manage_team_orders' = ANY(capabilities)
+          OR 'void_orders' = ANY(capabilities)
           OR 'manage_services' = ANY(capabilities)
         THEN RAISE EXCEPTION 'cashier capabilities invalid: %', capabilities;
         END IF;
       WHEN 'finance' THEN
         IF NOT ('view_financial_reports' = ANY(capabilities))
+          OR NOT ('view_orders' = ANY(capabilities))
+          OR NOT ('view_payments' = ANY(capabilities))
+          OR NOT ('view_cash' = ANY(capabilities))
+          OR 'view_team_orders' = ANY(capabilities)
           OR 'take_payments' = ANY(capabilities)
         THEN RAISE EXCEPTION 'finance capabilities invalid: %', capabilities;
         END IF;
       WHEN 'manager' THEN
         IF NOT ('manage_services' = ANY(capabilities))
+          OR NOT ('approve_sensitive_actions' = ANY(capabilities))
+          OR NOT ('view_team_orders' = ANY(capabilities))
+          OR NOT ('void_orders' = ANY(capabilities))
           OR 'manage_payment_provider' = ANY(capabilities)
         THEN RAISE EXCEPTION 'manager capabilities invalid: %', capabilities;
         END IF;

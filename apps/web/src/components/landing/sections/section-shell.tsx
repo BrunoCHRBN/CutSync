@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: landingColors.brand,
     fontFamily: landingTypography.bodySemiBold,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 2.2,
     textTransform: 'uppercase',
   },

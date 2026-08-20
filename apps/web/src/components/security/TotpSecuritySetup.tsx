@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   existingFactor: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 18 },
   enrollment: { alignItems: 'center', gap: 8 },
   qrCode: { backgroundColor: '#fff', height: 180, width: 180 },
-  secretLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 11 },
+  secretLabel: { color: colors.textSecondary, fontFamily: typography.bodyStrong, fontSize: 12 },
   secret: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, letterSpacing: 1 },
-  recovery: { color: colors.warning, fontFamily: typography.body, fontSize: 11, lineHeight: 16, textAlign: 'center' },
+  recovery: { color: colors.warning, fontFamily: typography.body, fontSize: 12, lineHeight: 16, textAlign: 'center' },
 });

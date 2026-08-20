@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.successSoft,
   },
-  privacyBadgeText: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 11 },
+  privacyBadgeText: { color: colors.success, fontFamily: typography.bodyStrong, fontSize: 12 },
   scroll: { width: '100%', maxWidth: layout.contentMax, alignSelf: 'center', padding: 22, paddingBottom: 80 },
 });
 

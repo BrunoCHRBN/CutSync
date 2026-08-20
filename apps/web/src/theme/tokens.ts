@@ -72,7 +72,7 @@ export const typeScale = {
   bodyStrong: { fontFamily: typography.bodyStrong, fontSize: 14, lineHeight: 21 },
   small: { fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
   smallStrong: { fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 17 },
-  label: { fontFamily: typography.bodyStrong, fontSize: 11, lineHeight: 14, letterSpacing: 0.3 },
+  label: { fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 14, letterSpacing: 0.3 },
   metric: { fontFamily: typography.display, fontSize: 30, lineHeight: 34, letterSpacing: -1, fontVariant: ['tabular-nums'] as const },
 };
 

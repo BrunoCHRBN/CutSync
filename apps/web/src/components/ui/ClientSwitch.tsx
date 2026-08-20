@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   copy: { flex: 1 },
   label: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13 },
-  description: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11, marginTop: 3 },
+  description: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12, marginTop: 3 },
   track: { width: 48, height: 28, borderRadius: radii.pill, backgroundColor: colors.borderStrong, padding: 3 },
   trackActive: { backgroundColor: colors.brandPrimary },
   thumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.white },

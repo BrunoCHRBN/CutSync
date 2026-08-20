@@ -36,6 +36,7 @@ export interface ProfessionalProfileContentProps {
   theme?: EstablishmentTheme;
   showPrivacyNote?: boolean;
   testIDPrefix?: string;
+  contextLabel?: string;
 }
 
 export const ProfessionalProfileContent: React.FC<ProfessionalProfileContentProps> = ({
@@ -46,6 +47,7 @@ export const ProfessionalProfileContent: React.FC<ProfessionalProfileContentProp
   theme,
   showPrivacyNote = false,
   testIDPrefix = 'public-professional-profile',
+  contextLabel,
 }) => {
   const { width } = useWindowDimensions();
   const isWide = width >= 860;
@@ -90,7 +92,7 @@ export const ProfessionalProfileContent: React.FC<ProfessionalProfileContentProp
 
         <View style={styles.heroCopy}>
           <Text testID={`${testIDPrefix}-eyebrow`} style={[styles.eyebrow, theme && accentText(theme)]}>
-            PROFISSIONAL INDEPENDENTE
+            {(contextLabel || 'PROFISSIONAL INDEPENDENTE').toUpperCase()}
           </Text>
           <Text testID={`${testIDPrefix}-name`} style={styles.name}>
             {profile.name}
@@ -259,14 +261,14 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   heroCopy: { flex: 1, maxWidth: 620 },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 2.2 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 2.2 },
   name: { color: colors.text, fontFamily: typography.display, fontSize: 46, lineHeight: 50, letterSpacing: -2, marginTop: 14 },
   title: { color: colors.textSecondary, fontFamily: typography.serif, fontSize: 21, marginTop: 10 },
   specialties: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 13, lineHeight: 20, marginTop: 24 },
   bio: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 15, lineHeight: 25, marginTop: 20 },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 28 },
   section: { gap: 16 },
-  sectionTitle: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8 },
+  sectionTitle: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.8 },
   servicesList: { gap: 12 },
   serviceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   serviceName: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 14 },
@@ -274,7 +276,7 @@ const styles = StyleSheet.create({
   servicePrice: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 14 },
   gallerySection: { gap: 24 },
   galleryHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  galleryEyebrow: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.8 },
+  galleryEyebrow: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.8 },
   galleryTitle: { color: colors.text, fontFamily: typography.display, fontSize: 28, letterSpacing: -1, marginTop: 5 },
   galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   galleryItem: {
@@ -297,7 +299,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'rgba(10,10,10,0.72)',
   },
-  galleryCaptionText: { color: colors.white, fontFamily: typography.bodyStrong, fontSize: 11, lineHeight: 16 },
+  galleryCaptionText: { color: colors.white, fontFamily: typography.bodyStrong, fontSize: 12, lineHeight: 16 },
   ctaWrap: { paddingTop: 16 },
   ctaButton: { minHeight: 52, borderRadius: radii.pill },
   privacyNote: {

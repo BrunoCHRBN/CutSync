@@ -28,6 +28,8 @@ DECLARE
   blocked_appointment_id text := gen_random_uuid()::text;
   target_service_id text := gen_random_uuid()::text;
   appointment_starts_at timestamptz;
+  blocked_appointment_starts_at timestamptz;
+  blocked_due_at timestamptz;
   appointment_updated_at timestamptz;
   blocked_appointment_updated_at timestamptz;
   local_date date := current_date + 2;
@@ -50,6 +52,10 @@ BEGIN
   appointment_starts_at := (
     local_date::timestamp + time '12:00'
   ) AT TIME ZONE 'America/Sao_Paulo';
+  blocked_appointment_starts_at := (
+    (now() AT TIME ZONE 'America/Sao_Paulo')::date + time '23:59:59.999999'
+  ) AT TIME ZONE 'America/Sao_Paulo';
+  blocked_due_at := now() + ((blocked_appointment_starts_at - now()) / 2);
   schedule_json := jsonb_build_array(jsonb_build_object(
     'day', local_day,
     'isOpen', true,
@@ -117,8 +123,8 @@ BEGIN
     date_time, ends_at, duration_minutes, status, price_charged
   ) VALUES (
     blocked_appointment_id, unit_id, customer_id, professional_id,
-    target_service_id, appointment_starts_at + interval '1 day',
-    appointment_starts_at + interval '1 day 30 minutes', 30, 'confirmed', 50
+    target_service_id, blocked_appointment_starts_at,
+    blocked_appointment_starts_at + interval '30 minutes', 30, 'confirmed', 50
   ) RETURNING updated_at INTO blocked_appointment_updated_at;
   INSERT INTO public.service_orders(
     establishment_id, appointment_id, professional_id,
@@ -134,7 +140,7 @@ BEGIN
       blocked_appointment_id,
       'professional_absence',
       'professional',
-      appointment_starts_at + interval '23 hours',
+      blocked_due_at,
       blocked_appointment_updated_at,
       gen_random_uuid(),
       gen_random_uuid()

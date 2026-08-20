@@ -27,5 +27,5 @@ export const EstablishmentMedia = ({ name, uri, color, category, style, testID }
 const styles = StyleSheet.create({
   fallback: { alignItems: 'center', justifyContent: 'center', gap: 7, overflow: 'hidden' },
   initials: { fontFamily: typography.display, fontSize: 34, letterSpacing: -1 },
-  category: { fontFamily: typography.bodyStrong, fontSize: 11, opacity: 0.82, textTransform: 'uppercase', letterSpacing: 1.1 },
+  category: { fontFamily: typography.bodyStrong, fontSize: 12, opacity: 0.82, textTransform: 'uppercase', letterSpacing: 1.1 },
 });

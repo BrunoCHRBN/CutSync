@@ -22,16 +22,21 @@ export interface Organization {
   status: 'active' | 'archived';
 }
 
+export type OrganizationScopeMode = 'all' | 'selected';
+
 export interface OrganizationMembership {
   profileId: string;
   name: string;
   role: OrganizationRole;
+  scope_mode?: OrganizationScopeMode;
+  scoped_establishment_ids?: string[] | null;
   status: 'active' | 'revoked';
 }
 
 export interface OrganizationContext {
   organization: Organization;
   role: OrganizationRole;
+  scope_mode?: OrganizationScopeMode;
   establishments: Array<{
     id: string;
     name: string;
@@ -294,6 +299,8 @@ export interface AppointmentRecord {
   originalDateTime?: Date | null;
   transferredFromProfessionalId?: string | null;
   transferReason?: string | null;
+  /** Actions computed by a server read model for the current actor and state. */
+  allowedActions?: readonly string[];
   client?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   professional?: Pick<ProfileRecord, 'id' | 'name' | 'phone'> | null;
   service?: Pick<ServiceRecord, 'id' | 'name' | 'price' | 'durationMinutes'> | null;

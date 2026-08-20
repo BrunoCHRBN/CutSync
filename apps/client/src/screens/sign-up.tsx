@@ -133,6 +133,6 @@ const styles = StyleSheet.create({
   rule: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ruleDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#C9C2B4' },
   ruleDotMet: { backgroundColor: '#3E7252' },
-  ruleText: { color: '#817A6C', fontSize: 11 },
+  ruleText: { color: '#817A6C', fontSize: 12 },
   ruleTextMet: { color: '#3E7252', fontWeight: '700' },
 });

@@ -11,8 +11,8 @@ test('operational selection no longer mutates the legacy profile', () => {
 
   expect(shell).toContain('selectEstablishment(targetShopId)');
   expect(shell).not.toContain('switch_active_establishment');
-  expect(context).toContain("rpc('get_my_operational_contexts')");
-  expect(context).toContain('contexts.length > 1 && !activeContext');
+  expect(context).toContain("get_my_authorized_contexts");
+  expect(context).toContain('activeEstablishmentId');
 });
 
 test('organization management exposes explicit tenant identifiers', () => {

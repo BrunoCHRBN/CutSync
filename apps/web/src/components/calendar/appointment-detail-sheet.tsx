@@ -7,6 +7,7 @@ import { colors, elevations, layout, radii, spacing, typeScale } from '../../the
 import { CalendarAppointment } from './operational-calendar';
 import { AppButton } from '../ui/AppButton';
 import { StatusBadge } from '../ui/StatusBadge';
+import { ServiceOrderPaymentPanel } from '../payments/ServiceOrderPaymentPanel';
 
 interface AppointmentDetailSheetProps {
   appointment: CalendarAppointment | null;
@@ -23,9 +24,16 @@ interface AppointmentDetailSheetProps {
   onServiceOrderRetry?: () => void;
   financialOpsEnabled?: boolean;
   orderActionLabel?: string | null;
+  orderActionUnavailableMessage?: string | null;
   orderActionLoading?: boolean;
   onOrderAction?: () => void;
   appointmentLockedByOrder?: boolean;
+  establishmentId?: string | null;
+  canViewPayments?: boolean;
+  canTakePayments?: boolean;
+  canVoidPayments?: boolean;
+  onPaymentChanged?: () => Promise<void> | void;
+  onClosePaidOrder?: () => Promise<boolean> | boolean | void;
   onClose: () => void;
   onReschedule?: (appointment: CalendarAppointment) => void;
   onCancel?: (appointment: CalendarAppointment) => void;
@@ -69,9 +77,16 @@ export const AppointmentDetailSheet = ({
   onServiceOrderRetry,
   financialOpsEnabled = false,
   orderActionLabel = null,
+  orderActionUnavailableMessage = null,
   orderActionLoading = false,
   onOrderAction,
   appointmentLockedByOrder = false,
+  establishmentId,
+  canViewPayments = false,
+  canTakePayments = false,
+  canVoidPayments = false,
+  onPaymentChanged,
+  onClosePaidOrder,
   onClose,
   onReschedule,
   onCancel,
@@ -252,9 +267,21 @@ export const AppointmentDetailSheet = ({
                     </Text>
                   </View>
                   {serviceOrder.status === 'awaiting_payment' ? (
-                    <Text style={styles.awaitingPaymentNotice} testID="appointment-detail-awaiting-payment-notice">
-                      {AWAITING_PAYMENT_NOTICE}
-                    </Text>
+                    <>
+                      <Text style={styles.awaitingPaymentNotice} testID="appointment-detail-awaiting-payment-notice">
+                        {AWAITING_PAYMENT_NOTICE}
+                      </Text>
+                      <ServiceOrderPaymentPanel
+                        establishmentId={establishmentId}
+                        serviceOrder={serviceOrder}
+                        canView={canViewPayments}
+                        canTake={canTakePayments}
+                        canVoid={canVoidPayments}
+                        onChanged={onPaymentChanged}
+                        onCloseOrder={onClosePaidOrder}
+                        closing={orderActionLoading}
+                      />
+                    </>
                   ) : null}
                 </View>
               )}
@@ -280,6 +307,14 @@ export const AppointmentDetailSheet = ({
                 testID="appointment-detail-order-action"
               />
             ) : null}
+            {!orderActionHandler && orderActionUnavailableMessage ? (
+              <Text
+                style={styles.orderActionUnavailable}
+                testID="appointment-detail-order-unavailable-reason"
+              >
+                {orderActionUnavailableMessage}
+              </Text>
+            ) : null}
             {cancelHandler ? <AppButton label="Cancelar atendimento" onPress={() => cancelHandler(appointment)} testID="appointment-detail-cancel" variant="danger" /> : null}
           </View>
         </Pressable>
@@ -293,6 +328,10 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.surface, gap: spacing.xl, padding: spacing.xl, ...elevations.overlay },
   desktopSheet: { alignSelf: 'flex-end', borderBottomLeftRadius: radii.lg, borderTopLeftRadius: radii.lg, height: '100%', maxWidth: 440, width: '100%' },
   mobileSheet: { borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, maxHeight: '86%', paddingBottom: spacing.huge },
+  orderActionUnavailable: {
+    ...typeScale.smallStrong,
+    color: colors.warning,
+  },
   header: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   headerCopy: { flex: 1, gap: spacing.xs },
   eyebrow: { ...typeScale.label, color: colors.brandPrimary, letterSpacing: 1.2 },

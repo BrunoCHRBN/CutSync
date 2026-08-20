@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: settingsColors.muted,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1.4,
     paddingTop: 6,
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   inputReadOnly: { color: settingsColors.muted, backgroundColor: '#F3EFE4' },
-  helper: { color: settingsColors.muted, fontSize: 11, lineHeight: 16 },
+  helper: { color: settingsColors.muted, fontSize: 12, lineHeight: 16 },
   button: {
     minHeight: clientTheme.sizing.control,
     alignItems: 'center',

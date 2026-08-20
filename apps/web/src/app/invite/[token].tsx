@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   shell: { width: '100%', maxWidth: 480, alignSelf: 'center', gap: 28 },
   card: { padding: 28 },
   securityMark: { width: 48, height: 48, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successSoft, borderWidth: 1, borderColor: `${colors.success}33` },
-  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 2, marginTop: 24 },
+  eyebrow: { color: colors.brand, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 2, marginTop: 24 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 30, lineHeight: 36, marginTop: 8 },
   description: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 22, marginTop: 12 },
   loader: { marginVertical: 36 },

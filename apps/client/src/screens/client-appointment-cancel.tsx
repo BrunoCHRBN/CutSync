@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: appointmentColors.background },
   content: { width: '100%', maxWidth: 580, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 22, paddingBottom: 42, gap: 17 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: appointmentColors.background, padding: 20 },
-  eyebrow: { color: appointmentColors.cancelled, fontSize: 10, fontWeight: '800', letterSpacing: 1.35 },
+  eyebrow: { color: appointmentColors.cancelled, fontSize: 12, fontWeight: '800', letterSpacing: 1.35 },
   title: { color: appointmentColors.text, fontSize: 30, lineHeight: 35, fontWeight: '700', letterSpacing: -0.7 },
   description: { color: appointmentColors.secondary, fontSize: 14, lineHeight: 21 },
   reasonList: { gap: 9 },

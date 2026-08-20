@@ -136,7 +136,7 @@ export const ReportChart = ({ data, mode, testID, onSelectDay, selectedDate, pre
 const styles = StyleSheet.create({
   container: { width: '100%', minHeight: HEIGHT, overflow: 'hidden' },
   labels: { position: 'absolute', left: LEFT, right: RIGHT, bottom: 5, flexDirection: 'row', justifyContent: 'space-between' },
-  label: { color: colors.textMuted, fontFamily: typography.body, fontSize: 11 },
+  label: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   empty: { minHeight: HEIGHT, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: colors.canvasSoft },
   emptyText: { color: colors.textMuted, fontFamily: typography.body, fontSize: 12 },
   hitArea: { left: LEFT, right: RIGHT, top: TOP, bottom: BOTTOM },

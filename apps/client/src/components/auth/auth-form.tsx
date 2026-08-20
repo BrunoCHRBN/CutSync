@@ -236,5 +236,5 @@ const styles = StyleSheet.create({
   noticeTextDanger: { color: '#8E2F26' },
   noticeTextSuccess: { color: '#2D633A' },
   noticeTextNeutral: { color: '#6A5620' },
-  securityNote: { color: clientTheme.colors.inkMuted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  securityNote: { color: clientTheme.colors.inkMuted, fontSize: 12, lineHeight: 17, textAlign: 'center' },
 });

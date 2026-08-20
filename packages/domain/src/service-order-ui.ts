@@ -23,16 +23,47 @@ export type AppointmentUiStatus =
   | 'completed'
   | 'no_show';
 
+const localDateKey = (value: Date, timeZone: string): string => new Intl.DateTimeFormat(
+  'en-CA',
+  { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' },
+).format(value);
+
+export const appointmentIsOperationalToday = (input: {
+  appointmentStartsAt: Date | string | null | undefined;
+  timeZone: string | null | undefined;
+  now?: Date;
+}): boolean => {
+  if (!input.appointmentStartsAt || !input.timeZone) return false;
+  const startsAt = input.appointmentStartsAt instanceof Date
+    ? input.appointmentStartsAt
+    : new Date(input.appointmentStartsAt);
+  if (!Number.isFinite(startsAt.getTime())) return false;
+  try {
+    return localDateKey(startsAt, input.timeZone)
+      <= localDateKey(input.now ?? new Date(), input.timeZone);
+  } catch {
+    return false;
+  }
+};
+
 export const resolveAppointmentOrderPrimaryAction = (input: {
   financialOpsEnabled: boolean;
   accessMode: 'full' | 'read_only' | 'blocked' | string;
   canManageOrder: boolean;
   appointmentStatus: AppointmentUiStatus | string | null | undefined;
   serviceOrderStatus: ServiceOrderUiStatus | string | null | undefined;
+  appointmentStartsAt?: Date | string | null;
+  timeZone?: string | null;
+  now?: Date;
 }): AppointmentOrderPrimaryAction => {
   if (!input.financialOpsEnabled) return 'none';
   if (input.accessMode !== 'full') return 'none';
   if (!input.canManageOrder) return 'none';
+  if (input.appointmentStartsAt && !appointmentIsOperationalToday({
+    appointmentStartsAt: input.appointmentStartsAt,
+    timeZone: input.timeZone,
+    now: input.now,
+  })) return 'none';
 
   if (!input.serviceOrderStatus) {
     if (input.appointmentStatus === 'confirmed') return 'open_order';
@@ -42,6 +73,39 @@ export const resolveAppointmentOrderPrimaryAction = (input: {
   if (input.serviceOrderStatus === 'open') return 'start_order';
   if (input.serviceOrderStatus === 'in_service') return 'finish_order';
   return 'none';
+};
+
+export const getAppointmentOrderUnavailableMessage = (input: {
+  financialOpsEnabled: boolean;
+  accessMode: 'full' | 'read_only' | 'blocked' | string;
+  canManageOrder: boolean;
+  appointmentStatus: AppointmentUiStatus | string | null | undefined;
+  serviceOrderStatus: ServiceOrderUiStatus | string | null | undefined;
+  appointmentStartsAt?: Date | string | null;
+  timeZone?: string | null;
+  now?: Date;
+}): string | null => {
+  if (!input.financialOpsEnabled) return null;
+  if (input.accessMode !== 'full') {
+    return 'A comanda está disponível apenas em um contexto operacional com escrita liberada.';
+  }
+  if (!input.canManageOrder) {
+    return 'Seu acesso permite consultar este atendimento, mas não operar a comanda.';
+  }
+  if (input.appointmentStartsAt && !input.timeZone) {
+    return 'Aguarde a sincronização do fuso horário da unidade para operar a comanda.';
+  }
+  if (input.appointmentStartsAt && !appointmentIsOperationalToday({
+    appointmentStartsAt: input.appointmentStartsAt,
+    timeZone: input.timeZone,
+    now: input.now,
+  })) {
+    return 'O check-in será liberado no dia do atendimento, conforme o fuso horário da unidade.';
+  }
+  if (!input.serviceOrderStatus && input.appointmentStatus !== 'confirmed') {
+    return 'Confirme o agendamento antes de fazer o check-in.';
+  }
+  return null;
 };
 
 export const appointmentIsLockedByServiceOrder = (input: {
@@ -87,4 +151,4 @@ export const getAppointmentOrderActionLabel = (
 
 /** Copy for awaiting_payment — never imply payment settled. */
 export const AWAITING_PAYMENT_NOTICE =
-  'Atendimento finalizado. A resolução do pagamento será habilitada em uma próxima etapa.';
+  'Atendimento finalizado. Registre os recebimentos separadamente e feche a comanda somente após saldo zero.';

@@ -25,7 +25,7 @@ interface BillingOverview {
     covered_establishment_ids: string[];
     pending_change_at: string | null;
   };
-  subscription: { status?: string };
+  subscription: { status?: string; enforcement_enabled?: boolean };
   invoices: {
     id: string; number: string | null; status: string; total_cents: number; currency: string;
     paid_at: string | null; fiscal_status: string | null; fiscal_number: string | null;
@@ -70,6 +70,7 @@ export function BillingExperience() {
     );
   const canSubscribe = ['none', 'trialing', 'expired'].includes(access?.billing_status ?? 'none');
   const canManage = ['active', 'past_due', 'cancelled', 'canceled'].includes(access?.billing_status ?? '');
+  const billingEnforcementEnabled = overview?.subscription.enforcement_enabled === true;
 
   const load = useCallback(async () => {
     if (!activeEstablishmentId || !canViewBilling) {
@@ -182,10 +183,11 @@ export function BillingExperience() {
                 <Text style={styles.body}>Próxima alteração de cobertura: {date(access.pending_change_at)}</Text>
               </View>
               <View style={styles.actions}>
-                {access.billing_owner && canSubscribe ? <AppButton label="Assinar agora" loading={action === 'checkout'} onPress={() => void open('create-stripe-checkout')} /> : null}
+                {access.billing_owner && canSubscribe && billingEnforcementEnabled ? <AppButton label="Assinar agora" loading={action === 'checkout'} onPress={() => void open('create-stripe-checkout')} /> : null}
                 {access.billing_owner && canManage ? <AppButton label="Administrar assinatura" variant="secondary" loading={action === 'portal'} onPress={() => void open('create-stripe-portal')} /> : null}
                 <AppButton label="Verificar novamente" variant="ghost" leadingIcon={<RefreshCw size={16} />} onPress={() => void refresh().then(() => load())} />
               </View>
+              {!billingEnforcementEnabled ? <Text style={styles.body}>Beta gratuita/cortesia ativa. Nenhuma assinatura é exigida neste momento.</Text> : null}
             </AppCard>
             <View style={styles.copy}>
               <Text style={styles.section}>Faturas e NFS-e</Text>
@@ -211,7 +213,7 @@ export function BillingExperience() {
 
 const styles = StyleSheet.create({
   content: { padding: 28, gap: 20, maxWidth: 920, width: '100%', alignSelf: 'center' },
-  eyebrow: { color: colors.accent, fontFamily: typography.bodyStrong, fontSize: 11, letterSpacing: 1.4 },
+  eyebrow: { color: colors.accent, fontFamily: typography.bodyStrong, fontSize: 12, letterSpacing: 1.4 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 31, marginTop: 7 },
   body: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 14, lineHeight: 21, marginTop: 6 },
   cardTitle: { color: colors.text, fontFamily: typography.bodyStrong, fontSize: 16 },
