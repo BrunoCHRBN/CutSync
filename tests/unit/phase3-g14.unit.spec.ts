@@ -251,8 +251,16 @@ test('outbox da solicitação preserva requestId no reinício e falha fechada', 
     process.cwd(),
     'apps/business/src/features/decisions/business-reassignment-request-outbox.ts',
   ), 'utf8');
+  const screen = fs.readFileSync(path.join(
+    process.cwd(), 'apps/business/src/screens/appointment-operation.tsx',
+  ), 'utf8');
   expect(outbox).toContain('requestId: entry.requestId');
   expect(outbox).toContain("entry.status === 'manual_review'");
+  expect(outbox).toContain('const manualReview = entries.find');
+  expect(outbox).toContain('if (manualReview) return manualReview');
+  expect(outbox).toContain('.filter((candidate) => (');
+  expect(outbox).toContain('for (const entry of entries)');
+  expect(screen).toContain("if (entry.status === 'manual_review')");
   expect(outbox).toContain("error.code === 'network_error'");
   expect(outbox).toContain("'offline_pending'");
   expect(outbox).toContain('replayLocks.get(key)');
@@ -317,6 +325,9 @@ test('workflow separa evidência CI da homologação física assistida', () => {
   expect(evidence).toContain('aprovação física das alterações móveis');
   expect(evidence).toContain('**Decisão:** Gate G14 aprovado');
   expect(evidence).toContain('cold start, background e foreground');
+  expect(evidence).toContain('Retenção e eliminação controlada dos eventos de atribuição');
+  expect(evidence).toContain('%LOCALAPPDATA%\\CutSync\\backups\\phase3-20260809-174054');
+  expect(evidence).not.toContain('C:\\Users\\PICHAU');
 });
 
 test('Business expõe diagnóstico de contexto somente com códigos sanitizados', () => {
@@ -398,6 +409,12 @@ test('harness G14 não promove sessão Android atual como deep links executados'
   expect(harness).toContain('ephemeral-client-login-passed');
   expect(harness).toContain('restoreAndroidAutofillAfterHarness');
   expect(harness).toContain('ANDROID_EPHEMERAL_SESSION_CLEANUP=PASS');
+  expect(harness).toContain('runCleanupSteps');
+  expect(harness).toContain('if (validationFailure) throw validationFailure');
+  expect(harness).toContain('if (!primaryFailure && cleanupFailures.length > 0)');
+  expect(harness).toContain('reassignmentFlagsUnchanged');
+  expect(harness).not.toContain('reassignmentFlagsRestoredOff');
+  expect(harness).not.toContain('SET appointment_reassignment_enabled = false');
 });
 
 test('deep link Business aguarda sessão e contexto antes de negar capability', () => {

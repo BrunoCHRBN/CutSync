@@ -61,6 +61,14 @@ test('modo ausência mantém contenção e cria solicitações sem prometer tran
   expect(appointmentActions).not.toContain('Atendimento transferido');
   expect(absenceWizard).toContain("type ItemDecision = 'request_reassignment' | 'cancel' | 'keep'");
   expect(absenceWizard).toContain("decision === 'request_reassignment'");
+  expect(absenceWizard).toContain(
+    "decision !== 'request_reassignment' || Boolean(item.appointment.updatedAt)",
+  );
+  expect(appointmentActions).toContain('report.results = report.results ?? []');
+  expect(appointmentActions).toContain('getReassignmentRequestIntentKey(requestIntentInput)');
+  expect(appointmentActions).toContain('dueAt: getReassignmentDueAt(appointment.startsAt)');
+  expect(appointmentActions).toContain('...intent');
+  expect(appointmentActions).not.toContain('requestIntentsRef.current.get(input.appointmentId)');
   expect(absenceWizard).not.toContain("'Transferir'");
   expect(agendaScreen).toContain('canTransfer={canRequestSelectedReassignment}');
   expect(agendaScreen).toContain('<TransferProfessionalModal');

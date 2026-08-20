@@ -36,6 +36,7 @@ export const getReassignmentDeadline = (
   const preferredDeadline = startsAtMs - 60 * MINUTE_MS;
   const earliestDeadline = nowMs + 5 * MINUTE_MS;
   const latestDeadline = startsAtMs - MINUTE_MS;
+  if (earliestDeadline > latestDeadline) return null;
   return new Date(Math.min(latestDeadline, Math.max(earliestDeadline, preferredDeadline))).toISOString();
 };
 

@@ -222,6 +222,7 @@ test('solicitação de reatribuição respeita capability, acesso, estado e praz
   expect(resolveReassignmentResponsibility('cashier')).toBeNull();
   expect(getReassignmentDeadline(startsAt, nowMs)).toBe('2026-08-10T13:00:00.000Z');
   expect(getReassignmentDeadline('2026-08-10T12:01:00.000Z', nowMs)).toBeNull();
+  expect(getReassignmentDeadline('2026-08-10T12:04:00.000Z', nowMs)).toBeNull();
   expect(canRequestAppointmentReassignment({
     status: 'confirmed',
     startsAt,

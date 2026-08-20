@@ -57,6 +57,12 @@ export const enqueueBusinessReassignmentRequest = async (input: Omit<
   'version' | 'status' | 'attempts' | 'createdAt' | 'updatedAt' | 'lastError'
 >) => withStorageLock(input.userId, async () => {
   const entries = await readUnlocked(input.userId);
+  const manualReview = entries.find((entry) => (
+    entry.establishmentId === input.establishmentId
+    && entry.appointmentId === input.appointmentId
+    && entry.status === 'manual_review'
+  ));
+  if (manualReview) return manualReview;
   const existing = entries.find((entry) => (
     entry.establishmentId === input.establishmentId
     && entry.appointmentId === input.appointmentId
@@ -126,34 +132,51 @@ const replayUnlocked = async (
   establishmentId: string,
   appointmentId: string,
 ): Promise<BusinessReassignmentRequestReplayResult> => {
-  const entry = (await withStorageLock(userId, () => readUnlocked(userId)))
-    .find((candidate) => (
+  const entries = (await withStorageLock(userId, () => readUnlocked(userId)))
+    .filter((candidate) => (
       candidate.establishmentId === establishmentId
       && candidate.appointmentId === appointmentId
     ));
-  if (!entry) return { confirmedReceipt: null, status: 'none' };
-  if (entry.status === 'manual_review') return { confirmedReceipt: null, status: 'manual_review' };
-  try {
-    const receipt = await executeBusinessReassignmentRequest(entry);
-    await removeBusinessReassignmentRequest(userId, entry.requestId);
-    return { confirmedReceipt: receipt, status: 'server_confirmed' };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao reenviar solicitação.';
-    if (error instanceof BusinessApiError && error.code === 'network_error') {
-      await markBusinessReassignmentRequest(
-        userId, entry.requestId, 'offline_pending', entry.attempts + 1, message,
-      );
-      return { confirmedReceipt: null, status: 'offline_pending' };
+  if (entries.length === 0) return { confirmedReceipt: null, status: 'none' };
+
+  let confirmedReceipt: AppointmentReassignmentMutationReceipt | null = null;
+  const statuses = new Set<BusinessReassignmentRequestReplayResult['status']>();
+  for (const entry of entries) {
+    if (entry.status === 'manual_review') {
+      statuses.add('manual_review');
+      continue;
     }
-    if (isConflict(error)) {
+    try {
+      const receipt = await executeBusinessReassignmentRequest(entry);
       await removeBusinessReassignmentRequest(userId, entry.requestId);
-      return { confirmedReceipt: null, status: 'conflict' };
+      confirmedReceipt ??= receipt;
+      statuses.add('server_confirmed');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao reenviar solicitação.';
+      if (error instanceof BusinessApiError && error.code === 'network_error') {
+        await markBusinessReassignmentRequest(
+          userId, entry.requestId, 'offline_pending', entry.attempts + 1, message,
+        );
+        statuses.add('offline_pending');
+        continue;
+      }
+      if (isConflict(error)) {
+        await removeBusinessReassignmentRequest(userId, entry.requestId);
+        statuses.add('conflict');
+        continue;
+      }
+      await markBusinessReassignmentRequest(
+        userId, entry.requestId, 'manual_review', entry.attempts + 1, message,
+      );
+      statuses.add('manual_review');
     }
-    await markBusinessReassignmentRequest(
-      userId, entry.requestId, 'manual_review', entry.attempts + 1, message,
-    );
-    return { confirmedReceipt: null, status: 'manual_review' };
   }
+
+  if (confirmedReceipt) return { confirmedReceipt, status: 'server_confirmed' };
+  if (statuses.has('manual_review')) return { confirmedReceipt: null, status: 'manual_review' };
+  if (statuses.has('offline_pending')) return { confirmedReceipt: null, status: 'offline_pending' };
+  if (statuses.has('conflict')) return { confirmedReceipt: null, status: 'conflict' };
+  return { confirmedReceipt: null, status: 'none' };
 };
 
 export const replayBusinessReassignmentRequest = (

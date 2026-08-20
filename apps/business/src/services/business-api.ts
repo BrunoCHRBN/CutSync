@@ -380,34 +380,36 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
   }
   const text = remoteErrorText(error);
 
-  if (text.includes('idempotency_key_reused')) {
-    return new BusinessApiError('decision_idempotency_conflict');
+  if (operation === 'decisions') {
+    if (text.includes('idempotency_key_reused')) {
+      return new BusinessApiError('decision_idempotency_conflict');
+    }
+    if (
+      text.includes('reassignment_version_conflict')
+      || text.includes('appointment_version_conflict')
+      || text.includes('appointment_assignment_projection_mismatch')
+      || text.includes('reassignment_proposal_changed')
+    ) return new BusinessApiError('decision_conflict');
+    if (
+      text.includes('appointment_reassignment_disabled')
+    ) return new BusinessApiError('decision_disabled');
+    if (
+      text.includes('reassignment_not_validatable')
+      || text.includes('reassignment_not_proposable')
+      || text.includes('reassignment_not_ready_to_apply')
+      || text.includes('reassignment_not_withdrawable')
+      || text.includes('appointment_reassignment_expired')
+      || text.includes('appointment_not_reassignable')
+      || text.includes('appointment_reassignment_already_active')
+      || text.includes('appointment_reassignment_after_order_open')
+    ) return new BusinessApiError('decision_invalid_transition');
+    if (
+      text.includes('replacement_professional_not_linked')
+      || text.includes('replacement_professional_not_qualified')
+      || text.includes('replacement_professional_unavailable')
+      || text.includes('replacement_must_change_professional')
+    ) return new BusinessApiError('decision_candidate_unavailable');
   }
-  if (
-    text.includes('reassignment_version_conflict')
-    || text.includes('appointment_version_conflict')
-    || text.includes('appointment_assignment_projection_mismatch')
-    || text.includes('reassignment_proposal_changed')
-  ) return new BusinessApiError('decision_conflict');
-  if (
-    text.includes('appointment_reassignment_disabled')
-  ) return new BusinessApiError('decision_disabled');
-  if (
-    text.includes('reassignment_not_validatable')
-    || text.includes('reassignment_not_proposable')
-    || text.includes('reassignment_not_ready_to_apply')
-    || text.includes('reassignment_not_withdrawable')
-    || text.includes('appointment_reassignment_expired')
-    || text.includes('appointment_not_reassignable')
-    || text.includes('appointment_reassignment_already_active')
-    || text.includes('appointment_reassignment_after_order_open')
-  ) return new BusinessApiError('decision_invalid_transition');
-  if (
-    text.includes('replacement_professional_not_linked')
-    || text.includes('replacement_professional_not_qualified')
-    || text.includes('replacement_professional_unavailable')
-    || text.includes('replacement_must_change_professional')
-  ) return new BusinessApiError('decision_candidate_unavailable');
 
   if (text.includes('financial_ops_disabled')) {
     return new BusinessApiError('financial_ops_disabled');
