@@ -1,3 +1,4 @@
+// Gerado pelo Supabase CLI. Atualize com: yarn types:supabase
 export type Json =
   | string
   | number
@@ -7,30 +8,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -7572,6 +7553,7 @@ export type Database = {
         Returns: boolean
       }
       can_read_control_live: { Args: never; Returns: boolean }
+      can_upload_professional_gallery_image: { Args: never; Returns: boolean }
       can_use_establishment_feature: {
         Args: { target_establishment_id: string; target_feature: string }
         Returns: boolean
@@ -7594,6 +7576,10 @@ export type Database = {
       can_view_profile: {
         Args: { target_profile_id: string }
         Returns: boolean
+      }
+      cancel_appointment: {
+        Args: { reason: string; target_appointment_id: string }
+        Returns: undefined
       }
       cancel_business_appointment: {
         Args: {
@@ -7708,6 +7694,10 @@ export type Database = {
       compare_mobile_semver: {
         Args: { left_version: string; right_version: string }
         Returns: number
+      }
+      complete_appointment: {
+        Args: { target_appointment_id: string }
+        Returns: undefined
       }
       complete_business_appointment: {
         Args: {
@@ -7858,6 +7848,10 @@ export type Database = {
           target_role: string
         }
         Returns: Json
+      }
+      confirm_appointment: {
+        Args: { target_appointment_id: string }
+        Returns: undefined
       }
       confirm_business_appointment: {
         Args: {
@@ -9148,6 +9142,14 @@ export type Database = {
           invitation_token: string
         }[]
       }
+      is_active_establishment_professional: {
+        Args: { target_establishment_id: string; target_profile_id: string }
+        Returns: boolean
+      }
+      is_active_establishment_service: {
+        Args: { target_establishment_id: string; target_service_id: string }
+        Returns: boolean
+      }
       is_business_administrator: {
         Args: { require_full_access?: boolean; target_establishment_id: string }
         Returns: boolean
@@ -9671,6 +9673,7 @@ export type Database = {
           requirements: Json
         }[]
       }
+      pull_changes: { Args: { last_pulled_at: number }; Returns: Json }
       purge_expired_support_content: {
         Args: { target_limit?: number; target_now?: string }
         Returns: number
@@ -9679,6 +9682,7 @@ export type Database = {
         Args: { target_profile_id: string }
         Returns: number
       }
+      push_changes: { Args: { changes: Json }; Returns: undefined }
       queue_due_client_appointment_reminders: {
         Args: { target_now?: string }
         Returns: number
@@ -10750,9 +10754,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       governance_role_enum: ["SaaS_Viewer", "SaaS_Editor", "SaaS_Owner"],
@@ -10760,4 +10761,3 @@ export const Constants = {
     },
   },
 } as const
-

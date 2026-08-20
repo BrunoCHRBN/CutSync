@@ -59,13 +59,25 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.set_actor('77000000-0000-0000-0000-000000000001');
 
 DO $$
-DECLARE readiness jsonb; public_experience jsonb;
+DECLARE readiness jsonb; public_experience jsonb; publication_status text;
 BEGIN
   readiness := public.get_publication_readiness('77000000-0000-0000-0000-000000000010');
   IF readiness->>'eligible' <> 'true' THEN RAISE EXCEPTION 'FAIL: optional address blocked publication: %', readiness; END IF;
   IF NOT (readiness->'recommendations' ? 'add_logo') THEN RAISE EXCEPTION 'FAIL: completeness recommendation missing'; END IF;
 
-  PERFORM public.publish_establishment_discovery('77000000-0000-0000-0000-000000000010');
+  SELECT publication.discovery_status
+  INTO publication_status
+  FROM public.publish_establishment_discovery(
+    '77000000-0000-0000-0000-000000000010'
+  ) AS publication;
+  IF publication_status <> 'published'
+    OR NOT EXISTS (
+      SELECT 1
+      FROM public.establishments AS establishment
+      WHERE establishment.id = '77000000-0000-0000-0000-000000000010'
+        AND establishment.discovery_status = 'published'
+    )
+  THEN RAISE EXCEPTION 'FAIL: publication status was not persisted'; END IF;
   public_experience := public.get_public_establishment_experience('atelie-read-model');
   IF public_experience#>>'{establishment,name}' <> 'Ateliê Read Model'
     OR jsonb_array_length(public_experience->'services') <> 1

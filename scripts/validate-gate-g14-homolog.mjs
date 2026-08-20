@@ -1129,11 +1129,14 @@ try {
     );
     assert(contexts.length === 1, `${name}: expected one operational context`);
     const context = contexts[0];
-    assert(context.operational_role === expected.role, `${name}: role projection mismatch`);
+    assert(
+      context.operational_role === expected.role,
+      `${name}: role projection mismatch; operational_role=${context.operational_role}; membership_role=${context.membership_role}`,
+    );
     assert(context.access_mode === "full", `${name}: expected full beta access`);
     assert(
       context.capabilities.includes("request_appointment_reassignment") === expected.request,
-      `${name}: request capability mismatch`,
+      `${name}: request capability mismatch; capabilities=${JSON.stringify(context.capabilities)}`,
     );
     assert(
       context.capabilities.includes("apply_appointment_reassignment") === expected.apply,
@@ -1236,6 +1239,15 @@ try {
     "forbidden",
   );
 
+  // The technical Expo token is intentionally non-deliverable. Immediate
+  // dispatch may disable it after the informational validation push, so
+  // re-register the same fixture device before validating the actionable push.
+  requireData(await actors.get("customer").client.rpc("register_push_device", {
+    target_app_kind: "client",
+    target_platform: "android",
+    target_expo_push_token: pushToken,
+  }), "re-enable technical push device");
+
   const proposalArgs = {
     target_reassignment_request_id: requested.reassignmentRequestId,
     target_proposed_professional_id: actors.get("replacement").id,
@@ -1302,11 +1314,16 @@ try {
   const deliveries = requireData(await admin.from("client_push_deliveries")
     .select("event_type,status,payload")
     .eq("appointment_id", appointmentId), "read technical push queue");
-  assert(deliveries.length === 1, "reassignment push was not enqueued exactly once");
+  const decisionDeliveries = deliveries.filter(
+    (delivery) => delivery.event_type === "appointment_reassignment_decision_required",
+  );
   assert(
-    deliveries[0].event_type === "appointment_reassignment_decision_required"
-      && deliveries[0].payload.correlationId === correlationId,
-    "push payload correlation mismatch",
+    decisionDeliveries.length === 1,
+    `reassignment decision push was not enqueued exactly once; deliveries=${JSON.stringify(deliveries)}`,
+  );
+  assert(
+    decisionDeliveries[0].payload.correlationId === correlationId,
+    `push payload correlation mismatch; payload=${JSON.stringify(decisionDeliveries[0].payload)}`,
   );
 
   const decided = requireData(

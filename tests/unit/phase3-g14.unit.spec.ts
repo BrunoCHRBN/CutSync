@@ -160,7 +160,8 @@ test('Business persiste antes da RPC e serializa replay por usuário e unidade',
   expect(screen).toContain('mesmo requestId no replay');
   expect(screen).toContain('testID="business-refresh-reassignment-candidates"');
   expect(screen).toContain('onPress={() => void candidates.refetch()}');
-  expect(screen).toContain('serviço ativo e horário de trabalho compatível');
+  expect(screen).toContain('Confirme o serviço ativo e a agenda de cada profissional');
+  expect(screen).toContain('livre exatamente no horário');
   expect(screen).not.toContain('Alteração concluída com sucesso');
 });
 
