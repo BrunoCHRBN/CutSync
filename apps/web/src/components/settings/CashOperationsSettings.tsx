@@ -35,18 +35,35 @@ export function CashOperationsSettings() {
   const [declared, setDeclared] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'warning' | 'danger'; message: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const pending = useRef<{ fingerprint: string; requestId: string } | null>(null);
+  const loadEpoch = useRef(0);
   const canView = financialOps.hasCapability('view_cash');
   const canOperate = financialOps.hasCapability('operate_cash') && financialOps.accessMode === 'full';
   const canClose = financialOps.hasCapability('close_cash') && financialOps.accessMode === 'full';
   const canReopen = financialOps.hasCapability('reopen_cash') && financialOps.accessMode === 'full';
 
   const load = useCallback(async () => {
-    if (!activeEstablishmentId || !financialOps.financialOpsEnabled || !canView) { setSnapshot(null); return; }
-    setBusy('load'); setNotice(null);
-    try { setSnapshot(await api.getSnapshot(activeEstablishmentId)); }
-    catch { setNotice({ tone: 'danger', message: 'Não foi possível carregar o caixa desta unidade.' }); }
-    finally { setBusy(null); }
+    const epoch = ++loadEpoch.current;
+    if (!activeEstablishmentId || !financialOps.financialOpsEnabled || !canView) {
+      setSnapshot(null);
+      setLoadError(null);
+      setBusy((current) => current === 'load' ? null : current);
+      return;
+    }
+    setSnapshot(null);
+    setBusy('load');
+    setLoadError(null);
+    try {
+      const nextSnapshot = await api.getSnapshot(activeEstablishmentId);
+      if (epoch === loadEpoch.current) setSnapshot(nextSnapshot);
+    } catch {
+      if (epoch === loadEpoch.current) {
+        setLoadError('Não foi possível carregar o caixa desta unidade.');
+      }
+    } finally {
+      if (epoch === loadEpoch.current) setBusy(null);
+    }
   }, [activeEstablishmentId, api, canView, financialOps.financialOpsEnabled]);
 
   useEffect(() => { void load(); }, [load]);
@@ -82,6 +99,10 @@ export function CashOperationsSettings() {
       {!financialOps.financialOpsEnabled ? <InlineNotice tone="warning" message="As operações financeiras ainda não estão habilitadas nesta unidade." />
         : !canView ? <InlineNotice tone="danger" message="Seu contexto não possui permissão para consultar o caixa." />
           : busy === 'load' ? <InlineNotice tone="info" message="Carregando posição confirmada pelo servidor…" /> : null}
+      {loadError ? <View style={styles.loadError}>
+        <InlineNotice tone="danger" message={loadError} />
+        <AppButton label="Tentar novamente" variant="secondary" disabled={busy !== null} onPress={() => void load()} />
+      </View> : null}
       {notice ? <InlineNotice tone={notice.tone} message={notice.message} /> : null}
       {snapshot ? <View style={styles.summary}>
         <View><Text style={styles.label}>CAIXA</Text><Text style={styles.value}>{snapshot.cashRegisterName}</Text></View>
@@ -122,6 +143,7 @@ export function CashOperationsSettings() {
 const styles = StyleSheet.create({
   summary: { flexDirection: 'row', flexWrap: 'wrap', gap: 24, padding: 16, borderRadius: radii.lg, backgroundColor: colors.canvasSoft },
   card: { gap: 14, padding: 16, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.canvasSoft },
+  loadError: { gap: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   label: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 11 },
   title: { color: colors.text, fontFamily: typography.display, fontSize: 15 },

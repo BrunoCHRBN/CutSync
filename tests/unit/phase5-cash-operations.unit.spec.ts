@@ -81,12 +81,30 @@ test('cash API rejects decimal cents before invoking backend', async () => {
     .rejects.toMatchObject({ code: 'invalid_request' });
 });
 
+test('cash API rejects movement reasons outside the server 3..500 boundary', async () => {
+  const api = createCashOperationsApi({ rpc: async () => { throw new Error('must not run'); } } as never);
+  const base = { establishmentId: ids.establishment, cashSessionId: ids.session,
+    movementType: 'cash_in' as const, amountCents: 500, expectedVersion: 2, requestId: ids.request };
+  await expect(api.recordMovement({ ...base, reason: 'x'.repeat(501) }))
+    .rejects.toMatchObject({ code: 'invalid_request' });
+  await expect(api.recordMovement({ ...base, reason: '  x  ' }))
+    .rejects.toMatchObject({ code: 'invalid_request' });
+});
+
 test('maps signed variance and translates cash conflicts', () => {
   expect(mapCashCommandReceipt({ cashSessionId: ids.session, status: 'closed', version: 3,
     expectedCountCents: 12000, declaredCountCents: 11900, varianceCents: -100 }))
     .toMatchObject({ varianceCents: -100 });
   expect(translateCashOperationsRpcError({ code: 'P0001', message: 'cash_session_version_conflict' }))
     .toMatchObject({ code: 'cash_session_version_conflict' });
+  expect(translateCashOperationsRpcError({ code: 'P0001', message: 'authentication_required' }))
+    .toMatchObject({ code: 'unauthorized' });
+  expect(translateCashOperationsRpcError({ code: 'P0001', message: 'invalid_cash_amount' }))
+    .toMatchObject({ code: 'invalid_request' });
+  expect(translateCashOperationsRpcError({ code: 'P0001', message: 'invalid_cash_movement' }))
+    .toMatchObject({ code: 'invalid_request' });
+  expect(translateCashOperationsRpcError({ code: '55000', message: 'cash_ledger_append_only' }))
+    .toMatchObject({ code: 'forbidden' });
   expect(new CashOperationsApiError('cash_session_required').message).toBe('cash_session_required');
 });
 
@@ -107,10 +125,15 @@ test('cash migration preserves RLS, append-only ledger and POS integration bound
 
 test('Business and Web cash surfaces use RPC contracts instead of direct table access', () => {
   const business = readFileSync('apps/business/src/screens/cash.tsx', 'utf8');
+  const businessApi = readFileSync('apps/business/src/services/business-api.ts', 'utf8');
   const web = readFileSync('apps/web/src/components/settings/CashOperationsSettings.tsx', 'utf8');
   for (const source of [business, web]) {
     expect(source).not.toContain(".from('cash_");
     expect(source).toContain('expectedVersion');
     expect(source).toContain('requestId');
   }
+  expect(businessApi).toContain("aal2_required: 'Confirme sua autenticação em duas etapas para continuar.'");
+  expect(web).toContain('const epoch = ++loadEpoch.current');
+  expect(web).toContain('epoch === loadEpoch.current');
+  expect(web).toContain('label="Tentar novamente"');
 });

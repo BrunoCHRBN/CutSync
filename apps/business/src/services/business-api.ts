@@ -138,7 +138,7 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   payment_entry_not_voidable: 'Este lançamento não pode mais ser estornado.',
   payment_entry_already_voided: 'Este lançamento já possui estorno confirmado.',
   service_order_balance_unresolved: 'A comanda ainda possui saldo pendente.',
-  aal2_required: 'Confirme sua autenticação em duas etapas para estornar este pagamento.',
+  aal2_required: 'Confirme sua autenticação em duas etapas para continuar.',
   cash_register_unavailable: 'O caixa principal desta unidade não está disponível.',
   cash_session_required: 'Abra o caixa antes de receber ou estornar dinheiro.',
   cash_session_already_open: 'Já existe um caixa aberto nesta unidade.',

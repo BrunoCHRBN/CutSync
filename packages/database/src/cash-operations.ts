@@ -202,6 +202,11 @@ export const translateCashOperationsRpcError = (error: unknown): CashOperationsA
   ];
   const matched = codes.find((code) => text.includes(code));
   if (matched) return new CashOperationsApiError(matched);
+  if (text.includes('authentication_required')) return new CashOperationsApiError('unauthorized');
+  if (text.includes('invalid_cash_amount') || text.includes('invalid_cash_movement')) {
+    return new CashOperationsApiError('invalid_request');
+  }
+  if (text.includes('cash_ledger_append_only')) return new CashOperationsApiError('forbidden');
   if (text.includes('network') || text.includes('fetch')) return new CashOperationsApiError('network_error');
   if (text.includes('pgrst301') || text.includes('jwt')) return new CashOperationsApiError('unauthorized');
   if (text.includes('42501') || text.includes('forbidden') || text.includes('permission denied')) {
@@ -253,7 +258,8 @@ export const createCashOperationsApi = (client: SupabaseClient<Database>) => ({
     return mapped;
   },
   async recordMovement(input: { establishmentId: string; cashSessionId: string; movementType: 'cash_in' | 'cash_out'; amountCents: number; reason: string; expectedVersion: number; requestId: string }) {
-    if (input.amountCents <= 0 || input.reason.trim().length < 3) {
+    const reason = input.reason.trim();
+    if (input.amountCents <= 0 || reason.length < 3 || reason.length > 500) {
       throw new CashOperationsApiError('invalid_request');
     }
     const data = await invokeRpc(client, 'record_cash_movement', {
@@ -261,7 +267,7 @@ export const createCashOperationsApi = (client: SupabaseClient<Database>) => ({
       target_cash_session_id: requireUuid(input.cashSessionId),
       target_movement_type: input.movementType,
       target_amount_cents: requireMoney(input.amountCents),
-      target_reason: input.reason.trim(),
+      target_reason: reason,
       target_expected_version: requireVersion(input.expectedVersion),
       target_request_id: requireUuid(input.requestId),
     });
