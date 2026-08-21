@@ -1,4 +1,9 @@
 import { CLOUD_ROUTES, type CloudRoutePath } from '@/navigation/cloud-routes';
+import {
+  controlPermissionChecker,
+  resolveDefaultCloudRoute,
+} from '@/navigation/cloud-route-access';
+import type { ControlPermission } from '@/types/control';
 
 export type CloudAuthStatus =
   | 'loading'
@@ -21,6 +26,7 @@ export type CloudGateDecision =
 export function resolveCloudRootGate(
   status: CloudAuthStatus,
   message = '',
+  permissions: readonly ControlPermission[] = [],
 ): CloudGateDecision {
   switch (status) {
     case 'loading':
@@ -38,7 +44,10 @@ export function resolveCloudRootGate(
         message: message || 'Tente novamente em instantes.',
       };
     case 'ready':
-      return { kind: 'redirect', href: CLOUD_ROUTES.central };
+      return {
+        kind: 'redirect',
+        href: resolveDefaultCloudRoute(controlPermissionChecker(permissions)),
+      };
     default: {
       const _exhaustive: never = status;
       return _exhaustive;

@@ -16,6 +16,10 @@ test('registers canonical Cloud router paths without duplicating /cloud', () => 
   expect(CLOUD_ROUTES.suporte.monitoramento).toBe('/suporte/monitoramento');
   expect(CLOUD_ROUTES.suporte.operacoesAssistidas).toBe('/suporte/operacoes-assistidas');
   expect(listCloudRoutePaths()).toContain('/gsp/acessos');
+  expect(listCloudRoutePaths()).toContain('/gsp/acessos/solicitar');
+  expect(listCloudRoutePaths()).toContain('/gsp/acessos/minhas-solicitacoes');
+  expect(listCloudRoutePaths()).toContain('/gsp/acessos/aprovacoes');
+  expect(listCloudRoutePaths()).toContain('/gsp/acessos/aplicacao');
   expect(listCloudRoutePaths()).toContain('/suporte/monitoramento');
   expect(listCloudRoutePaths().every((path) => !path.startsWith('/cloud/'))).toBeTruthy();
 });

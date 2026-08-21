@@ -1948,6 +1948,416 @@ export type Database = {
           },
         ]
       }
+      control_access_profile_permissions: {
+        Row: {
+          access_profile_id: string
+          created_at: string
+          permission: string
+        }
+        Insert: {
+          access_profile_id: string
+          created_at?: string
+          permission: string
+        }
+        Update: {
+          access_profile_id?: string
+          created_at?: string
+          permission?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_access_profile_permissions_access_profile_id_fkey"
+            columns: ["access_profile_id"]
+            isOneToOne: false
+            referencedRelation: "control_access_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_access_profile_permissions_permission_fkey"
+            columns: ["permission"]
+            isOneToOne: false
+            referencedRelation: "control_permission_catalog"
+            referencedColumns: ["permission"]
+          },
+        ]
+      }
+      control_access_profiles: {
+        Row: {
+          active: boolean
+          assignment_mode: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          is_system: boolean
+          label: string
+          profile_key: string
+          required_approvals: number
+          requires_expiry: boolean
+          requires_owner_approval: boolean
+          review_interval_days: number
+          risk_level: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          assignment_mode: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          is_system?: boolean
+          label: string
+          profile_key: string
+          required_approvals?: number
+          requires_expiry?: boolean
+          requires_owner_approval?: boolean
+          review_interval_days: number
+          risk_level: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          assignment_mode?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          is_system?: boolean
+          label?: string
+          profile_key?: string
+          required_approvals?: number
+          requires_expiry?: boolean
+          requires_owner_approval?: boolean
+          review_interval_days?: number
+          risk_level?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_access_profiles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_access_request_approvals: {
+        Row: {
+          approver_id: string
+          approver_was_owner: boolean
+          client_request_id: string
+          created_at: string
+          decision: string
+          id: string
+          reason: string
+          request_id: string
+        }
+        Insert: {
+          approver_id: string
+          approver_was_owner: boolean
+          client_request_id: string
+          created_at?: string
+          decision: string
+          id?: string
+          reason: string
+          request_id: string
+        }
+        Update: {
+          approver_id?: string
+          approver_was_owner?: boolean
+          client_request_id?: string
+          created_at?: string
+          decision?: string
+          id?: string
+          reason?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_access_request_approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_access_request_approvals_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "control_access_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_access_requests: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          apply_request_id: string | null
+          approved_at: string | null
+          client_request_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          justification: string
+          rejected_at: string | null
+          request_number: number
+          requested_access_profile_id: string
+          requested_action: string
+          requested_by: string
+          requested_valid_until: string | null
+          required_approvals: number
+          requires_owner_approval: boolean
+          risk_level: string
+          source_access_profile_id: string | null
+          status: string
+          target_profile_id: string
+          ticket_reference: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          apply_request_id?: string | null
+          approved_at?: string | null
+          client_request_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          justification: string
+          rejected_at?: string | null
+          request_number?: never
+          requested_access_profile_id: string
+          requested_action: string
+          requested_by: string
+          requested_valid_until?: string | null
+          required_approvals: number
+          requires_owner_approval: boolean
+          risk_level: string
+          source_access_profile_id?: string | null
+          status?: string
+          target_profile_id: string
+          ticket_reference: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          apply_request_id?: string | null
+          approved_at?: string | null
+          client_request_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          justification?: string
+          rejected_at?: string | null
+          request_number?: never
+          requested_access_profile_id?: string
+          requested_action?: string
+          requested_by?: string
+          requested_valid_until?: string | null
+          required_approvals?: number
+          requires_owner_approval?: boolean
+          risk_level?: string
+          source_access_profile_id?: string | null
+          status?: string
+          target_profile_id?: string
+          ticket_reference?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_access_requests_applied_by_fkey"
+            columns: ["applied_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_access_requests_requested_access_profile_id_fkey"
+            columns: ["requested_access_profile_id"]
+            isOneToOne: false
+            referencedRelation: "control_access_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_access_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_access_requests_source_access_profile_id_fkey"
+            columns: ["source_access_profile_id"]
+            isOneToOne: false
+            referencedRelation: "control_access_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_access_requests_target_profile_id_fkey"
+            columns: ["target_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_job_titles: {
+        Row: {
+          active: boolean
+          created_at: string
+          job_title_key: string
+          label: string
+          rank_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          job_title_key: string
+          label: string
+          rank_order: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          job_title_key?: string
+          label?: string
+          rank_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      control_permission_catalog: {
+        Row: {
+          active: boolean
+          area: string
+          created_at: string
+          label: string
+          permission: string
+          risk_level: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          area: string
+          created_at?: string
+          label: string
+          permission: string
+          risk_level: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          area?: string
+          created_at?: string
+          label?: string
+          permission?: string
+          risk_level?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      control_user_access_assignments: {
+        Row: {
+          access_profile_id: string
+          active: boolean
+          created_at: string
+          granted_by: string | null
+          id: string
+          revoked_at: string | null
+          revoked_by: string | null
+          scope_id: string | null
+          scope_type: string
+          source_key: string
+          source_request_id: string | null
+          source_type: string
+          target_profile_id: string
+          updated_at: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          access_profile_id: string
+          active?: boolean
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scope_id?: string | null
+          scope_type?: string
+          source_key: string
+          source_request_id?: string | null
+          source_type: string
+          target_profile_id: string
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          access_profile_id?: string
+          active?: boolean
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scope_id?: string | null
+          scope_type?: string
+          source_key?: string
+          source_request_id?: string | null
+          source_type?: string
+          target_profile_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_user_access_assignments_access_profile_id_fkey"
+            columns: ["access_profile_id"]
+            isOneToOne: false
+            referencedRelation: "control_access_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_user_access_assignments_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_user_access_assignments_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_user_access_assignments_source_request_id_fkey"
+            columns: ["source_request_id"]
+            isOneToOne: false
+            referencedRelation: "control_access_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_user_access_assignments_target_profile_id_fkey"
+            columns: ["target_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_change_decisions: {
         Row: {
           accepted_assignment_id: string | null
@@ -3470,6 +3880,7 @@ export type Database = {
           granted_at: string
           granted_by: string | null
           is_active: boolean
+          job_title_key: string | null
           profile_id: string
           revoked_at: string | null
           revoked_by: string | null
@@ -3481,6 +3892,7 @@ export type Database = {
           granted_at?: string
           granted_by?: string | null
           is_active?: boolean
+          job_title_key?: string | null
           profile_id: string
           revoked_at?: string | null
           revoked_by?: string | null
@@ -3492,6 +3904,7 @@ export type Database = {
           granted_at?: string
           granted_by?: string | null
           is_active?: boolean
+          job_title_key?: string | null
           profile_id?: string
           revoked_at?: string | null
           revoked_by?: string | null
@@ -3505,6 +3918,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "governance_users_job_title_key_fkey"
+            columns: ["job_title_key"]
+            isOneToOne: false
+            referencedRelation: "control_job_titles"
+            referencedColumns: ["job_title_key"]
           },
           {
             foreignKeyName: "governance_users_profile_id_fkey"
@@ -7379,6 +7799,14 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_control_access_request: {
+        Args: {
+          target_client_request_id: string
+          target_expected_version: number
+          target_request_id: string
+        }
+        Returns: Json
+      }
       apply_membership_capability_override: {
         Args: {
           target_approval_request_id: string
@@ -7960,6 +8388,19 @@ export type Database = {
           appointment_status: string
         }[]
       }
+      create_control_access_request: {
+        Args: {
+          target_action: string
+          target_client_request_id: string
+          target_justification: string
+          target_profile_id: string
+          target_requested_profile_key: string
+          target_source_profile_key: string
+          target_ticket_reference: string
+          target_valid_until: string
+        }
+        Returns: Json
+      }
       create_establishment_and_promote_owner: {
         Args: {
           requested_address: string
@@ -8060,6 +8501,10 @@ export type Database = {
         }
         Returns: Json
       }
+      current_control_has_permission: {
+        Args: { target_permission: string }
+        Returns: boolean
+      }
       current_session_is_aal2: { Args: never; Returns: boolean }
       decide_appointment_assignment_correction_approval: {
         Args: {
@@ -8086,6 +8531,16 @@ export type Database = {
       decide_capability_override_approval: {
         Args: {
           target_approval_request_id: string
+          target_decision: string
+          target_expected_version: number
+          target_reason: string
+          target_request_id: string
+        }
+        Returns: Json
+      }
+      decide_control_access_request: {
+        Args: {
+          target_client_request_id: string
           target_decision: string
           target_expected_version: number
           target_reason: string
@@ -8194,6 +8649,14 @@ export type Database = {
       finalize_organization_billing_cutover: {
         Args: { target_cutover_request_id: string }
         Returns: undefined
+      }
+      find_control_access_target_by_email: {
+        Args: { target_email: string }
+        Returns: {
+          email: string
+          name: string
+          profile_id: string
+        }[]
       }
       find_control_profile_by_email: {
         Args: { target_email: string }
@@ -9015,6 +9478,7 @@ export type Database = {
           granted_at: string
           granted_by: string | null
           is_active: boolean
+          job_title_key: string | null
           profile_id: string
           revoked_at: string | null
           revoked_by: string | null
@@ -9256,6 +9720,49 @@ export type Database = {
         Returns: Json
       }
       list_client_reassignment_decisions: { Args: never; Returns: Json }
+      list_control_access_profiles: {
+        Args: never
+        Returns: {
+          description: string
+          label: string
+          permissions: string[]
+          profile_id: string
+          profile_key: string
+          required_approvals: number
+          requires_expiry: boolean
+          requires_owner_approval: boolean
+          review_interval_days: number
+          risk_level: string
+        }[]
+      }
+      list_control_access_requests: {
+        Args: { target_status?: string }
+        Returns: {
+          applied_at: string
+          approval_count: number
+          approved_at: string
+          created_at: string
+          expires_at: string
+          justification: string
+          request_id: string
+          request_number: number
+          requested_action: string
+          requested_by: string
+          requested_by_name: string
+          requested_profile_key: string
+          requested_profile_label: string
+          requested_valid_until: string
+          required_approvals: number
+          requires_owner_approval: boolean
+          risk_level: string
+          status: string
+          target_email: string
+          target_name: string
+          target_profile_id: string
+          ticket_reference: string
+          version: number
+        }[]
+      }
       list_control_billing_accounts: {
         Args: never
         Returns: {

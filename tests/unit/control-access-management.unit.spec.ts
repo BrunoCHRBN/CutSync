@@ -11,6 +11,7 @@ const read = (relativePath: string) => fs
 
 const service = read('apps/control/src/services/control-access.ts');
 const route = read('apps/control/src/app/(control)/access.tsx');
+const screen = read('apps/control/src/modules/gsp/access-directory.tsx');
 
 test('parses the private access contract instead of trusting unknown RPC payloads', () => {
   expect(service).toContain('export function parseControlAccessProfile');
@@ -29,8 +30,9 @@ test('uses only the four protected RPC contracts through the service layer', () 
   expect(service).toContain("rpc('revoke_control_user_access', {");
   expect(service).toContain('target_profile_id: profileId');
   expect(service).toContain('target_expires_at: expiresAt');
-  expect(route).not.toContain("from '@/services/supabase'");
-  expect(route).not.toContain('.rpc(');
+  expect(screen).not.toContain("from '@/services/supabase'");
+  expect(screen).not.toContain('.rpc(');
+  expect(route).toContain('CLOUD_ROUTES.gsp.acessos');
 });
 
 test('translates authorization and business errors without rendering raw backend details', () => {
@@ -47,28 +49,28 @@ test('translates authorization and business errors without rendering raw backend
     expect(service).toContain(`${code}:`);
   }
   expect(service).toContain('export class ControlAccessError extends Error');
-  expect(route).toContain('getControlAccessErrorMessage(');
-  expect(route).not.toContain('error.message');
-  expect(route).not.toContain('error.details');
+  expect(screen).toContain('getControlAccessErrorMessage(');
+  expect(screen).not.toContain('error.message');
+  expect(screen).not.toContain('error.details');
 });
 
 test('requires a reviewed reason and optional future expiry before every mutation', () => {
   expect(service).toContain('reason.length < 10 || reason.length > 500');
   expect(service).toContain("/^\\d{4}-\\d{2}-\\d{2}$/");
-  expect(route).toContain('<ControlConfirmPanel');
-  expect(route).toContain('pending.kind ===');
-  expect(route).toContain('validateControlAccessReason(reason)');
-  expect(route).toContain('parseControlAccessExpiryInput(expiryInput)');
-  expect(route).toContain('Revisar alteração');
-  expect(route).toContain('Revisar revogação');
+  expect(screen).toContain('<ControlConfirmPanel');
+  expect(screen).toContain('pending.kind ===');
+  expect(screen).toContain('validateControlAccessReason(reason)');
+  expect(screen).toContain('parseControlAccessExpiryInput(expiryInput)');
+  expect(screen).toContain('Revisar alteração');
+  expect(screen).toContain('Revisar revogação');
 });
 
 test('supports grant, edit, reactivation and revocation with a refreshed list', () => {
-  expect(route).toContain("type EditorIntent = 'grant' | 'edit' | 'reactivate' | 'revoke'");
-  expect(route).toContain('Editar acesso');
-  expect(route).toContain('Reativar acesso');
-  expect(route).toContain('Revogar acesso');
-  expect(route).toContain('await refreshUsers(false)');
-  expect(route).toContain("can('control.access.manage')");
-  expect(route).toContain('Somente SaaS_Owner com sessão AAL2');
+  expect(screen).toContain("type EditorIntent = 'grant' | 'edit' | 'reactivate' | 'revoke'");
+  expect(screen).toContain('Editar acesso');
+  expect(screen).toContain('Reativar acesso');
+  expect(screen).toContain('Revogar acesso');
+  expect(screen).toContain('await refreshUsers(false)');
+  expect(screen).toContain("can('control.access.manage')");
+  expect(screen).toContain('Somente SaaS_Owner com sessão AAL2');
 });

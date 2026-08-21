@@ -150,6 +150,9 @@ export function modulesVisibleTo(
         can('control.governance.read')
         || can('control.knowledge.read')
         || can('control.access.manage')
+        || can('control.access.request')
+        || can('control.access.approve')
+        || can('control.access.apply')
       );
     }
     if (module.id === 'operation') {

@@ -25,6 +25,10 @@ export const CLOUD_ROUTES = {
   gsp: {
     root: '/gsp',
     acessos: '/gsp/acessos',
+    solicitarAcesso: '/gsp/acessos/solicitar',
+    minhasSolicitacoes: '/gsp/acessos/minhas-solicitacoes',
+    aprovacoes: '/gsp/acessos/aprovacoes',
+    aplicacao: '/gsp/acessos/aplicacao',
     revisoes: '/gsp/revisoes',
     auditoria: '/gsp/auditoria',
     politicas: '/gsp/politicas',

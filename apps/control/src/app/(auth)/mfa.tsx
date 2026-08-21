@@ -17,6 +17,7 @@ import { cloudTheme } from '@/theme/cloud-components';
 export default function MfaRoute() {
   const {
     status,
+    context,
     message,
     enrollment,
     hasVerifiedTotp,
@@ -27,7 +28,7 @@ export default function MfaRoute() {
   } = useControlAuth();
   const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
   const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
-  const destination = resolvePostAuthDestination(returnTo);
+  const destination = resolvePostAuthDestination(returnTo, context?.permissions ?? []);
   const [code, setCode] = useState('');
 
   if (status === 'loading') return <ControlState loading message="Validando o autenticador..." />;

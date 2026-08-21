@@ -35,6 +35,17 @@ const riskFactors = [
 
 export function GspOverview() {
   const { can } = useControlAuth();
+  const canUseAccessWorkflow = can('control.access.request')
+    || can('control.access.approve')
+    || can('control.access.apply')
+    || can('control.access.manage');
+  const accessWorkflowHref = can('control.access.request')
+    ? CLOUD_ROUTES.gsp.minhasSolicitacoes
+    : can('control.access.approve')
+      ? CLOUD_ROUTES.gsp.aprovacoes
+      : can('control.access.apply')
+        ? CLOUD_ROUTES.gsp.aplicacao
+        : CLOUD_ROUTES.gsp.acessos;
 
   return (
     <View style={styles.page}>
@@ -55,8 +66,8 @@ export function GspOverview() {
         />
         <MetricCard
           label="Usuários"
-          value={can('control.access.manage') ? 'Diretório' : '—'}
-          detail={can('control.access.manage') ? 'Abrir acessos autorizados' : 'Sem permissão de gestão'}
+          value={canUseAccessWorkflow ? 'Fluxo ativo' : '—'}
+          detail={canUseAccessWorkflow ? 'Solicitações e acessos autorizados' : 'Sem permissão de acesso'}
           tone="info"
         />
         <MetricCard
@@ -92,22 +103,22 @@ export function GspOverview() {
 
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Distribuição de acessos</Text>
-        {can('control.access.manage') ? (
+        {canUseAccessWorkflow ? (
           <View style={styles.actions}>
-            <Link href={CLOUD_ROUTES.gsp.acessos} asChild>
+            <Link href={accessWorkflowHref} asChild>
               <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-                <Text style={styles.primaryButtonText}>Abrir diretório de acessos</Text>
+                <Text style={styles.primaryButtonText}>Abrir fluxo de acessos</Text>
               </Pressable>
             </Link>
             <Text style={styles.panelDetail}>
-              Mutações permanecem atrás de `control.access.manage` e da feature flag de escrita.
+              Solicitação, aprovação e aplicação usam permissões independentes e RPCs auditadas.
             </Text>
           </View>
         ) : (
           <FeedbackState
             kind="partial"
             title="Acessos restritos"
-            message="Seu papel atual não inclui gestão do diretório."
+            message="Seu perfil atual não inclui participação no fluxo de acessos."
           />
         )}
       </View>
