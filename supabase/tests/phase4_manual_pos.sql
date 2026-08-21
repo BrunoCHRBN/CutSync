@@ -158,6 +158,9 @@ BEGIN
     RAISE EXCEPTION 'FAIL: cash method response invalid: %', payload;
   END IF;
 
+  -- Phase 5 requires a server-confirmed open session before cash entries.
+  PERFORM public.open_cash_session(unit_a_id, 0, gen_random_uuid());
+
   payload := public.configure_establishment_payment_method(
     unit_a_id, 'external_pix', 'PIX externo', true, true, NULL, gen_random_uuid()
   );

@@ -60,6 +60,12 @@ export function BusinessManagementScreen() {
       route: '/(app)/payment-methods' as const,
       enabled: hasCapability('view_payments'),
     },
+    {
+      name: 'Caixa',
+      description: 'Abertura, suprimentos, sangrias, vendas em dinheiro e fechamento auditável.',
+      route: '/(app)/cash' as const,
+      enabled: hasCapability('view_cash'),
+    },
   ] as const;
 
   return (

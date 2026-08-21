@@ -5,6 +5,7 @@ export * from './business';
 export * from './business-rpc.generated';
 export * from './service-order-api';
 export * from './manual-pos';
+export * from './cash-operations';
 export * from './mobile-operations';
 export * from './establishment-client';
 export * from './identity-context';

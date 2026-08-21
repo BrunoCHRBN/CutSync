@@ -106,6 +106,8 @@ export type ManualPosApiErrorCode =
   | 'service_order_version_conflict'
   | 'service_order_invalid_transition'
   | 'service_order_balance_unresolved'
+  | 'cash_session_required'
+  | 'cash_balance_negative'
   | 'manual_pos_unavailable';
 
 export class ManualPosApiError extends Error {
@@ -319,6 +321,7 @@ export const translateManualPosRpcError = (error: unknown): ManualPosApiError =>
     'payment_exceeds_order_balance', 'payment_entry_not_voidable',
     'payment_entry_already_voided', 'service_order_version_conflict',
     'service_order_invalid_transition', 'service_order_balance_unresolved',
+    'cash_session_required', 'cash_balance_negative',
   ];
   const matched = codes.find((code) => text.includes(code));
   if (matched) return new ManualPosApiError(matched);

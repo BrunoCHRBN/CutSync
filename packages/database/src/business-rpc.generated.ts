@@ -659,6 +659,49 @@ export interface BusinessRpcFunctions {
     };
     Returns: unknown;
   };
+  get_cash_register_snapshot: {
+    Args: { target_establishment_id: string };
+    Returns: unknown;
+  };
+  open_cash_session: {
+    Args: {
+      target_establishment_id: string;
+      target_opening_float_cents: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  record_cash_movement: {
+    Args: {
+      target_establishment_id: string;
+      target_cash_session_id: string;
+      target_movement_type: string;
+      target_amount_cents: number;
+      target_reason: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  close_cash_session: {
+    Args: {
+      target_establishment_id: string;
+      target_cash_session_id: string;
+      target_declared_count_cents: number;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
+  reopen_cash_session: {
+    Args: {
+      target_establishment_id: string;
+      target_closed_cash_session_id: string;
+      target_expected_version: number;
+      target_request_id: string;
+    };
+    Returns: unknown;
+  };
 }
 
 export type BusinessRpcName = keyof BusinessRpcFunctions;

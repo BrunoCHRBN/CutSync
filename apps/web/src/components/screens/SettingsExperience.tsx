@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Check, Clock3, CreditCard, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, MapPin, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
+import { Banknote, Check, Clock3, CreditCard, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, MapPin, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,6 +24,7 @@ import { normalizeInstagramHandle, type PublicationReadiness } from '@cutsync/do
 import { BRAND_PRESET_IDS, validateBrandConfiguration, type BrandConfiguration, type BrandPresetId } from '@cutsync/brand';
 import { parsePublicationReadiness } from '@cutsync/database';
 import { PaymentMethodsSettings } from '../settings/PaymentMethodsSettings';
+import { CashOperationsSettings } from '../settings/CashOperationsSettings';
 import { recordWebProductEvent } from '../../services/product-events';
 import { webExperienceFlags } from '../../config/experience-flags';
 import {
@@ -33,7 +34,7 @@ import {
   type BrandScope,
 } from '../../features/brand/brand-studio-service';
 
-type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'payments' | 'security';
+type SettingsSection = 'brand' | 'contact' | 'images' | 'schedule' | 'publication' | 'policies' | 'payments' | 'cash' | 'security';
 
 interface DiscoveryRequirements {
   account_active: boolean;
@@ -93,6 +94,7 @@ const settingsSections: { key: SettingsSection; label: string; Icon: typeof Stor
   { key: 'publication', label: 'Publicação', Icon: Eye },
   { key: 'policies', label: 'Políticas e localização', Icon: ShieldCheck },
   { key: 'payments', label: 'Pagamentos', Icon: CreditCard },
+  { key: 'cash', label: 'Caixa', Icon: Banknote },
   { key: 'security', label: 'Segurança', Icon: KeyRound },
 ];
 
@@ -953,6 +955,7 @@ export const SettingsExperience = () => {
             </FormSection> : null}
 
             {activeSection === 'payments' ? <PaymentMethodsSettings /> : null}
+            {activeSection === 'cash' ? <CashOperationsSettings /> : null}
 
             {activeSection === 'policies' ? <FormSection testID="settings-policies-section" title="Políticas de agendamento e localização" description="Ajuste os prazos mínimos para cancelamento, regras de ausência e coordenadas usadas no mapa.">
               <View style={styles.fieldsRow}>
@@ -1127,7 +1130,7 @@ export const SettingsExperience = () => {
             </FormSection> : null}
           </View>
 
-          {activeSection !== 'payments' ? <View style={styles.previewColumn}>
+          {activeSection !== 'payments' && activeSection !== 'cash' ? <View style={styles.previewColumn}>
             <EstablishmentBrandPreview
               name={name}
               slogan={slogan}
@@ -1142,7 +1145,7 @@ export const SettingsExperience = () => {
           </View> : null}
         </View>
         </ScrollView>
-        {activeSection !== 'payments' ? <StickyActionBar
+        {activeSection !== 'payments' && activeSection !== 'cash' ? <StickyActionBar
           actions={<>
             <AppButton disabled={!isDirty || saving} label="Descartar" onPress={discardChanges} testID="settings-discard-button" variant="secondary" />
             <AppButton disabled={!isDirty || Boolean(formError)} icon={<Save color={colors.white} size={17} />} label="Salvar" loading={saving} onPress={saveSettings} testID="settings-save-button" variant="admin" />

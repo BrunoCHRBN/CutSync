@@ -1,0 +1,82 @@
+name: Phase 5 Cash Operations Gate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/phase5-gate.yml'
+      - 'packages/database/src/cash-operations.ts'
+      - 'packages/database/src/business-rpc.generated.ts'
+      - 'packages/database/src/index.ts'
+      - 'apps/business/src/services/business-api.ts'
+      - 'apps/business/src/screens/cash.tsx'
+      - 'apps/business/src/screens/management.tsx'
+      - 'apps/business/src/app/(app)/cash.tsx'
+      - 'apps/web/src/components/settings/CashOperationsSettings.tsx'
+      - 'apps/web/src/components/screens/SettingsExperience.tsx'
+      - 'supabase/migrations/20260825000000_phase5_cash_operations.sql'
+      - 'supabase/tests/phase4_manual_pos.sql'
+      - 'supabase/tests/phase5_cash_operations.sql'
+      - 'tests/unit/phase5-cash-operations.unit.spec.ts'
+      - 'docs/architecture/PHASE5_CASH_OPERATIONS.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-cash-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phase5-cash:
+    name: Cash ledger, lifecycle and surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Rebuild reconciled disposable database
+        shell: pwsh
+        run: ./scripts/reset-supabase-reconciled.ps1
+      - name: Run cash and POS SQL scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i supabase_db_CutSync psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/phase5_cash_operations.sql
+          docker exec -i supabase_db_CutSync psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/phase4_manual_pos.sql
+      - name: Validate schema and privileges
+        run: |
+          supabase db lint --local --schema public --level error --fail-on error
+          supabase db advisors --local --type security --level error --fail-on error
+          supabase db advisors --local --type performance --level error --fail-on error
+      - name: Validate contracts and unit scenarios
+        run: |
+          npm run typecheck:shared
+          npm run typecheck:business
+          npx playwright test --project=unit tests/unit/phase5-cash-operations.unit.spec.ts tests/unit/phase4-manual-pos.unit.spec.ts
+      - name: Validate surfaces and bundles
+        run: |
+          npm run lint:business
+          npm run lint:web
+          npm --workspace @cutsync/business run build:web
+          npm --workspace @cutsync/web run build:web
+      - name: Register evidence classification
+        shell: bash
+        run: |
+          {
+            echo "## Phase 5 cash evidence"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Classification: CI reproduced"
+            echo "- Covers: SQL/RLS, idempotency, cash-POS projection, AAL2, mappers, typecheck, lint and Web bundles"
+            echo "- Does not prove: remote homolog roles, physical Android, production deployment or assisted reconciliation"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - if: always()
+        run: supabase stop --no-backup
