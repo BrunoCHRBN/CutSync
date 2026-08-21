@@ -610,7 +610,7 @@ BEGIN
   END IF;
 
   monetary_impact := round(proposed_price * 100)::bigint
-    <> round(appointment.price_charged * 100)::bigint;
+    <> round(COALESCE(appointment.price_charged, 0) * 100)::bigint;
   next_status := CASE
     WHEN workflow.customer_decision_required THEN 'awaiting_customer'
     ELSE 'ready_to_apply'

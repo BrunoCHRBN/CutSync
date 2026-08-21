@@ -21,6 +21,22 @@ CI, homologação com papéis reais e homologação em dispositivo.
 | UI manipulada negada no backend | RPCs revalidam identidade, capability, unidade e versão; tentativa adulterada foi negada em Homolog | Autoridade permaneceu no backend durante a homologação real |
 | Push | Evento imutável → filas Client/Business idempotentes → disparo imediato via `pg_net`, cron de contingência e dispatchers separados | Push e notificações internas aprovados nos aparelhos físicos para as partes do fluxo |
 
+### Retenção e eliminação controlada dos eventos de atribuição
+
+`appointment_assignment_events` é trilha de auditoria imutável: nenhum papel da
+aplicação, inclusive `service_role`, pode alterar ou apagar linhas. Solicitações
+de titular usam anonimização dos dados pessoais nas entidades de identidade; a
+trilha operacional é mantida pelo prazo jurídico definido para auditoria.
+
+Se jurídico e privacidade determinarem a eliminação material antes desse prazo,
+o bypass é exclusivamente operacional e exige ticket aprovado, backup com hash
+e execução pelo proprietário do banco em janela de manutenção. A transação deve
+bloquear a tabela, desabilitar apenas o trigger
+`appointment_assignment_events_immutable`, excluir somente os IDs aprovados,
+reativar o trigger antes do commit e registrar contagens e hashes no ticket. Ao
+final, a operação deve confirmar em `pg_trigger` que o trigger está habilitado.
+Esse procedimento não é exposto por RPC nem concedido a `service_role`.
+
 ## Workflow preparado
 
 O workflow `.github/workflows/phase3-gate.yml` executa:
@@ -129,8 +145,8 @@ O workflow `.github/workflows/phase3-gate.yml` executa:
 ## Evidência em Homolog
 
 - Projeto alvo confirmado: `sphbbqdgcreowxzjgibj`.
-- Backup pré-rollout salvo fora do repositório em
-  `C:\Users\PICHAU\AppData\Local\CutSync\backups\phase3-20260809-174054`.
+- Backup pré-rollout salvo fora do repositório sob o identificador controlado
+  `%LOCALAPPDATA%\CutSync\backups\phase3-20260809-174054`.
 - Checksums SHA-256: dados
   `631A94F8A358A0B7550C31EA1BE1B01E7CD30D1CCDE152DB14796621997F7A6C`,
   roles `168A95A9C745AF5ED4679751F90419AC9DC434240A213B03E32A06D5664C2308`

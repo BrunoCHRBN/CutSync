@@ -39,12 +39,34 @@ type UseAppointmentActionsOptions = {
   onChanged?: () => Promise<void> | void;
 };
 
+type ReassignmentRequestIntentInput = {
+  appointmentId: string;
+  reasonCode: string;
+  responsibility: string;
+  startsAt: string;
+  expectedAppointmentUpdatedAt: string;
+};
+
+type ReassignmentRequestIntent = {
+  requestId: string;
+  correlationId: string;
+  dueAt: string;
+};
+
+const getReassignmentRequestIntentKey = (input: ReassignmentRequestIntentInput) => JSON.stringify([
+  input.appointmentId,
+  input.reasonCode,
+  input.responsibility,
+  input.startsAt,
+  input.expectedAppointmentUpdatedAt,
+]);
+
 export function useAppointmentActions(options: UseAppointmentActionsOptions = {}) {
   const { pushToast } = useToast();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [batchLoading, setBatchLoading] = useState(false);
   const [reassignmentLoadingId, setReassignmentLoadingId] = useState<string | null>(null);
-  const requestIntentsRef = useRef(new Map<string, { requestId: string; correlationId: string }>());
+  const requestIntentsRef = useRef(new Map<string, ReassignmentRequestIntent>());
   const validationRequestIdsRef = useRef(new Map<string, string>());
   const proposalRequestIdsRef = useRef(new Map<string, string>());
   const onChangedRef = useRef(options.onChanged);
@@ -147,6 +169,7 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
       });
       if (error) throw error;
       const report = data as AbsenceBatchReport;
+      report.results = report.results ?? [];
       const queue = input.reassignmentAppointments.length > 0
         ? await webReassignmentApi.listQueue(input.establishmentId)
         : [];
@@ -161,21 +184,29 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
           });
           continue;
         }
-        const intent = requestIntentsRef.current.get(appointment.appointmentId) ?? {
+        const requestIntentInput = {
+          appointmentId: appointment.appointmentId,
+          reasonCode: 'professional_absence',
+          responsibility: 'professional',
+          startsAt: appointment.startsAt.toISOString(),
+          expectedAppointmentUpdatedAt: appointment.expectedUpdatedAt,
+        } as const;
+        const intentKey = getReassignmentRequestIntentKey(requestIntentInput);
+        const intent = requestIntentsRef.current.get(intentKey) ?? {
           requestId: createMobileRequestId(),
           correlationId: createMobileRequestId(),
+          dueAt: getReassignmentDueAt(appointment.startsAt),
         };
-        requestIntentsRef.current.set(appointment.appointmentId, intent);
+        requestIntentsRef.current.set(intentKey, intent);
         try {
           await webReassignmentApi.request({
-            appointmentId: appointment.appointmentId,
-            reasonCode: 'professional_absence',
-            responsibility: 'professional',
-            dueAt: getReassignmentDueAt(appointment.startsAt),
-            expectedAppointmentUpdatedAt: appointment.expectedUpdatedAt,
+            appointmentId: requestIntentInput.appointmentId,
+            reasonCode: requestIntentInput.reasonCode,
+            responsibility: requestIntentInput.responsibility,
+            expectedAppointmentUpdatedAt: requestIntentInput.expectedAppointmentUpdatedAt,
             ...intent,
           });
-          requestIntentsRef.current.delete(appointment.appointmentId);
+          requestIntentsRef.current.delete(intentKey);
           report.results.push({
             appointment_id: appointment.appointmentId,
             ok: true,
@@ -185,7 +216,7 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
         } catch (requestError) {
           if (!(requestError instanceof WebReassignmentError)
             || requestError.code !== 'network_error') {
-            requestIntentsRef.current.delete(appointment.appointmentId);
+            requestIntentsRef.current.delete(intentKey);
           }
           report.results.push({
             appointment_id: appointment.appointmentId,
@@ -195,8 +226,8 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
           });
         }
       }
-      const successCount = (report.results || []).filter((item) => item.ok).length;
-      const failCount = (report.results || []).filter((item) => !item.ok).length;
+      const successCount = report.results.filter((item) => item.ok).length;
+      const failCount = report.results.filter((item) => !item.ok).length;
       pushToast({
         tone: failCount > 0 ? 'warning' : 'success',
         title: 'Modo ausência concluído',
@@ -226,6 +257,14 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
     canPropose: boolean;
   }): Promise<WebReassignmentPreparation | null> => {
     setReassignmentLoadingId(input.appointmentId);
+    const requestIntentInput = {
+      appointmentId: input.appointmentId,
+      reasonCode: input.reasonCode ?? 'schedule_adjustment',
+      responsibility: input.responsibility,
+      startsAt: input.startsAt.toISOString(),
+      expectedAppointmentUpdatedAt: input.expectedUpdatedAt,
+    };
+    const intentKey = getReassignmentRequestIntentKey(requestIntentInput);
     try {
       const queue = await webReassignmentApi.listQueue(input.establishmentId);
       const existing = queue.find((item) => item.appointmentId === input.appointmentId);
@@ -238,20 +277,20 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
       } : null;
 
       if (!cursor) {
-        const intent = requestIntentsRef.current.get(input.appointmentId) ?? {
+        const intent = requestIntentsRef.current.get(intentKey) ?? {
           requestId: createMobileRequestId(),
           correlationId: createMobileRequestId(),
-        };
-        requestIntentsRef.current.set(input.appointmentId, intent);
-        const receipt = await webReassignmentApi.request({
-          appointmentId: input.appointmentId,
-          reasonCode: input.reasonCode ?? 'schedule_adjustment',
-          responsibility: input.responsibility,
           dueAt: getReassignmentDueAt(input.startsAt),
-          expectedAppointmentUpdatedAt: input.expectedUpdatedAt,
+        };
+        requestIntentsRef.current.set(intentKey, intent);
+        const receipt = await webReassignmentApi.request({
+          appointmentId: requestIntentInput.appointmentId,
+          reasonCode: requestIntentInput.reasonCode,
+          responsibility: requestIntentInput.responsibility,
+          expectedAppointmentUpdatedAt: requestIntentInput.expectedAppointmentUpdatedAt,
           ...intent,
         });
-        requestIntentsRef.current.delete(input.appointmentId);
+        requestIntentsRef.current.delete(intentKey);
         cursor = {
           reassignmentRequestId: receipt.reassignmentRequestId,
           appointmentId: input.appointmentId,
@@ -283,7 +322,7 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
       return { ...cursor, candidates, proposalAllowed: input.canPropose };
     } catch (error) {
       if (!(error instanceof WebReassignmentError) || error.code !== 'network_error') {
-        requestIntentsRef.current.delete(input.appointmentId);
+        requestIntentsRef.current.delete(intentKey);
       }
       pushToast({
         tone: error instanceof WebReassignmentError && error.code === 'network_error'

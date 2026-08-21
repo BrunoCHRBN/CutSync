@@ -147,25 +147,29 @@ export const AbsenceModeWizard = ({
                         {' · nenhuma troca será aplicada nesta etapa'}
                       </Text>
                       <View style={styles.decisionRow}>
-                        {(['keep', 'request_reassignment', 'cancel'] as ItemDecision[]).map((decision) => (
-                          <Pressable
-                            key={decision}
-                            onPress={() => setItems((current) => current.map((entry) =>
-                              entry.appointment.id === item.appointment.id
-                                ? { ...entry, decision }
-                                : entry))}
-                            style={[styles.chip, item.decision === decision && styles.chipSelected]}
-                            testID={`absence-decision-${item.appointment.id}-${decision}`}
-                          >
-                            <Text style={styles.chipText}>
-                              {decision === 'cancel'
-                                ? 'Cancelar'
-                                : decision === 'request_reassignment'
-                                  ? 'Solicitar reatribuição'
-                                  : 'Manter'}
-                            </Text>
-                          </Pressable>
-                        ))}
+                        {(['keep', 'request_reassignment', 'cancel'] as ItemDecision[])
+                          .filter((decision) => (
+                            decision !== 'request_reassignment' || Boolean(item.appointment.updatedAt)
+                          ))
+                          .map((decision) => (
+                            <Pressable
+                              key={decision}
+                              onPress={() => setItems((current) => current.map((entry) =>
+                                entry.appointment.id === item.appointment.id
+                                  ? { ...entry, decision }
+                                  : entry))}
+                              style={[styles.chip, item.decision === decision && styles.chipSelected]}
+                              testID={`absence-decision-${item.appointment.id}-${decision}`}
+                            >
+                              <Text style={styles.chipText}>
+                                {decision === 'cancel'
+                                  ? 'Cancelar'
+                                  : decision === 'request_reassignment'
+                                    ? 'Solicitar reatribuição'
+                                    : 'Manter'}
+                              </Text>
+                            </Pressable>
+                          ))}
                       </View>
                     </View>
                   ))}

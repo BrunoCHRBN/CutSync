@@ -62,7 +62,14 @@ const errorText = (error: unknown) => {
 const translateError = (error: unknown): ClientReassignmentApiError => {
   if (error instanceof ClientReassignmentApiError) return error;
   const text = errorText(error);
-  if (text.includes('network') || text.includes('fetch') || text.includes('timeout')) {
+  if (
+    text.includes('network')
+    || text.includes('fetch')
+    || text.includes('timeout')
+    || text.includes('pgrst301')
+    || text.includes('jwt expired')
+    || text.includes('jwt has expired')
+  ) {
     return new ClientReassignmentApiError(
       'network',
       'Sem conexão. Sua decisão ficará pendente e será reenviada com o mesmo protocolo.',

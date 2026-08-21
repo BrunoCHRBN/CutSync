@@ -350,6 +350,10 @@ export function AppointmentOperationScreen() {
       requestId: createMobileRequestId(),
       correlationId: createMobileRequestId(),
     });
+    if (entry.status === 'manual_review') {
+      setError('A solicitação pendente deste atendimento precisa de revisão manual antes de uma nova tentativa.');
+      return;
+    }
 
     setReassignmentMutating(true);
     setError(null);

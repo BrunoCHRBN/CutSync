@@ -20,10 +20,14 @@ test('Business registra dispositivo explicitamente e sincroniza permissão já c
   expect(service).toContain('requestPermissionsAsync');
   expect(service).toContain("target_app_kind: 'business'");
   expect(service).toContain("rpc('register_push_device'");
-  expect(service.indexOf('await ensureAndroidChannels()')).toBeLessThan(
-    service.indexOf('getExpoPushTokenAsync({ projectId })'),
-  );
+  const channelSetupIndex = service.indexOf('await ensureAndroidChannels()');
+  const tokenRequestIndex = service.indexOf('getExpoPushTokenAsync({ projectId })');
+  expect(channelSetupIndex).toBeGreaterThanOrEqual(0);
+  expect(tokenRequestIndex).toBeGreaterThanOrEqual(0);
+  expect(channelSetupIndex).toBeLessThan(tokenRequestIndex);
   expect(service).toContain('await registerToken(currentToken)');
+  expect(service).toContain('return storedToken ? \'enabled\' : \'not_determined\'');
+  expect(service).toContain('if (!storedToken) return;');
   expect(account).toContain('business-push-toggle');
   expect(session).toContain('await disableBusinessPushNotifications()');
   expect(JSON.stringify(appConfig.expo.plugins)).toContain('expo-notifications');
@@ -38,6 +42,11 @@ test('Business apresenta foreground e processa toque uma única vez', () => {
   expect(provider).toContain('getLastNotificationResponseAsync');
   expect(provider).toContain('clearLastNotificationResponse');
   expect(provider).toContain('handledResponseId.current === notificationId');
+  expect(provider).toContain('pendingResponse.current = response');
+  expect(provider).toContain('if (isContextLoading)');
+  expect(provider.indexOf('if (isContextLoading)')).toBeLessThan(
+    provider.indexOf('handledResponseId.current = notificationId'),
+  );
   expect(provider).toContain('syncBusinessPushNotifications');
 });
 
@@ -89,6 +98,8 @@ test('workers usam fila, recibos, Vault e segredo server-side', () => {
   expect(payload).toContain('appointment_reassignment_action_required');
   expect(payload).toContain('sanitizeBusinessPushPayload');
   expect(migration).toContain('vault.decrypted_secrets');
+  expect(migration).toContain('CREATE EXTENSION IF NOT EXISTS pg_net;');
+  expect(migration).not.toContain('pg_net WITH SCHEMA extensions');
   expect(migration).toContain("'cutsync-dispatch-client-notifications'");
   expect(migration).toContain("'cutsync-dispatch-business-notifications'");
   expect(migration).not.toContain('NOTIFICATION_DISPATCH_SECRET=');

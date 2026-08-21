@@ -82,6 +82,19 @@ const requireData = (result, operation) => {
   if (result.error) throw new Error(`${operation}: ${result.error.message}`);
   return result.data;
 };
+const runCleanupSteps = async (steps) => {
+  const failures = [];
+  for (const step of steps) {
+    try {
+      await step.run();
+    } catch (error) {
+      failures.push(error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`CLEANUP_STEP_FAILED=${step.name}:${message}`);
+    }
+  }
+  return failures;
+};
 const expectRpcError = async (client, name, args, expected) => {
   const result = await client.rpc(name, args);
   assert(
@@ -414,11 +427,13 @@ const allDays = Array.from({ length: 7 }, (_, day) => ({
 }));
 
 const cleanup = async () => {
-  try {
-    const createdUserSqlList = createdUserIds.length > 0
-      ? createdUserIds.map((id) => `${sqlLiteral(id)}::uuid`).join(",")
-      : "NULL::uuid";
-    runLinkedSql(`
+  const createdUserSqlList = createdUserIds.length > 0
+    ? createdUserIds.map((id) => `${sqlLiteral(id)}::uuid`).join(",")
+    : "NULL::uuid";
+  return runCleanupSteps([
+    {
+      name: "remote_fixture_sql",
+      run: () => runLinkedSql(`
       BEGIN;
       ALTER TABLE public.appointment_assignment_shadow_issues
         DISABLE TRIGGER appointment_assignment_shadow_issues_immutable;
@@ -485,15 +500,18 @@ const cleanup = async () => {
       DELETE FROM public.establishments
       WHERE id IN (${sqlLiteral(unitAId)}::uuid, ${sqlLiteral(unitBId)}::uuid);
       COMMIT;
-    `);
-  } finally {
-    for (const userId of createdUserIds) {
-      const deleted = await admin.auth.admin.deleteUser(userId);
-      if (deleted.error && !deleted.error.message.includes("not found")) {
-        throw new Error(`cleanup_user_failed: ${deleted.error.message}`);
-      }
-    }
-  }
+    `),
+    },
+    ...createdUserIds.map((userId, index) => ({
+      name: `fixture_user_${index + 1}`,
+      run: async () => {
+        const deleted = await admin.auth.admin.deleteUser(userId);
+        if (deleted.error && !deleted.error.message.includes("not found")) {
+          throw new Error(`cleanup_user_failed: ${deleted.error.message}`);
+        }
+      },
+    })),
+  ]);
 };
 
 const findVisibleAuthorizedAccount = async () => {
@@ -572,6 +590,7 @@ const validateAuthorizedAndroidFixture = async () => {
   const fixtureAppointmentId = randomUUID();
   const fixtureCorrelationId = randomUUID();
   let fixtureRequestId = null;
+  let validationFailure = null;
   const originalReassignmentFlag = selectedEstablishment.appointment_reassignment_enabled;
 
   try {
@@ -739,11 +758,16 @@ const validateAuthorizedAndroidFixture = async () => {
         fixtureScope: "existing-authorized-establishment",
       },
     }, null, 2));
+  } catch (error) {
+    validationFailure = error;
   } finally {
     const requestPredicate = fixtureRequestId
       ? `OR reassignment_request_id = ${sqlLiteral(fixtureRequestId)}::uuid`
       : "";
-    runLinkedSql(`
+    const cleanupFailures = await runCleanupSteps([
+      {
+        name: "authorized_android_fixture_sql",
+        run: () => runLinkedSql(`
       BEGIN;
       ALTER TABLE public.appointment_assignment_events
         DISABLE TRIGGER appointment_assignment_events_immutable;
@@ -787,14 +811,25 @@ const validateAuthorizedAndroidFixture = async () => {
       ALTER TABLE public.appointment_events
         ENABLE TRIGGER appointment_events_immutable;
       COMMIT;
-    `);
-    for (const userId of fixtureUserIds) {
-      const deleted = await admin.auth.admin.deleteUser(userId);
-      if (deleted.error && !deleted.error.message.includes("not found")) {
-        throw new Error(`cleanup_android_fixture_user_failed: ${deleted.error.message}`);
-      }
+    `),
+      },
+      ...fixtureUserIds.map((userId, index) => ({
+        name: `authorized_android_fixture_user_${index + 1}`,
+        run: async () => {
+          const deleted = await admin.auth.admin.deleteUser(userId);
+          if (deleted.error && !deleted.error.message.includes("not found")) {
+            throw new Error(`cleanup_android_fixture_user_failed: ${deleted.error.message}`);
+          }
+        },
+      })),
+    ]);
+    if (cleanupFailures.length === 0) {
+      console.log("ANDROID_AUTHORIZED_FIXTURE_CLEANUP=PASS");
     }
-    console.log("ANDROID_AUTHORIZED_FIXTURE_CLEANUP=PASS");
+    if (validationFailure) throw validationFailure;
+    if (cleanupFailures.length > 0) {
+      throw new AggregateError(cleanupFailures, "authorized_android_fixture_cleanup_failed");
+    }
   }
 };
 
@@ -841,9 +876,6 @@ const cleanupAuthorizedAndroidOrphans = async () => {
     const userList = userIds.length > 0
       ? userIds.map((id) => `${sqlLiteral(id)}::uuid`).join(",")
       : "NULL::uuid";
-    const establishmentList = establishmentIds.length > 0
-      ? establishmentIds.map((id) => `${sqlLiteral(id)}::uuid`).join(",")
-      : "NULL::uuid";
     runLinkedSql(`
       BEGIN;
       ALTER TABLE public.appointment_assignment_events
@@ -870,9 +902,6 @@ const cleanupAuthorizedAndroidOrphans = async () => {
       WHERE service_id IN (${serviceList}) AND professional_id IN (${userList});
       DELETE FROM public.services WHERE id IN (${serviceList});
       DELETE FROM public.memberships WHERE profile_id IN (${userList});
-      UPDATE public.establishments
-      SET appointment_reassignment_enabled = false
-      WHERE id IN (${establishmentList});
       ALTER TABLE public.appointment_assignment_events
         ENABLE TRIGGER appointment_assignment_events_immutable;
       ALTER TABLE public.appointment_events
@@ -891,7 +920,7 @@ const cleanupAuthorizedAndroidOrphans = async () => {
     appointmentsRemoved: appointmentIds.length,
     servicesRemoved: serviceIds.length,
     usersRemoved: userIds.length,
-    reassignmentFlagsRestoredOff: establishmentIds.length,
+    reassignmentFlagsUnchanged: establishmentIds.length,
   }, null, 2));
 };
 
@@ -959,6 +988,7 @@ if (diagnoseVisibleAccount) {
   process.exit(0);
 }
 
+let primaryFailure = null;
 try {
   for (const name of definitions) {
     const created = requireData(
@@ -1375,15 +1405,37 @@ try {
       androidDeepLinks: androidResult.deepLinks,
     },
   }, null, 2));
+} catch (error) {
+  primaryFailure = error;
 } finally {
-  if (androidMode) restoreAndroidAutofillAfterHarness();
-  try {
-    await cleanup();
+  const cleanupFailures = await runCleanupSteps([
+    ...(androidMode ? [{
+      name: "android_autofill_restore",
+      run: () => restoreAndroidAutofillAfterHarness(),
+    }] : []),
+    {
+      name: "remote_fixture_cleanup",
+      run: async () => {
+        const remoteFailures = await cleanup();
+        if (remoteFailures.length > 0) {
+          throw new AggregateError(remoteFailures, "remote_fixture_cleanup_failed");
+        }
+      },
+    },
+    ...(androidEphemeralSessionCreated ? [{
+      name: "android_ephemeral_session_cleanup",
+      run: () => {
+        adb("shell", "pm", "clear", androidPackage);
+        console.log("ANDROID_EPHEMERAL_SESSION_CLEANUP=PASS");
+      },
+    }] : []),
+  ]);
+  if (cleanupFailures.length === 0) {
     console.log("FIXTURE_CLEANUP=PASS");
-  } finally {
-    if (androidEphemeralSessionCreated) {
-      adb("shell", "pm", "clear", androidPackage);
-      console.log("ANDROID_EPHEMERAL_SESSION_CLEANUP=PASS");
-    }
+  }
+  if (!primaryFailure && cleanupFailures.length > 0) {
+    primaryFailure = new AggregateError(cleanupFailures, "g14_cleanup_failed");
   }
 }
+
+if (primaryFailure) throw primaryFailure;

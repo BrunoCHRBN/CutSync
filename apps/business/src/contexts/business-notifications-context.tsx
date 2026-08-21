@@ -26,9 +26,10 @@ if (Platform.OS !== 'web') {
 
 export function BusinessNotificationsProvider({ children }: PropsWithChildren) {
   const { user } = useBusinessSession();
-  const { activeContext } = useBusinessOperational();
+  const { activeContext, isLoading: isContextLoading } = useBusinessOperational();
   const router = useRouter();
   const handledResponseId = useRef<string | null>(null);
+  const pendingResponse = useRef<Notifications.NotificationResponse | null>(null);
 
   const openNotification = useCallback((response: Notifications.NotificationResponse) => {
     if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
@@ -36,19 +37,31 @@ export function BusinessNotificationsProvider({ children }: PropsWithChildren) {
     if (handledResponseId.current === notificationId) return;
     const route = getBusinessNotificationRoute(response.notification.request.content.data);
     if (!route) return;
+    if (isContextLoading) {
+      pendingResponse.current = response;
+      return;
+    }
+    pendingResponse.current = null;
     handledResponseId.current = notificationId;
     recordBusinessProductEvent({ name: 'notification_opened', route: route.pathname });
     Notifications.clearLastNotificationResponse();
     const { targetEstablishmentId, ...href } = route;
     if (
-      activeContext
-      && targetEstablishmentId !== activeContext.establishmentId
+      !activeContext
+      || targetEstablishmentId !== activeContext.establishmentId
     ) {
       router.push('/establishments' as Href);
       return;
     }
     router.push(href as Href);
-  }, [activeContext, router]);
+  }, [activeContext, isContextLoading, router]);
+
+  useEffect(() => {
+    if (isContextLoading || !pendingResponse.current) return;
+    const response = pendingResponse.current;
+    pendingResponse.current = null;
+    openNotification(response);
+  }, [isContextLoading, openNotification]);
 
   useEffect(() => {
     if (!user || Platform.OS === 'web') return undefined;

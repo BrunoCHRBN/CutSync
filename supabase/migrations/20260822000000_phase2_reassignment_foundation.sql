@@ -218,6 +218,10 @@ CREATE TRIGGER appointment_assignment_events_immutable
 BEFORE UPDATE OR DELETE ON public.appointment_assignment_events
 FOR EACH ROW EXECUTE FUNCTION public.prevent_appointment_assignment_event_mutation();
 
+COMMENT ON TRIGGER appointment_assignment_events_immutable
+ON public.appointment_assignment_events IS
+  'Application roles cannot mutate assignment audit events. Controlled owner-only erasure follows docs/architecture/GATE_G14_PREPARATION.md.';
+
 -- Existing appointments enter shadow mode with an active assignment matching
 -- the legacy projection. No authority cutover happens in this migration.
 INSERT INTO public.appointment_professional_assignments(
