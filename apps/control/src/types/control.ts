@@ -21,6 +21,13 @@ export const controlPermissions = [
   'control.audit.export',
   'control.auth_recovery.manage',
   'control.auth_recovery.approve',
+  'control.cases.request',
+  'control.cases.read',
+  'control.cases.triage',
+  'control.cases.route',
+  'control.cases.manage',
+  'control.cases.audit',
+  'control.cases.fulfill',
 ] as const;
 
 export type ControlPermission = (typeof controlPermissions)[number];

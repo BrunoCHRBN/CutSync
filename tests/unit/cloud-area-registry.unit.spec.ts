@@ -14,6 +14,7 @@ function canFactory(permissions: ControlPermission[]) {
 test('area registry keeps stable order and canonical hrefs', () => {
   expect(CLOUD_AREAS.map((area) => area.id)).toEqual([
     'central',
+    'cases',
     'operation',
     'support',
     'gsp',
@@ -39,4 +40,13 @@ test('switcher includes Central when authorized', () => {
 test('GSP appears with any of its permissions', () => {
   const areas = launcherAreasVisibleTo(canFactory(['control.access.manage']));
   expect(areas.map((area) => area.id)).toEqual(['gsp']);
+});
+
+test('Chamados appears with any corporate case permission', () => {
+  const requesterAreas = launcherAreasVisibleTo(canFactory(['control.cases.request']));
+  const auditorAreas = launcherAreasVisibleTo(canFactory(['control.cases.audit']));
+  const executorAreas = launcherAreasVisibleTo(canFactory(['control.cases.fulfill']));
+  expect(requesterAreas.map((area) => area.id)).toEqual(['cases']);
+  expect(auditorAreas.map((area) => area.id)).toEqual(['cases']);
+  expect(executorAreas.map((area) => area.id)).toEqual(['cases']);
 });

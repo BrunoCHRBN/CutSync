@@ -13,12 +13,46 @@ function canFactory(permissions: ControlPermission[]) {
 
 test('chooses the first usable Cloud landing route', () => {
   expect(resolveDefaultCloudRoute(canFactory(['control.dashboard.read']))).toBe('/central');
+  expect(resolveDefaultCloudRoute(canFactory(['control.cases.request']))).toBe('/chamados');
   expect(resolveDefaultCloudRoute(canFactory(['control.live.read']))).toBe('/operacao/tempo-real');
   expect(resolveDefaultCloudRoute(canFactory(['control.support.read']))).toBe('/suporte');
   expect(resolveDefaultCloudRoute(canFactory(['control.knowledge.read']))).toBe('/gsp');
   expect(resolveDefaultCloudRoute(canFactory(['control.access.manage']))).toBe('/gsp');
   expect(resolveDefaultCloudRoute(canFactory(['control.billing.read']))).toBe('/financeiro');
   expect(resolveDefaultCloudRoute(canFactory([]))).toBe('/sem-acesso');
+});
+
+test('separates corporate case views by operational responsibility', () => {
+  const requester = canFactory(['control.cases.request']);
+  expect(canAccessCloudRoute('/chamados', requester)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/novo', requester)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/meus', requester)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/notificacoes', requester)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/observando', requester)).toBe(false);
+  expect(canAccessCloudRoute('/chamados/fila', requester)).toBe(false);
+  expect(canAccessCloudRoute('/chamados/todos', requester)).toBe(false);
+
+  const reader = canFactory(['control.cases.read']);
+  expect(canAccessCloudRoute('/chamados/novo', reader)).toBe(false);
+  expect(canAccessCloudRoute('/chamados/observando', reader)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/pendencias', reader)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/fila', reader)).toBe(false);
+
+  const triager = canFactory(['control.cases.triage']);
+  expect(canAccessCloudRoute('/chamados/fila', triager)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/todos', triager)).toBe(false);
+
+  const auditor = canFactory(['control.cases.audit']);
+  expect(canAccessCloudRoute('/chamados/todos', auditor)).toBe(true);
+  expect(
+    canAccessCloudRoute('/chamados/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', auditor),
+  ).toBe(true);
+
+  const executor = canFactory(['control.cases.fulfill']);
+  expect(canAccessCloudRoute('/chamados', executor)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/execucao', executor)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/fila', executor)).toBe(false);
+  expect(canAccessCloudRoute('/chamados/todos', executor)).toBe(false);
 });
 
 test('enforces granular route permissions inside a visible area', () => {

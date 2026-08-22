@@ -1,7 +1,7 @@
 import type { ControlPermission } from '@/types/control';
 import { CLOUD_ROUTES, type CloudRoutePath } from '@/navigation/cloud-routes';
 
-export type CloudNavModuleId = 'central' | 'operation' | 'support' | 'gsp' | 'finance';
+export type CloudNavModuleId = 'central' | 'cases' | 'operation' | 'support' | 'gsp' | 'finance';
 
 export type CloudNavItem = {
   id: string;
@@ -58,6 +58,102 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         section: 'preferences',
         permission: 'control.dashboard.read',
         exact: true,
+      },
+    ],
+  },
+  {
+    id: 'cases',
+    label: 'Chamados',
+    href: CLOUD_ROUTES.chamados.root,
+    matchPrefixes: ['/chamados'],
+    items: [
+      {
+        id: 'cases-create',
+        label: 'Abrir chamado',
+        href: CLOUD_ROUTES.chamados.novo,
+        permission: 'control.cases.request',
+        group: 'Solicitações',
+      },
+      {
+        id: 'cases-mine',
+        label: 'Meus chamados',
+        href: CLOUD_ROUTES.chamados.meus,
+        permission: [
+          'control.cases.request',
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Acompanhamento',
+      },
+      {
+        id: 'cases-observing',
+        label: 'Observando',
+        href: CLOUD_ROUTES.chamados.observando,
+        permission: [
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Acompanhamento',
+      },
+      {
+        id: 'cases-pending',
+        label: 'Minhas pendências',
+        href: CLOUD_ROUTES.chamados.pendencias,
+        permission: [
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Trabalho',
+      },
+      {
+        id: 'cases-queue',
+        label: 'Fila da equipe',
+        href: CLOUD_ROUTES.chamados.fila,
+        permission: [
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Trabalho',
+      },
+      {
+        id: 'cases-fulfillment',
+        label: 'Execução de acessos',
+        href: CLOUD_ROUTES.chamados.execucao,
+        permission: 'control.cases.fulfill',
+        group: 'Trabalho',
+      },
+      {
+        id: 'cases-all',
+        label: 'Todos os chamados',
+        href: CLOUD_ROUTES.chamados.todos,
+        permission: ['control.cases.manage', 'control.cases.audit'],
+        group: 'Controle',
+      },
+      {
+        id: 'cases-notifications',
+        label: 'Notificações',
+        href: CLOUD_ROUTES.chamados.notificacoes,
+        permission: [
+          'control.cases.request',
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+          'control.cases.fulfill',
+        ],
+        group: 'Controle',
       },
     ],
   },

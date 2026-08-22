@@ -2,7 +2,7 @@ import type { ControlPermission } from '@/types/control';
 import { CLOUD_ROUTES, type CloudRoutePath } from '@/navigation/cloud-routes';
 import type { CloudModuleAccent } from '@/navigation/module-registry';
 
-export type CloudAreaId = 'central' | 'operation' | 'support' | 'gsp' | 'finance';
+export type CloudAreaId = 'central' | 'cases' | 'operation' | 'support' | 'gsp' | 'finance';
 
 export type CloudArea = {
   id: CloudAreaId;
@@ -22,6 +22,22 @@ export const CLOUD_AREAS: CloudArea[] = [
     href: CLOUD_ROUTES.central,
     accent: 'brand',
     anyOf: ['control.dashboard.read'],
+  },
+  {
+    id: 'cases',
+    label: 'Chamados',
+    shortDescription: 'Solicitações e fluxos internos',
+    href: CLOUD_ROUTES.chamados.root,
+    accent: 'blue',
+    anyOf: [
+      'control.cases.request',
+      'control.cases.read',
+      'control.cases.triage',
+      'control.cases.route',
+      'control.cases.manage',
+      'control.cases.audit',
+      'control.cases.fulfill',
+    ],
   },
   {
     id: 'operation',
@@ -63,6 +79,7 @@ export const CLOUD_AREAS: CloudArea[] = [
 
 /** Descriptions used on Central launcher cards (slightly fuller than switcher). */
 export const CLOUD_AREA_LAUNCHER_COPY: Record<Exclude<CloudAreaId, 'central'>, string> = {
+  cases: 'Solicitações corporativas, pendências e acompanhamento interno.',
   operation: 'Monitoramento e confiabilidade da plataforma.',
   support: 'Atendimento e acompanhamento de solicitações.',
   gsp: 'Governança, segurança e gestão de acessos.',

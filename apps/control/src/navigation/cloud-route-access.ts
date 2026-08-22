@@ -16,12 +16,52 @@ const GSP_ENTRY_PERMISSIONS = [
   'control.access.apply',
 ] as const satisfies readonly ControlPermission[];
 
+const CASES_ENTRY_PERMISSIONS = [
+  'control.cases.request',
+  'control.cases.read',
+  'control.cases.triage',
+  'control.cases.route',
+  'control.cases.manage',
+  'control.cases.audit',
+  'control.cases.fulfill',
+] as const satisfies readonly ControlPermission[];
+
+const CASES_READ_PERMISSIONS = [
+  'control.cases.read',
+  'control.cases.triage',
+  'control.cases.route',
+  'control.cases.manage',
+  'control.cases.audit',
+] as const satisfies readonly ControlPermission[];
+
 /**
  * Canonical frontend route manifest. This controls discovery and client-side
  * routing only; protected RPCs and RLS remain the authorization boundary.
  */
 export const CLOUD_ROUTE_ACCESS_RULES: readonly CloudRouteAccessRule[] = [
   { path: CLOUD_ROUTES.central, match: 'exact', anyOf: ['control.dashboard.read'] },
+
+  { path: CLOUD_ROUTES.chamados.observando, match: 'exact', anyOf: CASES_READ_PERMISSIONS },
+  { path: CLOUD_ROUTES.chamados.pendencias, match: 'exact', anyOf: CASES_READ_PERMISSIONS },
+  { path: CLOUD_ROUTES.chamados.novo, match: 'exact', anyOf: ['control.cases.request'] },
+  {
+    path: CLOUD_ROUTES.chamados.execucao,
+    match: 'exact',
+    anyOf: ['control.cases.fulfill'],
+  },
+  {
+    path: CLOUD_ROUTES.chamados.fila,
+    match: 'exact',
+    anyOf: ['control.cases.triage', 'control.cases.route', 'control.cases.manage', 'control.cases.audit'],
+  },
+  {
+    path: CLOUD_ROUTES.chamados.todos,
+    match: 'exact',
+    anyOf: ['control.cases.manage', 'control.cases.audit'],
+  },
+  { path: CLOUD_ROUTES.chamados.meus, match: 'exact', anyOf: CASES_ENTRY_PERMISSIONS },
+  { path: CLOUD_ROUTES.chamados.notificacoes, match: 'exact', anyOf: CASES_ENTRY_PERMISSIONS },
+  { path: CLOUD_ROUTES.chamados.root, match: 'prefix', anyOf: CASES_ENTRY_PERMISSIONS },
 
   { path: CLOUD_ROUTES.operacao.tempoReal, match: 'exact', anyOf: ['control.live.read'] },
   { path: CLOUD_ROUTES.operacao.saudeDosDados, match: 'exact', anyOf: ['control.dashboard.read'] },
@@ -54,6 +94,7 @@ export const CLOUD_ROUTE_ACCESS_RULES: readonly CloudRouteAccessRule[] = [
 
 const DEFAULT_ROUTE_CANDIDATES: readonly Pick<CloudRouteAccessRule, 'path' | 'anyOf'>[] = [
   { path: CLOUD_ROUTES.central, anyOf: ['control.dashboard.read'] },
+  { path: CLOUD_ROUTES.chamados.root, anyOf: CASES_ENTRY_PERMISSIONS },
   { path: CLOUD_ROUTES.operacao.root, anyOf: ['control.dashboard.read'] },
   { path: CLOUD_ROUTES.operacao.tempoReal, anyOf: ['control.live.read'] },
   { path: CLOUD_ROUTES.suporte.root, anyOf: ['control.support.read'] },
