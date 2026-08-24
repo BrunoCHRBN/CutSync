@@ -23,6 +23,7 @@ import { useBusinessAgenda } from '@/features/agenda/use-business-agenda';
 import { businessTheme } from '@/theme/business-theme';
 import { useBusinessDecisionQueue } from '@/features/decisions/use-business-decisions';
 import { recordBusinessProductEvent } from '@/features/analytics/business-product-events';
+import { useFinancialOperationsOverview } from '@/features/payments/use-financial-operations-overview';
 
 const roleLabel = {
   owner: 'Proprietário',
@@ -34,10 +35,22 @@ const roleLabel = {
   manager: 'Gestor',
 } as const;
 
+const formatMoney = (cents: number, currency: string) => new Intl.NumberFormat('pt-BR', {
+  style: 'currency', currency,
+}).format(cents / 100);
+
+const cashStatusLabel = {
+  unavailable: 'Indisponível',
+  not_open: 'Não aberto',
+  open: 'Aberto',
+  closed: 'Fechado',
+} as const;
+
 export function BusinessTodayScreen() {
   const router = useRouter();
   const { activeContext } = useBusinessOperational();
   const agenda = useBusinessAgenda();
+  const financial = useFinancialOperationsOverview(agenda.localDate);
   const decisions = useBusinessDecisionQueue();
   const attentionViewRecorded = useRef(false);
   const summary = summarizeBusinessAgenda(agenda.items);
@@ -130,6 +143,85 @@ export function BusinessTodayScreen() {
         <BusinessMetric testID="business-today-delayed" label="Atrasos" value={String(summary.delayed)} emphasis={summary.delayed ? 'warning' : undefined} />
       </View>
 
+      {financial.canView ? (
+        <View style={styles.section} testID="business-financial-overview">
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderCopy}>
+              <BusinessSectionTitle>
+                {financial.data?.payments.canView ? 'Recebimentos e caixa' : 'Caixa do dia'}
+              </BusinessSectionTitle>
+              <Text style={styles.sectionDescription}>
+                {!financial.data?.payments.canView
+                  ? 'Situação do caixa vinculada à data da operação.'
+                  : financial.data.scope === 'own'
+                  ? 'Seus recebimentos declarados no POS manual.'
+                  : 'Resumo operacional da unidade, separado da assinatura CutSync.'}
+              </Text>
+            </View>
+            {financial.isLoading ? <ActivityIndicator color={businessTheme.colors.accent} /> : null}
+          </View>
+          {financial.error ? (
+            <>
+              <BusinessNotice tone="danger" message={financial.error} />
+              <BusinessButton label="Tentar novamente" variant="secondary" onPress={() => void financial.refresh()} />
+            </>
+          ) : financial.data ? (
+            <>
+              <View style={styles.metrics}>
+                {financial.data.payments.canView ? (
+                  <>
+                    <BusinessMetric
+                      testID="business-financial-received"
+                      label="Recebido no dia"
+                      value={formatMoney(financial.data.payments.netReceivedCents, financial.data.currency)}
+                      emphasis="accent"
+                    />
+                    <BusinessMetric
+                      testID="business-financial-outstanding"
+                      label="A receber no dia"
+                      value={formatMoney(financial.data.payments.outstandingCents, financial.data.currency)}
+                      emphasis={financial.data.payments.outstandingCents ? 'warning' : undefined}
+                    />
+                  </>
+                ) : null}
+                {financial.data.cash.canView ? (
+                  <BusinessMetric
+                    testID="business-financial-cash-status"
+                    label="Caixa do dia"
+                    value={cashStatusLabel[financial.data.cash.status]}
+                    emphasis={financial.data.cash.status === 'open' ? 'accent' : undefined}
+                  />
+                ) : null}
+              </View>
+              <View style={styles.financialActions}>
+                {financial.data.payments.canView ? (
+                  <BusinessButton
+                    label="Meios de pagamento"
+                    variant="secondary"
+                    onPress={() => router.push('/(app)/payment-methods')}
+                  />
+                ) : null}
+                {financial.data.cash.canView ? (
+                  <BusinessButton
+                    label={financial.data.cash.status === 'open' ? 'Ver caixa' : 'Abrir caixa'}
+                    variant="secondary"
+                    onPress={() => router.push('/(app)/cash')}
+                  />
+                ) : null}
+              </View>
+              {financial.data.alerts.slice(0, 2).map((alert) => (
+                <BusinessNotice
+                  key={alert.code}
+                  testID={`business-financial-alert-${alert.code}`}
+                  tone={alert.severity === 'warning' ? 'warning' : 'neutral'}
+                  message={`${alert.title}. ${alert.message}`}
+                />
+              ))}
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.section} testID="business-attention-center">
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderCopy}>
@@ -219,6 +311,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: businessTheme.spacing.sm },
   sectionHeaderCopy: { flex: 1, gap: businessTheme.spacing.xxs },
   sectionDescription: { ...businessTheme.typography.caption, color: businessTheme.colors.textMuted },
+  financialActions: { flexDirection: 'row', flexWrap: 'wrap', gap: businessTheme.spacing.sm },
   list: { gap: businessTheme.spacing.sm },
   attentionCard: { flexDirection: 'row', alignItems: 'center', gap: businessTheme.spacing.md },
   attentionCopy: { flex: 1, gap: businessTheme.spacing.xs },

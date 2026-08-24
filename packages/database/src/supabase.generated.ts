@@ -8694,6 +8694,13 @@ export type Database = {
         Args: { target_establishment_id: string }
         Returns: Json
       }
+      get_financial_operations_overview: {
+        Args: {
+          target_establishment_id: string
+          target_local_date?: string
+        }
+        Returns: Json
+      }
       get_establishment_team: {
         Args: {
           include_administrators?: boolean

@@ -5,18 +5,26 @@ on:
     paths:
       - '.github/workflows/phase5-gate.yml'
       - 'packages/database/src/cash-operations.ts'
+      - 'packages/database/src/financial-operations.ts'
       - 'packages/database/src/business-rpc.generated.ts'
       - 'packages/database/src/index.ts'
       - 'apps/business/src/services/business-api.ts'
       - 'apps/business/src/screens/cash.tsx'
       - 'apps/business/src/screens/management.tsx'
+      - 'apps/business/src/screens/today.tsx'
+      - 'apps/business/src/features/payments/use-financial-operations-overview.ts'
       - 'apps/business/src/app/(app)/cash.tsx'
       - 'apps/web/src/components/settings/CashOperationsSettings.tsx'
       - 'apps/web/src/components/screens/SettingsExperience.tsx'
+      - 'apps/web/src/components/screens/AdminDashboardExperience.tsx'
+      - 'apps/web/src/features/financial-operations/use-financial-operations-overview.ts'
       - 'supabase/migrations/20260825000000_phase5_cash_operations.sql'
       - 'supabase/tests/phase4_manual_pos.sql'
       - 'supabase/tests/phase5_cash_operations.sql'
+      - 'supabase/migrations/20260826000000_financial_operations_overview_slice1.sql'
+      - 'supabase/tests/financial_operations_overview_slice1.sql'
       - 'tests/unit/phase5-cash-operations.unit.spec.ts'
+      - 'tests/unit/financial-operations-overview.unit.spec.ts'
       - 'docs/architecture/PHASE5_CASH_OPERATIONS.md'
   workflow_dispatch:
 
@@ -51,6 +59,7 @@ jobs:
           set -euo pipefail
           docker exec -i supabase_db_CutSync psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/phase5_cash_operations.sql
           docker exec -i supabase_db_CutSync psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/phase4_manual_pos.sql
+          docker exec -i supabase_db_CutSync psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/financial_operations_overview_slice1.sql
       - name: Validate schema and privileges
         run: |
           supabase db lint --local --schema public --level error --fail-on error
@@ -60,7 +69,7 @@ jobs:
         run: |
           npm run typecheck:shared
           npm run typecheck:business
-          npx playwright test --project=unit tests/unit/phase5-cash-operations.unit.spec.ts tests/unit/phase4-manual-pos.unit.spec.ts
+          npx playwright test --project=unit tests/unit/phase5-cash-operations.unit.spec.ts tests/unit/phase4-manual-pos.unit.spec.ts tests/unit/financial-operations-overview.unit.spec.ts
       - name: Validate surfaces and bundles
         run: |
           npm run lint:business
