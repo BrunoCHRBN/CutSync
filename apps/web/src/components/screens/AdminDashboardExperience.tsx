@@ -815,25 +815,43 @@ export const AdminDashboardExperience = () => {
           <View style={styles.financialHeader}>
             <View style={styles.financialHeadingCopy}>
               <Text style={styles.panelTitle}>
-                {financialOverview.data?.payments.canView ? 'Recebimentos e caixa' : 'Caixa do dia'}
+                {!financialOverview.data
+                  ? 'Operação financeira do dia'
+                  : financialOverview.data.payments.canView
+                    ? 'Recebimentos e caixa'
+                    : 'Caixa do dia'}
               </Text>
               <Text style={styles.panelSubtitle}>
-                {!financialOverview.data?.payments.canView
-                  ? 'Situação do caixa vinculada à data selecionada.'
-                  : financialOverview.data.scope === 'own'
-                  ? 'Seus recebimentos declarados no POS manual.'
-                  : 'Visão operacional da unidade, separada da assinatura CutSync.'}
+                {financialOverview.loading
+                  ? 'Carregando a situação financeira do dia.'
+                  : financialOverview.error
+                    ? 'Não foi possível carregar a situação financeira do dia.'
+                    : !financialOverview.data
+                      ? 'A situação financeira do dia está indisponível.'
+                      : !financialOverview.data.payments.canView
+                        ? 'Situação do caixa vinculada à data selecionada.'
+                        : financialOverview.data.scope === 'own'
+                          ? 'Seus recebimentos declarados no POS manual.'
+                          : 'Visão operacional da unidade, separada da assinatura CutSync.'}
               </Text>
             </View>
             <StatusBadge
               label={financialOverview.loading
                 ? 'Atualizando'
-                : financialOverview.data?.payments.canView
-                  ? financialOverview.data.readiness.ready ? 'Pronto para receber' : 'Configuração pendente'
-                  : financialOverview.data?.cash.status === 'open' ? 'Caixa aberto' : 'Caixa não aberto'}
-              tone={financialOverview.data?.payments.canView
-                ? financialOverview.data.readiness.ready ? 'success' : 'warning'
-                : financialOverview.data?.cash.status === 'open' ? 'success' : 'warning'}
+                : financialOverview.error || !financialOverview.data
+                  ? 'Indisponível'
+                  : financialOverview.data.payments.canView
+                    ? financialOverview.data.readiness.ready ? 'Pronto para receber' : 'Configuração pendente'
+                    : financialOverview.data.cash.status === 'open' ? 'Caixa aberto' : 'Caixa não aberto'}
+              tone={financialOverview.loading
+                ? 'neutral'
+                : financialOverview.error
+                  ? 'danger'
+                  : !financialOverview.data
+                    ? 'neutral'
+                  : financialOverview.data.payments.canView
+                    ? financialOverview.data.readiness.ready ? 'success' : 'warning'
+                    : financialOverview.data.cash.status === 'open' ? 'success' : 'warning'}
             />
           </View>
           {financialOverview.error ? (

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeCurrencyCode } from '@cutsync/domain';
 
 import type { BusinessRpcArgs, BusinessRpcName } from './business-rpc.generated';
 import type { Database } from './supabase.generated';
@@ -103,7 +104,6 @@ type RpcCaller = <Name extends BusinessRpcName>(
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const PAYMENT_METHOD_TYPES = new Set<EstablishmentPaymentMethodType>([
   'cash', 'external_pix', 'external_card',
 ]);
@@ -234,12 +234,12 @@ export const mapFinancialOperationsOverview = (
   const payments = mapPayments(value.payments);
   const cash = mapCash(value.cash);
   const alerts = value.alerts.map(mapAlert);
+  const currency = normalizeCurrencyCode(value.currency);
   if (!isUuid(value.establishmentId)
     || !isValidLocalDate(value.localDate)
     || typeof value.timezone !== 'string'
     || value.timezone.trim().length === 0
-    || typeof value.currency !== 'string'
-    || !CURRENCY_PATTERN.test(value.currency)
+    || currency === null
     || (value.scope !== 'unit' && value.scope !== 'own')
     || !readiness
     || !payments
@@ -252,7 +252,7 @@ export const mapFinancialOperationsOverview = (
     establishmentId: value.establishmentId,
     localDate: value.localDate,
     timezone: value.timezone.trim(),
-    currency: value.currency,
+    currency,
     scope: value.scope,
     readiness,
     payments,

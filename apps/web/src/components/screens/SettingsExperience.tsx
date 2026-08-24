@@ -145,16 +145,9 @@ export const SettingsExperience = () => {
 
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
-  const requestedSection = settingsSections.some((item) => item.key === section)
+  const activeSection: SettingsSection = settingsSections.some((item) => item.key === section)
     ? section as SettingsSection
     : 'brand';
-  const [activeSection, setActiveSection] = useState<SettingsSection>(requestedSection);
-
-  useEffect(() => {
-    if (settingsSections.some((item) => item.key === section)) {
-      setActiveSection(section as SettingsSection);
-    }
-  }, [section]);
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [discoveryStatus, setDiscoveryStatus] = useState<'draft' | 'published'>('draft');
   const [discoveryRequirements, setDiscoveryRequirements] = useState<DiscoveryRequirements | null>(null);
@@ -736,7 +729,7 @@ export const SettingsExperience = () => {
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                   key={key}
-                  onPress={() => setActiveSection(key)}
+                  onPress={() => router.setParams({ section: key })}
                   style={[styles.sectionNavigationItem, selected && styles.sectionNavigationItemSelected]}
                   testID={`settings-section-${key}`}
                 >

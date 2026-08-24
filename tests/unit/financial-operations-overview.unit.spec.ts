@@ -63,6 +63,18 @@ test('maps the financial overview and fails closed on unsafe or contradictory da
   expect(mapFinancialOperationsOverview(overview)).toEqual(overview);
   expect(mapFinancialOperationsOverview({
     ...overview,
+    currency: ' brl ',
+  })).toMatchObject({ currency: 'BRL' });
+  expect(mapFinancialOperationsOverview({
+    ...overview,
+    currency: 'R$',
+  })).toBeNull();
+  expect(mapFinancialOperationsOverview({
+    ...overview,
+    currency: null,
+  })).toBeNull();
+  expect(mapFinancialOperationsOverview({
+    ...overview,
     payments: { ...overview.payments, outstandingCents: Number.MAX_SAFE_INTEGER + 1 },
   })).toBeNull();
   expect(mapFinancialOperationsOverview({
@@ -136,8 +148,12 @@ test('slice 1 migration keeps POS, cash and SaaS billing boundaries explicit', (
     'supabase/migrations/20260826000000_financial_operations_overview_slice1.sql',
     'utf8',
   );
+  const overviewFunction = migration.slice(
+    migration.indexOf('CREATE OR REPLACE FUNCTION public.get_financial_operations_overview'),
+  );
 
   expect(migration).toContain('CREATE OR REPLACE FUNCTION public.get_financial_operations_overview');
+  expect(migration).toContain('LANGUAGE plpgsql\nVOLATILE');
   expect(migration).toContain('entry.amount_cents');
   expect(migration).toContain("service_order.status = 'awaiting_payment'");
   expect(migration).toContain("service_order.professional_id = actor_id");
@@ -149,6 +165,9 @@ test('slice 1 migration keeps POS, cash and SaaS billing boundaries explicit', (
   expect(migration).toContain("method.active");
   expect(migration).toContain('expected_visible');
   expect(migration).toContain("'canView', can_view_payments");
+  expect(overviewFunction.indexOf("can_view_payments := public.has_business_capability(")).toBeLessThan(
+    overviewFunction.indexOf('SELECT * INTO establishment_record'),
+  );
   expect(migration).toContain('FROM PUBLIC, anon, authenticated');
   expect(migration).not.toContain('public.billing_');
   expect(migration).not.toContain('commission_entries');
@@ -164,6 +183,7 @@ test('Web and Business surfaces consume the shared overview without direct ledge
     'utf8',
   );
   const webScreen = readFileSync('apps/web/src/components/screens/AdminDashboardExperience.tsx', 'utf8');
+  const settingsScreen = readFileSync('apps/web/src/components/screens/SettingsExperience.tsx', 'utf8');
   const businessScreen = readFileSync('apps/business/src/screens/today.tsx', 'utf8');
 
   for (const source of [webHook, businessHook, webScreen, businessScreen]) {
@@ -171,5 +191,7 @@ test('Web and Business surfaces consume the shared overview without direct ledge
     expect(source).not.toContain(".from('cash_sessions')");
   }
   expect(webScreen).toContain('admin-financial-overview');
+  expect(webScreen).toContain("? 'Indisponível'");
+  expect(settingsScreen).toContain('router.setParams({ section: key })');
   expect(businessScreen).toContain('business-financial-overview');
 });

@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useBusinessOperational } from '@/contexts/business-operational-context';
-import { businessApi } from '@/services/business-api';
+import { BusinessApiError, businessApi } from '@/services/business-api';
 
 export function useFinancialOperationsOverview(localDate: string) {
   const { activeContext, hasCapability } = useBusinessOperational();
@@ -35,10 +35,12 @@ export function useFinancialOperationsOverview(localDate: string) {
       );
       if (requestVersion.current === version) setData(next);
       return next;
-    } catch {
+    } catch (caught) {
       if (requestVersion.current === version) {
         setData(null);
-        setError('Não foi possível carregar o resumo de recebimentos e caixa.');
+        setError(caught instanceof BusinessApiError
+          ? caught.message
+          : 'Não foi possível carregar o resumo de recebimentos e caixa.');
       }
       return null;
     } finally {

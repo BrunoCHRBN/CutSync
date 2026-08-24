@@ -148,7 +148,7 @@ CREATE OR REPLACE FUNCTION public.get_financial_operations_overview(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
@@ -189,6 +189,16 @@ BEGIN
     RAISE EXCEPTION 'invalid_establishment' USING ERRCODE = '22023';
   END IF;
 
+  can_view_payments := public.has_business_capability(
+    target_establishment_id, 'view_payments'
+  );
+  can_view_cash := public.has_business_capability(
+    target_establishment_id, 'view_cash'
+  );
+  IF NOT can_view_payments AND NOT can_view_cash THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
   SELECT * INTO establishment_record
   FROM public.establishments AS establishment
   WHERE establishment.id = target_establishment_id;
@@ -196,22 +206,12 @@ BEGIN
     RAISE EXCEPTION 'establishment_not_found' USING ERRCODE = 'P0002';
   END IF;
 
-  can_view_payments := public.has_business_capability(
-    target_establishment_id, 'view_payments'
-  );
-  can_view_cash := public.has_business_capability(
-    target_establishment_id, 'view_cash'
-  );
   can_view_financial_reports := public.has_business_capability(
     target_establishment_id, 'view_financial_reports'
   );
   unit_scope := can_view_financial_reports OR public.has_business_capability(
     target_establishment_id, 'view_team_orders'
   );
-
-  IF NOT can_view_payments AND NOT can_view_cash THEN
-    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
-  END IF;
 
   requested_local_date := COALESCE(
     target_local_date,

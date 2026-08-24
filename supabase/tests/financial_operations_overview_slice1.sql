@@ -22,13 +22,20 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION pg_temp.expect_error(statement text, expected_fragment text)
+CREATE OR REPLACE FUNCTION pg_temp.expect_error(
+  statement text,
+  expected_fragment text,
+  expected_sqlstate text DEFAULT NULL
+)
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
   EXECUTE statement;
   RAISE EXCEPTION 'FAIL: statement unexpectedly succeeded: %', statement;
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM LIKE 'FAIL: statement unexpectedly succeeded:%' THEN RAISE; END IF;
+  IF expected_sqlstate IS NOT NULL AND SQLSTATE <> expected_sqlstate THEN
+    RAISE EXCEPTION 'FAIL: expected SQLSTATE %, got % (%)', expected_sqlstate, SQLSTATE, SQLERRM;
+  END IF;
   IF position(expected_fragment IN SQLERRM) = 0 THEN
     RAISE EXCEPTION 'FAIL: expected %, got %', expected_fragment, SQLERRM;
   END IF;
@@ -176,6 +183,9 @@ BEGIN
   THEN RAISE EXCEPTION 'FAIL: owner overview invalid: %', payload; END IF;
   IF payload #>> '{cash,expectedCountVisibility}' <> 'visible'
   THEN RAISE EXCEPTION 'FAIL: owner carried cash session should remain visible'; END IF;
+  payload := public.get_financial_operations_overview(unit_a_id);
+  IF payload->>'localDate' <> local_day::text
+  THEN RAISE EXCEPTION 'FAIL: establishment timezone fallback invalid: %', payload; END IF;
 
   PERFORM pg_temp.set_actor(professional_a_id);
   payload := public.get_financial_operations_overview(unit_a_id, local_day);
@@ -203,7 +213,10 @@ BEGIN
   PERFORM pg_temp.set_actor(outsider_id);
   PERFORM pg_temp.expect_error(format(
     'SELECT public.get_financial_operations_overview(%L::uuid,%L::date)', unit_a_id, local_day
-  ), 'forbidden');
+  ), 'forbidden', '42501');
+  PERFORM pg_temp.expect_error(format(
+    'SELECT public.get_financial_operations_overview(%L::uuid,%L::date)', gen_random_uuid(), local_day
+  ), 'forbidden', '42501');
 
   IF has_table_privilege('authenticated', 'public.order_payment_entries', 'SELECT')
     OR has_table_privilege('authenticated', 'public.cash_sessions', 'SELECT')
