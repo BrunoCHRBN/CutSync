@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/phase1-gate.yml'
+      - '.github/workflows/supabase-schema-drift.yml'
       - 'apps/business/**'
       - 'apps/control/**'
       - 'apps/web/**'
@@ -11,9 +12,13 @@ on:
       - 'package-lock.json'
       - 'packages/database/**'
       - 'packages/domain/**'
+      - 'scripts/check-supabase-schema.sh'
+      - 'scripts/generate-supabase-types.sh'
       - 'scripts/reset-supabase-reconciled.ps1'
+      - 'scripts/validate-supabase-homolog-catalog.mjs'
       - 'scripts/validate-corporate-runtime-concurrency.mjs'
       - 'scripts/validate-phase1-real-jwt.mjs'
+      - 'supabase/config.toml'
       - 'supabase/migrations/**'
       - 'supabase/tests/corporate_*.sql'
       - 'supabase/tests/phase1_*.sql'
@@ -23,6 +28,8 @@ on:
       - 'tests/unit/control-*.unit.spec.ts'
       - 'tests/unit/corporate-*.unit.spec.ts'
       - 'tests/unit/identity-context.unit.spec.ts'
+      - 'tests/unit/phase0-canonical-reconciliation.unit.spec.ts'
+      - 'tests/unit/supabase-schema-contract-modes.unit.spec.ts'
       - 'tests/unit/web-authorized-routing.unit.spec.ts'
   workflow_dispatch:
 
@@ -50,11 +57,16 @@ jobs:
       - name: Instalar Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.113.0
+          version: 2.115.0
 
       - name: Reconstruir banco descartável reconciliado
         shell: pwsh
         run: ./scripts/reset-supabase-reconciled.ps1
+
+      - name: Validar contrato de tipos contra o replay local
+        env:
+          SUPABASE_TYPES_LOCAL: 'true'
+        run: bash scripts/check-supabase-schema.sh
 
       - name: Executar cenários SQL de Chamados corporativos
         shell: bash
@@ -87,7 +99,9 @@ jobs:
             tests/unit/control-context-forward-compatibility.unit.spec.ts \
             tests/unit/corporate-access-case-creation.unit.spec.ts \
             tests/unit/corporate-case-*.unit.spec.ts \
-            tests/unit/corporate-cases-*.unit.spec.ts
+            tests/unit/corporate-cases-*.unit.spec.ts \
+            tests/unit/phase0-canonical-reconciliation.unit.spec.ts \
+            tests/unit/supabase-schema-contract-modes.unit.spec.ts
 
       - name: Validar superfície e bundle do Control
         run: |

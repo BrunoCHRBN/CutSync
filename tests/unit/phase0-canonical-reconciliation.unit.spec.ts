@@ -33,8 +33,13 @@ test('reset reconciliado preserva históricos e monta uma sequência sem versõe
   expect(script).toContain('20260819000000_reconcile_android_cycle_schema_order.sql');
   expect(script).toContain('20260819001000_harden_mobile_public_surface.sql');
   expect(script).toContain("Where-Object Count -gt 1");
-  expect(script).toContain('supabase db reset --local --no-seed');
   expect(script).toContain("StartsWith('cutsync-reconciled-reset-'");
+  expect(script).toContain("Get-Command 'supabase' -CommandType Application");
+  expect(script).toContain("& npx --yes 'supabase@2.115.0' @CliArguments");
+  expect(script).toContain('Invoke-SupabaseCli status --workdir');
+  expect(script).toContain('Invoke-SupabaseCli start --workdir');
+  expect(script).toContain('Invoke-SupabaseCli db reset --local --no-seed');
+  expect(script).not.toContain('& npx supabase ');
 });
 
 test('hashes protegidos correspondem ao conteúdo normalizado das migrations', () => {
@@ -42,9 +47,15 @@ test('hashes protegidos correspondem ao conteúdo normalizado das migrations', (
   const entries = [
     ...readHashEntries(script, 'expectedActiveHistoricalHashes'),
     ...readHashEntries(script, 'expectedCanonicalHashes'),
+    ...readHashEntries(script, 'expectedHomologRecoveredHashes'),
+    ...readHashEntries(script, 'expectedReconciliationHashes'),
   ];
 
-  expect(entries).toHaveLength(8);
+  expect(entries).toHaveLength(19);
+  expect(entries).toContainEqual({
+    file: '20260824190722_control_access_idempotency_and_event_hardening.sql',
+    expectedHash: '796831D6B7D027E4926025DF01350912BC5C02CE3A22AFB7C9AFEFCAAA19D2B9',
+  });
   for (const entry of entries) {
     const normalizedContent = read(`supabase/migrations/${entry.file}`).replace(/\r\n?/g, '\n');
     const actualHash = createHash('sha256').update(normalizedContent, 'utf8').digest('hex').toUpperCase();

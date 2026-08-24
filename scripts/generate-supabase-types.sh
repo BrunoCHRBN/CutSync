@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_path="${1:-$repo_root/packages/database/src/supabase.generated.ts}"
 project_id="${SUPABASE_PROJECT_ID:-}"
 local_mode="${SUPABASE_TYPES_LOCAL:-false}"
+cli_version="${SUPABASE_CLI_VERSION:-2.115.0}"
 
 case "${local_mode,,}" in
   1|true|yes) local_mode=true ;;
@@ -59,7 +60,8 @@ fi
 if command -v supabase >/dev/null 2>&1; then
   supabase gen types typescript "${source_args[@]}" --schema public > "$generated_file"
 else
-  npx supabase gen types typescript "${source_args[@]}" --schema public > "$generated_file"
+  npx --yes --package="supabase@$cli_version" -- \
+    supabase gen types typescript "${source_args[@]}" --schema public > "$generated_file"
 fi
 
 mkdir -p "$(dirname "$output_path")"

@@ -39,8 +39,9 @@ $expectedCanonicalHashes = @{
 }
 
 # Versions 13000-21000 already exist in Homolog. They must remain byte-stable;
-# corrections are delivered only as a later migration. Version 22000 is the
-# local reconciliation hardening that must travel with the recovered chain.
+# corrections are delivered only as later migrations. Versions 22000 and
+# 190722 are local reconciliation hardening that must travel with the recovered
+# chain in timestamp order.
 $expectedHomologRecoveredHashes = @{
   '20260824013000_control_access_profiles_and_approvals.sql' = '9C6AB07EE0CBE93D6A523D2DFCC5C6EC0D2B91D7D0ED21B6E288AC8D66B2EEF9'
   '20260824014000_corporate_cases_foundation.sql' = '303C95CE03DF4AD89C1D50368BE9B0009DF9DD38C42BDBE794C095999AD78BE3'
@@ -55,6 +56,7 @@ $expectedHomologRecoveredHashes = @{
 
 $expectedReconciliationHashes = @{
   '20260824022000_corporate_case_runtime_hardening.sql' = '81B9B43185EF1C39B1237BF51205B960D21040E2A7F602D1295B6623257B2732'
+  '20260824190722_control_access_idempotency_and_event_hardening.sql' = '796831D6B7D027E4926025DF01350912BC5C02CE3A22AFB7C9AFEFCAAA19D2B9'
 }
 
 $requiredRecoveredFiles = @(
@@ -102,6 +104,22 @@ function Assert-MigrationHashes {
     if ($actualHash -cne $entry.Value) {
       throw "$Kind migration changed: $($entry.Key). Expected $($entry.Value), got $actualHash. Reconcile deliberately before resetting."
     }
+  }
+}
+
+$supabaseExecutable = Get-Command 'supabase' -CommandType Application -ErrorAction SilentlyContinue
+
+function Invoke-SupabaseCli {
+  param(
+    [Parameter(ValueFromRemainingArguments)]
+    [string[]]$CliArguments
+  )
+
+  if ($supabaseExecutable) {
+    & $supabaseExecutable.Source @CliArguments
+  }
+  else {
+    & npx --yes 'supabase@2.115.0' @CliArguments
   }
 }
 
@@ -168,18 +186,18 @@ try {
 
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
-  & npx supabase status --workdir $workspacePath 1>$null 2>$null
+  Invoke-SupabaseCli status --workdir $workspacePath 1>$null 2>$null
   $statusExitCode = $LASTEXITCODE
   $ErrorActionPreference = $previousErrorActionPreference
   if ($statusExitCode -ne 0) {
     Write-Host 'Starting the reconciled local Supabase stack.'
-    & npx supabase start --workdir $workspacePath 1>$null
+    Invoke-SupabaseCli start --workdir $workspacePath 1>$null
     if ($LASTEXITCODE -ne 0) {
       throw "Supabase reconciled start failed with exit code $LASTEXITCODE."
     }
   }
 
-  & npx supabase db reset --local --no-seed --workdir $workspacePath --yes
+  Invoke-SupabaseCli db reset --local --no-seed --workdir $workspacePath --yes
   if ($LASTEXITCODE -ne 0) {
     throw "Supabase reconciled reset failed with exit code $LASTEXITCODE."
   }

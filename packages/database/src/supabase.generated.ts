@@ -2316,6 +2316,7 @@ export type Database = {
           client_request_id: string
           created_at: string
           decision: string
+          expected_request_version: number
           id: string
           reason: string
           request_id: string
@@ -2326,6 +2327,7 @@ export type Database = {
           client_request_id: string
           created_at?: string
           decision: string
+          expected_request_version: number
           id?: string
           reason: string
           request_id: string
@@ -2336,6 +2338,7 @@ export type Database = {
           client_request_id?: string
           created_at?: string
           decision?: string
+          expected_request_version?: number
           id?: string
           reason?: string
           request_id?: string

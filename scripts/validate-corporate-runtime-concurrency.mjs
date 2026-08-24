@@ -4,9 +4,13 @@ import { execFileSync, spawn } from 'node:child_process';
 const container = process.env.SUPABASE_DB_CONTAINER ?? 'supabase_db_CutSync';
 const ids = {
   owner: randomUUID(),
+  target: randomUUID(),
   sameRequest: randomUUID(),
   winnerRequest: randomUUID(),
   loserRequest: randomUUID(),
+  enableCreationRequest: randomUUID(),
+  controlCreateRequest: randomUUID(),
+  corporateCreateRequest: randomUUID(),
 };
 
 const psqlArgs = [
@@ -47,12 +51,19 @@ const setup = `
 INSERT INTO auth.users(
   id, email, raw_user_meta_data, email_confirmed_at, created_at, updated_at
 )
-VALUES (
-  '${ids.owner}',
-  'runtime-concurrency-${ids.owner}@example.test',
-  '{"name":"Runtime Concurrency Owner"}'::jsonb,
-  now(), now(), now()
-);
+VALUES
+  (
+    '${ids.owner}',
+    'runtime-concurrency-${ids.owner}@example.test',
+    '{"name":"Runtime Concurrency Owner"}'::jsonb,
+    now(), now(), now()
+  ),
+  (
+    '${ids.target}',
+    'create-concurrency-${ids.target}@example.test',
+    '{"name":"Concurrent Access Target"}'::jsonb,
+    now(), now(), now()
+  );
 
 ${jwtSetup}
 SELECT set_config(
@@ -62,7 +73,9 @@ SELECT set_config(
 );
 
 INSERT INTO public.governance_users(profile_id, role, granted_by)
-VALUES ('${ids.owner}', 'SaaS_Owner', '${ids.owner}');
+VALUES
+  ('${ids.owner}', 'SaaS_Owner', '${ids.owner}'),
+  ('${ids.target}', 'SaaS_Viewer', '${ids.owner}');
 `;
 
 execFileSync('docker', psqlArgs, { input: setup, stdio: ['pipe', 'ignore', 'inherit'] });
@@ -214,6 +227,127 @@ if (auditCount !== '2') {
   throw new Error(`Runtime concurrency audit invariant failed: expected 2, got ${auditCount}`);
 }
 
+const creationState = readState();
+const enableCreationSql = `
+SELECT public.set_corporate_case_runtime_settings(
+  true, true, false, false, false, false,
+  ${creationState.version},
+  'Habilitação do runtime para validar criação concorrente idempotente.',
+  '${ids.enableCreationRequest}'
+);
+`;
+const enableCreationResult = await runMutation(enableCreationSql);
+if (enableCreationResult.code !== 0) {
+  throw new Error(
+    `Could not enable corporate creation for concurrency tests: ${enableCreationResult.stderr || enableCreationResult.stdout}`,
+  );
+}
+
+// Both creators use an absolute timestamp. Reusing now() + interval in each
+// connection would create different fingerprints and invalidate the test.
+// Leave enough headroom for cold/contended CI runners before the creator
+// transactions begin; the test still waits for this timestamp before replay.
+const validUntil = new Date(Date.now() + 15_000).toISOString();
+const controlJustification = 'Solicitação concorrente para validar serialização idempotente do acesso Control.';
+const corporateJustification = 'Solicitação corporativa concorrente para validar criação atômica e replay idempotente.';
+const controlCreateSql = `
+SELECT public.create_control_access_request(
+  '${ids.target}',
+  'finance_analyst',
+  'grant',
+  NULL,
+  '${validUntil}'::timestamptz,
+  '${controlJustification}',
+  'CONC-CONTROL-001',
+  '${ids.controlCreateRequest}'
+);
+`;
+const corporateCreateSql = `
+SELECT public.create_corporate_access_case(
+  '${ids.target}',
+  'finance_analyst',
+  'grant',
+  NULL,
+  '${validUntil}'::timestamptz,
+  '${corporateJustification}',
+  ARRAY[]::uuid[],
+  '${ids.corporateCreateRequest}'
+);
+`;
+const controlMarker = `control-create-hold-${ids.controlCreateRequest}`;
+const corporateMarker = `corporate-create-hold-${ids.corporateCreateRequest}`;
+
+const firstControlCreate = runHeldMutation(controlCreateSql, controlMarker);
+const firstCorporateCreate = runHeldMutation(corporateCreateSql, corporateMarker);
+await Promise.all([
+  waitForLockHolder(controlMarker),
+  waitForLockHolder(corporateMarker),
+]);
+const secondControlCreate = runMutation(controlCreateSql);
+const secondCorporateCreate = runMutation(corporateCreateSql);
+const [
+  firstControlResult,
+  firstCorporateResult,
+  secondControlResult,
+  secondCorporateResult,
+] = await Promise.all([
+  firstControlCreate,
+  firstCorporateCreate,
+  secondControlCreate,
+  secondCorporateCreate,
+]);
+
+for (const [label, result] of [
+  ['first Control create', firstControlResult],
+  ['first corporate create', firstCorporateResult],
+  ['second Control create', secondControlResult],
+  ['second corporate create', secondCorporateResult],
+]) {
+  if (result.code !== 0) {
+    throw new Error(`${label} failed: ${result.stderr || result.stdout}`);
+  }
+}
+if (!secondCorporateResult.stdout.includes('"idempotent": true')) {
+  throw new Error(
+    `Second corporate create did not report an idempotent replay: ${secondCorporateResult.stdout}`,
+  );
+}
+
+const createCounts = query(`
+  SELECT
+    (SELECT count(*) FROM public.control_access_requests
+      WHERE client_request_id = '${ids.controlCreateRequest}') || '|' ||
+    (SELECT count(*) FROM public.corporate_cases
+      WHERE client_request_id = '${ids.corporateCreateRequest}') || '|' ||
+    (SELECT count(*) FROM public.corporate_case_events
+      WHERE event_key = '${ids.corporateCreateRequest}')
+`);
+if (createCounts !== '1|1|1') {
+  throw new Error(`Concurrent create invariant failed: expected 1|1|1, got ${createCounts}`);
+}
+
+// A separate transaction beginning after requested_valid_until must still
+// replay the original payload; temporal admission only applies to new rows.
+const expiryDelay = Math.max(0, Date.parse(validUntil) - Date.now() + 250);
+await new Promise((resolve) => setTimeout(resolve, expiryDelay));
+const [expiredControlReplay, expiredCorporateReplay] = await Promise.all([
+  runMutation(controlCreateSql),
+  runMutation(corporateCreateSql),
+]);
+if (expiredControlReplay.code !== 0) {
+  throw new Error(
+    `Expired Control payload did not replay idempotently: ${expiredControlReplay.stderr || expiredControlReplay.stdout}`,
+  );
+}
+if (
+  expiredCorporateReplay.code !== 0
+  || !expiredCorporateReplay.stdout.includes('"idempotent": true')
+) {
+  throw new Error(
+    `Expired corporate payload did not replay idempotently: ${expiredCorporateReplay.stderr || expiredCorporateReplay.stdout}`,
+  );
+}
+
 process.stdout.write(
-  `Corporate runtime concurrency validated: idempotency=${afterIdempotency}, conflict=${afterConflict}\n`,
+  `Corporate runtime/create concurrency validated: runtime=${afterIdempotency}, conflict=${afterConflict}, creates=${createCounts}\n`,
 );
