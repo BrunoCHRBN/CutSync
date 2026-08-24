@@ -15,6 +15,13 @@ const migration = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260824021000_corporate_case_runtime_administration.sql'),
   'utf8',
 ).replace(/\r\n/g, '\n');
+const searchPathReconciliation = fs.readFileSync(
+  path.join(
+    root,
+    'supabase/migrations/20260824194048_corporate_case_runtime_search_path_reconciliation.sql',
+  ),
+  'utf8',
+).replace(/\r\n/g, '\n');
 const routeAccess = fs.readFileSync(
   path.join(root, 'apps/control/src/navigation/cloud-route-access.ts'),
   'utf8',
@@ -53,6 +60,22 @@ test('requires AAL2 context, SaaS Owner role and the dedicated capability in bot
   expect(migration).not.toContain('SECURITY DEFINER\nSET search_path = pg_catalog, public');
   expect(migration).toContain('TO authenticated;');
   expect(migration).not.toContain('TO authenticated, service_role;');
+});
+
+test('reconciles the applied Homolog functions without changing their grants or bodies', () => {
+  expect(searchPathReconciliation.match(/SET search_path = pg_catalog;/g)).toHaveLength(3);
+  expect(searchPathReconciliation).toContain(
+    'ALTER FUNCTION public.corporate_case_runtime_changes_are_immutable()',
+  );
+  expect(searchPathReconciliation).toContain(
+    'ALTER FUNCTION public.get_corporate_case_runtime_administration_context(integer)',
+  );
+  expect(searchPathReconciliation).toContain(
+    'ALTER FUNCTION public.set_corporate_case_runtime_settings(',
+  );
+  expect(searchPathReconciliation).not.toContain('GRANT ');
+  expect(searchPathReconciliation).not.toContain('REVOKE ');
+  expect(searchPathReconciliation).not.toContain('CREATE OR REPLACE FUNCTION');
 });
 
 test('keeps the file-based configuration route in the delivery', () => {
