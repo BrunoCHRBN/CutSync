@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import {
   canAccessCloudRoute,
   controlPermissionChecker,
+  resolveCorporateCasesLandingRoute,
   resolveDefaultCloudRoute,
 } from '../../apps/control/src/navigation/cloud-route-access';
 import type { ControlPermission } from '../../apps/control/src/types/control';
@@ -14,6 +15,7 @@ function canFactory(permissions: ControlPermission[]) {
 test('chooses the first usable Cloud landing route', () => {
   expect(resolveDefaultCloudRoute(canFactory(['control.dashboard.read']))).toBe('/central');
   expect(resolveDefaultCloudRoute(canFactory(['control.cases.request']))).toBe('/chamados');
+  expect(resolveDefaultCloudRoute(canFactory(['control.cases.approve']))).toBe('/chamados');
   expect(resolveDefaultCloudRoute(canFactory(['control.live.read']))).toBe('/operacao/tempo-real');
   expect(resolveDefaultCloudRoute(canFactory(['control.support.read']))).toBe('/suporte');
   expect(resolveDefaultCloudRoute(canFactory(['control.knowledge.read']))).toBe('/gsp');
@@ -53,6 +55,32 @@ test('separates corporate case views by operational responsibility', () => {
   expect(canAccessCloudRoute('/chamados/execucao', executor)).toBe(true);
   expect(canAccessCloudRoute('/chamados/fila', executor)).toBe(false);
   expect(canAccessCloudRoute('/chamados/todos', executor)).toBe(false);
+
+  const approver = canFactory(['control.cases.approve']);
+  expect(canAccessCloudRoute('/chamados', approver)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/meus', approver)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/pendencias', approver)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/observando', approver)).toBe(false);
+  expect(canAccessCloudRoute('/chamados/fila', approver)).toBe(false);
+  expect(canAccessCloudRoute('/chamados/execucao', approver)).toBe(false);
+
+  const runtimeOwner = canFactory(['control.cases.configure']);
+  expect(canAccessCloudRoute('/chamados/configuracao', runtimeOwner)).toBe(true);
+  expect(canAccessCloudRoute('/chamados/configuracao', canFactory(['control.cases.manage'])))
+    .toBe(false);
+});
+
+test('routes specialized case roles to their actionable landing page', () => {
+  expect(resolveCorporateCasesLandingRoute(canFactory(['control.cases.approve'])))
+    .toBe('/chamados/pendencias');
+  expect(resolveCorporateCasesLandingRoute(canFactory(['control.cases.fulfill'])))
+    .toBe('/chamados/execucao');
+  expect(resolveCorporateCasesLandingRoute(canFactory(['control.cases.request'])))
+    .toBe('/chamados/meus');
+  expect(resolveCorporateCasesLandingRoute(canFactory([
+    'control.cases.approve',
+    'control.cases.manage',
+  ]))).toBe('/chamados/meus');
 });
 
 test('enforces granular route permissions inside a visible area', () => {

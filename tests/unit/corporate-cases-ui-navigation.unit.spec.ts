@@ -44,6 +44,17 @@ test('shows only the case navigation packages authorized to the profile', () => 
 
   const manager = navItemsForModule('cases', canFactory(['control.cases.manage']));
   expect(manager.map((item) => item.id)).toContain('cases-all');
+  expect(manager.map((item) => item.id)).not.toContain('cases-settings');
+
+  const runtimeOwner = navItemsForModule('cases', canFactory(['control.cases.configure']));
+  expect(runtimeOwner.map((item) => item.id)).toEqual(['cases-settings']);
+
+  const approver = navItemsForModule('cases', canFactory(['control.cases.approve']));
+  expect(approver.map((item) => item.id)).toEqual([
+    'cases-mine',
+    'cases-pending',
+    'cases-notifications',
+  ]);
 
   const executor = navItemsForModule('cases', canFactory(['control.cases.fulfill']));
   expect(executor.map((item) => item.id)).toEqual([
@@ -58,6 +69,7 @@ test('makes Chamados discoverable to every valid case access package', () => {
     'control.cases.read',
     'control.cases.triage',
     'control.cases.route',
+    'control.cases.approve',
     'control.cases.manage',
     'control.cases.audit',
     'control.cases.fulfill',
@@ -65,6 +77,17 @@ test('makes Chamados discoverable to every valid case access package', () => {
     const actions = searchCloudActions('chamados', canFactory([permission]));
     expect(actions.map((action) => action.id)).toContain('go-chamados');
   }
+});
+
+test('discovers the critical configuration action only with its dedicated capability', () => {
+  expect(
+    searchCloudActions('configurar chamados', canFactory(['control.cases.configure']))
+      .map((action) => action.id),
+  ).toContain('go-configurar-chamados');
+  expect(
+    searchCloudActions('configurar chamados', canFactory(['control.cases.manage']))
+      .map((action) => action.id),
+  ).not.toContain('go-configurar-chamados');
 });
 
 test('validates opaque UUIDs and classifies deadlines without using user data', () => {

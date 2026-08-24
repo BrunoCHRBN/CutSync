@@ -18,6 +18,7 @@ export const CLOUD_ROUTES = {
     fila: '/chamados/fila',
     execucao: '/chamados/execucao',
     todos: '/chamados/todos',
+    configuracao: '/chamados/configuracao',
     notificacoes: '/chamados/notificacoes',
   },
   operacao: {

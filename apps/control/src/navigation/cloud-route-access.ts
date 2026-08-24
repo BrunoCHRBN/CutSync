@@ -21,6 +21,7 @@ const CASES_ENTRY_PERMISSIONS = [
   'control.cases.read',
   'control.cases.triage',
   'control.cases.route',
+  'control.cases.approve',
   'control.cases.manage',
   'control.cases.audit',
   'control.cases.fulfill',
@@ -34,6 +35,11 @@ const CASES_READ_PERMISSIONS = [
   'control.cases.audit',
 ] as const satisfies readonly ControlPermission[];
 
+const CASES_PENDING_PERMISSIONS = [
+  ...CASES_READ_PERMISSIONS,
+  'control.cases.approve',
+] as const satisfies readonly ControlPermission[];
+
 /**
  * Canonical frontend route manifest. This controls discovery and client-side
  * routing only; protected RPCs and RLS remain the authorization boundary.
@@ -42,7 +48,7 @@ export const CLOUD_ROUTE_ACCESS_RULES: readonly CloudRouteAccessRule[] = [
   { path: CLOUD_ROUTES.central, match: 'exact', anyOf: ['control.dashboard.read'] },
 
   { path: CLOUD_ROUTES.chamados.observando, match: 'exact', anyOf: CASES_READ_PERMISSIONS },
-  { path: CLOUD_ROUTES.chamados.pendencias, match: 'exact', anyOf: CASES_READ_PERMISSIONS },
+  { path: CLOUD_ROUTES.chamados.pendencias, match: 'exact', anyOf: CASES_PENDING_PERMISSIONS },
   { path: CLOUD_ROUTES.chamados.novo, match: 'exact', anyOf: ['control.cases.request'] },
   {
     path: CLOUD_ROUTES.chamados.execucao,
@@ -58,6 +64,11 @@ export const CLOUD_ROUTE_ACCESS_RULES: readonly CloudRouteAccessRule[] = [
     path: CLOUD_ROUTES.chamados.todos,
     match: 'exact',
     anyOf: ['control.cases.manage', 'control.cases.audit'],
+  },
+  {
+    path: CLOUD_ROUTES.chamados.configuracao,
+    match: 'exact',
+    anyOf: ['control.cases.configure'],
   },
   { path: CLOUD_ROUTES.chamados.meus, match: 'exact', anyOf: CASES_ENTRY_PERMISSIONS },
   { path: CLOUD_ROUTES.chamados.notificacoes, match: 'exact', anyOf: CASES_ENTRY_PERMISSIONS },
@@ -131,6 +142,21 @@ export function resolveDefaultCloudRoute(
     entry.anyOf.some((permission) => can(permission))
   ));
   return candidate?.path ?? CLOUD_ROUTES.semAcesso;
+}
+
+export function resolveCorporateCasesLandingRoute(
+  can: (permission: ControlPermission) => boolean,
+): CloudRoutePath {
+  const hasGeneralCaseAccess = CASES_READ_PERMISSIONS.some((permission) => can(permission))
+    || can('control.cases.request');
+
+  if (can('control.cases.approve') && !hasGeneralCaseAccess) {
+    return CLOUD_ROUTES.chamados.pendencias;
+  }
+  if (can('control.cases.fulfill') && !hasGeneralCaseAccess) {
+    return CLOUD_ROUTES.chamados.execucao;
+  }
+  return CLOUD_ROUTES.chamados.meus;
 }
 
 export function controlPermissionChecker(

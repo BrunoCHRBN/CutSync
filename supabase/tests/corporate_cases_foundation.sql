@@ -60,7 +60,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL: corporate cases runtime unexpectedly enabled';
   END IF;
 
-  IF (SELECT count(*) FROM public.control_permission_catalog WHERE area = 'cases') <> 6 THEN
+  IF (SELECT count(*) FROM public.control_permission_catalog WHERE area = 'cases') <> 8 THEN
     RAISE EXCEPTION 'FAIL: corporate cases permission catalog is incomplete';
   END IF;
 

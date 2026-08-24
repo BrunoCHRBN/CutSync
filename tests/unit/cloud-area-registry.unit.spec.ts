@@ -44,9 +44,11 @@ test('GSP appears with any of its permissions', () => {
 
 test('Chamados appears with any corporate case permission', () => {
   const requesterAreas = launcherAreasVisibleTo(canFactory(['control.cases.request']));
+  const approverAreas = launcherAreasVisibleTo(canFactory(['control.cases.approve']));
   const auditorAreas = launcherAreasVisibleTo(canFactory(['control.cases.audit']));
   const executorAreas = launcherAreasVisibleTo(canFactory(['control.cases.fulfill']));
   expect(requesterAreas.map((area) => area.id)).toEqual(['cases']);
+  expect(approverAreas.map((area) => area.id)).toEqual(['cases']);
   expect(auditorAreas.map((area) => area.id)).toEqual(['cases']);
   expect(executorAreas.map((area) => area.id)).toEqual(['cases']);
 });

@@ -31,6 +31,47 @@ export interface CorporateCasesReadContext {
   views: CorporateCasesViewAccess;
 }
 
+export interface CorporateCaseRuntimeFlags {
+  enabled: boolean;
+  creationEnabled: boolean;
+  workflowEnabled: boolean;
+  automationEnabled: boolean;
+  emailEnabled: boolean;
+  legacyRedirectsEnabled: boolean;
+}
+
+export interface CorporateCaseRuntimeSettings extends CorporateCaseRuntimeFlags {
+  version: number;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface CorporateCaseRuntimeChange {
+  changeId: string;
+  requestId: string;
+  actorProfileId: string | null;
+  actorName: string;
+  reason: string;
+  expectedVersion: number;
+  resultingVersion: number;
+  previousSettings: CorporateCaseRuntimeFlags;
+  newSettings: CorporateCaseRuntimeFlags;
+  createdAt: string;
+}
+
+export interface CorporateCaseRuntimeAdministrationContext {
+  settings: CorporateCaseRuntimeSettings;
+  recentChanges: CorporateCaseRuntimeChange[];
+}
+
+export interface CorporateCaseRuntimeMutationResult {
+  changeId: string;
+  requestId: string;
+  resultingVersion: number;
+  settings: CorporateCaseRuntimeFlags;
+  idempotent: boolean;
+}
+
 export interface CorporateCaseType {
   typeId: string;
   typeKey: string;
@@ -432,6 +473,12 @@ function requireInteger(value: unknown): number {
   return value;
 }
 
+function requirePositiveInteger(value: unknown): number {
+  const integer = requireInteger(value);
+  if (integer < 1) throw new CorporateCasesError(invalidPayloadMessage);
+  return integer;
+}
+
 function nullableInteger(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   return requireInteger(value);
@@ -480,6 +527,21 @@ function rpcErrorMessage(error: ServiceError, fallback: string): string {
   }
   if (source.includes('corporate_case_creation_disabled')) {
     return 'A abertura de chamados ainda não está habilitada.';
+  }
+  if (source.includes('corporate_case_runtime_version_conflict')) {
+    return 'As configurações foram alteradas por outra pessoa. Recarregue antes de salvar.';
+  }
+  if (source.includes('corporate_case_runtime_idempotency_conflict')) {
+    return 'A identificação desta alteração já foi usada com outro conteúdo. Recarregue e tente novamente.';
+  }
+  if (source.includes('corporate_case_runtime_reason_invalid')) {
+    return 'A justificativa da alteração deve ter entre 20 e 1.000 caracteres.';
+  }
+  if (source.includes('corporate_case_runtime_dependency_invalid')) {
+    return 'A combinação de flags não respeita as dependências do módulo.';
+  }
+  if (source.includes('corporate_case_runtime_settings_unchanged')) {
+    return 'Nenhuma configuração foi alterada.';
   }
   if (source.includes('corporate_case_workflow_disabled')) {
     return 'As ações do fluxo ainda não estão habilitadas.';
@@ -597,6 +659,61 @@ export function parseCorporateCasesReadContext(value: unknown): CorporateCasesRe
     creationEnabled: requireBoolean(record.creation_enabled),
     permissions: requireStringArray(record.permissions),
     views: parseReadViews(record.views),
+  };
+}
+
+export function parseCorporateCaseRuntimeFlags(value: unknown): CorporateCaseRuntimeFlags {
+  const record = requireRecord(value);
+  return {
+    enabled: requireBoolean(record.enabled),
+    creationEnabled: requireBoolean(record.creation_enabled),
+    workflowEnabled: requireBoolean(record.workflow_enabled),
+    automationEnabled: requireBoolean(record.automation_enabled),
+    emailEnabled: requireBoolean(record.email_enabled),
+    legacyRedirectsEnabled: requireBoolean(record.legacy_redirects_enabled),
+  };
+}
+
+export function parseCorporateCaseRuntimeAdministrationContext(
+  value: unknown,
+): CorporateCaseRuntimeAdministrationContext {
+  const record = requireRecord(value);
+  const settingsRecord = requireRecord(record.settings);
+  return {
+    settings: {
+      ...parseCorporateCaseRuntimeFlags(settingsRecord),
+      version: requirePositiveInteger(settingsRecord.version),
+      updatedBy: nullableString(settingsRecord.updated_by),
+      updatedAt: requireString(settingsRecord.updated_at),
+    },
+    recentChanges: requireArray(record.recent_changes).map((entry) => {
+      const change = requireRecord(entry);
+      return {
+        changeId: requireString(change.change_id),
+        requestId: requireString(change.request_id),
+        actorProfileId: nullableString(change.actor_profile_id),
+        actorName: requireString(change.actor_name),
+        reason: requireString(change.reason),
+        expectedVersion: requirePositiveInteger(change.expected_version),
+        resultingVersion: requirePositiveInteger(change.resulting_version),
+        previousSettings: parseCorporateCaseRuntimeFlags(change.previous_settings),
+        newSettings: parseCorporateCaseRuntimeFlags(change.new_settings),
+        createdAt: requireString(change.created_at),
+      };
+    }),
+  };
+}
+
+export function parseCorporateCaseRuntimeMutationResult(
+  value: unknown,
+): CorporateCaseRuntimeMutationResult {
+  const record = requireRecord(value);
+  return {
+    changeId: requireString(record.change_id),
+    requestId: requireString(record.request_id),
+    resultingVersion: requirePositiveInteger(record.resulting_version),
+    settings: parseCorporateCaseRuntimeFlags(record.settings),
+    idempotent: requireBoolean(record.idempotent),
   };
 }
 
@@ -1047,6 +1164,51 @@ export async function getCorporateCasesReadContext(): Promise<CorporateCasesRead
   const result = await rpc('get_corporate_cases_read_context');
   throwRpcError(result.error, 'Não foi possível consultar a disponibilidade dos chamados.');
   return parseCorporateCasesReadContext(result.data);
+}
+
+export async function getCorporateCaseRuntimeAdministrationContext(
+  historyLimit = 20,
+): Promise<CorporateCaseRuntimeAdministrationContext> {
+  if (!Number.isSafeInteger(historyLimit) || historyLimit < 1 || historyLimit > 100) {
+    throw new CorporateCasesError('O histórico deve ficar entre 1 e 100 alterações.');
+  }
+  const result = await rpc('get_corporate_case_runtime_administration_context', {
+    target_history_limit: historyLimit,
+  });
+  throwRpcError(result.error, 'Não foi possível consultar a configuração dos chamados.');
+  return parseCorporateCaseRuntimeAdministrationContext(result.data);
+}
+
+export async function setCorporateCaseRuntimeSettings(input: {
+  settings: CorporateCaseRuntimeFlags;
+  expectedVersion: number;
+  reason: string;
+  requestId: string;
+}): Promise<CorporateCaseRuntimeMutationResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 20 || reason.length > 1000) {
+    throw new CorporateCasesError('A justificativa da alteração deve ter entre 20 e 1.000 caracteres.');
+  }
+  if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1) {
+    throw new CorporateCasesError('A versão da configuração é inválida.');
+  }
+  if (!input.requestId.trim()) {
+    throw new CorporateCasesError('Não foi possível identificar esta alteração.');
+  }
+
+  const result = await rpc('set_corporate_case_runtime_settings', {
+    target_enabled: input.settings.enabled,
+    target_creation_enabled: input.settings.creationEnabled,
+    target_workflow_enabled: input.settings.workflowEnabled,
+    target_automation_enabled: input.settings.automationEnabled,
+    target_email_enabled: input.settings.emailEnabled,
+    target_legacy_redirects_enabled: input.settings.legacyRedirectsEnabled,
+    target_expected_version: input.expectedVersion,
+    target_reason: reason,
+    target_request_id: input.requestId,
+  });
+  throwRpcError(result.error, 'Não foi possível alterar a configuração dos chamados.');
+  return parseCorporateCaseRuntimeMutationResult(result.data);
 }
 
 export async function listCorporateCaseTypes(): Promise<CorporateCaseType[]> {

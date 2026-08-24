@@ -94,6 +94,7 @@ export const CLOUD_SEARCH_ACTIONS: CloudSearchAction[] = [
       'control.cases.read',
       'control.cases.triage',
       'control.cases.route',
+      'control.cases.approve',
       'control.cases.manage',
       'control.cases.audit',
       'control.cases.fulfill',
@@ -107,6 +108,14 @@ export const CLOUD_SEARCH_ACTIONS: CloudSearchAction[] = [
     href: CLOUD_ROUTES.chamados.novo,
     permission: 'control.cases.request',
     keywords: ['novo', 'abrir', 'solicitar', 'acesso'],
+    moduleId: 'cases',
+  },
+  {
+    id: 'go-configurar-chamados',
+    label: 'Configurar módulo de Chamados',
+    href: CLOUD_ROUTES.chamados.configuracao,
+    permission: 'control.cases.configure',
+    keywords: ['configurar chamados', 'configuracao', 'ativacao', 'flags', 'runtime'],
     moduleId: 'cases',
   },
   {
@@ -201,7 +210,9 @@ export function modulesVisibleTo(
         || can('control.cases.read')
         || can('control.cases.triage')
         || can('control.cases.route')
+        || can('control.cases.approve')
         || can('control.cases.manage')
+        || can('control.cases.configure')
         || can('control.cases.audit')
         || can('control.cases.fulfill')
       );

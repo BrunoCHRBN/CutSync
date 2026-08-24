@@ -25,7 +25,9 @@ export const controlPermissions = [
   'control.cases.read',
   'control.cases.triage',
   'control.cases.route',
+  'control.cases.approve',
   'control.cases.manage',
+  'control.cases.configure',
   'control.cases.audit',
   'control.cases.fulfill',
 ] as const;
@@ -56,6 +58,8 @@ export interface ControlContext {
   permissions: ControlPermission[];
   assignments: ControlAccessAssignment[];
   permissionSources: ControlPermissionSource[];
+  /** Backend capabilities unknown to this bundle. Never used for client authorization. */
+  unsupportedPermissions: string[];
   contextVersion: number;
   assuranceLevel: 'aal2';
 }
