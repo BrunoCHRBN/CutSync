@@ -2,6 +2,9 @@
 
 Data da coleta: 2026-08-08
 
+> Registro histórico. Para o estado coletado em 2026-08-24 e os gates atuais,
+> consulte `MIGRATION_RECONCILIATION_V2_3.md`.
+
 Ambientes remotos inspecionados: `sphbbqdgcreowxzjgibj` (`CutSync Homolog`) e
 `hxoenfnszrrgaqxplzmd` (`CutSync.io`). A inspeção de produção ocorreu em
 workspace CLI isolado e sem escrita remota.

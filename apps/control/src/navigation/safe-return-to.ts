@@ -1,4 +1,10 @@
 import { CLOUD_ROUTES, listCloudRoutePaths, type CloudRoutePath } from '@/navigation/cloud-routes';
+import {
+  canAccessCloudRoute,
+  controlPermissionChecker,
+  resolveDefaultCloudRoute,
+} from '@/navigation/cloud-route-access';
+import type { ControlPermission } from '@/types/control';
 
 const BLOCKED_PREFIXES = ['http:', 'https:', 'javascript:', 'data:', '//'] as const;
 
@@ -43,6 +49,16 @@ export function sanitizeReturnTo(raw: unknown): CloudRoutePath | null {
   return normalized as CloudRoutePath;
 }
 
-export function resolvePostAuthDestination(returnTo: unknown): CloudRoutePath {
-  return sanitizeReturnTo(returnTo) ?? CLOUD_ROUTES.central;
+export function resolvePostAuthDestination(
+  returnTo: unknown,
+  permissions: readonly ControlPermission[],
+): CloudRoutePath {
+  const can = controlPermissionChecker(permissions);
+  const destination = sanitizeReturnTo(returnTo);
+
+  if (destination && canAccessCloudRoute(destination, can) === true) {
+    return destination;
+  }
+
+  return resolveDefaultCloudRoute(can);
 }

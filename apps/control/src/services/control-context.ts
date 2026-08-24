@@ -1,4 +1,10 @@
-import type { ControlContext, ControlPermission, GovernanceRole } from '@/types/control';
+import type {
+  ControlAccessAssignment,
+  ControlContext,
+  ControlPermission,
+  ControlPermissionSource,
+  GovernanceRole,
+} from '@/types/control';
 import { controlPermissions } from '@/types/control';
 
 const governanceRoles: GovernanceRole[] = ['SaaS_Viewer', 'SaaS_Editor', 'SaaS_Owner'];
@@ -10,7 +16,101 @@ type ControlContextPayload = {
   email?: unknown;
   role?: unknown;
   permissions?: unknown;
+  assignments?: unknown;
+  permission_sources?: unknown;
+  context_version?: unknown;
+  assurance_level?: unknown;
 };
+
+type ParsedPermissions = {
+  permissions: ControlPermission[];
+  unsupportedPermissions: string[];
+};
+
+function parsePermissions(value: unknown): ParsedPermissions {
+  if (!Array.isArray(value) || !value.every((permission) => typeof permission === 'string')) {
+    throw new Error('control_context_invalid');
+  }
+
+  const permissions = new Set<ControlPermission>();
+  const unsupportedPermissions = new Set<string>();
+  value.forEach((permission) => {
+    if (knownPermissions.has(permission)) {
+      permissions.add(permission as ControlPermission);
+    } else {
+      unsupportedPermissions.add(permission);
+    }
+  });
+
+  return {
+    permissions: [...permissions],
+    unsupportedPermissions: [...unsupportedPermissions],
+  };
+}
+
+function parseAssignments(value: unknown): ControlAccessAssignment[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error('control_context_invalid');
+
+  return value.map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error('control_context_invalid');
+    }
+
+    const assignment = entry as Record<string, unknown>;
+    const sourceType = assignment.source_type;
+    const scopeType = assignment.scope_type;
+    if (
+      typeof assignment.assignment_id !== 'string'
+      || typeof assignment.profile_key !== 'string'
+      || typeof assignment.profile_label !== 'string'
+      || (sourceType !== 'role_compat' && sourceType !== 'approved_request' && sourceType !== 'migration')
+      || (scopeType !== 'global' && scopeType !== 'module' && scopeType !== 'organization' && scopeType !== 'establishment')
+      || (assignment.scope_id !== null && typeof assignment.scope_id !== 'string')
+      || (assignment.valid_until !== null && typeof assignment.valid_until !== 'string')
+    ) {
+      throw new Error('control_context_invalid');
+    }
+
+    return {
+      assignmentId: assignment.assignment_id,
+      profileKey: assignment.profile_key,
+      profileLabel: assignment.profile_label,
+      sourceType,
+      scopeType,
+      scopeId: assignment.scope_id,
+      validUntil: assignment.valid_until,
+    };
+  });
+}
+
+function parsePermissionSources(value: unknown): ControlPermissionSource[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error('control_context_invalid');
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error('control_context_invalid');
+    }
+
+    const source = entry as Record<string, unknown>;
+    if (
+      typeof source.permission !== 'string'
+      || typeof source.profile_key !== 'string'
+      || typeof source.assignment_id !== 'string'
+    ) {
+      throw new Error('control_context_invalid');
+    }
+
+    if (!knownPermissions.has(source.permission)) return [];
+
+    return [{
+      permission: source.permission as ControlPermission,
+      profileKey: source.profile_key,
+      assignmentId: source.assignment_id,
+    }];
+  });
+}
 
 export function parseControlContext(value: unknown): ControlContext {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -24,8 +124,19 @@ export function parseControlContext(value: unknown): ControlContext {
     || typeof payload.email !== 'string'
     || typeof payload.role !== 'string'
     || !governanceRoles.includes(payload.role as GovernanceRole)
-    || !Array.isArray(payload.permissions)
-    || !payload.permissions.every((permission) => typeof permission === 'string' && knownPermissions.has(permission))
+  ) {
+    throw new Error('control_context_invalid');
+  }
+
+  const parsedPermissions = parsePermissions(payload.permissions);
+
+  const contextVersion = payload.context_version ?? 1;
+  const assuranceLevel = payload.assurance_level ?? 'aal2';
+  if (
+    typeof contextVersion !== 'number'
+    || !Number.isInteger(contextVersion)
+    || contextVersion < 1
+    || assuranceLevel !== 'aal2'
   ) {
     throw new Error('control_context_invalid');
   }
@@ -35,7 +146,12 @@ export function parseControlContext(value: unknown): ControlContext {
     name: payload.name,
     email: payload.email,
     role: payload.role as GovernanceRole,
-    permissions: payload.permissions as ControlPermission[],
+    permissions: parsedPermissions.permissions,
+    assignments: parseAssignments(payload.assignments),
+    permissionSources: parsePermissionSources(payload.permission_sources),
+    unsupportedPermissions: parsedPermissions.unsupportedPermissions,
+    contextVersion,
+    assuranceLevel,
   };
 }
 

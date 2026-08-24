@@ -5,6 +5,7 @@ export * from './booking-offer';
 export * from './business-notifications';
 export * from './client-appointments';
 export * from './client-notifications';
+export * from './corporate-cases';
 export * from './date-time';
 export * from './display-name';
 export * from './establishment-client';

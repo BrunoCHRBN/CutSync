@@ -42,6 +42,11 @@ test('module switcher hides modules without visible nav items', () => {
 
   const ownerAccessOnly = modulesForSwitcher(canFactory(['control.access.manage']));
   expect(ownerAccessOnly.map((module) => module.id)).toEqual(['central', 'gsp']);
+
+  const requesterOnly = modulesForSwitcher(canFactory(['control.access.request']));
+  expect(requesterOnly.map((module) => module.id)).toEqual(['gsp']);
+  expect(navItemsForModule('gsp', canFactory(['control.access.request'])).map((item) => item.label))
+    .toEqual(['Visão geral', 'Solicitar acesso', 'Minhas solicitações']);
 });
 
 test('module switcher keeps vertical menu ordering stable for modal list', () => {

@@ -5,15 +5,23 @@ on:
     paths:
       - '.github/workflows/phase1-gate.yml'
       - 'apps/business/**'
+      - 'apps/control/**'
       - 'apps/web/**'
       - 'package.json'
       - 'package-lock.json'
       - 'packages/database/**'
+      - 'packages/domain/**'
       - 'scripts/reset-supabase-reconciled.ps1'
+      - 'scripts/validate-corporate-runtime-concurrency.mjs'
       - 'scripts/validate-phase1-real-jwt.mjs'
       - 'supabase/migrations/**'
+      - 'supabase/tests/corporate_*.sql'
       - 'supabase/tests/phase1_*.sql'
       - 'tests/unit/business-*.spec.ts'
+      - 'tests/unit/central-alerts.unit.spec.ts'
+      - 'tests/unit/cloud-*.unit.spec.ts'
+      - 'tests/unit/control-*.unit.spec.ts'
+      - 'tests/unit/corporate-*.unit.spec.ts'
       - 'tests/unit/identity-context.unit.spec.ts'
       - 'tests/unit/web-authorized-routing.unit.spec.ts'
   workflow_dispatch:
@@ -23,9 +31,9 @@ permissions:
 
 jobs:
   real-jwt-authorization:
-    name: JWT real, AAL2 e isolamento
+    name: JWT real, AAL2, Control e isolamento
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
@@ -47,6 +55,44 @@ jobs:
       - name: Reconstruir banco descartável reconciliado
         shell: pwsh
         run: ./scripts/reset-supabase-reconciled.ps1
+
+      - name: Executar cenários SQL de Chamados corporativos
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_file in supabase/tests/corporate_*.sql; do
+            echo "RUN ${test_file}"
+            docker exec -i supabase_db_CutSync \
+              psql -q -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
+              < "${test_file}"
+          done
+
+      - name: Validar concorrência da administração de runtime
+        run: node scripts/validate-corporate-runtime-concurrency.mjs
+
+      - name: Validar schema e privilégios
+        run: |
+          supabase db lint --local --schema public --level error --fail-on error
+          supabase db advisors --local --type security --level error --fail-on error
+          supabase db advisors --local --type performance --level error --fail-on error
+
+      - name: Validar contratos e testes unitários do Control
+        run: |
+          npm run typecheck:shared
+          npm run typecheck:control
+          npx playwright test --project=unit \
+            tests/unit/central-alerts.unit.spec.ts \
+            tests/unit/cloud-*.unit.spec.ts \
+            tests/unit/control-access-*.unit.spec.ts \
+            tests/unit/control-context-forward-compatibility.unit.spec.ts \
+            tests/unit/corporate-access-case-creation.unit.spec.ts \
+            tests/unit/corporate-case-*.unit.spec.ts \
+            tests/unit/corporate-cases-*.unit.spec.ts
+
+      - name: Validar superfície e bundle do Control
+        run: |
+          npm run lint:control
+          npm run build:control
 
       - name: Homologar papéis, revogação e AAL2 com JWTs reais
         run: npm run test:phase1:real-jwt

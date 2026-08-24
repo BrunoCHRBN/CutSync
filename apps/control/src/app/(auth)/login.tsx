@@ -15,10 +15,10 @@ import { resolvePostAuthDestination } from '@/navigation/safe-return-to';
 import { cloudTheme } from '@/theme/cloud-components';
 
 export default function LoginRoute() {
-  const { status, message, signIn, retry } = useControlAuth();
+  const { status, context, message, signIn, retry } = useControlAuth();
   const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
   const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
-  const destination = resolvePostAuthDestination(returnTo);
+  const destination = resolvePostAuthDestination(returnTo, context?.permissions ?? []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
