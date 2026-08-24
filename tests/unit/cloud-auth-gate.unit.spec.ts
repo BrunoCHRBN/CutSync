@@ -10,7 +10,22 @@ test('routes Cloud root by auth status', () => {
   expect(resolveCloudRootGate('signed_out')).toEqual({ kind: 'redirect', href: '/login' });
   expect(resolveCloudRootGate('mfa_required')).toEqual({ kind: 'redirect', href: '/mfa' });
   expect(resolveCloudRootGate('unauthorized')).toEqual({ kind: 'redirect', href: '/sem-acesso' });
-  expect(resolveCloudRootGate('ready')).toEqual({ kind: 'redirect', href: '/central' });
+  expect(resolveCloudRootGate('ready', '', ['control.dashboard.read'])).toEqual({
+    kind: 'redirect',
+    href: '/central',
+  });
+  expect(resolveCloudRootGate('ready', '', ['control.access.manage'])).toEqual({
+    kind: 'redirect',
+    href: '/gsp',
+  });
+  expect(resolveCloudRootGate('ready', '', ['control.live.read'])).toEqual({
+    kind: 'redirect',
+    href: '/operacao/tempo-real',
+  });
+  expect(resolveCloudRootGate('ready')).toEqual({
+    kind: 'redirect',
+    href: '/sem-acesso',
+  });
   expect(resolveCloudRootGate('error', 'falhou').kind).toBe('recoverable');
   expect(resolveCloudRootGate('loading')).toEqual({ kind: 'loading' });
 });
@@ -26,6 +41,12 @@ test('accepts only safe relative returnTo destinations', () => {
   expect(sanitizeReturnTo('//evil.example')).toBeNull();
   expect(sanitizeReturnTo('https://evil.example')).toBeNull();
   expect(sanitizeReturnTo('/billing')).toBeNull();
-  expect(resolvePostAuthDestination('/gsp/acessos')).toBe('/gsp/acessos');
-  expect(resolvePostAuthDestination('https://evil.example')).toBe('/central');
+  expect(resolvePostAuthDestination('/gsp/acessos', ['control.access.manage']))
+    .toBe('/gsp/acessos');
+  expect(resolvePostAuthDestination('/gsp/acessos', ['control.governance.read']))
+    .toBe('/gsp');
+  expect(resolvePostAuthDestination('https://evil.example', ['control.dashboard.read']))
+    .toBe('/central');
+  expect(resolvePostAuthDestination('/central', ['control.knowledge.read']))
+    .toBe('/gsp');
 });

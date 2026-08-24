@@ -1,7 +1,7 @@
 import type { ControlPermission } from '@/types/control';
 import { CLOUD_ROUTES, type CloudRoutePath } from '@/navigation/cloud-routes';
 
-export type CloudNavModuleId = 'central' | 'operation' | 'support' | 'gsp' | 'finance';
+export type CloudNavModuleId = 'central' | 'cases' | 'operation' | 'support' | 'gsp' | 'finance';
 
 export type CloudNavItem = {
   id: string;
@@ -58,6 +58,112 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         section: 'preferences',
         permission: 'control.dashboard.read',
         exact: true,
+      },
+    ],
+  },
+  {
+    id: 'cases',
+    label: 'Chamados',
+    href: CLOUD_ROUTES.chamados.root,
+    matchPrefixes: ['/chamados'],
+    items: [
+      {
+        id: 'cases-create',
+        label: 'Abrir chamado',
+        href: CLOUD_ROUTES.chamados.novo,
+        permission: 'control.cases.request',
+        group: 'Solicitações',
+      },
+      {
+        id: 'cases-mine',
+        label: 'Meus chamados',
+        href: CLOUD_ROUTES.chamados.meus,
+        permission: [
+          'control.cases.request',
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.approve',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Acompanhamento',
+      },
+      {
+        id: 'cases-observing',
+        label: 'Observando',
+        href: CLOUD_ROUTES.chamados.observando,
+        permission: [
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Acompanhamento',
+      },
+      {
+        id: 'cases-pending',
+        label: 'Minhas pendências',
+        href: CLOUD_ROUTES.chamados.pendencias,
+        permission: [
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.approve',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Trabalho',
+      },
+      {
+        id: 'cases-queue',
+        label: 'Fila da equipe',
+        href: CLOUD_ROUTES.chamados.fila,
+        permission: [
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.manage',
+          'control.cases.audit',
+        ],
+        group: 'Trabalho',
+      },
+      {
+        id: 'cases-fulfillment',
+        label: 'Execução de acessos',
+        href: CLOUD_ROUTES.chamados.execucao,
+        permission: 'control.cases.fulfill',
+        group: 'Trabalho',
+      },
+      {
+        id: 'cases-all',
+        label: 'Todos os chamados',
+        href: CLOUD_ROUTES.chamados.todos,
+        permission: ['control.cases.manage', 'control.cases.audit'],
+        group: 'Controle',
+      },
+      {
+        id: 'cases-settings',
+        label: 'Configuração do módulo',
+        href: CLOUD_ROUTES.chamados.configuracao,
+        permission: 'control.cases.configure',
+        group: 'Controle',
+      },
+      {
+        id: 'cases-notifications',
+        label: 'Notificações',
+        href: CLOUD_ROUTES.chamados.notificacoes,
+        permission: [
+          'control.cases.request',
+          'control.cases.read',
+          'control.cases.triage',
+          'control.cases.route',
+          'control.cases.approve',
+          'control.cases.manage',
+          'control.cases.audit',
+          'control.cases.fulfill',
+        ],
+        group: 'Controle',
       },
     ],
   },
@@ -156,7 +262,14 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         id: 'gsp-overview',
         label: 'Visão geral',
         href: CLOUD_ROUTES.gsp.root,
-        permission: ['control.governance.read', 'control.knowledge.read', 'control.access.manage'],
+        permission: [
+          'control.governance.read',
+          'control.knowledge.read',
+          'control.access.manage',
+          'control.access.request',
+          'control.access.approve',
+          'control.access.apply',
+        ],
         exact: true,
       },
       {
@@ -165,12 +278,33 @@ export const CLOUD_NAV_MODULES: CloudNavModule[] = [
         href: CLOUD_ROUTES.gsp.acessos,
         section: 'users',
         permission: 'control.access.manage',
+        exact: true,
+        group: 'Administração',
       },
       {
         id: 'gsp-access',
-        label: 'Acessos',
-        href: CLOUD_ROUTES.gsp.acessos,
-        permission: 'control.access.manage',
+        label: 'Solicitar acesso',
+        href: CLOUD_ROUTES.gsp.solicitarAcesso,
+        permission: 'control.access.request',
+        group: 'Fluxo de acesso',
+      },
+      {
+        id: 'gsp-my-access-requests',
+        label: 'Minhas solicitações',
+        href: CLOUD_ROUTES.gsp.minhasSolicitacoes,
+        permission: 'control.access.request',
+      },
+      {
+        id: 'gsp-access-approvals',
+        label: 'Aprovações',
+        href: CLOUD_ROUTES.gsp.aprovacoes,
+        permission: 'control.access.approve',
+      },
+      {
+        id: 'gsp-access-application',
+        label: 'Aplicação',
+        href: CLOUD_ROUTES.gsp.aplicacao,
+        permission: 'control.access.apply',
       },
       {
         id: 'gsp-reviews',

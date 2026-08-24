@@ -22,6 +22,7 @@ import {
 import { SectionPage } from '@/components/section-page';
 import { useControlAuth } from '@/contexts/control-auth-context';
 import { resolveCloudActionAvailability } from '@/features/cloud/cloud-action-availability';
+import { AccessWorkflowNavigation } from '@/modules/gsp/access-workflow-navigation';
 import {
   findControlProfileByEmail,
   getControlAccessErrorMessage,
@@ -330,6 +331,8 @@ export function AccessDirectoryScreen() {
       title="Acessos ao Cloud"
       description="Conceda o menor privilégio necessário a contas CutSync existentes. Toda alteração exige revisão, justificativa e sessão AAL2."
     >
+      <AccessWorkflowNavigation />
+
       {notice ? (
         <ControlNotice
           message={notice.message}

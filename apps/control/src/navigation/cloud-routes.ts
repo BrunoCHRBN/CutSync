@@ -9,6 +9,18 @@ export const CLOUD_ROUTES = {
   mfa: '/mfa',
   semAcesso: '/sem-acesso',
   central: '/central',
+  chamados: {
+    root: '/chamados',
+    novo: '/chamados/novo',
+    meus: '/chamados/meus',
+    observando: '/chamados/observando',
+    pendencias: '/chamados/pendencias',
+    fila: '/chamados/fila',
+    execucao: '/chamados/execucao',
+    todos: '/chamados/todos',
+    configuracao: '/chamados/configuracao',
+    notificacoes: '/chamados/notificacoes',
+  },
   operacao: {
     root: '/operacao',
     tempoReal: '/operacao/tempo-real',
@@ -25,6 +37,10 @@ export const CLOUD_ROUTES = {
   gsp: {
     root: '/gsp',
     acessos: '/gsp/acessos',
+    solicitarAcesso: '/gsp/acessos/solicitar',
+    minhasSolicitacoes: '/gsp/acessos/minhas-solicitacoes',
+    aprovacoes: '/gsp/acessos/aprovacoes',
+    aplicacao: '/gsp/acessos/aplicacao',
     revisoes: '/gsp/revisoes',
     auditoria: '/gsp/auditoria',
     politicas: '/gsp/politicas',
@@ -45,6 +61,7 @@ export type CloudRoutePath =
   | typeof CLOUD_ROUTES.mfa
   | typeof CLOUD_ROUTES.semAcesso
   | typeof CLOUD_ROUTES.central
+  | (typeof CLOUD_ROUTES.chamados)[keyof typeof CLOUD_ROUTES.chamados]
   | (typeof CLOUD_ROUTES.operacao)[keyof typeof CLOUD_ROUTES.operacao]
   | (typeof CLOUD_ROUTES.suporte)[keyof typeof CLOUD_ROUTES.suporte]
   | (typeof CLOUD_ROUTES.gsp)[keyof typeof CLOUD_ROUTES.gsp]
@@ -58,6 +75,7 @@ export function listCloudRoutePaths(): CloudRoutePath[] {
     CLOUD_ROUTES.mfa,
     CLOUD_ROUTES.semAcesso,
     CLOUD_ROUTES.central,
+    ...Object.values(CLOUD_ROUTES.chamados),
     ...Object.values(CLOUD_ROUTES.operacao),
     ...Object.values(CLOUD_ROUTES.suporte),
     ...Object.values(CLOUD_ROUTES.gsp),
@@ -72,4 +90,9 @@ export function isCloudRoutePath(value: string): value is CloudRoutePath {
 /** Opaque ticket UUID path for support detail (not a static registry entry). */
 export function supportTicketPath(ticketId: string): string {
   return `${CLOUD_ROUTES.suporte.atendimentos}/${ticketId}`;
+}
+
+/** Opaque corporate case UUID path (not a static registry entry). */
+export function corporateCasePath(caseId: string): string {
+  return `${CLOUD_ROUTES.chamados.root}/${caseId}`;
 }

@@ -6,8 +6,8 @@ import { useControlAuth } from '@/contexts/control-auth-context';
 import { resolveCloudRootGate } from '@/navigation/cloud-auth-gate';
 
 export default function CloudRootGate() {
-  const { status, message, retry } = useControlAuth();
-  const decision = resolveCloudRootGate(status, message);
+  const { status, context, message, retry } = useControlAuth();
+  const decision = resolveCloudRootGate(status, message, context?.permissions ?? []);
 
   if (decision.kind === 'loading') {
     return <ControlState loading message="Preparando o CutSync Cloud..." />;

@@ -1,18 +1,16 @@
-name: Supabase Schema Drift
+name: Supabase Homolog Drift Monitor
 
+# Pull requests validate migrations and generated types against the disposable
+# local replay in phase1-gate.yml. This workflow intentionally keeps the
+# post-integration Homolog comparison read-only and independent.
 on:
-  pull_request:
-    paths:
-      - 'supabase/**'
-      - 'packages/database/src/supabase.generated.ts'
-      - 'scripts/*supabase*.sh'
-      - '.github/workflows/supabase-schema-drift.yml'
   push:
     branches: [main, master]
     paths:
       - 'supabase/**'
       - 'packages/database/src/supabase.generated.ts'
       - 'scripts/*supabase*.sh'
+      - 'scripts/validate-supabase-homolog-catalog.mjs'
       - '.github/workflows/supabase-schema-drift.yml'
   schedule:
     - cron: '17 8 * * *'
@@ -22,17 +20,23 @@ permissions:
   contents: read
 
 jobs:
-  schema-drift:
-    name: Comparar schema remoto e tipos
+  homolog-drift:
+    name: Monitorar drift read-only de Homolog
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_TYPES_LOCAL: 'false'
       # Project refs are public identifiers. Keep the drift target explicit so
-      # this workflow can never compare or generate types from production.
+      # this read-only monitor can never inspect Production by accident.
       SUPABASE_PROJECT_ID: sphbbqdgcreowxzjgibj
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Validar secrets obrigatórios
         shell: bash
@@ -45,7 +49,10 @@ jobs:
       - name: Instalar Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.115.0
 
-      - name: Verificar divergência do schema
+      - name: Comparar Homolog com o contrato do replay local
         run: bash scripts/check-supabase-schema.sh
+
+      - name: Validar hardening materializado no catálogo de Homolog
+        run: node scripts/validate-supabase-homolog-catalog.mjs

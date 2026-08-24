@@ -96,7 +96,7 @@ test('usa rota Client canônica de estabelecimento com alias legado barbershop',
 });
 
 test('expõe favoritos do Client web com contrato autenticado no Supabase', () => {
-  const migration = readSource('supabase/migrations/20260807000000_client_favorites.sql');
+  const migration = readSource('supabase/migrations/20260808041243_client_favorites_reconciled.sql');
   const sqlTest = readSource('supabase/tests/client_favorites.sql');
   const hook = readSource('apps/web/src/hooks/useClientFavorites.ts');
   const explore = readSource('apps/web/src/components/screens/ExploreExperience.tsx');
@@ -164,7 +164,7 @@ test('prioriza busca e agendamento direto na descoberta do Client', () => {
 });
 
 test('expõe galeria, coordenadas e ordenação por distância na descoberta', () => {
-  const migration = readSource('supabase/migrations/20260806000000_client_discovery_media_and_geo.sql');
+  const migration = readSource('supabase/migrations/20260808041238_client_discovery_media_and_geo_reconciled.sql');
   const service = readSource('apps/client/src/features/discovery/client-discovery-service.ts');
   const location = readSource('apps/client/src/features/discovery/use-client-location.ts');
   const discovery = readSource('apps/client/src/screens/client-discovery.tsx');

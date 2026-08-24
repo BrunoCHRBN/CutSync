@@ -59,7 +59,7 @@ const routes = [
   '(cloud)/financeiro/index.tsx',
   '(cloud)/gsp/index.tsx',
   '(cloud)/gsp/conhecimento.tsx',
-  '(cloud)/gsp/acessos.tsx',
+  '(cloud)/gsp/acessos/index.tsx',
   '(control)/live.tsx',
   '(control)/support.tsx',
   '(control)/billing.tsx',

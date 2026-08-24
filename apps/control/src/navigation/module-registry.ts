@@ -1,7 +1,7 @@
 import type { ControlPermission } from '@/types/control';
 import { CLOUD_ROUTES, type CloudRoutePath } from '@/navigation/cloud-routes';
 
-export type CloudModuleId = 'operation' | 'support' | 'gsp' | 'finance';
+export type CloudModuleId = 'cases' | 'operation' | 'support' | 'gsp' | 'finance';
 export type CloudModuleAccent = 'blue' | 'green' | 'violet' | 'amber';
 
 export type CloudModule = {
@@ -19,12 +19,22 @@ export type CloudSearchAction = {
   id: string;
   label: string;
   href: CloudRoutePath;
-  permission: ControlPermission;
+  permission: ControlPermission | ControlPermission[];
   keywords: string[];
   moduleId: CloudModuleId | 'central';
 };
 
 export const CLOUD_MODULES: CloudModule[] = [
+  {
+    id: 'cases',
+    label: 'Chamados',
+    description: 'Solicitações corporativas e fluxos internos.',
+    href: CLOUD_ROUTES.chamados.root,
+    readPermission: 'control.cases.read',
+    managePermission: 'control.cases.manage',
+    searchPlaceholder: 'Buscar protocolo, assunto e responsável',
+    accent: 'blue',
+  },
   {
     id: 'operation',
     label: 'Operação',
@@ -74,6 +84,55 @@ export const CLOUD_SEARCH_ACTIONS: CloudSearchAction[] = [
     permission: 'control.dashboard.read',
     keywords: ['central', 'inicio', 'home'],
     moduleId: 'central',
+  },
+  {
+    id: 'go-chamados',
+    label: 'Abrir Chamados',
+    href: CLOUD_ROUTES.chamados.root,
+    permission: [
+      'control.cases.request',
+      'control.cases.read',
+      'control.cases.triage',
+      'control.cases.route',
+      'control.cases.approve',
+      'control.cases.manage',
+      'control.cases.audit',
+      'control.cases.fulfill',
+    ],
+    keywords: ['chamados', 'solicitacoes', 'interno'],
+    moduleId: 'cases',
+  },
+  {
+    id: 'go-abrir-chamado',
+    label: 'Abrir novo chamado',
+    href: CLOUD_ROUTES.chamados.novo,
+    permission: 'control.cases.request',
+    keywords: ['novo', 'abrir', 'solicitar', 'acesso'],
+    moduleId: 'cases',
+  },
+  {
+    id: 'go-configurar-chamados',
+    label: 'Configurar módulo de Chamados',
+    href: CLOUD_ROUTES.chamados.configuracao,
+    permission: 'control.cases.configure',
+    keywords: ['configurar chamados', 'configuracao', 'ativacao', 'flags', 'runtime'],
+    moduleId: 'cases',
+  },
+  {
+    id: 'go-fila-chamados',
+    label: 'Abrir fila de Chamados',
+    href: CLOUD_ROUTES.chamados.fila,
+    permission: 'control.cases.triage',
+    keywords: ['fila', 'triagem', 'encaminhamento'],
+    moduleId: 'cases',
+  },
+  {
+    id: 'go-execucao-chamados',
+    label: 'Abrir execução de acessos',
+    href: CLOUD_ROUTES.chamados.execucao,
+    permission: 'control.cases.fulfill',
+    keywords: ['execucao', 'acessos', 'aplicacao', 'sla'],
+    moduleId: 'cases',
   },
   {
     id: 'go-operacao',
@@ -145,11 +204,27 @@ export function modulesVisibleTo(
   can: (permission: ControlPermission) => boolean,
 ): CloudModule[] {
   return CLOUD_MODULES.filter((module) => {
+    if (module.id === 'cases') {
+      return (
+        can('control.cases.request')
+        || can('control.cases.read')
+        || can('control.cases.triage')
+        || can('control.cases.route')
+        || can('control.cases.approve')
+        || can('control.cases.manage')
+        || can('control.cases.configure')
+        || can('control.cases.audit')
+        || can('control.cases.fulfill')
+      );
+    }
     if (module.id === 'gsp') {
       return (
         can('control.governance.read')
         || can('control.knowledge.read')
         || can('control.access.manage')
+        || can('control.access.request')
+        || can('control.access.approve')
+        || can('control.access.apply')
       );
     }
     if (module.id === 'operation') {
@@ -165,7 +240,10 @@ export function searchCloudActions(
 ): CloudSearchAction[] {
   const normalized = query.trim().toLowerCase();
   return CLOUD_SEARCH_ACTIONS.filter((action) => {
-    if (!can(action.permission)) return false;
+    const allowed = Array.isArray(action.permission)
+      ? action.permission.some((permission) => can(permission))
+      : can(action.permission);
+    if (!allowed) return false;
     if (!normalized) return true;
     return (
       action.label.toLowerCase().includes(normalized)

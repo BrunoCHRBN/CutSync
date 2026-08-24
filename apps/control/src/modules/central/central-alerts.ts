@@ -196,6 +196,7 @@ export function formatAlertAreaBreakdown(
   byArea: CloudAlertSummary['byArea'],
 ): string {
   const labels: Record<Exclude<CloudAreaId, 'central'>, string> = {
+    cases: 'Chamados',
     operation: 'Operação',
     support: 'Suporte',
     gsp: 'GSP',
