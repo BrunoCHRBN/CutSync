@@ -218,6 +218,13 @@ export interface BusinessRpcFunctions {
     Args: { target_establishment_id: string };
     Returns: unknown;
   };
+  get_financial_operations_overview: {
+    Args: {
+      target_establishment_id: string;
+      target_local_date: string;
+    };
+    Returns: unknown;
+  };
   set_establishment_lifecycle_status: {
     Args: {
       target_establishment_id: string;

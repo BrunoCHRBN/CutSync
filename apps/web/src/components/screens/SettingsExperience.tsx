@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Banknote, Check, Clock3, CreditCard, ExternalLink, Eye, EyeOff, ImageIcon, KeyRound, MapPin, Phone, Save, ShieldCheck, Store, X } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOperationalContext } from '../../contexts/operational-context';
@@ -100,6 +100,7 @@ const settingsSections: { key: SettingsSection; label: string; Icon: typeof Stor
 
 export const SettingsExperience = () => {
   const router = useRouter();
+  const { section } = useLocalSearchParams<{ section?: string }>();
   const { width } = useWindowDimensions();
   const isWide = width >= layout.desktopBreakpoint;
   const { profile, signOut } = useAuth();
@@ -144,7 +145,9 @@ export const SettingsExperience = () => {
 
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<SettingsSection>('brand');
+  const activeSection: SettingsSection = settingsSections.some((item) => item.key === section)
+    ? section as SettingsSection
+    : 'brand';
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [discoveryStatus, setDiscoveryStatus] = useState<'draft' | 'published'>('draft');
   const [discoveryRequirements, setDiscoveryRequirements] = useState<DiscoveryRequirements | null>(null);
@@ -726,7 +729,7 @@ export const SettingsExperience = () => {
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                   key={key}
-                  onPress={() => setActiveSection(key)}
+                  onPress={() => router.setParams({ section: key })}
                   style={[styles.sectionNavigationItem, selected && styles.sectionNavigationItemSelected]}
                   testID={`settings-section-${key}`}
                 >

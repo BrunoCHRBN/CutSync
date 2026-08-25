@@ -3,6 +3,7 @@ import {
   createServiceOrderApi,
   createManualPosApi,
   createCashOperationsApi,
+  createFinancialOperationsApi,
   mapActiveContextReceipt,
   mapAuthorizedContext,
   mapBusinessAgendaItem,
@@ -17,6 +18,7 @@ import {
   ServiceOrderApiError,
   ManualPosApiError,
   CashOperationsApiError,
+  FinancialOperationsApiError,
   type AppointmentServiceOrderContext,
   type ActiveContextReceipt,
   type AuthorizedContext,
@@ -41,6 +43,7 @@ import {
   type OrderPaymentCommandReceipt,
   type CashRegisterSnapshot,
   type CashCommandReceipt,
+  type FinancialOperationsOverview,
 } from '@cutsync/database';
 
 import { supabase } from '../lib/supabase';
@@ -93,7 +96,8 @@ export type BusinessApiErrorCode =
   | 'cash_session_not_latest'
   | 'cash_session_version_conflict'
   | 'cash_balance_negative'
-  | 'cash_operations_unavailable';
+  | 'cash_operations_unavailable'
+  | 'financial_overview_unavailable';
 
 const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   client_unavailable: 'O aplicativo ainda não está conectado ao CutSync.',
@@ -148,6 +152,7 @@ const ERROR_MESSAGES: Record<BusinessApiErrorCode, string> = {
   cash_session_version_conflict: 'O caixa mudou em outro dispositivo. Atualize os dados.',
   cash_balance_negative: 'O movimento deixaria o saldo esperado do caixa negativo.',
   cash_operations_unavailable: 'Não foi possível concluir a operação de caixa.',
+  financial_overview_unavailable: 'Não foi possível carregar o resumo financeiro da operação.',
 };
 
 export class BusinessApiError extends Error {
@@ -175,6 +180,10 @@ export interface BusinessApi {
     requestId: string;
   }) => Promise<ActiveContextReceipt>;
   getOperationalContexts: () => Promise<BusinessOperationalContext[]>;
+  getFinancialOperationsOverview: (
+    establishmentId: string,
+    localDate: string,
+  ) => Promise<FinancialOperationsOverview>;
   getAgendaDay: (
     establishmentId: string,
     localDate: string,
@@ -338,6 +347,7 @@ type Operation =
   | 'service_order'
   | 'manual_pos'
   | 'cash_operations'
+  | 'financial_overview'
   | 'inspect_invitation'
   | 'accept_invitation';
 
@@ -382,6 +392,7 @@ const genericCodeFor = (operation: Operation): BusinessApiErrorCode => {
   if (operation === 'service_order') return 'service_order_unavailable';
   if (operation === 'manual_pos') return 'service_order_unavailable';
   if (operation === 'cash_operations') return 'cash_operations_unavailable';
+  if (operation === 'financial_overview') return 'financial_overview_unavailable';
   if (operation === 'inspect_invitation') return 'invitation_unavailable';
   return 'invitation_accept_failed';
 };
@@ -439,6 +450,16 @@ const translateRpcError = (operation: Operation, error: unknown): BusinessApiErr
       'cash_session_already_open', 'cash_session_not_open', 'cash_session_not_closed',
       'cash_session_not_latest', 'cash_session_version_conflict', 'cash_balance_negative',
       'cash_operations_unavailable',
+    ]);
+    if (supported.has(error.code as BusinessApiErrorCode)) {
+      return new BusinessApiError(error.code as BusinessApiErrorCode);
+    }
+    return new BusinessApiError(genericCodeFor(operation));
+  }
+  if (error instanceof FinancialOperationsApiError) {
+    const supported = new Set<BusinessApiErrorCode>([
+      'invalid_request', 'network_error', 'unauthorized', 'forbidden',
+      'backend_unavailable', 'invalid_response', 'financial_overview_unavailable',
     ]);
     if (supported.has(error.code as BusinessApiErrorCode)) {
       return new BusinessApiError(error.code as BusinessApiErrorCode);
@@ -669,6 +690,15 @@ export const createBusinessApi = (
       throw new BusinessApiError('invalid_response', 'OPERATIONAL_CONTEXTS_ROW');
     }
     return contexts;
+  },
+
+  async getFinancialOperationsOverview(establishmentId, localDate) {
+    const client = requireClient(nullableClient);
+    try {
+      return await createFinancialOperationsApi(client).getOverview(establishmentId, localDate);
+    } catch (error) {
+      throw translateRpcError('financial_overview', error);
+    }
   },
 
   async getAgendaDay(establishmentId, localDate, scope) {

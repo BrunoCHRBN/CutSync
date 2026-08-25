@@ -67,6 +67,7 @@ import {
 import { useBusinessAttentionQueue } from '../../features/appointments/use-business-attention-queue';
 import { recordWebProductEvent } from '../../services/product-events';
 import { useBusinessCommandCenter } from '../../features/attention/use-business-command-center';
+import { useFinancialOperationsOverview } from '../../features/financial-operations/use-financial-operations-overview';
 import { webExperienceFlags } from '../../config/experience-flags';
 import type { AttentionItem } from '@cutsync/domain';
 
@@ -110,6 +111,19 @@ const comparisonNote = (current: number, previous: number) => {
   if (Math.abs(change) < 0.1) return 'igual ao dia anterior';
   return `${Math.abs(change).toFixed(1).replace('.', ',')}% ${change > 0 ? 'acima' : 'abaixo'} de ontem`;
 };
+
+const cashStatusLabel = {
+  unavailable: 'Indisponível',
+  not_open: 'Não aberto',
+  open: 'Aberto',
+  closed: 'Fechado',
+} as const;
+
+const paymentMethodLabel = {
+  cash: 'Dinheiro',
+  external_pix: 'PIX',
+  external_card: 'Maquininha',
+} as const;
 
 export const AdminDashboardExperience = () => {
   const router = useRouter();
@@ -238,11 +252,20 @@ export const AdminDashboardExperience = () => {
     recordWebProductEvent({ name: 'attention_viewed', surface: 'web_business', role: 'admin', route: '/admin' });
   }, [attentionItems.length]);
   const financialOps = useFinancialOps();
+  const financialOverview = useFinancialOperationsOverview({
+    establishmentId: activeEstablishmentId,
+    localDate: toDateKey(selectedDate),
+    enabled: financialOps.hasCapability('view_payments') || financialOps.hasCapability('view_cash'),
+  });
+  const refreshFinancialOverview = financialOverview.refresh;
+  const refreshOperationalData = useCallback(async () => {
+    await Promise.all([refresh(), refreshFinancialOverview()]);
+  }, [refresh, refreshFinancialOverview]);
   const appointmentOrder = useAppointmentServiceOrder({
     establishmentId: activeEstablishmentId,
     appointmentId: selectedAppointmentId,
     enabled: Boolean(selectedAppointmentId && financialOps.financialOpsEnabled),
-    onChanged: refresh,
+    onChanged: refreshOperationalData,
   });
 
   // Estados locais para Reagendamento
@@ -787,6 +810,127 @@ export const AdminDashboardExperience = () => {
         }))}
       />
 
+      {(financialOverview.loading || financialOverview.error || financialOverview.data) ? (
+        <AppCard testID="admin-financial-overview" style={styles.financialOverview}>
+          <View style={styles.financialHeader}>
+            <View style={styles.financialHeadingCopy}>
+              <Text style={styles.panelTitle}>
+                {!financialOverview.data
+                  ? 'Operação financeira do dia'
+                  : financialOverview.data.payments.canView
+                    ? 'Recebimentos e caixa'
+                    : 'Caixa do dia'}
+              </Text>
+              <Text style={styles.panelSubtitle}>
+                {financialOverview.loading
+                  ? 'Carregando a situação financeira do dia.'
+                  : financialOverview.error
+                    ? 'Não foi possível carregar a situação financeira do dia.'
+                    : !financialOverview.data
+                      ? 'A situação financeira do dia está indisponível.'
+                      : !financialOverview.data.payments.canView
+                        ? 'Situação do caixa vinculada à data selecionada.'
+                        : financialOverview.data.scope === 'own'
+                          ? 'Seus recebimentos declarados no POS manual.'
+                          : 'Visão operacional da unidade, separada da assinatura CutSync.'}
+              </Text>
+            </View>
+            <StatusBadge
+              label={financialOverview.loading
+                ? 'Atualizando'
+                : financialOverview.error || !financialOverview.data
+                  ? 'Indisponível'
+                  : financialOverview.data.payments.canView
+                    ? financialOverview.data.readiness.ready ? 'Pronto para receber' : 'Configuração pendente'
+                    : financialOverview.data.cash.status === 'open' ? 'Caixa aberto' : 'Caixa não aberto'}
+              tone={financialOverview.loading
+                ? 'neutral'
+                : financialOverview.error
+                  ? 'danger'
+                  : !financialOverview.data
+                    ? 'neutral'
+                  : financialOverview.data.payments.canView
+                    ? financialOverview.data.readiness.ready ? 'success' : 'warning'
+                    : financialOverview.data.cash.status === 'open' ? 'success' : 'warning'}
+            />
+          </View>
+          {financialOverview.error ? (
+            <InlineNotice
+              testID="admin-financial-overview-error"
+              tone="danger"
+              message={financialOverview.error}
+              action={<AppButton label="Tentar novamente" size="sm" variant="ghost" onPress={() => void financialOverview.refresh()} />}
+            />
+          ) : financialOverview.data ? (
+            <>
+              <View style={styles.financialMetrics}>
+                {financialOverview.data.payments.canView ? (
+                  <>
+                    <View style={styles.financialMetric}>
+                      <Text style={styles.financialMetricLabel}>RECEBIDO NO DIA</Text>
+                      <Text testID="admin-financial-received" style={styles.financialMetricValue}>
+                        {currency(financialOverview.data.payments.netReceivedCents / 100)}
+                      </Text>
+                    </View>
+                    <View style={styles.financialMetric}>
+                      <Text style={styles.financialMetricLabel}>A RECEBER NO DIA</Text>
+                      <Text testID="admin-financial-outstanding" style={styles.financialMetricValue}>
+                        {currency(financialOverview.data.payments.outstandingCents / 100)}
+                      </Text>
+                      <Text style={styles.financialMetricNote}>
+                        {financialOverview.data.payments.awaitingOrderCount} comanda(s) pendente(s)
+                      </Text>
+                    </View>
+                  </>
+                ) : null}
+                {financialOverview.data.cash.canView ? (
+                  <View style={styles.financialMetric}>
+                    <Text style={styles.financialMetricLabel}>CAIXA DO DIA</Text>
+                    <Text testID="admin-financial-cash-status" style={styles.financialMetricValue}>
+                      {cashStatusLabel[financialOverview.data.cash.status]}
+                    </Text>
+                    <Text style={styles.financialMetricNote}>
+                      {financialOverview.data.readiness.cashMethodActive ? 'Dinheiro habilitado' : 'Dinheiro não configurado'}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <View style={styles.financialFooter}>
+                {financialOverview.data.payments.canView ? (
+                  <View style={styles.financialMethods}>
+                    {financialOverview.data.readiness.activePaymentMethodTypes.map((method) => (
+                      <StatusBadge key={method} label={paymentMethodLabel[method]} tone="info" />
+                    ))}
+                  </View>
+                ) : null}
+                <View style={styles.headerActions}>
+                  {financialOverview.data.payments.canView ? (
+                    <AppButton label="Meios de pagamento" size="sm" variant="ghost" onPress={() => router.push('/(admin)/settings?section=payments')} />
+                  ) : null}
+                  {financialOverview.data.cash.canView ? (
+                    <AppButton
+                      label={financialOverview.data.cash.status === 'open' ? 'Ver caixa' : 'Abrir caixa'}
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => router.push('/(admin)/settings?section=cash')}
+                    />
+                  ) : null}
+                </View>
+              </View>
+              {financialOverview.data.alerts.slice(0, 2).map((alert) => (
+                <InlineNotice
+                  key={alert.code}
+                  testID={`admin-financial-alert-${alert.code}`}
+                  title={alert.title}
+                  message={alert.message}
+                  tone={alert.severity === 'warning' ? 'warning' : 'info'}
+                />
+              ))}
+            </>
+          ) : null}
+        </AppCard>
+      ) : null}
+
       {showSetupGuide ? (
         <AppCard testID="admin-setup-guide" style={styles.setupGuide}>
           <View style={styles.setupHeader}>
@@ -936,7 +1080,12 @@ export const AdminDashboardExperience = () => {
         canViewPayments={financialOps.hasCapability('view_payments')}
         canTakePayments={financialOps.hasCapability('take_payments') && financialOps.accessMode === 'full'}
         canVoidPayments={financialOps.hasCapability('void_payments') && financialOps.accessMode === 'full'}
-        onPaymentChanged={async () => { await appointmentOrder.refresh(); await refresh(); }}
+        onPaymentChanged={async () => {
+          await Promise.all([
+            appointmentOrder.refresh(),
+            refreshOperationalData(),
+          ]);
+        }}
         onClosePaidOrder={canManageSelectedOrder ? async () => appointmentOrder.close() : undefined}
         onCancel={(appointment) => {
           setSelectedAppointmentId(null);
@@ -1169,6 +1318,16 @@ const styles = StyleSheet.create({
   pageHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 },
   headerActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   nextAppointmentCard: { marginTop: 16 },
+  financialOverview: { gap: 14, padding: 18 },
+  financialHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  financialHeadingCopy: { flex: 1, minWidth: 240 },
+  financialMetrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  financialMetric: { backgroundColor: colors.canvasSoft, borderColor: colors.borderSubtle, borderRadius: radii.md, borderWidth: 1, flex: 1, gap: 4, minWidth: 180, padding: 14 },
+  financialMetricLabel: { color: colors.textMuted, fontFamily: typography.bodyStrong, fontSize: 10, letterSpacing: 0.7 },
+  financialMetricValue: { color: colors.text, fontFamily: typography.display, fontSize: 22, letterSpacing: -0.6 },
+  financialMetricNote: { color: colors.textSecondary, fontFamily: typography.body, fontSize: 11 },
+  financialFooter: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  financialMethods: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   setupGuide: { padding: 0, overflow: 'hidden' },
   setupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 18, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   setupCopy: { flex: 1, minWidth: 0 },
