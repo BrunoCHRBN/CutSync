@@ -31,7 +31,11 @@ export default function ConciliacaoRoute() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: '100%' },
+  wrap: {
+    width: '100%',
+    maxWidth: cloudTheme.layout.contentMax,
+    alignSelf: 'center',
+  },
   tabs: {
     paddingHorizontal: cloudTheme.layout.contentPadding,
     paddingTop: cloudTheme.spacing.lg,
