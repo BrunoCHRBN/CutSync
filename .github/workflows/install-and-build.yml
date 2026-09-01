@@ -28,5 +28,26 @@ jobs:
       - name: Verificar lint
         run: npm run lint
 
+      # Cobre shared + client + business + control. Passa hoje na master.
+      - name: Verificar tipos (TypeScript)
+        run: npm run typecheck:new-apps
+
+      # NAO-BLOQUEANTE: apps/web acumula 9 erros TS2339 pre-existentes
+      # ('hovered' nao existe em PressableStateCallbackType). Reporta sem
+      # reprovar, para que o gate das outras 4 apps ja valha agora.
+      # Ao corrigir os 9 erros: remover continue-on-error e trocar os dois
+      # passos por um unico `run: npm run typecheck`.
+      - name: Verificar tipos (TypeScript) — web [nao-bloqueante]
+        run: npm run typecheck:web
+        continue-on-error: true
+
+      # A suíte unitária não depende do app servido. Definir CUTSYNC_E2E_BASE_URL
+      # faz o playwright.config.ts omitir o bloco webServer, evitando um build
+      # completo só para rodar os specs de tests/unit.
+      - name: Testes unitários
+        run: npm run test:unit
+        env:
+          CUTSYNC_E2E_BASE_URL: http://127.0.0.1:8081
+
       - name: Exportar web
         run: npm run build:web
