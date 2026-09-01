@@ -28,5 +28,16 @@ jobs:
       - name: Verificar lint
         run: npm run lint
 
+      - name: Verificar tipos (TypeScript)
+        run: npm run typecheck
+
+      # A suíte unitária não depende do app servido. Definir CUTSYNC_E2E_BASE_URL
+      # faz o playwright.config.ts omitir o bloco webServer, evitando um build
+      # completo só para rodar os specs de tests/unit.
+      - name: Testes unitários
+        run: npm run test:unit
+        env:
+          CUTSYNC_E2E_BASE_URL: http://127.0.0.1:8081
+
       - name: Exportar web
         run: npm run build:web
