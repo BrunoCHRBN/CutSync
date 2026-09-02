@@ -1,3 +1,7 @@
+// Conteúdo das landings. Cada item descreve uma capacidade prevista no escopo
+// de MVP do contrato de produto (seção 10) e confirmada no código — nada aqui
+// é promessa de entrega futura nem métrica de desempenho.
+
 export type LandingPageAudience = 'client' | 'business';
 
 export type LandingSectionId =
@@ -155,7 +159,7 @@ export interface LandingAudienceContent {
  * princípio significa para ela. O cliente não precisa ler sobre configuração de unidade.
  */
 const CLIENT_VALUES: readonly LandingItem[] = [
-  { title: 'Clareza', description: 'Serviço, duração e preço aparecem como o estabelecimento publicou, antes de você decidir.' },
+  { title: 'Clareza', description: 'Serviço, duração e valor aparecem como o estabelecimento publicou, antes de você decidir.' },
   { title: 'Autonomia', description: 'Você pesquisa, compara e escolhe o horário sem depender de resposta por mensagem.' },
   { title: 'Confiança', description: 'Seus dados de contato ficam com o estabelecimento do atendimento, e com mais ninguém.' },
   { title: 'Cuidado', description: 'Linguagem direta, nenhum dado pedido sem finalidade e nenhuma etapa além da necessária.' },
@@ -169,13 +173,13 @@ const BUSINESS_VALUES: readonly LandingItem[] = [
 ];
 
 const CLIENT_ECOSYSTEM: readonly LandingEcosystemStep[] = [
-  { role: 'Cliente', title: 'Descobre e agenda', description: 'Busca por serviço ou localização, consulta o catálogo publicado e escolhe um horário.' },
-  { role: 'Estabelecimento', title: 'Administra a operação', description: 'Recebe a solicitação na mesma agenda em que organiza serviços, equipe e vitrine.' },
+  { role: 'Cliente', title: 'Descobre e agenda', description: 'Busca por serviço ou localização, abre o perfil da unidade e escolhe um horário na agenda publicada.' },
+  { role: 'Estabelecimento', title: 'Administra a operação', description: 'Recebe a solicitação na mesma agenda em que organiza serviços, equipe, escalas e vitrine.' },
   { role: 'Profissional', title: 'Acompanha sua rotina', description: 'Vê os atendimentos do dia e conclui o que já foi realizado, sem acesso ao restante da unidade.' },
 ];
 
 const BUSINESS_ECOSYSTEM: readonly LandingEcosystemStep[] = [
-  { role: 'Estabelecimento', title: 'Administra a operação', description: 'Publica serviços com preço e duração, define jornadas e mantém a agenda da unidade sob controle.' },
+  { role: 'Estabelecimento', title: 'Administra a operação', description: 'Publica serviços com duração e valor, define jornadas e mantém a agenda da unidade sob controle.' },
   { role: 'Profissional', title: 'Acompanha sua rotina', description: 'Recebe a agenda do dia, confirma presença e conclui atendimentos dentro do próprio perfil.' },
   { role: 'Cliente', title: 'Descobre e agenda', description: 'Encontra a vitrine publicada e escolhe um horário disponível sem depender de mensagens.' },
 ];
@@ -232,7 +236,7 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
     proposal: {
       eyebrow: 'PROPOSTA E VALORES',
       title: 'Agendar deveria ser uma decisão simples.',
-      statement: 'O CutSync existe para que você veja serviços, preços informados pelo estabelecimento e horários antes de escolher — e confirme sem negociar por mensagem.',
+      statement: 'O CutSync existe para que você veja serviços, valores informados pelo estabelecimento e horários antes de escolher — e confirme sem negociar por mensagem.',
       description: 'Quatro princípios orientam cada tela que você usa.',
       values: CLIENT_VALUES,
     },
@@ -248,12 +252,14 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       title: 'O que já está disponível para você.',
       description: 'Recursos que existem hoje na experiência do cliente.',
       items: [
-        { title: 'Descoberta pública', description: 'Busca por serviço, estabelecimento, bairro ou cidade, sem cadastro.' },
-        { title: 'Catálogo com preço informado', description: 'Serviços ativos com duração e valor definidos pelo estabelecimento.' },
-        { title: 'Horários da unidade', description: 'Disponibilidade consultada na agenda antes da confirmação.' },
-        { title: 'Confirmação com conta', description: 'O acesso é necessário apenas para concluir o agendamento.' },
-        { title: 'Meus compromissos', description: 'Consulta, remarcação e cancelamento conforme as regras da unidade.' },
-        { title: 'Preferências de contato', description: 'Você decide quais comunicações deseja receber.' },
+        { title: 'Explorar sem cadastro', description: 'Busca pública por serviço, estabelecimento, bairro ou cidade.' },
+        { title: 'Perfil do estabelecimento', description: 'Catálogo publicado com duração e valor informados por cada unidade.' },
+        { title: 'Perfil do profissional', description: 'Veja quem atende na unidade e quais serviços cada profissional realiza.' },
+        { title: 'Agendar', description: 'Escolha de serviço e horário, com a disponibilidade consultada na agenda da unidade.' },
+        { title: 'Próximos e histórico', description: 'Acompanhe o que está confirmado e o que já foi atendido.' },
+        { title: 'Remarcar e cancelar', description: 'Ajuste o compromisso conforme as regras publicadas pela unidade.' },
+        { title: 'Avaliar o atendimento', description: 'Registre sua avaliação depois que o atendimento é concluído.' },
+        { title: 'Preferências e notificações', description: 'Você define quais comunicações deseja receber.' },
       ],
       note: 'Itens em desenvolvimento aparecem apenas na seção de transparência, nunca como disponíveis.',
     },
@@ -302,8 +308,9 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       entries: [
         { question: 'Preciso criar conta para pesquisar?', answer: 'Não. Você explora estabelecimentos e serviços sem cadastro; a conta entra apenas na confirmação.' },
         { question: 'Os horários mostrados são reais?', answer: 'A disponibilidade é consultada na agenda do estabelecimento antes da confirmação do agendamento.' },
-        { question: 'Quem define os preços?', answer: 'Cada estabelecimento informa preço e duração dos próprios serviços; o CutSync apenas apresenta o que foi publicado.' },
-        { question: 'O CutSync recebe o pagamento?', answer: 'Nesta fase o CutSync organiza o agendamento. Pagamentos seguem as regras de cada estabelecimento.' },
+        { question: 'Quem define os valores dos serviços?', answer: 'Cada estabelecimento informa duração e valor dos próprios serviços; o CutSync apenas apresenta o que foi publicado.' },
+        { question: 'Posso remarcar ou cancelar?', answer: 'Sim, pela sua lista de compromissos, respeitando as regras que a unidade publicou.' },
+        { question: 'O CutSync faz a cobrança do atendimento?', answer: 'Nesta fase o CutSync organiza o agendamento. O acerto do atendimento segue as regras de cada estabelecimento.' },
         { question: 'Como posso excluir minha conta?', answer: 'Pela página pública de exclusão de conta, com o mesmo e-mail usado no acesso.' },
       ],
     },
@@ -349,11 +356,15 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       description: 'Recursos que existem hoje na experiência de estabelecimento e profissional.',
       items: [
         { title: 'Vitrine pública', description: 'Perfil, endereço e serviços ativos publicados para descoberta.' },
-        { title: 'Agenda da unidade', description: 'Criação, confirmação, remarcação e conclusão de atendimentos.' },
-        { title: 'Catálogo de serviços', description: 'Nome, duração, preço, ordenação e desativação consciente.' },
-        { title: 'Equipe e jornadas', description: 'Convites, horários de trabalho e responsabilidades por profissional.' },
-        { title: 'Visão do dono', description: 'Panorama do dia da unidade e acompanhamento dos atendimentos.' },
-        { title: 'Rotina do profissional', description: 'Agenda pessoal, próximo atendimento e conclusão do serviço.' },
+        { title: 'Meu dia e agenda da unidade', description: 'Criação, confirmação, remarcação e conclusão de atendimentos.' },
+        { title: 'Encaixe e status do atendimento', description: 'Registre o encaixe e acompanhe a situação de cada atendimento do dia.' },
+        { title: 'Bloqueios de agenda', description: 'Reserve horários sem atendimento para pausas e compromissos internos da unidade.' },
+        { title: 'Catálogo de serviços', description: 'Nome, duração, valor, ordenação e desativação consciente.' },
+        { title: 'Equipe, convites e escalas', description: 'Convites por perfil, horários de trabalho e responsabilidades de cada profissional.' },
+        { title: 'Perfil profissional', description: 'Cada profissional acompanha a própria agenda, sem ver o restante da unidade.' },
+        { title: 'Resumo de desempenho', description: 'Acompanhamento dos atendimentos realizados para apoiar a gestão da unidade.' },
+        { title: 'Notificações operacionais', description: 'Avisos da operação para a equipe acompanhar a agenda do dia.' },
+        { title: 'Configurações essenciais', description: 'Publicação da vitrine, dados da unidade e parâmetros de atendimento.' },
       ],
       note: 'A demonstração abaixo usa exemplos fictícios e representa somente funcionalidades disponíveis.',
     },
@@ -402,8 +413,9 @@ export const LANDING_CONTENT: Record<LandingPageAudience, LandingAudienceContent
       entries: [
         { question: 'A demonstração usa dados reais?', answer: 'Não. Os dados são fictícios, mas as ações representam fluxos disponíveis no produto.' },
         { question: 'O que posso apresentar na vitrine?', answer: 'O perfil público do estabelecimento e os serviços ativos que você publicar.' },
+        { question: 'Como a equipe entra no sistema?', answer: 'Cada profissional recebe um convite e acessa o próprio perfil, com visão restrita à sua agenda.' },
+        { question: 'Posso bloquear horários sem atendimento?', answer: 'Sim. A unidade registra bloqueios para pausas e compromissos internos da operação.' },
         { question: 'Posso começar com uma equipe pequena?', answer: 'Sim. O cadastro contempla profissionais autônomos e estabelecimentos com equipe.' },
-        { question: 'O profissional precisa de uma conta separada?', answer: 'O profissional recebe um convite e acessa o próprio perfil, com visão restrita à sua agenda.' },
         { question: 'Existe valor divulgado publicamente?', answer: 'Não divulgamos preços nesta página. As condições comerciais são tratadas no contato com a equipe.' },
       ],
     },
@@ -469,7 +481,7 @@ export const LANDING_CLIENT_DISCOVERY: LandingClientDiscovery = {
     locationPlaceholder: 'Bairro ou cidade',
     submitLabel: 'Buscar',
   },
-  trust: ['Explore sem cadastro', 'Consulte serviços e preços', 'Entre apenas para confirmar'],
+  trust: ['Explore sem cadastro', 'Consulte serviços e valores', 'Entre apenas para confirmar'],
   search: {
     eyebrow: 'VITRINES PUBLICADAS',
     title: 'Escolha com informações reais.',
@@ -509,10 +521,10 @@ export const LANDING_BUSINESS_EVALUATION: LandingBusinessEvaluation = {
   hero: {
     badge: 'VITRINE E OPERAÇÃO CONECTADAS',
     title: 'Sua vitrine e sua agenda trabalhando juntas.',
-    description: 'Publique serviços com preço e duração, receba agendamentos na agenda da unidade e organize a rotina da equipe em um só fluxo.',
+    description: 'Publique serviços com duração e valor, receba agendamentos na agenda da unidade e organize a rotina da equipe em um só fluxo.',
     primaryCta: 'Criar meu estabelecimento',
     secondaryCta: 'Explorar demonstração',
-    capabilities: ['Vitrine pública', 'Agenda da unidade', 'Catálogo de serviços', 'Equipe e jornadas'],
+    capabilities: ['Vitrine pública', 'Agenda da unidade', 'Catálogo de serviços', 'Equipe e escalas'],
   },
   comparison: {
     eyebrow: 'UM FLUXO MAIS CLARO',
@@ -521,7 +533,7 @@ export const LANDING_BUSINESS_EVALUATION: LandingBusinessEvaluation = {
     pairs: [
       { id: 'messages', before: 'Mensagens dispersas', after: 'Vitrine pública', fragments: ['Tem horário?', 'Qual o valor?'] },
       { id: 'notes', before: 'Anotações separadas', after: 'Agenda centralizada', fragments: ['09:30 · Corte', '11:00 · Barba'] },
-      { id: 'catalog', before: 'Catálogo informal', after: 'Serviços com preço e duração', fragments: ['Corte', 'Corte + barba'] },
+      { id: 'catalog', before: 'Catálogo informal', after: 'Serviços com duração e valor', fragments: ['Corte', 'Corte + barba'] },
     ],
   },
   roles: {

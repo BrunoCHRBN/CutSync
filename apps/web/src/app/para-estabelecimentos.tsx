@@ -1,5 +1,5 @@
 import Head from 'expo-router/head';
-import { BusinessLanding } from '../components/landing/business-landing';
+import { BusinessLandingV2 } from '../components/landing/v2/business-landing-v2';
 
 const siteUrl = (process.env.EXPO_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
 const canonicalUrl = siteUrl ? `${siteUrl}/para-estabelecimentos` : '/para-estabelecimentos';
@@ -23,7 +23,7 @@ export default function BusinessLandingRoute() {
         <meta name="twitter:title" content="CutSync para estabelecimentos — Vitrine e agenda conectadas" />
         <meta name="twitter:description" content="Conecte a apresentação do seu negócio à agenda usada pela equipe." />
       </Head>
-      <BusinessLanding />
+      <BusinessLandingV2 />
     </>
   );
 }

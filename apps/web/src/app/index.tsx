@@ -1,5 +1,5 @@
 import Head from 'expo-router/head';
-import { ClientLanding } from '../components/landing/client-landing';
+import { ClientLandingV2 } from '../components/landing/v2/client-landing-v2';
 
 const siteUrl = (process.env.EXPO_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
 const canonicalUrl = siteUrl ? `${siteUrl}/` : '/';
@@ -23,7 +23,7 @@ export default function ClientLandingRoute() {
         <meta name="twitter:title" content="CutSync — Encontre serviços e agende seu horário" />
         <meta name="twitter:description" content="Explore serviços e consulte a agenda de cada estabelecimento antes de confirmar." />
       </Head>
-      <ClientLanding />
+      <ClientLandingV2 />
     </>
   );
 }
