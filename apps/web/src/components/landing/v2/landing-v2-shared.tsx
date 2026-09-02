@@ -1,3 +1,5 @@
+// Design: primitivos de landing v2 — hierarquia editorial (Fraunces) + grids fluidos
+// 1/2/3, espaçamento vertical responsivo (sectionGap) e reveal sutil estilo Superhuman.
 import React, { useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -16,7 +18,7 @@ import {
   landingRadii,
   landingTypography,
 } from '../../../theme/landing-tokens';
-import { resolveCellWidth, useLandingLayout } from '../landing-layout';
+import { resolveCellWidth, resolveTypeSize, useLandingLayout } from '../landing-layout';
 import { MagneticButton, MaskedReveal, SectionReveal, StaggerGroup, StaggerItem } from '../motion/landing-effects';
 import { LandingSectionId } from '../landing-content';
 
@@ -53,18 +55,23 @@ export const V2SectionHeading = ({
   description?: string;
   align?: 'left' | 'center';
   detail?: React.ReactNode;
-}) => (
-  <View style={[styles.heading, align === 'center' && styles.headingCenter]}>
-    {eyebrow ? <V2Eyebrow>{eyebrow}</V2Eyebrow> : null}
-    {title ? (
-      <MaskedReveal>
-        <Text style={styles.headingTitle}>{title}</Text>
-      </MaskedReveal>
-    ) : null}
-    {description ? <Text style={[styles.headingDescription, align === 'center' && styles.headingDescriptionCenter]}>{description}</Text> : null}
-    {detail}
-  </View>
-);
+}) => {
+  const { breakpoint } = useLandingLayout();
+  const titleSize = resolveTypeSize('sectionTitle', breakpoint);
+  const headingGap = breakpoint === 'desktop' ? 48 : breakpoint === 'tablet' ? 42 : 34;
+  return (
+    <View style={[styles.heading, align === 'center' && styles.headingCenter, { marginBottom: headingGap }]}>
+      {eyebrow ? <V2Eyebrow>{eyebrow}</V2Eyebrow> : null}
+      {title ? (
+        <MaskedReveal>
+          <Text style={[styles.headingTitle, { fontSize: titleSize, lineHeight: titleSize * 1.16, letterSpacing: titleSize * -0.028 }]}>{title}</Text>
+        </MaskedReveal>
+      ) : null}
+      {description ? <Text style={[styles.headingDescription, align === 'center' && styles.headingDescriptionCenter]}>{description}</Text> : null}
+      {detail}
+    </View>
+  );
+};
 
 export const V2Section = ({
   id,
@@ -88,14 +95,18 @@ export const V2Section = ({
   onReveal?: () => void;
   testID?: string;
   detail?: React.ReactNode;
-}) => (
-  <SectionReveal testID={testID} onLayout={onLayout} onReveal={onReveal} style={styles.section}>
-    {(eyebrow || title || description) && (
-      <V2SectionHeading eyebrow={eyebrow} title={title} description={description} align={align} detail={detail} />
-    )}
-    {children}
-  </SectionReveal>
-);
+}) => {
+  const { sectionGap, gutter } = useLandingLayout();
+  const sectionPad = Math.round(sectionGap * 0.8);
+  return (
+    <SectionReveal testID={testID} onLayout={onLayout} onReveal={onReveal} style={[styles.section, { paddingVertical: sectionPad, gap: gutter * 1.5 }]}>
+      {(eyebrow || title || description) && (
+        <V2SectionHeading eyebrow={eyebrow} title={title} description={description} align={align} detail={detail} />
+      )}
+      {children}
+    </SectionReveal>
+  );
+};
 
 export const V2BrandMark = () => (
   <View style={styles.brandRow}>
@@ -228,7 +239,7 @@ export const V2Footer = ({ audience, onNavigate }: { audience: 'client' | 'busin
 
 export const V2StepList = ({ steps }: { steps: readonly { title: string; description: string }[] }) => {
   const { gutter, contentWidth, columns } = useLandingLayout();
-  const cellWidth = resolveCellWidth(contentWidth, Math.min(steps.length, columns + 1), gutter, 3);
+  const cellWidth = resolveCellWidth(contentWidth, Math.min(steps.length, columns), gutter, 3);
   return (
     <StaggerGroup style={[styles.stepGrid, { gap: gutter }]}>
       {steps.map((step, index) => (
@@ -244,7 +255,7 @@ export const V2StepList = ({ steps }: { steps: readonly { title: string; descrip
 
 export const V2FeatureGrid = ({ items }: { items: readonly { title: string; description: string; icon?: IconComponent }[] }) => {
   const { gutter, contentWidth, columns } = useLandingLayout();
-  const cellWidth = resolveCellWidth(contentWidth, Math.min(items.length, columns + 1), gutter, 3);
+  const cellWidth = resolveCellWidth(contentWidth, Math.min(items.length, columns), gutter, 3);
   return (
     <StaggerGroup style={[styles.featureGrid, { gap: gutter }]}>
       {items.map((item, index) => {
@@ -265,7 +276,7 @@ export const V2FeatureGrid = ({ items }: { items: readonly { title: string; desc
 
 export const V2Ecosystem = ({ steps, note }: { steps: readonly { role: string; title: string; description: string }[]; note?: string }) => {
   const { gutter, contentWidth, columns } = useLandingLayout();
-  const cellWidth = resolveCellWidth(contentWidth, Math.min(steps.length, columns + 1), gutter, 3);
+  const cellWidth = resolveCellWidth(contentWidth, Math.min(steps.length, columns), gutter, 3);
   return (
     <View>
       <StaggerGroup style={[styles.ecosystemGrid, { gap: gutter }]}>
@@ -301,8 +312,9 @@ export const V2SecurityList = ({ items }: { items: readonly { title: string; des
 };
 
 export const V2BrandValues = ({ values }: { values: readonly { title: string; description: string }[] }) => {
-  const { gutter, contentWidth, columns } = useLandingLayout();
-  const cellWidth = resolveCellWidth(contentWidth, Math.min(values.length, columns + 1), gutter, 4);
+  const { breakpoint, gutter, contentWidth, columns } = useLandingLayout();
+  const valueColumns = breakpoint === 'phone' ? 1 : 2;
+  const cellWidth = resolveCellWidth(contentWidth, Math.min(values.length, valueColumns), gutter, 2);
   return (
     <StaggerGroup style={[styles.valuesGrid, { gap: gutter }]}>
       {values.map((value, index) => (
@@ -388,12 +400,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: landingColors.brand, fontFamily: landingTypography.bodySemiBold, fontSize: 11.5, letterSpacing: 2, textTransform: 'uppercase' },
   eyebrowAccent: { color: landingColors.accent },
   eyebrowMuted: { color: landingColors.inkMuted },
-  heading: { maxWidth: 760, gap: 14, marginBottom: 40 },
+  heading: { maxWidth: 760, gap: 14 },
   headingCenter: { maxWidth: 760, alignSelf: 'center', alignItems: 'center', textAlign: 'center' },
-  headingTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 34, lineHeight: 40, letterSpacing: -1.2 },
+  headingTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold },
   headingDescription: { maxWidth: 640, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 16, lineHeight: 26 },
   headingDescriptionCenter: { textAlign: 'center' },
-  section: { paddingVertical: 56, gap: 36 },
+  section: { width: '100%' },
 
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brandMark: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brand },
@@ -425,20 +437,20 @@ const styles = StyleSheet.create({
   footerDot: { color: landingColors.inkMuted },
 
   stepGrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
-  stepItem: { padding: 22, gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface },
+  stepItem: { padding: 22, gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.md, backgroundColor: landingColors.surface },
   stepIndex: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
   stepIndexText: { color: landingColors.brand, fontFamily: landingTypography.mono, fontSize: 14 },
   stepTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 17 },
   stepDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22 },
 
   featureGrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
-  featureCard: { padding: 22, gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface },
+  featureCard: { padding: 22, gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.md, backgroundColor: landingColors.surface },
   featureIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.brandSoft },
   featureTitle: { color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 16 },
   featureDescription: { color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 13.5, lineHeight: 21 },
 
   ecosystemGrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
-  ecosystemCard: { padding: 22, gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface },
+  ecosystemCard: { padding: 22, gap: 12, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.md, backgroundColor: landingColors.surface },
   ecosystemStep: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: landingColors.canvasWarm },
   ecosystemStepText: { color: landingColors.inkMuted, fontFamily: landingTypography.mono, fontSize: 12 },
   ecosystemRoleChip: { alignSelf: 'flex-start', paddingHorizontal: 11, paddingVertical: 5, borderRadius: landingRadii.pill, backgroundColor: landingColors.accentSoft },
@@ -466,7 +478,7 @@ const styles = StyleSheet.create({
   faqQuestionText: { flex: 1, color: landingColors.ink, fontFamily: landingTypography.bodySemiBold, fontSize: 14.5, lineHeight: 20 },
   faqAnswer: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 2, color: landingColors.inkSecondary, fontFamily: landingTypography.body, fontSize: 14, lineHeight: 22 },
 
-  ctaBand: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24, paddingVertical: 40, paddingHorizontal: 40, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.xl, backgroundColor: landingColors.surfaceSoft },
+  ctaBand: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24, paddingVertical: 40, paddingHorizontal: 40, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surfaceSoft },
   ctaBandBrand: { backgroundColor: landingColors.brandStrong },
   ctaCopy: { flex: 1, minWidth: 240, gap: 12, maxWidth: 620 },
   ctaTitle: { color: landingColors.ink, fontFamily: landingTypography.displaySemiBold, fontSize: 26, lineHeight: 32, letterSpacing: -0.8 },
@@ -475,7 +487,7 @@ const styles = StyleSheet.create({
   ctaDescriptionBrand: { color: landingColors.onBrand },
   ctaActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
-  testimonial: { flex: 1, minWidth: 260, padding: 24, gap: 14, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.lg, backgroundColor: landingColors.surface },
+  testimonial: { flex: 1, minWidth: 260, padding: 24, gap: 14, borderWidth: 1, borderColor: landingColors.border, borderRadius: landingRadii.md, backgroundColor: landingColors.surface },
   testimonialQuote: { color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 15, lineHeight: 24 },
   testimonialAuthor: { color: landingColors.inkMuted, fontFamily: landingTypography.bodySemiBold, fontSize: 12.5 },
 });

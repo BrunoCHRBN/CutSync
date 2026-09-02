@@ -1,3 +1,5 @@
+// Design: landing de estabelecimentos v2 — hierarquia de solução + comparação
+// antes/depois e toggle de persona; grades fluidas 1/2/3 e reveal sutil.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,

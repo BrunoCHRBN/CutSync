@@ -1,3 +1,5 @@
+// Design: landing do cliente v2 — hero de busca editorial com grade de cards 1/2/3
+// fluida; submit de busca ocupa largura total no mobile para toque confortável.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -599,7 +601,7 @@ const styles = StyleSheet.create({
   searchDividerStacked: { width: '100%', height: 1, alignSelf: 'auto', marginVertical: 0 },
   input: { flex: 1, minWidth: 0, color: landingColors.ink, fontFamily: landingTypography.body, fontSize: 14, outlineStyle: 'none' } as never,
   searchSubmit: { minHeight: 50, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: landingRadii.pill, backgroundColor: landingColors.brand },
-  searchSubmitStacked: { minHeight: 52 },
+  searchSubmitStacked: { width: '100%', minHeight: 54, marginTop: 4 },
   searchSubmitText: { color: landingColors.white, fontFamily: landingTypography.bodySemiBold, fontSize: 14 },
   chips: { gap: 8, paddingVertical: 2 },
   chip: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 15, borderRadius: landingRadii.pill, backgroundColor: landingColors.surface, borderWidth: 1, borderColor: landingColors.border },
