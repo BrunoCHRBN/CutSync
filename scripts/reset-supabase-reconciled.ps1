@@ -9,27 +9,10 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $supabaseRoot = Join-Path $repoRoot 'supabase'
 $migrationRoot = Join-Path $supabaseRoot 'migrations'
 
-# These files are preserved in the repository as historical evidence, but their
-# version prefixes collide. The recovered 20260808041238-20260808041253
-# migrations carry the corresponding remote reconciliation in canonical order.
-$excludedDuplicateFiles = @(
-  '20260806000000_client_discovery_media_and_geo.sql',
-  '20260807000000_client_favorites.sql',
-  '20260811000000_access_control_audit_hardening.sql',
-  '20260811000000_appointment_price_charged_snapshot.sql'
-)
-
-$expectedDuplicateHashes = @{
-  '20260806000000_android_business_operational_cycle.sql' = '6B7AB1E37F0A69B318AFA3F17F8A0AD4C46D21D5A4DB5F515AB67EBA8A97F5DF'
-  '20260806000000_client_discovery_media_and_geo.sql' = 'F9BF2D750BC0C794396E89AEF724533184DC64E73BA7C8EE7394AA8918A91637'
-  '20260807000000_client_favorites.sql' = '649D67FCBEF92AB9F614E48ACCEF39ADD5BC7A47E3D4171D147548F444210CEE'
-  '20260807000000_establishment_client_enrichment.sql' = '5365D76E25AE4A0145276716C8B237EEBCC9850D9A30D0FBF00BAABC543754A6'
-  '20260811000000_access_control_audit_hardening.sql' = '9AB0460D06651FC148040FD121ABA3E95CE4071B466D8780BAD98D14A0950C3B'
-  '20260811000000_appointment_price_charged_snapshot.sql' = '8BB2843CF5D93DBB9A66707B7F9FA77EF1104486FDC05E2FA78816D2495C860A'
-}
-
-$requiredRecoveredFiles = @(
+$requiredCanonicalFiles = @(
   '20260101000000_base_schema.sql',
+  '20260806000000_android_business_operational_cycle.sql',
+  '20260807000000_establishment_client_enrichment.sql',
   '20260808041238_client_discovery_media_and_geo_reconciled.sql',
   '20260808041243_client_favorites_reconciled.sql',
   '20260808041248_access_control_audit_hardening_reconciled.sql',
@@ -38,35 +21,10 @@ $requiredRecoveredFiles = @(
   '20260819001000_harden_mobile_public_surface.sql'
 )
 
-foreach ($entry in $expectedDuplicateHashes.GetEnumerator()) {
-  $path = Join-Path $migrationRoot $entry.Key
-  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-    throw "Historical migration is missing: $($entry.Key)"
-  }
-
-  # Git may materialize CRLF on Windows and LF in CI. Normalize line endings
-  # before hashing so the historical-content guard is platform-independent.
-  $content = [IO.File]::ReadAllText($path)
-  $normalizedContent = $content.Replace("`r`n", "`n").Replace("`r", "`n")
-  $normalizedBytes = [Text.Encoding]::UTF8.GetBytes($normalizedContent)
-  $sha256 = [Security.Cryptography.SHA256]::Create()
-  try {
-    $actualHash = ([BitConverter]::ToString(
-      $sha256.ComputeHash($normalizedBytes)
-    )).Replace('-', '')
-  }
-  finally {
-    $sha256.Dispose()
-  }
-  if ($actualHash -cne $entry.Value) {
-    throw "Historical migration changed: $($entry.Key). Expected $($entry.Value), got $actualHash. Reconcile deliberately before resetting."
-  }
-}
-
-foreach ($file in $requiredRecoveredFiles) {
+foreach ($file in $requiredCanonicalFiles) {
   $path = Join-Path $migrationRoot $file
   if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-    throw "Recovered remote migration is missing: $file"
+    throw "Canonical migration is missing: $file"
   }
 }
 
@@ -98,7 +56,6 @@ try {
   }
 
   Get-ChildItem -LiteralPath $migrationRoot -Filter '*.sql' -File |
-    Where-Object { $excludedDuplicateFiles -notcontains $_.Name } |
     Copy-Item -Destination $tempMigrations
 
   $duplicateVersions = Get-ChildItem -LiteralPath $tempMigrations -Filter '*.sql' -File |
@@ -111,7 +68,7 @@ try {
   }
 
   Write-Host "Resetting the local disposable database with the reconciled migration sequence."
-  Write-Host "Historical files remain unchanged in: $migrationRoot"
+  Write-Host "Canonical migrations copied from: $migrationRoot"
 
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'

@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@cutsync/database';
 
+import { controlTabSessionStorage } from './control-tab-session-storage';
+
 function sanitizeEnvironmentValue(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const value = raw.trim().replace(/[\r\n\t]+/g, '\n');
@@ -51,7 +53,8 @@ const publishableKey: string = configuredKey && isSupabaseConfigured
 
 export const supabase = createClient<Database>(url, publishableKey, {
   auth: {
-    persistSession: false,
+    storage: controlTabSessionStorage,
+    persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce',

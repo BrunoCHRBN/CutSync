@@ -1,4 +1,4 @@
--- Execute after 20260807000000_client_favorites.sql.
+-- Execute after 20260808041243_client_favorites_reconciled.sql.
 -- All fixtures and mutations are rolled back.
 \set ON_ERROR_STOP on
 

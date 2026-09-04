@@ -104,7 +104,7 @@ Terminais: `completed`, `cancelled`, `no_show`.
 | --- | --- |
 | Coluna | `public.appointments.price_charged` |
 | Tipo | `numeric(12,2)` — **reais decimais, não centavos** |
-| Migration | `20260811000000_appointment_price_charged_snapshot.sql` |
+| Migration | `20260808041253_appointment_price_charged_snapshot_reconciled.sql` |
 | Origem | trigger em create/reschedule via `get_effective_price` (após combos/promoções em `20260812000000_...`) |
 | Uso | snapshot para relatórios de produção / comissão projetada |
 | Mutação cliente | bloqueada no cancelamento (`IS NOT DISTINCT FROM`) |

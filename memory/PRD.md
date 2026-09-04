@@ -1105,7 +1105,7 @@ Code review das roles client, admin/dono e professional; apontar não conformida
 
 ## Entregue
 - Relatório completo: `/app/SECURITY_AUDIT_ACCESS_CONTROL.md`.
-- Correções aplicadas (migração `supabase/migrations/20260811000000_access_control_audit_hardening.sql`):
+- Correções aplicadas (migração `supabase/migrations/20260808041248_access_control_audit_hardening_reconciled.sql`):
   - A1 (Alto): `get_establishment_team` deixa de expor comissão/e-mail/telefone dos colegas a profissionais.
   - A2 (Alto): `establishment_reviews` não é mais legível por `anon`; leitura restrita a autor/admin/superadmin.
   - A3 (Alto): notas internas (`cancellation_note_internal`, `business_notes`) revogadas de anon/authenticated + selects explícitos no frontend.

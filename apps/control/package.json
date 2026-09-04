@@ -6,7 +6,8 @@
   "scripts": {
     "start": "expo start --web",
     "web": "expo start --web",
-    "build:web": "expo export --platform web",
+    "env:validate": "node --env-file-if-exists=.env ../../scripts/validate-control-environment.cjs",
+    "build:web": "npm run env:validate && expo export --platform web",
     "lint": "expo lint"
   },
   "dependencies": {

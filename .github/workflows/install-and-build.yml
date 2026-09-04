@@ -25,6 +25,9 @@ jobs:
       - name: Instalação de dependências
         run: npm ci
 
+      - name: Validar contrato de ambiente do Control
+        run: npm run test:control:environment
+
       - name: Verificar lint
         run: npm run lint
 

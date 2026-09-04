@@ -4,6 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
+import {
+  createControlTabSessionStorage,
+} from '../../apps/control/src/services/control-tab-session-storage';
+
 const root = process.cwd();
 const migration = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260730000000_control_access_foundation.sql'),
@@ -45,6 +49,10 @@ const supabaseClient = fs.readFileSync(
   path.join(root, 'apps/control/src/services/supabase.ts'),
   'utf8',
 ).replace(/\r\n/g, '\n');
+const controlTabStorage = fs.readFileSync(
+  path.join(root, 'apps/control/src/services/control-tab-session-storage.ts'),
+  'utf8',
+).replace(/\r\n/g, '\n');
 const controlShell = fs.readFileSync(
   path.join(root, 'apps/control/src/components/cloud/cloud-sidebar.tsx'),
   'utf8',
@@ -68,8 +76,11 @@ const routes = [
   '(control)/access.tsx',
 ];
 
-test('keeps the Control session volatile and requires real AAL2', () => {
-  expect(supabaseClient).toContain('persistSession: false');
+test('keeps the Control session scoped to one tab and requires real AAL2', () => {
+  expect(supabaseClient).toContain('storage: controlTabSessionStorage');
+  expect(supabaseClient).toContain('persistSession: true');
+  expect(controlTabStorage).toContain('globalThis.sessionStorage');
+  expect(controlTabStorage).not.toContain('localStorage');
   expect(authContext).toContain("currentLevel !== 'aal2'");
   expect(authContext).toContain("factorType: 'totp'");
   expect(authContext).not.toContain('123456');
@@ -86,6 +97,29 @@ test('keeps the Control session volatile and requires real AAL2', () => {
   expect(authContext).toContain(
     "document.addEventListener('visibilitychange', revalidateWhenVisible)",
   );
+});
+
+test('isolates persisted Control sessions by tab and falls back to volatile memory', async () => {
+  const firstTabValues = new Map<string, string>();
+  const secondTabValues = new Map<string, string>();
+  const asStorage = (values: Map<string, string>) => ({
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
+  });
+
+  const firstTab = createControlTabSessionStorage(() => asStorage(firstTabValues));
+  const secondTab = createControlTabSessionStorage(() => asStorage(secondTabValues));
+  await firstTab.setItem('control-session', 'aal2-session');
+
+  expect(await firstTab.getItem('control-session')).toBe('aal2-session');
+  expect(await secondTab.getItem('control-session')).toBeNull();
+
+  const volatileFallback = createControlTabSessionStorage(() => null);
+  await volatileFallback.setItem('control-session', 'volatile-session');
+  expect(await volatileFallback.getItem('control-session')).toBe('volatile-session');
+  await volatileFallback.removeItem('control-session');
+  expect(await volatileFallback.getItem('control-session')).toBeNull();
 });
 
 test('defines explicit, private Control RPC grants', () => {

@@ -83,7 +83,7 @@ Coexistem `update_appointment_status` (v1, aceita motivo livre) e `update_appoin
 ---
 
 ## Correções aplicadas nesta entrega
-- **Migração:** `supabase/migrations/20260811000000_access_control_audit_hardening.sql` (A1, A2, A3, M1, M2).
+- **Migração:** `supabase/migrations/20260808041248_access_control_audit_hardening_reconciled.sql` (A1, A2, A3, M1, M2).
 - **Frontend:** `apps/web/src/hooks/useAppointments.ts` e `apps/web/src/hooks/useNextAppointment.ts` (A3 — colunas explícitas).
 
 > ⚠️ **Ação necessária:** a migração precisa ser aplicada no banco Supabase (`supabase db push` / pipeline de migrações). Não há Postgres local neste ambiente para execução; a migração foi validada apenas quanto à sintaxe/estrutura.

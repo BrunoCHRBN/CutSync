@@ -6,6 +6,8 @@ anteriores ao cutover
 
 Data: 2026-07-30
 
+Atualização do contrato Control: 2026-08-22
+
 ## Objetivo
 
 CutSync Client e CutSync Business têm projetos EAS, binários, identificadores e
@@ -25,8 +27,15 @@ Na Vercel, o mesmo limite é explícito:
 
 - Preview da Web usa Homolog;
 - Production da Web usa `hxoenfnszrrgaqxplzmd`;
-- o Control permanece intencionalmente em Homolog nos ambientes Preview e
-  Production enquanto for a central interna dessa base.
+- Preview do Control usa Homolog;
+- o Control não pode ser promovido para outro ambiente apenas por causa do
+  alvo Vercel: `EXPO_PUBLIC_CONTROL_ENVIRONMENT` precisa declarar o ambiente e
+  corresponder ao projeto Supabase incorporado no bundle.
+
+Enquanto as migrations de Chamados não estiverem reconciliadas em Production,
+o Control Production não deve ser promovido. Isso não autoriza apontar um
+bundle rotulado como Production para Homolog: cada publicação deve permanecer
+explicitamente identificada.
 
 Uma Web Production e um APK Business Preview não compartilham dados. Para
 validar o mesmo estabelecimento, use Web Preview com mobile Preview, ou Web
@@ -85,6 +94,20 @@ e tipo da chave. Nenhum valor de credencial é registrado.
 Além da validação estrutural, o preflight consulta
 `/auth/v1/settings` sem ler ou imprimir o corpo da resposta. Assim, uma chave
 com formato válido, porém pertencente a outro projeto, também bloqueia o build.
+
+O Control aplica a mesma regra por meio de
+`scripts/validate-control-environment.cjs`. Antes de cada export web, a barreira:
+
+- exige `EXPO_PUBLIC_CONTROL_ENVIRONMENT` ou o fallback
+  `EXPO_PUBLIC_APP_ENV`;
+- aceita aliases de desenvolvimento/Preview/Homolog somente para
+  `sphbbqdgcreowxzjgibj`;
+- aceita Production somente para `hxoenfnszrrgaqxplzmd`;
+- rejeita dois rótulos públicos conflitantes;
+- valida a publishable key em `/auth/v1/settings` sem imprimir seu valor.
+
+`NODE_ENV=production` continua significando apenas bundle otimizado e não é
+usado pela barreira como prova de ambiente produtivo.
 
 ## Operação
 
